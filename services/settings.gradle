@@ -1,1 +1,11 @@
 rootProject.name = 'services'
+
+include 'services:core-api'
+include 'services:event-api'
+include 'services:order-processor'
+include 'services:payment-processor'
+include 'services:notification-sender'
+include 'services:analytics-service'
+include 'shared:common'
+include 'shared:messaging'
+include 'shared:database'

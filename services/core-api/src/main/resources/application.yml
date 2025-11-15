@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: core-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/eventpro}
+    username: ${DB_USERNAME:eventpro}
+    password: ${DB_PASSWORD:eventpro}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+aws:
+  cognito:
+    userPoolId: ${COGNITO_USER_POOL_ID}
+    clientId: ${COGNITO_CLIENT_ID}
+    region: ${AWS_REGION:us-east-1}
+  sqs:
+    orderQueueUrl: ${ORDER_QUEUE_URL}
+    paymentQueueUrl: ${PAYMENT_QUEUE_URL}
+    notificationQueueUrl: ${NOTIFICATION_QUEUE_URL}
+  secrets:
+    manager:
+      databaseSecret: ${DB_SECRET_ARN}
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.accessplus.eventpro: INFO
+    org.springframework: WARN

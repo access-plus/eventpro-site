@@ -1,0 +1,10 @@
+dependencies {
+    // AWS SDK
+    implementation 'software.amazon.awssdk:sqs:2.21.0'
+    
+    // Jackson for JSON
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    
+    // Shared common
+    implementation project(':shared:common')
+}
