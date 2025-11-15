@@ -181,3 +181,5 @@ storybook-static/
 *.tmp
 *.temp
 .cache/
+
+z_old_projects/**
