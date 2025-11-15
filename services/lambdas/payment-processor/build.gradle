@@ -1,0 +1,81 @@
+plugins {
+    id 'java'
+    id 'io.quarkus'
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    // Quarkus Platform BOM
+    implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
+    implementation enforcedPlatform("software.amazon.awssdk:bom:2.21.29")
+    
+    // Quarkus AWS Lambda
+    implementation 'io.quarkus:quarkus-amazon-lambda-rest'
+    implementation 'io.quarkus:quarkus-rest-jackson'
+    implementation 'io.quarkus:quarkus-rest'
+    implementation 'io.quarkus:quarkus-arc'
+    implementation 'io.quarkus:quarkus-hibernate-validator'
+    
+    // Database (Quarkus JPA)
+    implementation 'io.quarkus:quarkus-hibernate-orm'
+    implementation 'io.quarkus:quarkus-jdbc-postgresql'
+    
+    // AWS SDK
+    implementation 'software.amazon.awssdk:sqs'
+    implementation 'software.amazon.awssdk:secretsmanager'
+    
+    // Stripe
+    implementation 'com.stripe:stripe-java:23.6.0'
+    
+    // Logging
+    implementation 'io.quarkus:quarkus-logging-json'
+    
+    // Health checks
+    implementation 'io.quarkus:quarkus-smallrye-health'
+    
+    // Lombok
+    compileOnly 'org.projectlombok:lombok:1.18.36'
+    annotationProcessor 'org.projectlombok:lombok:1.18.36'
+    
+    // Shared modules
+    implementation project(':shared:common')
+    implementation project(':shared:messaging')
+    implementation project(':shared:database')
+    
+    // Testing
+    testImplementation 'io.quarkus:quarkus-junit5'
+}
+
+group = 'com.accessplus.eventpro'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-parameters'
+    options.compilerArgs += [
+        '-Ajackson.annotation.processing.disabled=true'
+    ]
+}
+
+compileTestJava {
+    options.encoding = 'UTF-8'
+}
+
+test {
+    systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
+}
