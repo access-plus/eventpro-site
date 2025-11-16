@@ -21,7 +21,7 @@
 
 ### Backend Setup
 
-- [ ] T001 [P] [US-INFRA-001] Create root `services/settings.gradle` with all subprojects
+- [X] T001 [P] [US-INFRA-001] Create root `services/settings.gradle` with all subprojects
 - [ ] T002 [P] [US-INFRA-001] Create root `services/build.gradle` with Java 21 and common dependencies
 - [ ] T003 [P] [US-INFRA-001] Initialize `services/core-api` Spring Boot 3.5.7 project with Gradle 8.5+
 - [ ] T004 [P] [US-INFRA-001] Initialize `services/event-api` Spring Boot 3.5.7 project with Gradle 8.5+

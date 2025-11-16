@@ -1,11 +1,16 @@
 rootProject.name = 'services'
 
-include 'services:core-api'
-include 'services:event-api'
-include 'services:lambdas:order-processor'
-include 'services:lambdas:payment-processor'
-include 'services:lambdas:notification-sender'
-include 'services:lambdas:analytics-service'
+// ECS Services (Spring Boot)
+include 'core-api'
+include 'event-api'
+
+// Lambda Functions (Quarkus)
+include 'lambdas:order-processor'
+include 'lambdas:payment-processor'
+include 'lambdas:notification-sender'
+include 'lambdas:analytics-service'
+
+// Shared Libraries
 include 'shared:common'
 include 'shared:messaging'
 include 'shared:database'
