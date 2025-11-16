@@ -46,14 +46,14 @@
 
 ### Shared Modules Setup
 
-- [ ] T020 [P] [US-INFRA-001] Create `services/shared/common` module with `build.gradle`
-- [ ] T021 [P] [US-INFRA-001] Create `services/shared/messaging` module with `build.gradle`
-- [ ] T022 [P] [US-INFRA-001] Create `services/shared/database` module with `build.gradle`
-- [ ] T023 [US-INFRA-001] Configure shared modules in root `settings.gradle`
+- [X] T020 [P] [US-INFRA-001] Create `services/shared/common` module with `build.gradle`
+- [X] T021 [P] [US-INFRA-001] Create `services/shared/messaging` module with `build.gradle`
+- [X] T022 [P] [US-INFRA-001] Create `services/shared/database` module with `build.gradle`
+- [X] T023 [US-INFRA-001] Configure shared modules in root `settings.gradle`
 
 ### Frontend Setup
 
-- [ ] T024 [P] [US-INFRA-002] Create React 19 + TypeScript + Vite project in `web/` directory
+- [X] T024 [P] [US-INFRA-002] Create React 19 + TypeScript + Vite project in `web/` directory
 - [ ] T025 [US-INFRA-002] Configure TypeScript 5.x with strict mode in `web/tsconfig.json`
 - [ ] T026 [US-INFRA-002] Configure Vite 7.x in `web/vite.config.ts`
 - [ ] T027 [US-INFRA-002] Install React Router in `web/package.json`
