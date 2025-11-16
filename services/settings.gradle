@@ -1,3 +1,14 @@
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+        mavenLocal()
+    }
+    plugins {
+        id 'io.quarkus' version '3.26.2'
+    }
+}
+
 rootProject.name = 'services'
 
 // ECS Services (Spring Boot)

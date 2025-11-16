@@ -468,11 +468,168 @@ cd services
 ./gradlew test
 
 # Run specific service tests
-./gradlew :services:core-api:test
+./gradlew :core-api:test
 
 # Run frontend tests
 cd web
 npm test
+```
+
+</details>
+
+### Services Verification
+
+<details>
+<summary>Services Verification - Clean, Build, and Test</summary>
+
+#### Clean, Build, and Test All Services
+
+```bash
+# From services/ directory
+cd services
+
+# Clean all projects
+./gradlew clean
+
+# Build all projects
+./gradlew build
+
+# Test all projects
+./gradlew test
+
+# Clean, build, and test in one command
+./gradlew clean build test
+```
+
+#### Individual Service Commands
+
+##### Core API (Spring Boot)
+
+```bash
+cd services
+
+# Clean
+./gradlew :core-api:clean
+
+# Build
+./gradlew :core-api:build
+
+# Test
+./gradlew :core-api:test
+
+# Clean, build, and test
+./gradlew :core-api:clean :core-api:build :core-api:test
+```
+
+##### Event API (Spring Boot)
+
+```bash
+cd services
+
+# Clean
+./gradlew :event-api:clean
+
+# Build
+./gradlew :event-api:build
+
+# Test
+./gradlew :event-api:test
+
+# Clean, build, and test
+./gradlew :event-api:clean :event-api:build :event-api:test
+```
+
+##### Order Processor Lambda (Quarkus)
+
+```bash
+cd services
+
+# Clean
+./gradlew :lambdas:order-processor:clean
+
+# Build
+./gradlew :lambdas:order-processor:build
+
+# Test
+./gradlew :lambdas:order-processor:test
+
+# Clean, build, and test
+./gradlew :lambdas:order-processor:clean :lambdas:order-processor:build :lambdas:order-processor:test
+```
+
+##### Payment Processor Lambda (Quarkus)
+
+```bash
+cd services
+
+# Clean
+./gradlew :lambdas:payment-processor:clean
+
+# Build
+./gradlew :lambdas:payment-processor:build
+
+# Test
+./gradlew :lambdas:payment-processor:test
+
+# Clean, build, and test
+./gradlew :lambdas:payment-processor:clean :lambdas:payment-processor:build :lambdas:payment-processor:test
+```
+
+##### Notification Sender Lambda (Quarkus)
+
+```bash
+cd services
+
+# Clean
+./gradlew :lambdas:notification-sender:clean
+
+# Build
+./gradlew :lambdas:notification-sender:build
+
+# Test
+./gradlew :lambdas:notification-sender:test
+
+# Clean, build, and test
+./gradlew :lambdas:notification-sender:clean :lambdas:notification-sender:build :lambdas:notification-sender:test
+```
+
+##### Analytics Service Lambda (Quarkus)
+
+```bash
+cd services
+
+# Clean
+./gradlew :lambdas:analytics-service:clean
+
+# Build
+./gradlew :lambdas:analytics-service:build
+
+# Test
+./gradlew :lambdas:analytics-service:test
+
+# Clean, build, and test
+./gradlew :lambdas:analytics-service:clean :lambdas:analytics-service:build :lambdas:analytics-service:test
+```
+
+#### Quick Verification Commands
+
+```bash
+cd services
+
+# Verify all APIs build successfully
+./gradlew :core-api:build :event-api:build
+
+# Verify all Lambdas build successfully
+./gradlew :lambdas:order-processor:build :lambdas:payment-processor:build :lambdas:notification-sender:build :lambdas:analytics-service:build
+
+# Run all tests without building
+./gradlew test --no-build-cache
+
+# Clean and rebuild everything
+./gradlew clean build
+
+# Full verification (clean, build, test all)
+./gradlew clean build test
 ```
 
 </details>
