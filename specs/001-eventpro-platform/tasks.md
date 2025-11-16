@@ -62,21 +62,21 @@
 
 ### UI Library Setup
 
-- [ ] T030 [US-INFRA-003] Install Tailwind CSS 3.x in `web/` directory
-- [ ] T031 [US-INFRA-003] Configure Tailwind in `web/tailwind.config.js`
-- [ ] T032 [US-INFRA-003] Initialize shadcn/ui with `npx shadcn@latest init` in `web/`
-- [ ] T033 [US-INFRA-003] Add shadcn/ui Button component: `npx shadcn@latest add button`
-- [ ] T034 [US-INFRA-003] Add shadcn/ui Card component: `npx shadcn@latest add card`
-- [ ] T035 [US-INFRA-003] Add shadcn/ui Input component: `npx shadcn@latest add input`
-- [ ] T036 [US-INFRA-003] Verify shadcn/ui components render correctly in sample page
+- [X] T030 [US-INFRA-003] Install Tailwind CSS 3.x in `web/` directory
+- [X] T031 [US-INFRA-003] Configure Tailwind in `web/tailwind.config.js`
+- [X] T032 [US-INFRA-003] Initialize shadcn/ui with `npx shadcn@latest init` in `web/`
+- [X] T033 [US-INFRA-003] Add shadcn/ui Button component: `npx shadcn@latest add button`
+- [X] T034 [US-INFRA-003] Add shadcn/ui Card component: `npx shadcn@latest add card`
+- [X] T035 [US-INFRA-003] Add shadcn/ui Input component: `npx shadcn@latest add input`
+- [X] T036 [US-INFRA-003] Verify shadcn/ui components render correctly in sample page
 
 ### State Management Setup
 
-- [ ] T037 [US-INFRA-004] Install Redux Toolkit and React-Redux in `web/package.json`
-- [ ] T038 [US-INFRA-004] Create `web/src/store/index.ts` with Redux store configuration
-- [ ] T039 [US-INFRA-004] Configure Redux DevTools integration
-- [ ] T040 [US-INFRA-004] Create `web/src/store/hooks.ts` with typed hooks (`useAppDispatch`, `useAppSelector`)
-- [ ] T041 [US-INFRA-004] Verify Redux store works with sample action/reducer
+- [X] T037 [US-INFRA-004] Install Redux Toolkit and React-Redux in `web/package.json`
+- [X] T038 [US-INFRA-004] Create `web/src/store/index.ts` with Redux store configuration
+- [X] T039 [US-INFRA-004] Configure Redux DevTools integration
+- [X] T040 [US-INFRA-004] Create `web/src/store/hooks.ts` with typed hooks (`useAppDispatch`, `useAppSelector`)
+- [X] T041 [US-INFRA-004] Verify Redux store works with sample action/reducer
 
 ### Infrastructure as Code Setup
 
