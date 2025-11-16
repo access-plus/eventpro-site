@@ -14,10 +14,9 @@ dependencies {
     implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
     implementation enforcedPlatform("software.amazon.awssdk:bom:2.21.29")
     
-    // Quarkus AWS Lambda
-    implementation 'io.quarkus:quarkus-amazon-lambda-rest'
-    implementation 'io.quarkus:quarkus-rest-jackson'
-    implementation 'io.quarkus:quarkus-rest'
+    // Quarkus AWS Lambda (for SQS event processing)
+    implementation 'io.quarkus:quarkus-amazon-lambda'
+    implementation 'io.quarkus:quarkus-jackson'
     implementation 'io.quarkus:quarkus-arc'
     implementation 'io.quarkus:quarkus-hibernate-validator'
     

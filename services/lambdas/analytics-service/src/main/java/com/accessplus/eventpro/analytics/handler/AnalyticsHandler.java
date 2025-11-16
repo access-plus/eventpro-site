@@ -5,10 +5,12 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.ScheduledEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @ApplicationScoped
+@Named("analytics")
 public class AnalyticsHandler implements RequestHandler<ScheduledEvent, Void> {
     
     // Inject your services here

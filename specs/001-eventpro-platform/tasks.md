@@ -37,12 +37,12 @@
 
 ### Lambda Setup
 
-- [ ] T014 [P] [US-INFRA-001] Initialize `services/lambdas/order-processor` Quarkus 3.26.2+ project with Gradle
-- [ ] T015 [P] [US-INFRA-001] Initialize `services/lambdas/payment-processor` Quarkus 3.26.2+ project with Gradle
-- [ ] T016 [P] [US-INFRA-001] Initialize `services/lambdas/notification-sender` Quarkus 3.26.2+ project with Gradle
-- [ ] T017 [P] [US-INFRA-001] Initialize `services/lambdas/analytics-service` Quarkus 3.26.2+ project with Gradle
-- [ ] T018 [US-INFRA-001] Add Quarkus AWS Lambda dependencies to all Lambda projects
-- [ ] T019 [US-INFRA-001] Configure `quarkus.lambda.handler` in each Lambda's `application.properties`
+- [X] T014 [P] [US-INFRA-001] Initialize `services/lambdas/order-processor` Quarkus 3.26.2+ project with Gradle
+- [X] T015 [P] [US-INFRA-001] Initialize `services/lambdas/payment-processor` Quarkus 3.26.2+ project with Gradle
+- [X] T016 [P] [US-INFRA-001] Initialize `services/lambdas/notification-sender` Quarkus 3.26.2+ project with Gradle
+- [X] T017 [P] [US-INFRA-001] Initialize `services/lambdas/analytics-service` Quarkus 3.26.2+ project with Gradle
+- [X] T018 [US-INFRA-001] Add Quarkus AWS Lambda dependencies to all Lambda projects
+- [X] T019 [US-INFRA-001] Configure `quarkus.lambda.handler` in each Lambda's `application.properties`
 
 ### Shared Modules Setup
 

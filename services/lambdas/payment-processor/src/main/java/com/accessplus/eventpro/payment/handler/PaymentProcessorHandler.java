@@ -6,10 +6,12 @@ import com.amazonaws.services.lambda.runtime.events.SQSEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @ApplicationScoped
+@Named("paymentProcessor")
 public class PaymentProcessorHandler implements RequestHandler<SQSEvent, Void> {
     
     @Inject

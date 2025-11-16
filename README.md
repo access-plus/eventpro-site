@@ -38,7 +38,8 @@ The platform is built using a **microservices architecture** with **event-driven
 
 ## Architecture
 
-### High-Level Architecture
+<details>
+<summary>High-Level Architecture</summary>
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -98,7 +99,10 @@ The platform is built using a **microservices architecture** with **event-driven
             └──────────────┘    └──────────────┘
 ```
 
-### Service Breakdown
+</details>
+
+<details>
+<summary>Service Breakdown</summary>
 
 #### 1. **Core API Service** (ECS Fargate - Spring Boot)
 - **Port**: 8080
@@ -129,7 +133,10 @@ The platform is built using a **microservices architecture** with **event-driven
 - **Trigger**: EventBridge (scheduled) or on-demand
 - **Responsibilities**: Real-time analytics, event metrics, sales reports
 
-### Why This Architecture?
+</details>
+
+<details>
+<summary>Why This Architecture?</summary>
 
 - **Microservices**: Independent scaling, isolated failure domains, technology flexibility
 - **Event-Driven**: Asynchronous processing for better performance and resilience
@@ -137,7 +144,12 @@ The platform is built using a **microservices architecture** with **event-driven
 - **ECS Fargate**: Always-on services for synchronous operations, better for long-running connections
 - **PostgreSQL**: Complex relational data, ACID transactions, cost-effective for steady workloads
 
+</details>
+
 ## Technology Stack
+
+<details>
+<summary>Technology Stack</summary>
 
 ### Frontend
 - **Framework**: React 19
@@ -211,7 +223,12 @@ The platform is built using a **microservices architecture** with **event-driven
 - **Platform Oversight**: Monitor platform health and performance
 - **Analytics**: Platform-wide analytics and reporting
 
+</details>
+
 ## Project Structure
+
+<details>
+<summary>Project Structure</summary>
 
 ```
 eventpro-site/
@@ -256,6 +273,8 @@ eventpro-site/
     └── user-stories.md
 ```
 
+</details>
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
@@ -268,6 +287,9 @@ Before you begin, ensure you have the following installed:
 - **Terraform** - [Download](https://www.terraform.io/downloads) (for infrastructure)
 - **Git** - [Download](https://git-scm.com/downloads)
 
+<details>
+<summary>AWS Account Setup</summary>
+
 ### AWS Account Setup
 
 1. Create an AWS account
@@ -277,7 +299,12 @@ Before you begin, ensure you have the following installed:
    ```
 3. Set up IAM user with appropriate permissions for development
 
+</details>
+
 ## Getting Started
+
+<details>
+<summary>Getting Started</summary>
 
 ### 1. Clone the Repository
 
@@ -353,7 +380,12 @@ VITE_COGNITO_CLIENT_ID=your-client-id
 VITE_AWS_REGION=us-east-1
 ```
 
+</details>
+
 ## Running the Application
+
+<details>
+<summary>Running the Application</summary>
 
 ### Local Development Setup
 
@@ -423,7 +455,12 @@ npm run dev
 
 The frontend will be available at `http://localhost:5173`
 
+</details>
+
 ### Running Tests
+
+<details>
+<summary>Running Tests</summary>
 
 ```bash
 # Run all tests
@@ -438,7 +475,12 @@ cd web
 npm test
 ```
 
+</details>
+
 ### Building for Production
+
+<details>
+<summary>Building for Production</summary>
 
 #### Backend Services
 
@@ -461,7 +503,12 @@ npm run build
 # Production build will be in: dist/
 ```
 
+</details>
+
 ## Using the Application
+
+<details>
+<summary>Using the Application</summary>
 
 ### For End Users
 
@@ -542,7 +589,12 @@ npm run build
 - `GET /api/v1/events/search` - Search events
 - `GET /api/v1/events/analytics` - Event analytics (admin/organizer)
 
+</details>
+
 ## Development Workflow
+
+<details>
+<summary>Development Workflow</summary>
 
 ### Git Workflow
 
@@ -586,7 +638,12 @@ cd web
 npm run lint
 ```
 
+</details>
+
 ## Deployment
+
+<details>
+<summary>Deployment</summary>
 
 ### Infrastructure Deployment
 
@@ -661,6 +718,8 @@ The project uses GitLab CI/CD with the following stages:
 3. **Deploy**: Deploy to dev/prod environments
 
 See `.gitlab-ci.yml` for detailed pipeline configuration.
+
+</details>
 
 ## Documentation
 
