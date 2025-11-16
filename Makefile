@@ -1,8 +1,9 @@
-.PHONY: help clean build test verify all
+.PHONY: help clean build test verify all web-build web-dev web-preview
 
 # Variables
 SERVICES_DIR := services
 GRADLEW := $(SERVICES_DIR)/gradlew
+WEB_DIR := web
 
 # Default target
 .DEFAULT_GOAL := help
@@ -52,6 +53,11 @@ help:
 	@echo "  make analytics-service-build - Build Analytics Service"
 	@echo "  make analytics-service-test  - Test Analytics Service"
 	@echo "  make analytics-service       - Clean, build, and test Analytics Service"
+	@echo ""
+	@echo "Web Frontend (React + Vite):"
+	@echo "  make web-build              - Build Web Frontend"
+	@echo "  make web-dev                - Start Web development server"
+	@echo "  make web-preview            - Preview production build"
 	@echo ""
 	@echo "Quick Verification:"
 	@echo "  make verify-apis    - Verify all APIs build successfully"
@@ -186,4 +192,17 @@ test-no-cache:
 
 rebuild: clean build
 	@echo "Rebuild complete!"
+
+# Web Frontend
+web-build:
+	@echo "Building Web Frontend..."
+	cd $(WEB_DIR) && npm run build
+
+web-dev:
+	@echo "Starting Web development server..."
+	cd $(WEB_DIR) && npm run dev
+
+web-preview:
+	@echo "Previewing Web production build..."
+	cd $(WEB_DIR) && npm run preview
 

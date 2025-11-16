@@ -54,11 +54,11 @@
 ### Frontend Setup
 
 - [X] T024 [P] [US-INFRA-002] Create React 19 + TypeScript + Vite project in `web/` directory
-- [ ] T025 [US-INFRA-002] Configure TypeScript 5.x with strict mode in `web/tsconfig.json`
-- [ ] T026 [US-INFRA-002] Configure Vite 7.x in `web/vite.config.ts`
-- [ ] T027 [US-INFRA-002] Install React Router in `web/package.json`
-- [ ] T028 [US-INFRA-002] Create basic routing structure in `web/src/App.tsx`
-- [ ] T029 [US-INFRA-002] Verify frontend runs on localhost:5173 with HMR working
+- [X] T025 [US-INFRA-002] Configure TypeScript 5.x with strict mode in `web/tsconfig.json`
+- [X] T026 [US-INFRA-002] Configure Vite 7.x in `web/vite.config.ts`
+- [X] T027 [US-INFRA-002] Install React Router in `web/package.json`
+- [X] T028 [US-INFRA-002] Create basic routing structure in `web/src/App.tsx`
+- [X] T029 [US-INFRA-002] Verify frontend runs on localhost:5173 with HMR working
 
 ### UI Library Setup
 
