@@ -81,3 +81,9 @@ output "db_instance_storage_encrypted" {
   value       = aws_db_instance.main.storage_encrypted
 }
 
+output "db_password" {
+  description = "The generated password for the master DB user"
+  value       = random_password.db_password.result
+  sensitive   = true
+}
+

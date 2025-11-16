@@ -27,8 +27,7 @@ module "rds" {
   name_prefix          = var.name_prefix
   db_instance_identifier = "${var.name_prefix}-rds"
   db_name             = var.db_name
-  db_username         = var.db_username
-  db_password         = var.db_password
+  # db_username and db_password are now auto-generated in the module
   instance_class      = var.db_instance_class
   multi_az            = var.db_multi_az
   private_subnet_ids  = module.vpc.private_subnet_ids
@@ -197,8 +196,8 @@ module "secrets_manager" {
       name        = "database-credentials"
       description = "RDS PostgreSQL database credentials"
       secret_key_value = {
-        username = var.db_username
-        password = var.db_password
+        username = module.rds.db_instance_username
+        password = module.rds.db_password
         engine   = "postgres"
         host     = module.rds.db_instance_endpoint
         port     = tostring(module.rds.db_instance_port)
@@ -273,11 +272,11 @@ module "ecs_core_api" {
     },
     {
       name  = "DB_USERNAME"
-      value = var.db_username
+      value = module.rds.db_instance_username
     },
     {
       name  = "DB_PASSWORD"
-      value = var.db_password
+      value = module.rds.db_password
     },
     {
       name  = "COGNITO_USER_POOL_ID"
@@ -378,11 +377,11 @@ module "ecs_event_api" {
     },
     {
       name  = "DB_USERNAME"
-      value = var.db_username
+      value = module.rds.db_instance_username
     },
     {
       name  = "DB_PASSWORD"
-      value = var.db_password
+      value = module.rds.db_password
     },
     {
       name  = "COGNITO_USER_POOL_ID"

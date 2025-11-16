@@ -17,15 +17,17 @@ variable "db_name" {
 }
 
 variable "db_username" {
-  description = "Username for the master DB user"
+  description = "Username for the master DB user (deprecated - now hardcoded to 'accessplus')"
   type        = string
   sensitive   = true
+  default     = "accessplus"
 }
 
 variable "db_password" {
-  description = "Password for the master DB user"
+  description = "Password for the master DB user (deprecated - now auto-generated)"
   type        = string
   sensitive   = true
+  default     = null
 }
 
 variable "engine_version" {
