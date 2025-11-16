@@ -80,42 +80,46 @@
 
 ### Infrastructure as Code Setup
 
-- [ ] T042 [P] [US-INFRA-005] Create `terraform/modules/vpc/main.tf` with VPC configuration
-- [ ] T043 [P] [US-INFRA-005] Create `terraform/modules/vpc/variables.tf` and `outputs.tf`
-- [ ] T044 [P] [US-INFRA-006] Create `terraform/modules/rds/main.tf` for PostgreSQL 15+ RDS
-- [ ] T045 [P] [US-INFRA-006] Create `terraform/modules/rds/variables.tf` and `outputs.tf`
-- [ ] T046 [P] [US-INFRA-007] Create `terraform/modules/ecs/main.tf` for ECS Fargate cluster
-- [ ] T047 [P] [US-INFRA-007] Create `terraform/modules/ecs/variables.tf` and `outputs.tf`
-- [ ] T048 [P] [US-INFRA-008] Create `terraform/modules/alb/main.tf` for Application Load Balancer
-- [ ] T049 [P] [US-INFRA-008] Create `terraform/modules/alb/variables.tf` and `outputs.tf`
-- [ ] T050 [P] [US-INFRA-009] Create `terraform/modules/s3/main.tf` for images and frontend buckets
-- [ ] T051 [P] [US-INFRA-009] Create `terraform/modules/s3/variables.tf` and `outputs.tf`
-- [ ] T052 [P] [US-INFRA-010] Create `terraform/modules/cloudfront/main.tf` for CDN distribution
-- [ ] T053 [P] [US-INFRA-010] Create `terraform/modules/cloudfront/variables.tf` and `outputs.tf`
-- [ ] T054 [P] [US-INFRA-011] Create `terraform/modules/cognito/main.tf` for Cognito User Pool
-- [ ] T055 [P] [US-INFRA-011] Create `terraform/modules/cognito/variables.tf` and `outputs.tf`
-- [ ] T056 [P] [US-INFRA-012] Create `terraform/modules/secrets-manager/main.tf` for secrets
-- [ ] T057 [P] [US-INFRA-012] Create `terraform/modules/secrets-manager/variables.tf` and `outputs.tf`
-- [ ] T058 [P] [US-INFRA-013] Create `terraform/modules/route53/main.tf` for DNS
-- [ ] T059 [P] [US-INFRA-013] Create `terraform/modules/route53/variables.tf` and `outputs.tf`
-- [ ] T060 [P] [US-INFRA-014] Create `terraform/environments/dev/main.tf` using all modules
-- [ ] T061 [US-INFRA-014] Deploy dev environment infrastructure: `terraform init && terraform plan && terraform apply`
+- [X] T042 [P] [US-INFRA-005] Create `terraform/modules/vpc/main.tf` with VPC configuration
+- [X] T043 [P] [US-INFRA-005] Create `terraform/modules/vpc/variables.tf` and `outputs.tf`
+- [X] T044 [P] [US-INFRA-006] Create `terraform/modules/rds/main.tf` for PostgreSQL 16+ RDS
+- [X] T045 [P] [US-INFRA-006] Create `terraform/modules/rds/variables.tf` and `outputs.tf`
+- [X] T046 [P] [US-INFRA-007] Create `terraform/modules/ecs/main.tf` for ECS Fargate cluster
+- [X] T047 [P] [US-INFRA-007] Create `terraform/modules/ecs/variables.tf` and `outputs.tf`
+- [X] T048 [P] [US-INFRA-008] Create `terraform/modules/alb/main.tf` for Application Load Balancer
+- [X] T049 [P] [US-INFRA-008] Create `terraform/modules/alb/variables.tf` and `outputs.tf`
+- [X] T050 [P] [US-INFRA-009] Create `terraform/modules/s3/main.tf` for images and frontend buckets
+- [X] T051 [P] [US-INFRA-009] Create `terraform/modules/s3/variables.tf` and `outputs.tf`
+- [X] T052 [P] [US-INFRA-010] Create `terraform/modules/cloudfront/main.tf` for CDN distribution
+- [X] T053 [P] [US-INFRA-010] Create `terraform/modules/cloudfront/variables.tf` and `outputs.tf`
+- [X] T054 [P] [US-INFRA-011] Create `terraform/modules/cognito/main.tf` for Cognito User Pool
+- [X] T055 [P] [US-INFRA-011] Create `terraform/modules/cognito/variables.tf` and `outputs.tf`
+- [X] T056 [P] [US-INFRA-012] Create `terraform/modules/secrets-manager/main.tf` for secrets
+- [X] T057 [P] [US-INFRA-012] Create `terraform/modules/secrets-manager/variables.tf` and `outputs.tf`
+- [X] T058 [US-INFRA-013] Create `terraform/data/route53.tf` to reference existing Route53 hosted zone (data source)
+- [X] T059 [P] [US-INFRA-013] Create `terraform/modules/route53/main.tf` for DNS records (frontend, core-api, event-api)
+- [X] T060 [P] [US-INFRA-013] Create `terraform/modules/route53/variables.tf` and `outputs.tf`
+- [X] T061 [US-INFRA-013] Create Route53 A record (alias) for frontend pointing to CloudFront distribution
+- [X] T062 [US-INFRA-013] Create Route53 A record (alias) for core-api pointing to ALB
+- [X] T063 [US-INFRA-013] Create Route53 A record (alias) for event-api pointing to ALB
+- [ ] T064 [P] [US-INFRA-014] Create `terraform/environments/dev/main.tf` using all modules
+- [ ] T065 [US-INFRA-014] Deploy dev environment infrastructure: `terraform init && terraform plan && terraform apply`
 
 ### CI/CD Setup
 
-- [ ] T062 [US-INFRA-015] Create `.gitlab-ci.yml` with test stage for backend unit tests
-- [ ] T063 [US-INFRA-015] Create `.gitlab-ci.yml` with test stage for frontend unit tests
-- [ ] T064 [US-INFRA-016] Create `.gitlab-ci.yml` with build stage for Docker images
-- [ ] T065 [US-INFRA-016] Configure ECR push in build stage
-- [ ] T066 [US-INFRA-017] Create `.gitlab-ci.yml` with deploy stage for dev environment
-- [ ] T067 [US-INFRA-017] Configure blue-green deployment logic in deploy stage
+- [ ] T066 [US-INFRA-015] Create `.gitlab-ci.yml` with test stage for backend unit tests
+- [ ] T067 [US-INFRA-015] Create `.gitlab-ci.yml` with test stage for frontend unit tests
+- [ ] T068 [US-INFRA-016] Create `.gitlab-ci.yml` with build stage for Docker images
+- [ ] T069 [US-INFRA-016] Configure ECR push in build stage
+- [ ] T070 [US-INFRA-017] Create `.gitlab-ci.yml` with deploy stage for dev environment
+- [ ] T071 [US-INFRA-017] Configure blue-green deployment logic in deploy stage
 
 ### Docker Setup
 
-- [ ] T068 [US-INFRA-018] Create multi-stage `services/core-api/Dockerfile` (Gradle build + JRE runtime)
-- [ ] T069 [US-INFRA-018] Create multi-stage `services/event-api/Dockerfile` (Gradle build + JRE runtime)
-- [ ] T070 [US-INFRA-018] Create `.dockerignore` files for backend services
-- [ ] T071 [US-INFRA-018] Verify Docker images build successfully and run
+- [ ] T072 [US-INFRA-018] Create multi-stage `services/core-api/Dockerfile` (Gradle build + JRE runtime)
+- [ ] T073 [US-INFRA-018] Create multi-stage `services/event-api/Dockerfile` (Gradle build + JRE runtime)
+- [ ] T074 [US-INFRA-018] Create `.dockerignore` files for backend services
+- [ ] T075 [US-INFRA-018] Verify Docker images build successfully and run
 
 **Checkpoint**: All infrastructure and project structure ready. Development can begin.
 
@@ -129,44 +133,44 @@
 
 ### Base Entity and Common Utilities
 
-- [ ] T072 [P] [US-AUTH-003] Create `BaseEntity` abstract class in `services/shared/common/src/main/java/com/accessplus/eventpro/common/model/BaseEntity.java`
-- [ ] T073 [P] [US-AUTH-003] Add `@MappedSuperclass`, `@CreationTimestamp`, `@UpdateTimestamp` annotations
-- [ ] T074 [P] [US-AUTH-003] Create common exception classes in `services/shared/common/src/main/java/com/accessplus/eventpro/common/exception/`
-- [ ] T075 [P] [US-AUTH-003] Create `GlobalExceptionHandler` in `services/shared/common/src/main/java/com/accessplus/eventpro/common/exception/GlobalExceptionHandler.java`
-- [ ] T076 [P] [US-AUTH-003] Create utility classes in `services/shared/common/src/main/java/com/accessplus/eventpro/common/utils/`
+- [ ] T076 [P] [US-AUTH-003] Create `BaseEntity` abstract class in `services/shared/common/src/main/java/com/accessplus/eventpro/common/model/BaseEntity.java`
+- [ ] T077 [P] [US-AUTH-003] Add `@MappedSuperclass`, `@CreationTimestamp`, `@UpdateTimestamp` annotations
+- [ ] T078 [P] [US-AUTH-003] Create common exception classes in `services/shared/common/src/main/java/com/accessplus/eventpro/common/exception/`
+- [ ] T079 [P] [US-AUTH-003] Create `GlobalExceptionHandler` in `services/shared/common/src/main/java/com/accessplus/eventpro/common/exception/GlobalExceptionHandler.java`
+- [ ] T080 [P] [US-AUTH-003] Create utility classes in `services/shared/common/src/main/java/com/accessplus/eventpro/common/utils/`
 
 ### Database Configuration
 
-- [ ] T077 [US-AUTH-003] Configure PostgreSQL connection in `services/core-api/src/main/resources/application.yml`
-- [ ] T078 [US-AUTH-003] Configure PostgreSQL connection in `services/event-api/src/main/resources/application.yml`
-- [ ] T079 [US-AUTH-003] Setup Flyway or Liquibase migration framework in core-api
-- [ ] T080 [US-AUTH-003] Create `services/core-api/src/main/resources/db/migration/V1__create_base_schema.sql` (empty for now, will be populated by entity creation)
+- [ ] T081 [US-AUTH-003] Configure PostgreSQL connection in `services/core-api/src/main/resources/application.yml`
+- [ ] T082 [US-AUTH-003] Configure PostgreSQL connection in `services/event-api/src/main/resources/application.yml`
+- [ ] T083 [US-AUTH-003] Setup Flyway or Liquibase migration framework in core-api
+- [ ] T084 [US-AUTH-003] Create `services/core-api/src/main/resources/db/migration/V1__create_base_schema.sql` (empty for now, will be populated by entity creation)
 
 ### Authentication Framework
 
-- [ ] T081 [US-AUTH-001] Add AWS Cognito SDK dependency to `services/core-api/build.gradle`
-- [ ] T082 [US-AUTH-001] Create `CognitoConfig` class in `services/core-api/src/main/java/com/accessplus/eventpro/core/config/CognitoConfig.java`
-- [ ] T083 [US-AUTH-001] Configure JWT decoder for Cognito in `CognitoConfig`
-- [ ] T084 [US-AUTH-001] Create `SecurityConfig` class in `services/core-api/src/main/java/com/accessplus/eventpro/core/security/SecurityConfig.java`
-- [ ] T085 [US-AUTH-001] Configure Spring Security filter chain with OAuth2 resource server
-- [ ] T086 [US-AUTH-001] Configure JWT token validation in `SecurityConfig`
-- [ ] T087 [US-AUTH-002] Create `CognitoRoleMapper` in `services/core-api/src/main/java/com/accessplus/eventpro/core/security/CognitoRoleMapper.java`
-- [ ] T088 [US-AUTH-002] Implement mapping from Cognito groups to Spring Security roles (ADMIN, ORGANIZER, USER)
-- [ ] T089 [US-AUTH-001] Test authentication with sample protected endpoint
+- [ ] T085 [US-AUTH-001] Add AWS Cognito SDK dependency to `services/core-api/build.gradle`
+- [ ] T086 [US-AUTH-001] Create `CognitoConfig` class in `services/core-api/src/main/java/com/accessplus/eventpro/core/config/CognitoConfig.java`
+- [ ] T087 [US-AUTH-001] Configure JWT decoder for Cognito in `CognitoConfig`
+- [ ] T088 [US-AUTH-001] Create `SecurityConfig` class in `services/core-api/src/main/java/com/accessplus/eventpro/core/security/SecurityConfig.java`
+- [ ] T089 [US-AUTH-001] Configure Spring Security filter chain with OAuth2 resource server
+- [ ] T090 [US-AUTH-001] Configure JWT token validation in `SecurityConfig`
+- [ ] T091 [US-AUTH-002] Create `CognitoRoleMapper` in `services/core-api/src/main/java/com/accessplus/eventpro/core/security/CognitoRoleMapper.java`
+- [ ] T092 [US-AUTH-002] Implement mapping from Cognito groups to Spring Security roles (ADMIN, ORGANIZER, USER)
+- [ ] T093 [US-AUTH-001] Test authentication with sample protected endpoint
 
 ### SQS Messaging Framework
 
-- [ ] T090 [US-CART-004] Add AWS SQS SDK v2 dependency to `services/core-api/build.gradle`
-- [ ] T091 [US-CART-004] Create `SQSConfig` class in `services/core-api/src/main/java/com/accessplus/eventpro/core/config/SQSConfig.java`
-- [ ] T092 [US-CART-004] Create `SQSMessagePublisher` in `services/shared/messaging/src/main/java/com/accessplus/eventpro/messaging/SQSMessagePublisher.java`
-- [ ] T093 [US-CART-004] Implement methods to publish messages to order-queue, payment-queue, notification-queue
+- [ ] T094 [US-CART-004] Add AWS SQS SDK v2 dependency to `services/core-api/build.gradle`
+- [ ] T095 [US-CART-004] Create `SQSConfig` class in `services/core-api/src/main/java/com/accessplus/eventpro/core/config/SQSConfig.java`
+- [ ] T096 [US-CART-004] Create `SQSMessagePublisher` in `services/shared/messaging/src/main/java/com/accessplus/eventpro/messaging/SQSMessagePublisher.java`
+- [ ] T097 [US-CART-004] Implement methods to publish messages to order-queue, payment-queue, notification-queue
 
 ### API Structure
 
-- [ ] T094 [US-AUTH-005] Create base controller structure with `/api/v1` prefix
-- [ ] T095 [US-AUTH-005] Configure Swagger/OpenAPI documentation in `services/core-api`
-- [ ] T096 [US-AUTH-005] Create `ApiResponse` wrapper class for consistent JSON responses
-- [ ] T097 [US-AUTH-005] Create `ErrorResponse` class matching API contract schema
+- [ ] T098 [US-AUTH-005] Create base controller structure with `/api/v1` prefix
+- [ ] T099 [US-AUTH-005] Configure Swagger/OpenAPI documentation in `services/core-api`
+- [ ] T100 [US-AUTH-005] Create `ApiResponse` wrapper class for consistent JSON responses
+- [ ] T101 [US-AUTH-005] Create `ErrorResponse` class matching API contract schema
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
