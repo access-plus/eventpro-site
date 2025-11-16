@@ -1,6 +1,6 @@
 spring:
   application:
-    name: core-api
+    name: event-api
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/eventpro}
     username: ${DB_USERNAME:eventpro}
@@ -21,16 +21,15 @@ aws:
     userPoolId: ${COGNITO_USER_POOL_ID}
     clientId: ${COGNITO_CLIENT_ID}
     region: ${AWS_REGION:us-east-1}
-  sqs:
-    orderQueueUrl: ${ORDER_QUEUE_URL}
-    paymentQueueUrl: ${PAYMENT_QUEUE_URL}
-    notificationQueueUrl: ${NOTIFICATION_QUEUE_URL}
-  secrets:
-    manager:
-      databaseSecret: ${DB_SECRET_ARN}
+  s3:
+    endpoint: ${S3_ENDPOINT:}
+    region: ${AWS_REGION:us-east-1}
+  dynamodb:
+    endpoint: ${DYNAMODB_ENDPOINT:}
+    region: ${AWS_REGION:us-east-1}
 
 server:
-  port: 8080
+  port: 8081
   compression:
     enabled: true
   error:
@@ -50,3 +49,4 @@ logging:
     com.accessplus.eventpro: INFO
     org.springframework: WARN
     root: INFO
+

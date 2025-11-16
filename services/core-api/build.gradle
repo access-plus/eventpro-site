@@ -1,28 +1,36 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.7'
+    // Spring Boot 3.5.7 (version from root build.gradle ext.springBootVersion)
+    id 'org.springframework.boot' version "${project.ext.springBootVersion}"
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
+// Spring Boot configuration
+springBoot {
+    mainClass = 'com.accessplus.eventpro.core.CoreApiApplication'
+}
+
 dependencies {
-    // Spring Boot
+    // Spring Boot Starters (versions managed by BOM)
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     
-    // AWS SDK
-    implementation 'software.amazon.awssdk:s3:2.21.0'
-    implementation 'software.amazon.awssdk:sqs:2.21.0'
-    implementation 'software.amazon.awssdk:secretsmanager:2.21.0'
+    // AWS SDK v2 (using version from root build.gradle)
+    implementation platform("software.amazon.awssdk:bom:${project.ext.awsSdkVersion}")
+    implementation 'software.amazon.awssdk:s3'
+    implementation 'software.amazon.awssdk:sqs'
+    implementation 'software.amazon.awssdk:secretsmanager'
     implementation 'com.amazonaws:aws-java-sdk-cognitoidp:1.12.500'
     
     // Database
-    runtimeOnly 'org.postgresql:postgresql'
+    runtimeOnly "org.postgresql:postgresql:${project.ext.postgresqlVersion}"
     
-    // Lombok
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
+    // Lombok (using version from root build.gradle)
+    compileOnly "org.projectlombok:lombok:${project.ext.lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${project.ext.lombokVersion}"
     
     // Shared modules
     implementation project(':shared:common')
@@ -34,6 +42,13 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
 }
 
+// Disable plain JAR (only create executable JAR)
 jar {
     enabled = false
+}
+
+// Configure bootJar task
+bootJar {
+    archiveBaseName = 'core-api'
+    archiveVersion = project.version
 }

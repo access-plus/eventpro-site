@@ -22,18 +22,18 @@
 ### Backend Setup
 
 - [X] T001 [P] [US-INFRA-001] Create root `services/settings.gradle` with all subprojects
-- [ ] T002 [P] [US-INFRA-001] Create root `services/build.gradle` with Java 21 and common dependencies
-- [ ] T003 [P] [US-INFRA-001] Initialize `services/core-api` Spring Boot 3.5.7 project with Gradle 8.5+
-- [ ] T004 [P] [US-INFRA-001] Initialize `services/event-api` Spring Boot 3.5.7 project with Gradle 8.5+
-- [ ] T005 [P] [US-INFRA-001] Configure Java 21 in all backend projects (`sourceCompatibility`, `targetCompatibility`)
-- [ ] T006 [US-INFRA-001] Add Spring Boot dependencies to core-api: Web, Data JPA, Security, Actuator
-- [ ] T007 [US-INFRA-001] Add Spring Boot dependencies to event-api: Web, Data JPA, Security, Actuator
-- [ ] T008 [US-INFRA-001] Create `services/core-api/src/main/resources/application.yml` with basic configuration
-- [ ] T009 [US-INFRA-001] Create `services/event-api/src/main/resources/application.yml` with port 8081
-- [ ] T010 [US-INFRA-001] Create `CoreApiApplication.java` in `services/core-api/src/main/java/com/accessplus/eventpro/core/`
-- [ ] T011 [US-INFRA-001] Create `EventApiApplication.java` in `services/event-api/src/main/java/com/accessplus/eventpro/event/`
-- [ ] T012 [US-INFRA-001] Verify core-api runs on localhost:8080 with health check endpoint
-- [ ] T013 [US-INFRA-001] Verify event-api runs on localhost:8081 with health check endpoint
+- [X] T002 [P] [US-INFRA-001] Create root `services/build.gradle` with Java 21 and common dependencies
+- [X] T003 [P] [US-INFRA-001] Initialize `services/core-api` Spring Boot 3.5.7 project with Gradle 8.5+
+- [X] T004 [P] [US-INFRA-001] Initialize `services/event-api` Spring Boot 3.5.7 project with Gradle 8.5+
+- [X] T005 [P] [US-INFRA-001] Configure Java 21 in all backend projects (`sourceCompatibility`, `targetCompatibility`)
+- [X] T006 [US-INFRA-001] Add Spring Boot dependencies to core-api: Web, Data JPA, Security, Actuator
+- [X] T007 [US-INFRA-001] Add Spring Boot dependencies to event-api: Web, Data JPA, Security, Actuator
+- [X] T008 [US-INFRA-001] Create `services/core-api/src/main/resources/application.yml` with basic configuration
+- [X] T009 [US-INFRA-001] Create `services/event-api/src/main/resources/application.yml` with port 8081
+- [X] T010 [US-INFRA-001] Create `CoreApiApplication.java` in `services/core-api/src/main/java/com/accessplus/eventpro/core/`
+- [X] T011 [US-INFRA-001] Create `EventApiApplication.java` in `services/event-api/src/main/java/com/accessplus/eventpro/event/`
+- [X] T012 [US-INFRA-001] Verify core-api runs on localhost:8080 with health check endpoint
+- [X] T013 [US-INFRA-001] Verify event-api runs on localhost:8081 with health check endpoint
 
 ### Lambda Setup
 
