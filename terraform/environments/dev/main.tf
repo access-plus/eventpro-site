@@ -32,7 +32,7 @@ module "rds" {
   instance_class      = var.db_instance_class
   multi_az            = var.db_multi_az
   private_subnet_ids  = module.vpc.private_subnet_ids
-  rds_security_group_id = module.vpc.rds_security_group_id
+  security_group_id   = module.vpc.rds_security_group_id
 
   tags = var.tags
 }
@@ -262,18 +262,91 @@ module "ecs_core_api" {
   security_group_ids = [module.vpc.ecs_security_group_id]
   target_group_arn   = module.alb.primary_target_group_arn
 
-  environment = {
-    SPRING_PROFILES_ACTIVE = "dev"
-    DB_URL                 = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${var.db_name}"
-    DB_USERNAME            = var.db_username
-    DB_PASSWORD            = var.db_password
-    COGNITO_USER_POOL_ID   = module.cognito.user_pool_id
-    COGNITO_CLIENT_ID      = module.cognito.user_pool_client_id
-    AWS_REGION             = var.aws_region
-    DB_SECRET_ARN          = module.secrets_manager.secret_arns["database"]
-  }
+  environment_variables = [
+    {
+      name  = "SPRING_PROFILES_ACTIVE"
+      value = "dev"
+    },
+    {
+      name  = "DB_URL"
+      value = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${var.db_name}"
+    },
+    {
+      name  = "DB_USERNAME"
+      value = var.db_username
+    },
+    {
+      name  = "DB_PASSWORD"
+      value = var.db_password
+    },
+    {
+      name  = "COGNITO_USER_POOL_ID"
+      value = module.cognito.user_pool_id
+    },
+    {
+      name  = "COGNITO_CLIENT_ID"
+      value = module.cognito.user_pool_client_id
+    },
+    {
+      name  = "AWS_REGION"
+      value = var.aws_region
+    },
+    {
+      name  = "DB_SECRET_ARN"
+      value = module.secrets_manager.secret_arns["database"]
+    }
+  ]
 
   tags = var.tags
+}
+
+# Target Group for Event API
+resource "aws_lb_target_group" "event_api" {
+  name        = "${var.name_prefix}-event-api-tg"
+  port        = 8081
+  protocol    = "HTTP"
+  vpc_id      = module.vpc.vpc_id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 5
+    interval            = 30
+    path                = "/actuator/health"
+    protocol            = "HTTP"
+    matcher             = "200"
+    port                = "traffic-port"
+  }
+
+  deregistration_delay = 300
+  slow_start           = 0
+
+  tags = merge(
+    var.tags,
+    {
+      Name = "${var.name_prefix}-event-api-tg"
+    }
+  )
+}
+
+# ALB Listener Rule for Event API
+# Use HTTPS listener if certificate is provided, otherwise use HTTP listener
+resource "aws_lb_listener_rule" "event_api" {
+  listener_arn = var.alb_certificate_arn != null ? module.alb.https_listener_arn : module.alb.http_listener_arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.event_api.arn
+  }
+
+  condition {
+    host_header {
+      values = ["${var.event_api_subdomain}.${var.domain_name}"]
+    }
+  }
 }
 
 # ECS Module - Event API
@@ -292,17 +365,38 @@ module "ecs_event_api" {
 
   private_subnet_ids = module.vpc.private_subnet_ids
   security_group_ids = [module.vpc.ecs_security_group_id]
-  target_group_arn   = null # Will be configured via ALB listener rules
+  target_group_arn   = aws_lb_target_group.event_api.arn
 
-  environment = {
-    SPRING_PROFILES_ACTIVE = "dev"
-    DB_URL                 = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${var.db_name}"
-    DB_USERNAME            = var.db_username
-    DB_PASSWORD            = var.db_password
-    COGNITO_USER_POOL_ID   = module.cognito.user_pool_id
-    COGNITO_CLIENT_ID      = module.cognito.user_pool_client_id
-    AWS_REGION             = var.aws_region
-  }
+  environment_variables = [
+    {
+      name  = "SPRING_PROFILES_ACTIVE"
+      value = "dev"
+    },
+    {
+      name  = "DB_URL"
+      value = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${var.db_name}"
+    },
+    {
+      name  = "DB_USERNAME"
+      value = var.db_username
+    },
+    {
+      name  = "DB_PASSWORD"
+      value = var.db_password
+    },
+    {
+      name  = "COGNITO_USER_POOL_ID"
+      value = module.cognito.user_pool_id
+    },
+    {
+      name  = "COGNITO_CLIENT_ID"
+      value = module.cognito.user_pool_client_id
+    },
+    {
+      name  = "AWS_REGION"
+      value = var.aws_region
+    }
+  ]
 
   tags = var.tags
 }

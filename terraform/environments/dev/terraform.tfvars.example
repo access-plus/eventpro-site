@@ -1,0 +1,54 @@
+# Dev Environment - Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in the actual values
+# DO NOT commit terraform.tfvars to version control
+
+environment = "dev"
+name_prefix = "eventpro-dev"
+aws_region  = "us-east-1"
+
+# Route53 Configuration
+route53_zone_name = "example.com."  # Your existing Route53 hosted zone name (must end with .)
+route53_private_zone = false
+domain_name = "example.com"  # Your domain name without trailing dot
+
+frontend_subdomain = "app"
+core_api_subdomain = "api"
+event_api_subdomain = "events"
+
+# VPC Configuration
+vpc_cidr = "10.0.0.0/16"
+
+# RDS Configuration
+db_instance_class = "db.t3.medium"  # Use db.t3.micro for dev to save costs
+db_username       = "eventpro_admin"  # Change this
+db_password       = "CHANGE_ME_STRONG_PASSWORD"  # Change this - use a strong password
+db_name          = "eventprodb"
+db_multi_az      = false  # Set to false for dev to save costs
+
+# ECS Configuration
+ecs_container_image = "eventpro/core-api:latest"  # Update with your actual image
+ecs_desired_count   = 1  # Start with 1 for dev
+
+# ALB Configuration
+alb_certificate_arn = null  # Set to ACM certificate ARN if you have one (must be in us-east-1)
+alb_internal        = false
+
+# CloudFront Configuration
+cloudfront_certificate_arn = null  # Set to ACM certificate ARN if you have one (must be in us-east-1)
+
+# Cognito Configuration
+cognito_domain        = "eventpro-dev-auth"  # Optional: Cognito domain prefix
+cognito_certificate_arn = null  # Set to ACM certificate ARN for custom domain (must be in us-east-1)
+
+# Secrets Manager Configuration
+stripe_secret_key      = ""  # Your Stripe secret key (sk_test_... for dev)
+stripe_publishable_key = ""  # Your Stripe publishable key (pk_test_... for dev)
+
+# Tags
+tags = {
+  Environment = "dev"
+  Project     = "eventpro"
+  ManagedBy   = "terraform"
+  Owner       = "devops-team"
+}
+

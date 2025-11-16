@@ -119,16 +119,21 @@ output "event_api_fqdn" {
 # ECS Outputs
 output "ecs_cluster_id" {
   description = "ID of the ECS cluster"
-  value       = module.ecs_core_api.ecs_cluster_id
+  value       = module.ecs_core_api.cluster_id
+}
+
+output "ecs_cluster_name" {
+  description = "Name of the ECS cluster"
+  value       = module.ecs_core_api.cluster_name
 }
 
 output "ecs_core_api_service_name" {
   description = "Name of the Core API ECS service"
-  value       = module.ecs_core_api.ecs_service_name
+  value       = module.ecs_core_api.service_name
 }
 
 output "ecs_event_api_service_name" {
   description = "Name of the Event API ECS service"
-  value       = module.ecs_event_api.ecs_service_name
+  value       = module.ecs_event_api.service_name
 }
 

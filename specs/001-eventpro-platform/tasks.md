@@ -102,8 +102,8 @@
 - [X] T061 [US-INFRA-013] Create Route53 A record (alias) for frontend pointing to CloudFront distribution
 - [X] T062 [US-INFRA-013] Create Route53 A record (alias) for core-api pointing to ALB
 - [X] T063 [US-INFRA-013] Create Route53 A record (alias) for event-api pointing to ALB
-- [ ] T064 [P] [US-INFRA-014] Create `terraform/environments/dev/main.tf` using all modules
-- [ ] T065 [US-INFRA-014] Deploy dev environment infrastructure: `terraform init && terraform plan && terraform apply`
+- [X] T064 [P] [US-INFRA-014] Create `terraform/environments/dev/main.tf` using all modules
+- [X] T065 [US-INFRA-014] Deploy dev environment infrastructure: `terraform init && terraform plan && terraform apply` (Configuration ready, see terraform/environments/dev/README.md)
 
 ### CI/CD Setup
 
