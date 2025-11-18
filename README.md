@@ -639,6 +639,45 @@ cd services
 <details>
 <summary>Building for Production</summary>
 
+<details>
+<summary>Docker Image Build Commands</summary>
+
+**Important**: All Docker image build commands must be executed from within the service directory (not from the project root).
+
+#### For API Services (Core API, Event API)
+
+```bash
+# Navigate to the service directory first
+cd services/core-api
+docker build -t core-api:latest .
+
+# Or for Event API
+cd services/event-api
+docker build -t event-api:latest .
+```
+
+#### For Lambda Functions
+
+```bash
+# Navigate to the lambda service directory first
+cd services/lambdas/order-processor
+docker build -t order-processor:latest .
+
+# Or for other lambdas
+cd services/lambdas/payment-processor
+docker build -t payment-processor:latest .
+
+cd services/lambdas/notification-sender
+docker build -t notification-sender:latest .
+
+cd services/lambdas/analytics-service
+docker build -t analytics-service:latest .
+```
+
+**Note**: The Dockerfile in each service directory expects to be run from that directory's context, which is why you must execute the build command from within the service directory.
+
+</details>
+
 #### Backend Services
 
 ```bash

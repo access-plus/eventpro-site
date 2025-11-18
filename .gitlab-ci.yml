@@ -1,0 +1,125 @@
+include:
+  - local: .gitlab/templates/calculate-version.yml
+  - local: .gitlab/templates/create-release.yml
+  - local: .gitlab/templates/docker-build-ecr.yml
+  - local: .gitlab/templates/terraform-base.yml
+
+variables:
+  SERVICES: lambda,todo-app
+
+workflow:
+  rules:
+    # only run if the pipeline is triggered by a merge request or the branch is the default branch
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+stages:
+  - build
+  - docker
+  - deploy
+  - release
+  - tear-down
+
+# Use the version calculation template
+calculate-version:
+  stage: .pre
+  extends: .calculate-version
+
+check-secrets:
+  stage: .pre
+  script:
+    - echo "$CI_DEFAULT_BRANCH"
+
+
+detect-changes:
+  image: python:3.11
+  stage: .pre
+  script:
+    - echo "Starting change detection..."
+    - python .gitlab/scripts/change-detector.py --output env --output-file services.env
+  artifacts:
+    reports:
+      dotenv: services.env
+    paths:
+      - services.env
+    expire_in: 2 hour
+
+build_rotation_lambda_docker_image:
+  image: 
+    name: amazon/aws-cli:2.23.0
+    entrypoint: [""]
+  stage: docker
+  services:
+    - docker:27-dind
+  variables: 
+    DOCKER_HOST: tcp://docker:2375/
+  before_script:
+    - amazon-linux-extras install docker
+    - cd lambda
+  script:
+    - aws --version
+    - docker version
+    - docker build -t $ECR_REGISTRY/todo-db-rotation-lambda:$VERSION .
+    - aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+    - docker push $ECR_REGISTRY/todo-db-rotation-lambda:$VERSION
+
+build_core_api_docker_image:
+  image: 
+    name: amazon/aws-cli:2.23.0
+    entrypoint: [""]
+  stage: docker
+  services:
+    - docker:27-dind
+  variables: 
+    DOCKER_HOST: tcp://docker:2375/
+  before_script:
+    - amazon-linux-extras install docker
+  script:
+    - aws --version
+    - docker version
+    - docker build -t $ECR_REGISTRY/todo-app:$VERSION .
+    - aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+    - docker push $ECR_REGISTRY/todo-app:$VERSION
+
+deploy-todo-app:
+  extends: .terraform-base
+  stage: deploy
+  needs:
+    - job: calculate-version
+      artifacts: true
+    - job: build_todo_app_docker_image
+    - job: build_rotation_lambda_docker_image
+  script:
+    - |
+      terraform apply --auto-approve \
+        -var="todo_backend_image=$ECR_REGISTRY/todo-app:$VERSION" \
+        -var="rotation_lambda_image=$ECR_REGISTRY/todo-db-rotation-lambda:$VERSION"
+    # Extract ALB URL for GitLab Environment
+    - echo "ALB_URL=$(terraform output -raw alb_url)" >> deploy.env
+    - echo "Application Load Balancer URL is $(terraform output -raw alb_url)"
+  artifacts:
+    reports:
+      dotenv: deploy.env
+  environment:
+    name: production
+    url: $ALB_URL
+  when: manual
+
+create-release:
+  extends: .create-release
+  stage: release
+  needs:
+    - job: calculate-version
+      artifacts: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+tear-down-todo-app:
+  extends: .terraform-base
+  stage: tear-down
+  script:
+    - |
+      terraform destroy --auto-approve \
+        -var="todo_backend_image=$ECR_REGISTRY/todo-app:$VERSION" \
+        -var="rotation_lambda_image=$ECR_REGISTRY/todo-db-rotation-lambda:$VERSION"
+  when: manual

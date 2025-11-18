@@ -1,0 +1,26 @@
+.test-service:
+  image: eclipse-temurin:21-jdk-alpine
+  before_script:
+    - cd $SERVICE_NAME
+  script:
+    - echo "Testing $SERVICE_NAME"
+    - echo "$SERVICE_NAME_CHANGED = $SERVICE_NAME_CHANGED"
+    - |
+      if [ "$SERVICE_NAME_CHANGED" = "true" ]; then 
+        echo "$SERVICE_NAME has changes, running tests..."; 
+        ./gradlew test jacocoTestReport --info; 
+        echo "$SERVICE_NAME tests completed"; 
+        echo "Test coverage report generated"; 
+      else 
+        echo "$SERVICE_NAME has no changes, skipping tests"; 
+      fi
+  artifacts:
+    reports:
+      junit: $SERVICE_NAME/build/test-results/test/TEST-*.xml
+      coverage_report:
+        coverage_format: jacoco
+        path: $SERVICE_NAME/build/reports/jacoco/test/jacocoTestReport.xml
+    paths:
+      - $SERVICE_NAME/build/test-results/
+      - $SERVICE_NAME/build/reports/jacoco/
+    expire_in: 1 week

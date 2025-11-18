@@ -1,0 +1,8 @@
+.terraform-base:
+  image:
+    name: hashicorp/terraform:1.12.0
+    entrypoint:
+      - ''
+  before_script:
+    - cd terraform
+    - terraform init -upgrade

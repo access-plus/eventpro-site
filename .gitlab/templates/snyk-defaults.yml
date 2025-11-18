@@ -1,0 +1,12 @@
+# Optional: centralize common bits
+.snyk-defaults:
+  variables:
+    SNYK_SEVERITY_THRESHOLD: "high"   # low|medium|high|critical
+    SNYK_FAIL_ON: "all"               # all|upgradable|patchable (varies by command)
+    SNYK_PRUNE_REPEATS: "true"
+  before_script:
+    - test -n "$SNYK_TOKEN" || { echo "SNYK_TOKEN not set"; exit 1; }
+    - snyk auth "$SNYK_TOKEN"
+  artifacts:
+    when: always
+    expire_in: 1 week

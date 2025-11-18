@@ -1,0 +1,18 @@
+.build-service-docker-image:
+  image: 
+    name: amazon/aws-cli:2.23.0
+    entrypoint: [""]
+  stage: docker
+  services:
+    - docker:27-dind
+  variables: 
+    DOCKER_HOST: tcp://docker:2375/
+  before_script:
+    - amazon-linux-extras install docker
+    - cd services
+  script:
+    - aws --version
+    - docker version
+    - docker build -t -f $DOCKERFILE_PATH $ECR_REPOSITORY_IMAGE:$VERSION .
+    - aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+    - docker push $ECR_REPOSITORY_IMAGE:$VERSION
