@@ -71,12 +71,7 @@ variable "db_username" {
   description = "Database master username"
   type        = string
   sensitive   = true
-}
-
-variable "db_password" {
-  description = "Database master password"
-  type        = string
-  sensitive   = true
+  default     = "eventpro"
 }
 
 variable "db_name" {
@@ -163,3 +158,32 @@ variable "tags" {
   }
 }
 
+variable "order_processor_image" {
+  description = "Image for order processor"
+  type        = string
+}
+
+variable "payment_processor_image" {
+  description = "Image for payment processor"
+  type        = string
+}
+
+variable "notification_sender_image" {
+  description = "Image for notification sender"
+  type        = string
+}
+
+variable "analytics_service_image" {
+  description = "Image for analytics service"
+  type        = string
+}
+
+variable "core_api_image" {
+  description = "Docker image for Core API ECS container"
+  type        = string
+}
+
+variable "event_api_image" {
+  description = "Docker image for Event API ECS container"
+  type        = string
+}

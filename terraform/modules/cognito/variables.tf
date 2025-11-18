@@ -262,13 +262,13 @@ variable "explicit_auth_flows" {
 variable "access_token_validity" {
   description = "Time limit, between 5 minutes and 1 day, after which the access token is no longer valid"
   type        = number
-  default     = 60 # hours
+  default     = 24 # hours (maximum allowed)
 }
 
 variable "id_token_validity" {
   description = "Time limit, between 5 minutes and 1 day, after which the ID token is no longer valid"
   type        = number
-  default     = 60 # hours
+  default     = 24 # hours (maximum allowed)
 }
 
 variable "refresh_token_validity" {

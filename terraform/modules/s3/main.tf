@@ -79,11 +79,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "main" {
 
       # Filter
       dynamic "filter" {
-        for_each = rule.value.filter_prefix != null || length(rule.value.filter_tags) > 0 ? [1] : []
+        for_each = rule.value.filter_prefix != null || (rule.value.filter_tags != null && length(rule.value.filter_tags) > 0) ? [1] : []
         content {
           prefix = rule.value.filter_prefix
           dynamic "tag" {
-            for_each = rule.value.filter_tags
+            for_each = rule.value.filter_tags != null ? rule.value.filter_tags : {}
             content {
               key   = tag.key
               value = tag.value
@@ -119,7 +119,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "main" {
 
       # Noncurrent Version Transitions
       dynamic "noncurrent_version_transition" {
-        for_each = rule.value.noncurrent_version_transitions
+        for_each = rule.value.noncurrent_version_transitions != null ? rule.value.noncurrent_version_transitions : []
         content {
           noncurrent_days = noncurrent_version_transition.value.noncurrent_days
           storage_class   = noncurrent_version_transition.value.storage_class

@@ -187,3 +187,7 @@ storybook-static/
 # ============================================
 z_old_project
 z_old_project/**
+
+**/*.lock.hcl
+**/*.tfvars
+**/.terraform/**

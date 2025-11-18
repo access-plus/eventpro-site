@@ -65,8 +65,8 @@ resource "aws_route53_record" "records" {
     }
   }
 
-  # Multivalue Answer Routing Policy
-  multivalue_answer_routing_policy = each.value.multivalue_answer_routing_policy
+  # Multivalue Answer Routing Policy (only set when set_identifier is provided and policy is true)
+  multivalue_answer_routing_policy = each.value.set_identifier != null && each.value.multivalue_answer_routing_policy == true ? true : null
 
   # Allow Overwrite
   allow_overwrite = each.value.allow_overwrite

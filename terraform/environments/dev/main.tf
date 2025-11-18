@@ -250,7 +250,7 @@ module "ecs_core_api" {
   name_prefix    = var.name_prefix
   service_name   = "core-api"
   container_name = "core-api"
-  container_image = var.ecs_container_image
+  container_image = var.core_api_image
   container_port = 8080
 
   task_cpu    = 512
@@ -355,7 +355,7 @@ module "ecs_event_api" {
   name_prefix    = var.name_prefix
   service_name   = "event-api"
   container_name = "event-api"
-  container_image = var.ecs_container_image
+  container_image = var.event_api_image
   container_port = 8081
 
   task_cpu    = 512
@@ -394,6 +394,10 @@ module "ecs_event_api" {
     {
       name  = "AWS_REGION"
       value = var.aws_region
+    },
+    {
+      name  = "DB_SECRET_ARN"
+      value = module.secrets_manager.secret_arns["database"]
     }
   ]
 
