@@ -1,7 +1,7 @@
 include:
   - local: .gitlab/templates/calculate-version.yml
   - local: .gitlab/templates/test-service.yml
-  - local: .gitlab/templates/build-service.yml
+  - local: .gitlab/templates/build-eventpro-api.yml
   - local: .gitlab/templates/docker-build-ecr.yml
   - local: .gitlab/templates/terraform-base.yml
   - local: .gitlab/templates/create-release.yml
@@ -33,7 +33,7 @@ test-eventpro-api:
   stage: test
 
 gradle-build-eventpro-api:
-  extends: .build-service
+  extends: .build-eventpro-api
   stage: build
 
 npm-build-web:
