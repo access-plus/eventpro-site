@@ -181,3 +181,13 @@ storybook-static/
 *.tmp
 *.temp
 .cache/
+
+# ============================================
+# Old Projects / Archive Directories
+# ============================================
+z_old_project
+z_old_project/**
+
+**/*.lock.hcl
+**/*.tfvars
+**/.terraform/**

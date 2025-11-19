@@ -1,0 +1,41 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot'
+}
+
+springBoot {
+    mainClass = 'com.accessplus.eventpro.EventProApplication'
+}
+
+dependencies {
+    // Include all modules
+    implementation project(':eventpro-core')
+    implementation project(':eventpro-event')
+    implementation project(':eventpro-order')
+    implementation project(':eventpro-payment')
+    implementation project(':eventpro-notification')
+    
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    
+    // Database Migration
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+// Disable plain JAR (only create executable JAR)
+jar {
+    enabled = false
+}
+
+// Configure bootJar task
+bootJar {
+    archiveBaseName = 'eventpro-api'
+    archiveVersion = project.version
+}
+
