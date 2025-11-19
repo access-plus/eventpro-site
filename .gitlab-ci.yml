@@ -25,25 +25,6 @@ calculate-version:
   stage: .pre
   extends: .calculate-version
 
-check-secrets:
-  stage: .pre
-  script:
-    - echo "$CI_DEFAULT_BRANCH"
-
-
-detect-changes:
-  image: python:3.11
-  stage: .pre
-  script:
-    - echo "Starting change detection..."
-    - python .gitlab/scripts/change-detector.py --output env --output-file services.env
-  artifacts:
-    reports:
-      dotenv: services.env
-    paths:
-      - services.env
-    expire_in: 2 hour
-
 docker-build-secret-rotation-lambda:
   extends: .build-service-docker-image  
   variables:
@@ -52,68 +33,26 @@ docker-build-secret-rotation-lambda:
     ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/todo-db-rotation-lambda
     VERSION: $VERSION
 
-docker-build-core-api:
+docker-build-eventpro-api:
   extends: .build-service-docker-image
   variables:
-    SERVICES_DIR: services
-    DOCKERFILE_PATH: core-api/Dockerfile
-    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-core-api
+    SERVICES_DIR: eventpro-api
+    DOCKERFILE_PATH: Dockerfile
+    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-eventpro-api
     VERSION: $VERSION
 
-docker-build-event-api:
-  extends: .build-service-docker-image
-  variables:
-    SERVICES_DIR: services
-    DOCKERFILE_PATH: event-api/Dockerfile
-    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-event-api
-    VERSION: $VERSION
-
-docker-build-order-processor:
-  extends: .build-service-docker-image
-  variables:
-    SERVICES_DIR: services
-    DOCKERFILE_PATH: lambdas/order-processor/Dockerfile
-    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-order-processor
-    VERSION: $VERSION
-
-docker-build-payment-processor:
-  extends: .build-service-docker-image
-  variables:
-    SERVICES_DIR: services
-    DOCKERFILE_PATH: lambdas/payment-processor/Dockerfile
-    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-payment-processor
-    VERSION: $VERSION
-
-docker-build-notification-sender:
-  extends: .build-service-docker-image
-  variables:
-    SERVICES_DIR: services
-    DOCKERFILE_PATH: lambdas/notification-sender/Dockerfile
-    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-notification-sender
-    VERSION: $VERSION
-
-deploy-eventpro:
+terraform-deploy-eventpro:
   extends: .terraform-base
   stage: deploy
   needs:
     - job: calculate-version
       artifacts: true
     - job: docker-build-secret-rotation-lambda
-    - job: docker-build-core-api
-    - job: docker-build-event-api
-    - job: docker-build-order-processor
-    - job: docker-build-payment-processor
-    - job: docker-build-notification-sender
-    - job: docker-build-analytics-service
+    - job: docker-build-eventpro-api
   script:
     - |
       terraform apply --auto-approve \
-        -var="core-api_image=$ECR_REGISTRY/access-core-api:$VERSION" \
-        -var="event-api_image=$ECR_REGISTRY/access-event-api:$VERSION" \
-        -var="order-processor_image=$ECR_REGISTRY/access-order-processor:$VERSION" \
-        -var="payment-processor_image=$ECR_REGISTRY/access-payment-processor:$VERSION" \
-        -var="notification-sender_image=$ECR_REGISTRY/access-notification-sender:$VERSION" \
-        -var="analytics-service_image=$ECR_REGISTRY/access-analytics-service:$VERSION" \
+        -var="eventpro-api_image=$ECR_REGISTRY/access-eventpro-api:$VERSION" \
         -var="secret-rotation_lambda_image=$ECR_REGISTRY/access-secret-rotation:$VERSION" 
     # Extract ALB URL for GitLab Environment
     - echo "ALB_URL=$(terraform output -raw alb_url)" >> deploy.env
@@ -135,17 +74,12 @@ create-release:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-tear-down-eventpro:
+terraform-destroy-eventpro:
   extends: .terraform-base
   stage: tear-down
   script:
     - |
       terraform destroy --auto-approve \
-        -var="core-api_image=$ECR_REGISTRY/access-core-api:$VERSION" \
-        -var="event-api_image=$ECR_REGISTRY/access-event-api:$VERSION" \
-        -var="order-processor_image=$ECR_REGISTRY/access-order-processor:$VERSION" \
-        -var="payment-processor_image=$ECR_REGISTRY/access-payment-processor:$VERSION" \
-        -var="notification-sender_image=$ECR_REGISTRY/access-notification-sender:$VERSION" \
-        -var="analytics-service_image=$ECR_REGISTRY/access-analytics-service:$VERSION" \
+        -var="eventpro-api_image=$ECR_REGISTRY/access-eventpro-api:$VERSION" \
         -var="secret-rotation_lambda_image=$ECR_REGISTRY/access-secret-rotation:$VERSION" 
   when: manual
