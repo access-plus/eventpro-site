@@ -1,8 +1,10 @@
 include:
   - local: .gitlab/templates/calculate-version.yml
-  - local: .gitlab/templates/create-release.yml
+  - local: .gitlab/templates/test-service.yml
+  - local: .gitlab/templates/build-service.yml
   - local: .gitlab/templates/docker-build-ecr.yml
   - local: .gitlab/templates/terraform-base.yml
+  - local: .gitlab/templates/create-release.yml
 
 variables:
   SERVICES: lambda,todo-app
@@ -14,6 +16,7 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 stages:
+  - test
   - build
   - docker
   - deploy
@@ -24,6 +27,26 @@ stages:
 calculate-version:
   stage: .pre
   extends: .calculate-version
+
+test-eventpro-api:
+  extends: .test-service
+  stage: test
+
+gradle-build-eventpro-api:
+  extends: .build-service
+  stage: build
+
+npm-build-web:
+  stage: build
+  image: node:20
+  script:
+    - cd web
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - web/dist
+    expire_in: 1 hour
 
 docker-build-secret-rotation-lambda:
   extends: .build-service-docker-image  
@@ -64,6 +87,17 @@ terraform-deploy-eventpro:
     name: production
     url: $ALB_URL
   when: manual
+
+serve-web-static-files:
+  stage: build
+  image: node:20
+  script:
+    - cd web
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - web/dist
 
 create-release:
   extends: .create-release

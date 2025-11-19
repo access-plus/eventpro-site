@@ -121,9 +121,9 @@
 ### Base Entity and Common Utilities
 
 - [X] T2-001 [P] [US-AUTH-003] Create `BaseEntity` abstract class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/model/BaseEntity.java`
-- [ ] T2-002 [P] [US-AUTH-003] Create common exception classes in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/exception/`
-- [ ] T2-003 [P] [US-AUTH-003] Create `GlobalExceptionHandler` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/exception/GlobalExceptionHandler.java`
-- [ ] T2-004 [P] [US-AUTH-003] Create utility classes in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/utils/`
+- [X] T2-002 [P] [US-AUTH-003] Create common exception classes in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/exception/`
+- [X] T2-003 [P] [US-AUTH-003] Create `GlobalExceptionHandler` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/exception/GlobalExceptionHandler.java`
+- [X] T2-004 [P] [US-AUTH-003] Create utility classes in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/utils/`
 
 ### Database Configuration
 

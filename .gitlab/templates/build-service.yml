@@ -1,0 +1,16 @@
+.build-eventpro-api:
+  image: eclipse-temurin:21-jdk-alpine
+  stage: build
+  before_script:
+    - cd eventpro-api
+  script:
+    - echo "Building eventpro-api"
+    - | 
+      echo "Eventpro-api has changes, building..."; 
+      ./gradlew build -x test; 
+      echo "Eventpro-api build completed"; 
+
+  artifacts:
+    paths:
+      - eventpro-api/build/libs/
+    expire_in: 1 week
