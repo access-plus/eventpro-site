@@ -18,6 +18,12 @@ Follow-up TODOs: None
 
 ## Core Principles
 
+### Non-Negotiable Principles
+
+- Always read the entire codebase before making any changes.
+
+### Negotiable Principles
+
 ### I. Microservices Architecture (NON-NEGOTIABLE)
 EventPro Site MUST follow a microservices architecture with clear service boundaries. Each service MUST be independently deployable, scalable, and testable. Services communicate via well-defined APIs (REST) and asynchronous messaging (SQS). No shared databases between services - each service owns its data domain. This principle ensures fault isolation, independent scaling, and technology flexibility.
 
