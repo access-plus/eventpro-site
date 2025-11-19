@@ -20,6 +20,7 @@ stages:
   - build
   - docker
   - deploy
+  - post-deploy
   - release
   - tear-down
 
@@ -90,15 +91,16 @@ terraform-deploy-eventpro:
   when: manual
 
 serve-web-static-files:
-  stage: build
+  stage: post-deploy
   image: node:20
+  needs: 
+    - job: terraform-deploy-eventpro
+    - job: npm-build-web
+      artifacts: true
   script:
-    - cd web
-    - npm install
-    - npm run build
-  artifacts:
-    paths:
-      - web/dist
+    - |
+      echo "Serving web static files from $(terraform output -raw s3_bucket_name)"
+      echo "Web static files are served from $(terraform output -raw s3_bucket_name)"
 
 create-release:
   extends: .create-release
