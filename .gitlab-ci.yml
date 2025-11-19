@@ -1,0 +1,139 @@
+include:
+  - local: .gitlab/templates/calculate-version.yml
+  - local: .gitlab/templates/test-service.yml
+  - local: .gitlab/templates/build-eventpro-api.yml
+  - local: .gitlab/templates/docker-build-ecr.yml
+  - local: .gitlab/templates/terraform-base.yml
+  - local: .gitlab/templates/create-release.yml
+
+workflow:
+  rules:
+    # only run if the pipeline is triggered by a merge request or the branch is the default branch
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+stages:
+  - test
+  - build
+  - docker
+  - deploy
+  - post-deploy
+  - release
+  - tear-down
+
+# Use the version calculation template
+calculate-version:
+  stage: .pre
+  extends: .calculate-version
+
+test-eventpro-api:
+  extends: .test-service
+  stage: test
+  needs:
+    - job: calculate-version
+      artifacts: true
+
+gradle-build-eventpro-api:
+  extends: .build-eventpro-api
+  stage: build
+  needs:
+    - job: calculate-version
+      artifacts: true
+    - job: test-eventpro-api
+
+npm-build-web:
+  stage: build
+  image: node:22-alpine
+  before_script:
+    - cd web
+  script:
+    - npm ci
+    - npm run build
+  artifacts:
+    paths:
+      - web/dist/
+    expire_in: 1 week
+
+docker-build-secret-rotation-lambda:
+  extends: .build-service-docker-image  
+  variables:
+    SERVICES_DIR: secret-rotation
+    DOCKERFILE_PATH: Dockerfile
+    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-secret-rotation
+    VERSION: $VERSION
+  needs:
+    - job: calculate-version
+      artifacts: true
+
+docker-build-eventpro-api:
+  extends: .build-service-docker-image
+  variables:
+    SERVICES_DIR: eventpro-api
+    DOCKERFILE_PATH: Dockerfile
+    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-eventpro-api
+    VERSION: $VERSION
+  needs:
+    - job: calculate-version
+      artifacts: true
+    - job: gradle-build-eventpro-api
+
+terraform-deploy-eventpro:
+  extends: .terraform-base
+  stage: deploy
+  needs:
+    - job: calculate-version
+      artifacts: true
+    - job: docker-build-secret-rotation-lambda
+    - job: docker-build-eventpro-api
+  script:
+    - |
+      terraform apply --auto-approve \
+        -var="eventpro-api_image=$ECR_REGISTRY/access-eventpro-api:$VERSION" \
+        -var="secret-rotation_lambda_image=$ECR_REGISTRY/access-secret-rotation:$VERSION" 
+    # Extract ALB URL for GitLab Environment
+    - echo "ALB_URL=https://$(terraform output -raw alb_dns_name)" >> deploy.env
+    - echo "Application Load Balancer URL is https://$(terraform output -raw alb_dns_name)"
+  artifacts:
+    reports:
+      dotenv: deploy.env
+  environment:
+    name: production
+    url: $ALB_URL
+  when: manual
+
+serve-web-static-files:
+  stage: post-deploy
+  image: amazon/aws-cli:2.23.0
+  needs: 
+    - job: terraform-deploy-eventpro
+    - job: npm-build-web
+      artifacts: true
+  before_script:
+    - cd terraform/environments/dev
+  script:
+    - S3_BUCKET=$(terraform output -raw frontend_bucket_name)
+    - echo "Uploading web static files to $S3_BUCKET"
+    - aws s3 sync ../../../web/dist/ s3://$S3_BUCKET/ --delete
+    - echo "Web static files uploaded to s3://$S3_BUCKET"
+
+create-release:
+  extends: .create-release
+  stage: release
+  needs:
+    - job: calculate-version
+      artifacts: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+terraform-destroy-eventpro:
+  extends: .terraform-base
+  stage: tear-down
+  needs:
+    - job: calculate-version
+      artifacts: true
+  script:
+    - |
+      terraform destroy --auto-approve \
+        -var="eventpro-api_image=$ECR_REGISTRY/access-eventpro-api:$VERSION" \
+        -var="secret-rotation_lambda_image=$ECR_REGISTRY/access-secret-rotation:$VERSION" 
+  when: manual

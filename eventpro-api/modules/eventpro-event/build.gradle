@@ -1,0 +1,27 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    
+    // AWS SDK
+    implementation platform("software.amazon.awssdk:bom:${project.ext.awsSdkVersion}")
+    implementation 'software.amazon.awssdk:s3'
+    
+    // Database
+    runtimeOnly "org.postgresql:postgresql:${project.ext.postgresqlVersion}"
+    
+    // Lombok
+    compileOnly "org.projectlombok:lombok:${project.ext.lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${project.ext.lombokVersion}"
+    
+    // Core module dependency
+    implementation project(':eventpro-core')
+    
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
