@@ -12,8 +12,7 @@ route53_private_zone = false
 domain_name = "example.com"  # Your domain name without trailing dot
 
 frontend_subdomain = "app"
-core_api_subdomain = "api"
-event_api_subdomain = "events"
+api_subdomain = "api"
 
 # VPC Configuration
 vpc_cidr = "10.0.0.0/16"
@@ -25,9 +24,18 @@ db_password       = "CHANGE_ME_STRONG_PASSWORD"  # Change this - use a strong pa
 db_name          = "eventprodb"
 db_multi_az      = false  # Set to false for dev to save costs
 
-# ECS Configuration
-ecs_container_image = "eventpro/core-api:latest"  # Update with your actual image
-ecs_desired_count   = 1  # Start with 1 for dev
+# ECS Configuration (Modular Monolith)
+eventpro_api_image = "eventpro-api:latest"  # Update with your actual image
+ecs_desired_count  = 2  # Start with 2 for HA
+ecs_task_cpu       = 1024  # 1 vCPU
+ecs_task_memory    = 2048  # 2GB RAM
+
+# Auto-scaling Configuration
+ecs_enable_auto_scaling        = true
+ecs_autoscaling_min_capacity   = 2
+ecs_autoscaling_max_capacity   = 10
+ecs_autoscaling_cpu_target_value    = 70.0
+ecs_autoscaling_memory_target_value = 80.0
 
 # ALB Configuration
 alb_certificate_arn = null  # Set to ACM certificate ARN if you have one (must be in us-east-1)
@@ -45,13 +53,8 @@ stripe_secret_key      = ""  # Your Stripe secret key (sk_test_... for dev)
 stripe_publishable_key = ""  # Your Stripe publishable key (pk_test_... for dev)
 jwt_secret             = ""  # JWT secret key for token signing (generate a strong random string)
 
-# ECS Container Images
-core_api_image         = "eventpro/core-api:latest"
-event_api_image        = "eventpro/event-api:latest"
-order_processor_image  = "eventpro/order-processor:latest"
-payment_processor_image = "eventpro/payment-processor:latest"
-notification_sender_image = "eventpro/notification-sender:latest"
-analytics_service_image = "eventpro/analytics-service:latest"
+# Analytics Service Lambda (Optional - remains as serverless)
+# analytics_service_image = "eventpro/analytics-service:latest"
 
 # Tags
 tags = {

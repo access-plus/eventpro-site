@@ -1,99 +1,89 @@
-# Dev Environment Terraform Configuration
+# Terraform - Dev Environment
 
-This directory contains the Terraform configuration for deploying the EventPro platform infrastructure to the AWS dev environment.
+## Overview
 
-## Prerequisites
+This directory contains the Terraform configuration for the **EventPro Platform Dev Environment** using a **Modular Monolith Architecture**.
 
-1. **AWS CLI configured** with appropriate credentials
-2. **Terraform >= 1.12.0** installed
-3. **S3 backend bucket exists**: `abc-project-terraform-state`
-4. **Route53 hosted zone** already created for your domain
-5. **ACM certificates** (recommended for production, optional for dev):
-   - CloudFront certificate in `us-east-1` (required for custom domain with HTTPS)
-   - ALB certificate in `us-east-1` (required for HTTPS on ALB - currently required by ALB module)
-   
-   **Note**: The ALB module currently requires a certificate ARN. If you don't have one yet, you can:
-   - Request a certificate in ACM (us-east-1) for your domain
-   - Or modify the ALB module to make certificate_arn optional
+## Architecture
 
-## Setup
+- **Single ECS Service**: `eventpro-api` (modular monolith)
+- **Auto-scaling**: 2-10 tasks based on CPU/Memory
+- **Database**: PostgreSQL RDS (Multi-AZ optional)
+- **Load Balancer**: ALB with single target group
+- **Frontend**: S3 + CloudFront CDN
+- **Authentication**: AWS Cognito
 
-1. **Copy the example variables file:**
+## Quick Start
+
+1. **Copy example variables**:
    ```bash
    cp terraform.tfvars.example terraform.tfvars
    ```
 
-2. **Edit `terraform.tfvars`** with your actual values:
-   - Route53 zone name and domain
-   - Database credentials (use strong passwords)
-   - Stripe API keys (if available)
-   - ACM certificate ARNs (if using HTTPS)
+2. **Edit `terraform.tfvars`** with your values:
+   - Route53 zone name
+   - Domain name
+   - Database credentials
+   - Stripe keys
+   - Docker image name
 
-3. **Initialize Terraform:**
+3. **Initialize Terraform**:
    ```bash
    terraform init
    ```
 
-4. **Review the plan:**
+4. **Plan**:
    ```bash
    terraform plan
    ```
 
-5. **Apply the configuration:**
+5. **Apply**:
    ```bash
    terraform apply
    ```
 
-## Important Notes
+## Key Variables
 
-- **Costs**: This will create real AWS resources that incur costs. Monitor your AWS billing.
-- **Database Password**: Use a strong password for the RDS instance. Consider using AWS Secrets Manager to rotate it.
-- **Certificates**: If you don't have ACM certificates yet, you can deploy without HTTPS first and add certificates later.
-- **S3 Backend**: Ensure the S3 bucket `abc-project-terraform-state` exists and you have access to it.
+### Required
+- `route53_zone_name` - Your Route53 hosted zone
+- `domain_name` - Your domain name
+- `eventpro_api_image` - Docker image for the API
 
-## Module Dependencies
-
-The configuration uses the following modules (in dependency order):
-
-1. **VPC** - Network infrastructure
-2. **RDS** - PostgreSQL database (depends on VPC)
-3. **S3** - Storage buckets (images, frontend)
-4. **CloudFront** - CDN for frontend (depends on S3)
-5. **Cognito** - User authentication
-6. **Secrets Manager** - Secure secret storage
-7. **ALB** - Load balancer (depends on VPC)
-8. **ECS** - Container services (depends on VPC, ALB, RDS)
-9. **Route53** - DNS records (depends on CloudFront, ALB)
+### Optional
+- `ecs_desired_count` - Number of tasks (default: 2)
+- `ecs_task_cpu` - CPU units (default: 1024 = 1 vCPU)
+- `ecs_task_memory` - Memory in MB (default: 2048 = 2GB)
+- `ecs_enable_auto_scaling` - Enable auto-scaling (default: true)
 
 ## Outputs
 
-After deployment, you can view outputs with:
-```bash
-terraform output
-```
+After applying, you'll get:
+- `api_fqdn` - API endpoint URL
+- `frontend_fqdn` - Frontend URL
+- `ecs_cluster_name` - ECS cluster name
+- `ecs_service_name` - ECS service name
+- Database and Cognito details
 
-Key outputs include:
-- VPC ID and subnet IDs
-- RDS endpoint (sensitive)
-- ALB DNS name
-- CloudFront distribution domain
-- Cognito User Pool ID and Client ID
-- S3 bucket names
-- Route53 FQDNs for frontend and APIs
+## Cost Estimate (Dev)
 
-## Troubleshooting
+- ECS Fargate (2 tasks, 1 vCPU, 2GB each): ~$60/month
+- ALB: ~$20/month
+- RDS (db.t3.medium): ~$60/month
+- S3 + CloudFront: ~$5/month
+- **Total: ~$145/month**
 
-- **Backend errors**: Ensure the S3 bucket exists and your AWS credentials have access
-- **Route53 errors**: Verify the hosted zone name matches exactly (including trailing dot)
-- **Certificate errors**: ACM certificates must be in `us-east-1` for CloudFront
-- **RDS errors**: Ensure the database password meets AWS requirements (8+ characters, mixed case, numbers, symbols)
+## Migration Notes
 
-## Cleanup
+This configuration has been updated from microservices to modular monolith:
+- ✅ Single ECS service instead of multiple
+- ✅ Single API endpoint instead of separate endpoints
+- ✅ Removed Lambda function variables (integrated into monolith)
+- ✅ Added auto-scaling configuration
+- ✅ Updated IAM policies for all AWS services
 
-To destroy all resources (use with caution):
-```bash
-terraform destroy
-```
+## Next Steps
 
-**Warning**: This will delete all infrastructure including databases. Ensure you have backups if needed.
-
+1. Update CI/CD to build and push `eventpro-api` Docker image
+2. Configure ECR repository for the image
+3. Update environment variables as needed
+4. Test deployment

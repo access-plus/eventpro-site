@@ -106,34 +106,29 @@ output "frontend_fqdn" {
   value       = module.route53.record_fqdns["frontend"]
 }
 
-output "core_api_fqdn" {
-  description = "Fully qualified domain name for core API"
-  value       = module.route53.record_fqdns["core-api"]
-}
-
-output "event_api_fqdn" {
-  description = "Fully qualified domain name for event API"
-  value       = module.route53.record_fqdns["event-api"]
+output "api_fqdn" {
+  description = "Fully qualified domain name for API"
+  value       = module.route53.record_fqdns["api"]
 }
 
 # ECS Outputs
 output "ecs_cluster_id" {
   description = "ID of the ECS cluster"
-  value       = module.ecs_core_api.cluster_id
+  value       = module.ecs_eventpro_api.cluster_id
 }
 
 output "ecs_cluster_name" {
   description = "Name of the ECS cluster"
-  value       = module.ecs_core_api.cluster_name
+  value       = module.ecs_eventpro_api.cluster_name
 }
 
-output "ecs_core_api_service_name" {
-  description = "Name of the Core API ECS service"
-  value       = module.ecs_core_api.service_name
+output "ecs_service_name" {
+  description = "Name of the EventPro API ECS service"
+  value       = module.ecs_eventpro_api.service_name
 }
 
-output "ecs_event_api_service_name" {
-  description = "Name of the Event API ECS service"
-  value       = module.ecs_event_api.service_name
+output "ecs_service_arn" {
+  description = "ARN of the EventPro API ECS service"
+  value       = module.ecs_eventpro_api.service_arn
 }
 

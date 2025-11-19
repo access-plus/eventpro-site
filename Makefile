@@ -1,9 +1,10 @@
-.PHONY: help clean build test verify all web-build web-dev web-preview
+.PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build
 
 # Variables
-SERVICES_DIR := services
-GRADLEW := $(SERVICES_DIR)/gradlew
+API_DIR := eventpro-api
 WEB_DIR := web
+ANALYTICS_DIR := services/lambdas/analytics-service
+SECRET_ROTATION_DIR := secret-rotation
 
 # Default target
 .DEFAULT_GOAL := help
@@ -12,188 +13,166 @@ WEB_DIR := web
 help:
 	@echo "EventPro Site - Makefile Commands"
 	@echo ""
-	@echo "All Services:"
+	@echo "All Projects:"
 	@echo "  make clean          - Clean all projects"
 	@echo "  make build          - Build all projects"
 	@echo "  make test           - Test all projects"
 	@echo "  make verify         - Clean, build, and test all projects"
 	@echo ""
-	@echo "Core API (Spring Boot):"
-	@echo "  make core-api-clean - Clean Core API"
-	@echo "  make core-api-build - Build Core API"
-	@echo "  make core-api-test  - Test Core API"
-	@echo "  make core-api       - Clean, build, and test Core API"
+	@echo "EventPro API (Modular Monolith):"
+	@echo "  make api-clean      - Clean EventPro API"
+	@echo "  make api-build      - Build EventPro API"
+	@echo "  make api-test       - Test EventPro API"
+	@echo "  make api-run        - Run EventPro API locally"
+	@echo "  make api            - Clean, build, and test EventPro API"
 	@echo ""
-	@echo "Event API (Spring Boot):"
-	@echo "  make event-api-clean - Clean Event API"
-	@echo "  make event-api-build - Build Event API"
-	@echo "  make event-api-test  - Test Event API"
-	@echo "  make event-api       - Clean, build, and test Event API"
+	@echo "Individual Modules:"
+	@echo "  make core-build     - Build eventpro-core module"
+	@echo "  make event-build    - Build eventpro-event module"
+	@echo "  make order-build    - Build eventpro-order module"
+	@echo "  make payment-build  - Build eventpro-payment module"
+	@echo "  make notification-build - Build eventpro-notification module"
 	@echo ""
-	@echo "Order Processor Lambda (Quarkus):"
-	@echo "  make order-processor-clean - Clean Order Processor"
-	@echo "  make order-processor-build - Build Order Processor"
-	@echo "  make order-processor-test  - Test Order Processor"
-	@echo "  make order-processor       - Clean, build, and test Order Processor"
-	@echo ""
-	@echo "Payment Processor Lambda (Quarkus):"
-	@echo "  make payment-processor-clean - Clean Payment Processor"
-	@echo "  make payment-processor-build - Build Payment Processor"
-	@echo "  make payment-processor-test  - Test Payment Processor"
-	@echo "  make payment-processor       - Clean, build, and test Payment Processor"
-	@echo ""
-	@echo "Notification Sender Lambda (Quarkus):"
-	@echo "  make notification-sender-clean - Clean Notification Sender"
-	@echo "  make notification-sender-build - Build Notification Sender"
-	@echo "  make notification-sender-test  - Test Notification Sender"
-	@echo "  make notification-sender       - Clean, build, and test Notification Sender"
-	@echo ""
-	@echo "Analytics Service Lambda (Quarkus):"
-	@echo "  make analytics-service-clean - Clean Analytics Service"
-	@echo "  make analytics-service-build - Build Analytics Service"
-	@echo "  make analytics-service-test  - Test Analytics Service"
-	@echo "  make analytics-service       - Clean, build, and test Analytics Service"
+	@echo "Analytics Service Lambda:"
+	@echo "  make analytics-clean   - Clean Analytics Service"
+	@echo "  make analytics-build   - Build Analytics Service"
+	@echo "  make analytics-test    - Test Analytics Service"
+	@echo "  make analytics        - Clean, build, and test Analytics Service"
 	@echo ""
 	@echo "Web Frontend (React + Vite):"
-	@echo "  make web-build              - Build Web Frontend"
-	@echo "  make web-dev                - Start Web development server"
-	@echo "  make web-preview            - Preview production build"
+	@echo "  make web-build      - Build Web Frontend"
+	@echo "  make web-dev        - Start Web development server"
+	@echo "  make web-preview    - Preview production build"
 	@echo ""
-	@echo "Quick Verification:"
-	@echo "  make verify-apis    - Verify all APIs build successfully"
-	@echo "  make verify-lambdas - Verify all Lambdas build successfully"
-	@echo "  make test-no-cache  - Run all tests without build cache"
+	@echo "Docker Images:"
+	@echo "  make docker-build   - Build EventPro API Docker image"
+	@echo "  make docker-analytics - Build Analytics Service Docker image"
+	@echo "  make docker-secret-rotation - Build Secret Rotation Lambda image"
+	@echo ""
+	@echo "Quick Commands:"
 	@echo "  make rebuild        - Clean and rebuild everything"
+	@echo "  make test-no-cache  - Run all tests without build cache"
 
-# All Services - Clean, Build, Test
+# ============================================================================
+# All Projects
+# ============================================================================
+
 clean:
 	@echo "Cleaning all projects..."
-	cd $(SERVICES_DIR) && ./gradlew clean
+	cd $(API_DIR) && ./gradlew clean
+	@if [ -d "$(ANALYTICS_DIR)" ]; then \
+		cd $(ANALYTICS_DIR) && ./gradlew clean; \
+	fi
 
 build:
 	@echo "Building all projects..."
-	cd $(SERVICES_DIR) && ./gradlew build
+	cd $(API_DIR) && ./gradlew build
+	@if [ -d "$(ANALYTICS_DIR)" ]; then \
+		cd $(ANALYTICS_DIR) && ./gradlew build; \
+	fi
 
 test:
 	@echo "Testing all projects..."
-	cd $(SERVICES_DIR) && ./gradlew test
+	cd $(API_DIR) && ./gradlew test
+	@if [ -d "$(ANALYTICS_DIR)" ]; then \
+		cd $(ANALYTICS_DIR) && ./gradlew test; \
+	fi
 
 verify: clean build test
 	@echo "Verification complete!"
 
-# Core API
-core-api-clean:
-	@echo "Cleaning Core API..."
-	cd $(SERVICES_DIR) && ./gradlew :core-api:clean
-
-core-api-build:
-	@echo "Building Core API..."
-	cd $(SERVICES_DIR) && ./gradlew :core-api:build
-
-core-api-test:
-	@echo "Testing Core API..."
-	cd $(SERVICES_DIR) && ./gradlew :core-api:test
-
-core-api: core-api-clean core-api-build core-api-test
-	@echo "Core API verification complete!"
-
-# Event API
-event-api-clean:
-	@echo "Cleaning Event API..."
-	cd $(SERVICES_DIR) && ./gradlew :event-api:clean
-
-event-api-build:
-	@echo "Building Event API..."
-	cd $(SERVICES_DIR) && ./gradlew :event-api:build
-
-event-api-test:
-	@echo "Testing Event API..."
-	cd $(SERVICES_DIR) && ./gradlew :event-api:test
-
-event-api: event-api-clean event-api-build event-api-test
-	@echo "Event API verification complete!"
-
-# Order Processor Lambda
-order-processor-clean:
-	@echo "Cleaning Order Processor..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:order-processor:clean
-
-order-processor-build:
-	@echo "Building Order Processor..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:order-processor:build
-
-order-processor-test:
-	@echo "Testing Order Processor..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:order-processor:test
-
-order-processor: order-processor-clean order-processor-build order-processor-test
-	@echo "Order Processor verification complete!"
-
-# Payment Processor Lambda
-payment-processor-clean:
-	@echo "Cleaning Payment Processor..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:payment-processor:clean
-
-payment-processor-build:
-	@echo "Building Payment Processor..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:payment-processor:build
-
-payment-processor-test:
-	@echo "Testing Payment Processor..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:payment-processor:test
-
-payment-processor: payment-processor-clean payment-processor-build payment-processor-test
-	@echo "Payment Processor verification complete!"
-
-# Notification Sender Lambda
-notification-sender-clean:
-	@echo "Cleaning Notification Sender..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:notification-sender:clean
-
-notification-sender-build:
-	@echo "Building Notification Sender..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:notification-sender:build
-
-notification-sender-test:
-	@echo "Testing Notification Sender..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:notification-sender:test
-
-notification-sender: notification-sender-clean notification-sender-build notification-sender-test
-	@echo "Notification Sender verification complete!"
-
-# Analytics Service Lambda
-analytics-service-clean:
-	@echo "Cleaning Analytics Service..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:analytics-service:clean
-
-analytics-service-build:
-	@echo "Building Analytics Service..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:analytics-service:build
-
-analytics-service-test:
-	@echo "Testing Analytics Service..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:analytics-service:test
-
-analytics-service: analytics-service-clean analytics-service-build analytics-service-test
-	@echo "Analytics Service verification complete!"
-
-# Quick Verification Commands
-verify-apis:
-	@echo "Verifying all APIs build successfully..."
-	cd $(SERVICES_DIR) && ./gradlew :core-api:build :event-api:build
-
-verify-lambdas:
-	@echo "Verifying all Lambdas build successfully..."
-	cd $(SERVICES_DIR) && ./gradlew :lambdas:order-processor:build :lambdas:payment-processor:build :lambdas:notification-sender:build :lambdas:analytics-service:build
-
-test-no-cache:
-	@echo "Running all tests without build cache..."
-	cd $(SERVICES_DIR) && ./gradlew test --no-build-cache
-
 rebuild: clean build
 	@echo "Rebuild complete!"
 
+test-no-cache:
+	@echo "Running all tests without build cache..."
+	cd $(API_DIR) && ./gradlew test --no-build-cache
+	@if [ -d "$(ANALYTICS_DIR)" ]; then \
+		cd $(ANALYTICS_DIR) && ./gradlew test --no-build-cache; \
+	fi
+
+# ============================================================================
+# EventPro API (Modular Monolith)
+# ============================================================================
+
+api-clean:
+	@echo "Cleaning EventPro API..."
+	cd $(API_DIR) && ./gradlew clean
+
+api-build:
+	@echo "Building EventPro API..."
+	cd $(API_DIR) && ./gradlew build
+
+api-test:
+	@echo "Testing EventPro API..."
+	cd $(API_DIR) && ./gradlew test
+
+api-run:
+	@echo "Running EventPro API locally..."
+	cd $(API_DIR) && ./gradlew :eventpro-api:bootRun
+
+api: api-clean api-build api-test
+	@echo "EventPro API verification complete!"
+
+# ============================================================================
+# Individual Modules
+# ============================================================================
+
+core-build:
+	@echo "Building eventpro-core module..."
+	cd $(API_DIR) && ./gradlew :eventpro-core:build
+
+event-build:
+	@echo "Building eventpro-event module..."
+	cd $(API_DIR) && ./gradlew :eventpro-event:build
+
+order-build:
+	@echo "Building eventpro-order module..."
+	cd $(API_DIR) && ./gradlew :eventpro-order:build
+
+payment-build:
+	@echo "Building eventpro-payment module..."
+	cd $(API_DIR) && ./gradlew :eventpro-payment:build
+
+notification-build:
+	@echo "Building eventpro-notification module..."
+	cd $(API_DIR) && ./gradlew :eventpro-notification:build
+
+# ============================================================================
+# Analytics Service Lambda
+# ============================================================================
+
+analytics-clean:
+	@echo "Cleaning Analytics Service..."
+	@if [ -d "$(ANALYTICS_DIR)" ]; then \
+		cd $(ANALYTICS_DIR) && ./gradlew clean; \
+	else \
+		echo "Analytics Service directory not found: $(ANALYTICS_DIR)"; \
+	fi
+
+analytics-build:
+	@echo "Building Analytics Service..."
+	@if [ -d "$(ANALYTICS_DIR)" ]; then \
+		cd $(ANALYTICS_DIR) && ./gradlew build; \
+	else \
+		echo "Analytics Service directory not found: $(ANALYTICS_DIR)"; \
+	fi
+
+analytics-test:
+	@echo "Testing Analytics Service..."
+	@if [ -d "$(ANALYTICS_DIR)" ]; then \
+		cd $(ANALYTICS_DIR) && ./gradlew test; \
+	else \
+		echo "Analytics Service directory not found: $(ANALYTICS_DIR)"; \
+	fi
+
+analytics: analytics-clean analytics-build analytics-test
+	@echo "Analytics Service verification complete!"
+
+# ============================================================================
 # Web Frontend
+# ============================================================================
+
 web-build:
 	@echo "Building Web Frontend..."
 	cd $(WEB_DIR) && npm run build
@@ -206,30 +185,51 @@ web-preview:
 	@echo "Previewing Web production build..."
 	cd $(WEB_DIR) && npm run preview
 
-image-core-api:
-	@echo "Building Core API Docker image..."
-	cd $(SERVICES_DIR) && docker image build -f core-api/Dockerfile -t access-core-api:latest .
+web-install:
+	@echo "Installing Web Frontend dependencies..."
+	cd $(WEB_DIR) && npm install
 
-image-event-api:
-	@echo "Building Event API Docker image..."
-	cd $(SERVICES_DIR) && docker image build -f event-api/Dockerfile -t access-event-api:latest .
+# ============================================================================
+# Docker Images
+# ============================================================================
 
-image-order-processor:
-	@echo "Building Order Processor Docker image..."
-	cd $(SERVICES_DIR) && docker image build -f lambdas/order-processor/Dockerfile -t access-order-processor:latest .
+docker-build:
+	@echo "Building EventPro API Docker image..."
+	cd $(API_DIR) && docker build -t eventpro-api:latest .
 
-image-payment-processor:
-	@echo "Building Payment Processor Docker image..."
-	cd $(SERVICES_DIR) && docker image build -f lambdas/payment-processor/Dockerfile -t access-payment-processor:latest .
-
-image-notification-sender:
-	@echo "Building Notification Sender Docker image..."
-	cd $(SERVICES_DIR) && docker image build -f lambdas/notification-sender/Dockerfile -t access-notification-sender:latest .
-
-image-analytics-service:
+docker-analytics:
 	@echo "Building Analytics Service Docker image..."
-	cd $(SERVICES_DIR) && docker image build -f lambdas/analytics-service/Dockerfile -t access-analytics-service:latest .
+	@if [ -d "$(ANALYTICS_DIR)" ]; then \
+		cd $(ANALYTICS_DIR) && docker build -f Dockerfile -t analytics-service:latest .; \
+	else \
+		echo "Analytics Service directory not found: $(ANALYTICS_DIR)"; \
+	fi
 
-image-secret-rotation-lambda:
+docker-secret-rotation:
 	@echo "Building Secret Rotation Lambda Docker image..."
-	cd secret-rotation && docker image build -f Dockerfile -t access-secret-rotation:latest .
+	cd $(SECRET_ROTATION_DIR) && docker build -f Dockerfile -t secret-rotation:latest .
+
+# ============================================================================
+# Development Helpers
+# ============================================================================
+
+# Run API and Web together (requires separate terminals or background processes)
+dev-all:
+	@echo "Starting all development servers..."
+	@echo "API: cd $(API_DIR) && ./gradlew :eventpro-api:bootRun"
+	@echo "Web: cd $(WEB_DIR) && npm run dev"
+	@echo "Run these commands in separate terminals"
+
+# Check if all required directories exist
+check-structure:
+	@echo "Checking project structure..."
+	@test -d "$(API_DIR)" || (echo "ERROR: $(API_DIR) not found" && exit 1)
+	@test -d "$(WEB_DIR)" || (echo "ERROR: $(WEB_DIR) not found" && exit 1)
+	@echo "✓ API directory: $(API_DIR)"
+	@echo "✓ Web directory: $(WEB_DIR)"
+	@if [ -d "$(ANALYTICS_DIR)" ]; then \
+		echo "✓ Analytics Service directory: $(ANALYTICS_DIR)"; \
+	else \
+		echo "⚠ Analytics Service directory not found: $(ANALYTICS_DIR)"; \
+	fi
+	@echo "Structure check complete!"

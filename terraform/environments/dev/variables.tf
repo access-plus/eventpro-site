@@ -41,16 +41,10 @@ variable "frontend_subdomain" {
   default     = "app"
 }
 
-variable "core_api_subdomain" {
-  description = "Subdomain for core API (e.g., api)"
+variable "api_subdomain" {
+  description = "Subdomain for API (e.g., api)"
   type        = string
   default     = "api"
-}
-
-variable "event_api_subdomain" {
-  description = "Subdomain for event API (e.g., events)"
-  type        = string
-  default     = "events"
 }
 
 # VPC Configuration
@@ -87,16 +81,58 @@ variable "db_multi_az" {
 }
 
 # ECS Configuration
-variable "ecs_container_image" {
-  description = "Docker image for ECS containers"
+variable "eventpro_api_image" {
+  description = "Docker image for EventPro API (modular monolith)"
   type        = string
-  default     = "eventpro/core-api:latest"
+  default     = "eventpro-api:latest"
 }
 
 variable "ecs_desired_count" {
   description = "Desired number of ECS tasks"
   type        = number
-  default     = 1
+  default     = 2
+}
+
+variable "ecs_task_cpu" {
+  description = "CPU units for ECS task (1024 = 1 vCPU)"
+  type        = number
+  default     = 1024
+}
+
+variable "ecs_task_memory" {
+  description = "Memory (MB) for ECS task"
+  type        = number
+  default     = 2048
+}
+
+variable "ecs_enable_auto_scaling" {
+  description = "Enable auto-scaling for ECS service"
+  type        = bool
+  default     = true
+}
+
+variable "ecs_autoscaling_min_capacity" {
+  description = "Minimum number of ECS tasks"
+  type        = number
+  default     = 2
+}
+
+variable "ecs_autoscaling_max_capacity" {
+  description = "Maximum number of ECS tasks"
+  type        = number
+  default     = 10
+}
+
+variable "ecs_autoscaling_cpu_target_value" {
+  description = "Target CPU utilization percentage for auto-scaling"
+  type        = number
+  default     = 70.0
+}
+
+variable "ecs_autoscaling_memory_target_value" {
+  description = "Target memory utilization percentage for auto-scaling"
+  type        = number
+  default     = 80.0
 }
 
 # ALB Configuration
@@ -165,32 +201,9 @@ variable "tags" {
   }
 }
 
-variable "order_processor_image" {
-  description = "Image for order processor"
-  type        = string
-}
-
-variable "payment_processor_image" {
-  description = "Image for payment processor"
-  type        = string
-}
-
-variable "notification_sender_image" {
-  description = "Image for notification sender"
-  type        = string
-}
-
+# Analytics Service Lambda (Optional - remains as serverless)
 variable "analytics_service_image" {
-  description = "Image for analytics service"
+  description = "Docker image for Analytics Service Lambda (optional)"
   type        = string
-}
-
-variable "core_api_image" {
-  description = "Docker image for Core API ECS container"
-  type        = string
-}
-
-variable "event_api_image" {
-  description = "Docker image for Event API ECS container"
-  type        = string
+  default     = null
 }

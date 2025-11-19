@@ -248,19 +248,26 @@ module "alb" {
   tags = var.tags
 }
 
-# ECS Module - Core API
-module "ecs_core_api" {
+# ECS Module - EventPro API (Modular Monolith)
+module "ecs_eventpro_api" {
   source = "../../modules/ecs"
 
   name_prefix    = var.name_prefix
-  service_name   = "core-api"
-  container_name = "core-api"
-  container_image = var.core_api_image
+  service_name   = "eventpro-api"
+  container_name = "eventpro-api"
+  container_image = var.eventpro_api_image
   container_port = 8080
 
-  task_cpu    = 512
-  task_memory = 1024
+  task_cpu    = var.ecs_task_cpu
+  task_memory = var.ecs_task_memory
   desired_count = var.ecs_desired_count
+
+  # Enable auto-scaling
+  enable_auto_scaling              = var.ecs_enable_auto_scaling
+  autoscaling_min_capacity         = var.ecs_autoscaling_min_capacity
+  autoscaling_max_capacity         = var.ecs_autoscaling_max_capacity
+  autoscaling_cpu_target_value      = var.ecs_autoscaling_cpu_target_value
+  autoscaling_memory_target_value   = var.ecs_autoscaling_memory_target_value
 
   private_subnet_ids = module.vpc.private_subnet_ids
   security_group_ids = [module.vpc.ecs_security_group_id]
@@ -298,113 +305,71 @@ module "ecs_core_api" {
     {
       name  = "DB_SECRET_ARN"
       value = module.secrets_manager.secret_arns["database"]
+    },
+    {
+      name  = "S3_BUCKET_NAME"
+      value = module.s3_images.bucket_name
+    },
+    {
+      name  = "STRIPE_SECRET_KEY"
+      value = var.stripe_secret_key != "" ? var.stripe_secret_key : ""
+    },
+    {
+      name  = "STRIPE_PUBLISHABLE_KEY"
+      value = var.stripe_publishable_key != "" ? var.stripe_publishable_key : ""
     }
   ]
 
-  tags = var.tags
-}
-
-# Target Group for Event API
-resource "aws_lb_target_group" "event_api" {
-  name        = "${var.name_prefix}-event-api-tg"
-  port        = 8081
-  protocol    = "HTTP"
-  vpc_id      = module.vpc.vpc_id
-  target_type = "ip"
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 5
-    interval            = 30
-    path                = "/actuator/health"
-    protocol            = "HTTP"
-    matcher             = "200"
-    port                = "traffic-port"
-  }
-
-  deregistration_delay = 300
-  slow_start           = 0
-
-  tags = merge(
-    var.tags,
-    {
-      Name = "${var.name_prefix}-event-api-tg"
-    }
-  )
-}
-
-# ALB Listener Rule for Event API
-# Use HTTPS listener if certificate is provided, otherwise use HTTP listener
-resource "aws_lb_listener_rule" "event_api" {
-  listener_arn = var.alb_certificate_arn != null ? module.alb.https_listener_arn : module.alb.http_listener_arn
-  priority     = 100
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.event_api.arn
-  }
-
-  condition {
-    host_header {
-      values = ["${var.event_api_subdomain}.${var.domain_name}"]
-    }
-  }
-}
-
-# ECS Module - Event API
-module "ecs_event_api" {
-  source = "../../modules/ecs"
-
-  name_prefix    = var.name_prefix
-  service_name   = "event-api"
-  container_name = "event-api"
-  container_image = var.event_api_image
-  container_port = 8081
-
-  task_cpu    = 512
-  task_memory = 1024
-  desired_count = var.ecs_desired_count
-
-  private_subnet_ids = module.vpc.private_subnet_ids
-  security_group_ids = [module.vpc.ecs_security_group_id]
-  target_group_arn   = aws_lb_target_group.event_api.arn
-
-  environment_variables = [
-    {
-      name  = "SPRING_PROFILES_ACTIVE"
-      value = "dev"
-    },
-    {
-      name  = "DB_URL"
-      value = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${var.db_name}"
-    },
-    {
-      name  = "DB_USERNAME"
-      value = module.rds.db_instance_username
-    },
-    {
-      name  = "DB_PASSWORD"
-      value = module.rds.db_password
-    },
-    {
-      name  = "COGNITO_USER_POOL_ID"
-      value = module.cognito.user_pool_id
-    },
-    {
-      name  = "COGNITO_CLIENT_ID"
-      value = module.cognito.user_pool_client_id
-    },
-    {
-      name  = "AWS_REGION"
-      value = var.aws_region
-    },
-    {
-      name  = "DB_SECRET_ARN"
-      value = module.secrets_manager.secret_arns["database"]
-    }
-  ]
+  # Task role policy for AWS service access
+  task_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes"
+        ]
+        Resource = "*" # Can be restricted to specific queues later
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = "${module.s3_images.bucket_arn}/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:Publish"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          module.secrets_manager.secret_arns["database"],
+          module.secrets_manager.secret_arns["stripe"]
+        ]
+      }
+    ]
+  })
 
   tags = var.tags
 }
@@ -425,17 +390,8 @@ module "route53" {
         evaluate_target_health = false
       }
     }
-    core-api = {
-      name = "${var.core_api_subdomain}.${var.domain_name}"
-      type = "A"
-      alias = {
-        name                   = module.alb.alb_dns_name
-        zone_id                = module.alb.alb_zone_id
-        evaluate_target_health = true
-      }
-    }
-    event-api = {
-      name = "${var.event_api_subdomain}.${var.domain_name}"
+    api = {
+      name = "${var.api_subdomain}.${var.domain_name}"
       type = "A"
       alias = {
         name                   = module.alb.alb_dns_name

@@ -21,105 +21,92 @@
 
 ### Backend Setup
 
-- [X] T001 [P] [US-INFRA-001] Create root `services/settings.gradle` with all subprojects
-- [X] T002 [P] [US-INFRA-001] Create root `services/build.gradle` with Java 21 and common dependencies
-- [X] T003 [P] [US-INFRA-001] Initialize `services/core-api` Spring Boot 3.5.7 project with Gradle 8.5+
-- [X] T004 [P] [US-INFRA-001] Initialize `services/event-api` Spring Boot 3.5.7 project with Gradle 8.5+
-- [X] T005 [P] [US-INFRA-001] Configure Java 21 in all backend projects (`sourceCompatibility`, `targetCompatibility`)
-- [X] T006 [US-INFRA-001] Add Spring Boot dependencies to core-api: Web, Data JPA, Security, Actuator
-- [X] T007 [US-INFRA-001] Add Spring Boot dependencies to event-api: Web, Data JPA, Security, Actuator
-- [X] T008 [US-INFRA-001] Create `services/core-api/src/main/resources/application.yml` with basic configuration
-- [X] T009 [US-INFRA-001] Create `services/event-api/src/main/resources/application.yml` with port 8081
-- [X] T010 [US-INFRA-001] Create `CoreApiApplication.java` in `services/core-api/src/main/java/com/accessplus/eventpro/core/`
-- [X] T011 [US-INFRA-001] Create `EventApiApplication.java` in `services/event-api/src/main/java/com/accessplus/eventpro/event/`
-- [X] T012 [US-INFRA-001] Verify core-api runs on localhost:8080 with health check endpoint
-- [X] T013 [US-INFRA-001] Verify event-api runs on localhost:8081 with health check endpoint
+- [X] T1-001 [P] [US-INFRA-001] Create root `eventpro-api/settings.gradle` with all subprojects
+- [X] T1-002 [P] [US-INFRA-001] Create root `eventpro-api/build.gradle` with Java 21 and common dependencies
+- [X] T1-003 [P] [US-INFRA-001] Initialize modular monolith structure with modules: eventpro-core, eventpro-event, eventpro-order, eventpro-payment, eventpro-notification, eventpro-api
+- [X] T1-004 [P] [US-INFRA-001] Configure Java 21 in all backend modules (`sourceCompatibility`, `targetCompatibility`)
+- [X] T1-005 [US-INFRA-001] Add Spring Boot dependencies to eventpro-core: Web, Data JPA, Security, Actuator
+- [X] T1-006 [US-INFRA-001] Add Spring Boot dependencies to eventpro-api: Web, Data JPA, Security, Actuator, WebSocket
+- [X] T1-007 [US-INFRA-001] Create `eventpro-api/modules/eventpro-api/src/main/resources/application.yml` with basic configuration
+- [X] T1-008 [US-INFRA-001] Create `EventProApplication.java` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/`
+- [X] T1-009 [US-INFRA-001] Verify application runs on localhost:8080 with health check endpoint
 
-### Lambda Setup
+### Module Structure Setup
 
-- [X] T014 [P] [US-INFRA-001] Initialize `services/lambdas/order-processor` Quarkus 3.26.2+ project with Gradle
-- [X] T015 [P] [US-INFRA-001] Initialize `services/lambdas/payment-processor` Quarkus 3.26.2+ project with Gradle
-- [X] T016 [P] [US-INFRA-001] Initialize `services/lambdas/notification-sender` Quarkus 3.26.2+ project with Gradle
-- [X] T017 [P] [US-INFRA-001] Initialize `services/lambdas/analytics-service` Quarkus 3.26.2+ project with Gradle
-- [X] T018 [US-INFRA-001] Add Quarkus AWS Lambda dependencies to all Lambda projects
-- [X] T019 [US-INFRA-001] Configure `quarkus.lambda.handler` in each Lambda's `application.properties`
-
-### Shared Modules Setup
-
-- [X] T020 [P] [US-INFRA-001] Create `services/shared/common` module with `build.gradle`
-- [X] T021 [P] [US-INFRA-001] Create `services/shared/messaging` module with `build.gradle`
-- [X] T022 [P] [US-INFRA-001] Create `services/shared/database` module with `build.gradle`
-- [X] T023 [US-INFRA-001] Configure shared modules in root `settings.gradle`
+- [X] T1-010 [P] [US-INFRA-001] Create `eventpro-api/modules/eventpro-core` module with `build.gradle` (common utilities, base entities)
+- [X] T1-011 [P] [US-INFRA-001] Create `eventpro-api/modules/eventpro-event` module with `build.gradle` (event management)
+- [X] T1-012 [P] [US-INFRA-001] Create `eventpro-api/modules/eventpro-order` module with `build.gradle` (cart, orders)
+- [X] T1-013 [P] [US-INFRA-001] Create `eventpro-api/modules/eventpro-payment` module with `build.gradle` (payment processing)
+- [X] T1-014 [P] [US-INFRA-001] Create `eventpro-api/modules/eventpro-notification` module with `build.gradle` (notifications)
+- [X] T1-015 [US-INFRA-001] Configure all modules in root `eventpro-api/settings.gradle`
 
 ### Frontend Setup
 
-- [X] T024 [P] [US-INFRA-002] Create React 19 + TypeScript + Vite project in `web/` directory
-- [X] T025 [US-INFRA-002] Configure TypeScript 5.x with strict mode in `web/tsconfig.json`
-- [X] T026 [US-INFRA-002] Configure Vite 7.x in `web/vite.config.ts`
-- [X] T027 [US-INFRA-002] Install React Router in `web/package.json`
-- [X] T028 [US-INFRA-002] Create basic routing structure in `web/src/App.tsx`
-- [X] T029 [US-INFRA-002] Verify frontend runs on localhost:5173 with HMR working
+- [X] T1-016 [P] [US-INFRA-002] Create React 19 + TypeScript + Vite project in `web/` directory
+- [X] T1-017 [US-INFRA-002] Configure TypeScript 5.x with strict mode in `web/tsconfig.json`
+- [X] T1-018 [US-INFRA-002] Configure Vite 7.x in `web/vite.config.ts`
+- [X] T1-019 [US-INFRA-002] Install React Router in `web/package.json`
+- [X] T1-020 [US-INFRA-002] Create basic routing structure in `web/src/App.tsx`
+- [X] T1-021 [US-INFRA-002] Verify frontend runs on localhost:5173 with HMR working
 
 ### UI Library Setup
 
-- [X] T030 [US-INFRA-003] Install Tailwind CSS 3.x in `web/` directory
-- [X] T031 [US-INFRA-003] Configure Tailwind in `web/tailwind.config.js`
-- [X] T032 [US-INFRA-003] Initialize shadcn/ui with `npx shadcn@latest init` in `web/`
-- [X] T033 [US-INFRA-003] Add shadcn/ui Button component: `npx shadcn@latest add button`
-- [X] T034 [US-INFRA-003] Add shadcn/ui Card component: `npx shadcn@latest add card`
-- [X] T035 [US-INFRA-003] Add shadcn/ui Input component: `npx shadcn@latest add input`
-- [X] T036 [US-INFRA-003] Verify shadcn/ui components render correctly in sample page
+- [X] T1-022 [US-INFRA-003] Install Tailwind CSS 3.x in `web/` directory
+- [X] T1-023 [US-INFRA-003] Configure Tailwind in `web/tailwind.config.js`
+- [X] T1-024 [US-INFRA-003] Initialize shadcn/ui with `npx shadcn@latest init` in `web/`
+- [X] T1-025 [US-INFRA-003] Add shadcn/ui Button component: `npx shadcn@latest add button`
+- [X] T1-026 [US-INFRA-003] Add shadcn/ui Card component: `npx shadcn@latest add card`
+- [X] T1-027 [US-INFRA-003] Add shadcn/ui Input component: `npx shadcn@latest add input`
+- [X] T1-028 [US-INFRA-003] Verify shadcn/ui components render correctly in sample page
 
 ### State Management Setup
 
-- [X] T037 [US-INFRA-004] Install Redux Toolkit and React-Redux in `web/package.json`
-- [X] T038 [US-INFRA-004] Create `web/src/store/index.ts` with Redux store configuration
-- [X] T039 [US-INFRA-004] Configure Redux DevTools integration
-- [X] T040 [US-INFRA-004] Create `web/src/store/hooks.ts` with typed hooks (`useAppDispatch`, `useAppSelector`)
-- [X] T041 [US-INFRA-004] Verify Redux store works with sample action/reducer
+- [X] T1-029 [US-INFRA-004] Install Redux Toolkit and React-Redux in `web/package.json`
+- [X] T1-030 [US-INFRA-004] Create `web/src/store/index.ts` with Redux store configuration
+- [X] T1-031 [US-INFRA-004] Configure Redux DevTools integration
+- [X] T1-032 [US-INFRA-004] Create `web/src/store/hooks.ts` with typed hooks (`useAppDispatch`, `useAppSelector`)
+- [X] T1-033 [US-INFRA-004] Verify Redux store works with sample action/reducer
 
 ### Infrastructure as Code Setup
 
-- [X] T042 [P] [US-INFRA-005] Create `terraform/modules/vpc/main.tf` with VPC configuration
-- [X] T043 [P] [US-INFRA-005] Create `terraform/modules/vpc/variables.tf` and `outputs.tf`
-- [X] T044 [P] [US-INFRA-006] Create `terraform/modules/rds/main.tf` for PostgreSQL 16+ RDS
-- [X] T045 [P] [US-INFRA-006] Create `terraform/modules/rds/variables.tf` and `outputs.tf`
-- [X] T046 [P] [US-INFRA-007] Create `terraform/modules/ecs/main.tf` for ECS Fargate cluster
-- [X] T047 [P] [US-INFRA-007] Create `terraform/modules/ecs/variables.tf` and `outputs.tf`
-- [X] T048 [P] [US-INFRA-008] Create `terraform/modules/alb/main.tf` for Application Load Balancer
-- [X] T049 [P] [US-INFRA-008] Create `terraform/modules/alb/variables.tf` and `outputs.tf`
-- [X] T050 [P] [US-INFRA-009] Create `terraform/modules/s3/main.tf` for images and frontend buckets
-- [X] T051 [P] [US-INFRA-009] Create `terraform/modules/s3/variables.tf` and `outputs.tf`
-- [X] T052 [P] [US-INFRA-010] Create `terraform/modules/cloudfront/main.tf` for CDN distribution
-- [X] T053 [P] [US-INFRA-010] Create `terraform/modules/cloudfront/variables.tf` and `outputs.tf`
-- [X] T054 [P] [US-INFRA-011] Create `terraform/modules/cognito/main.tf` for Cognito User Pool
-- [X] T055 [P] [US-INFRA-011] Create `terraform/modules/cognito/variables.tf` and `outputs.tf`
-- [X] T056 [P] [US-INFRA-012] Create `terraform/modules/secrets-manager/main.tf` for secrets
-- [X] T057 [P] [US-INFRA-012] Create `terraform/modules/secrets-manager/variables.tf` and `outputs.tf`
-- [X] T058 [US-INFRA-013] Create `terraform/data/route53.tf` to reference existing Route53 hosted zone (data source)
-- [X] T059 [P] [US-INFRA-013] Create `terraform/modules/route53/main.tf` for DNS records (frontend, core-api, event-api)
-- [X] T060 [P] [US-INFRA-013] Create `terraform/modules/route53/variables.tf` and `outputs.tf`
-- [X] T061 [US-INFRA-013] Create Route53 A record (alias) for frontend pointing to CloudFront distribution
-- [X] T062 [US-INFRA-013] Create Route53 A record (alias) for core-api pointing to ALB
-- [X] T063 [US-INFRA-013] Create Route53 A record (alias) for event-api pointing to ALB
-- [X] T064 [P] [US-INFRA-014] Create `terraform/environments/dev/main.tf` using all modules
-- [X] T065 [US-INFRA-014] Deploy dev environment infrastructure: `terraform init && terraform plan && terraform apply` (Configuration ready, see terraform/environments/dev/README.md)
+- [X] T1-034 [P] [US-INFRA-005] Create `terraform/modules/vpc/main.tf` with VPC configuration
+- [X] T1-035 [P] [US-INFRA-005] Create `terraform/modules/vpc/variables.tf` and `outputs.tf`
+- [X] T1-036 [P] [US-INFRA-006] Create `terraform/modules/rds/main.tf` for PostgreSQL 16+ RDS
+- [X] T1-037 [P] [US-INFRA-006] Create `terraform/modules/rds/variables.tf` and `outputs.tf`
+- [X] T1-038 [P] [US-INFRA-007] Create `terraform/modules/ecs/main.tf` for ECS Fargate cluster
+- [X] T1-039 [P] [US-INFRA-007] Create `terraform/modules/ecs/variables.tf` and `outputs.tf`
+- [X] T1-040 [P] [US-INFRA-008] Create `terraform/modules/alb/main.tf` for Application Load Balancer
+- [X] T1-041 [P] [US-INFRA-008] Create `terraform/modules/alb/variables.tf` and `outputs.tf`
+- [X] T1-042 [P] [US-INFRA-009] Create `terraform/modules/s3/main.tf` for images and frontend buckets
+- [X] T1-043 [P] [US-INFRA-009] Create `terraform/modules/s3/variables.tf` and `outputs.tf`
+- [X] T1-044 [P] [US-INFRA-010] Create `terraform/modules/cloudfront/main.tf` for CDN distribution
+- [X] T1-045 [P] [US-INFRA-010] Create `terraform/modules/cloudfront/variables.tf` and `outputs.tf`
+- [X] T1-046 [P] [US-INFRA-011] Create `terraform/modules/cognito/main.tf` for Cognito User Pool
+- [X] T1-047 [P] [US-INFRA-011] Create `terraform/modules/cognito/variables.tf` and `outputs.tf`
+- [X] T1-048 [P] [US-INFRA-012] Create `terraform/modules/secrets-manager/main.tf` for secrets
+- [X] T1-049 [P] [US-INFRA-012] Create `terraform/modules/secrets-manager/variables.tf` and `outputs.tf`
+- [X] T1-050 [US-INFRA-013] Create `terraform/data/route53.tf` to reference existing Route53 hosted zone (data source)
+- [X] T1-051 [P] [US-INFRA-013] Create `terraform/modules/route53/main.tf` for DNS records (frontend, api)
+- [X] T1-052 [P] [US-INFRA-013] Create `terraform/modules/route53/variables.tf` and `outputs.tf`
+- [X] T1-053 [US-INFRA-013] Create Route53 A record (alias) for frontend pointing to CloudFront distribution
+- [X] T1-054 [US-INFRA-013] Create Route53 A record (alias) for api pointing to ALB
+- [X] T1-055 [P] [US-INFRA-014] Create `terraform/environments/dev/main.tf` using all modules
+- [X] T1-056 [US-INFRA-014] Deploy dev environment infrastructure: `terraform init && terraform plan && terraform apply` (Configuration ready, see terraform/environments/dev/README.md)
 
 ### CI/CD Setup
 
-- [ ] T066 [US-INFRA-015] Create `.gitlab-ci.yml` with test stage for backend unit tests
-- [ ] T067 [US-INFRA-015] Create `.gitlab-ci.yml` with test stage for frontend unit tests
-- [ ] T068 [US-INFRA-016] Create `.gitlab-ci.yml` with build stage for Docker images
-- [ ] T069 [US-INFRA-016] Configure ECR push in build stage
-- [ ] T070 [US-INFRA-017] Create `.gitlab-ci.yml` with deploy stage for dev environment
-- [ ] T071 [US-INFRA-017] Configure blue-green deployment logic in deploy stage
+- [ ] T1-057 [US-INFRA-015] Create `.gitlab-ci.yml` with test stage for backend unit tests
+- [ ] T1-058 [US-INFRA-015] Create `.gitlab-ci.yml` with test stage for frontend unit tests
+- [ ] T1-059 [US-INFRA-016] Create `.gitlab-ci.yml` with build stage for Docker images
+- [ ] T1-060 [US-INFRA-016] Configure ECR push in build stage
+- [ ] T1-061 [US-INFRA-017] Create `.gitlab-ci.yml` with deploy stage for dev environment
+- [ ] T1-062 [US-INFRA-017] Configure blue-green deployment logic in deploy stage
 
 ### Docker Setup
 
-- [ ] T072 [US-INFRA-018] Create multi-stage `services/core-api/Dockerfile` (Gradle build + JRE runtime)
-- [ ] T073 [US-INFRA-018] Create multi-stage `services/event-api/Dockerfile` (Gradle build + JRE runtime)
-- [ ] T074 [US-INFRA-018] Create `.dockerignore` files for backend services
-- [ ] T075 [US-INFRA-018] Verify Docker images build successfully and run
+- [X] T1-063 [US-INFRA-018] Create multi-stage `eventpro-api/Dockerfile` (Gradle build + JRE runtime)
+- [X] T1-064 [US-INFRA-018] Create `.dockerignore` file for backend service
+- [X] T1-065 [US-INFRA-018] Verify Docker image builds successfully and runs
 
 **Checkpoint**: All infrastructure and project structure ready. Development can begin.
 
@@ -133,44 +120,42 @@
 
 ### Base Entity and Common Utilities
 
-- [ ] T076 [P] [US-AUTH-003] Create `BaseEntity` abstract class in `services/shared/common/src/main/java/com/accessplus/eventpro/common/model/BaseEntity.java`
-- [ ] T077 [P] [US-AUTH-003] Add `@MappedSuperclass`, `@CreationTimestamp`, `@UpdateTimestamp` annotations
-- [ ] T078 [P] [US-AUTH-003] Create common exception classes in `services/shared/common/src/main/java/com/accessplus/eventpro/common/exception/`
-- [ ] T079 [P] [US-AUTH-003] Create `GlobalExceptionHandler` in `services/shared/common/src/main/java/com/accessplus/eventpro/common/exception/GlobalExceptionHandler.java`
-- [ ] T080 [P] [US-AUTH-003] Create utility classes in `services/shared/common/src/main/java/com/accessplus/eventpro/common/utils/`
+- [X] T2-001 [P] [US-AUTH-003] Create `BaseEntity` abstract class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/model/BaseEntity.java`
+- [ ] T2-002 [P] [US-AUTH-003] Create common exception classes in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/exception/`
+- [ ] T2-003 [P] [US-AUTH-003] Create `GlobalExceptionHandler` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/exception/GlobalExceptionHandler.java`
+- [ ] T2-004 [P] [US-AUTH-003] Create utility classes in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/utils/`
 
 ### Database Configuration
 
-- [ ] T081 [US-AUTH-003] Configure PostgreSQL connection in `services/core-api/src/main/resources/application.yml`
-- [ ] T082 [US-AUTH-003] Configure PostgreSQL connection in `services/event-api/src/main/resources/application.yml`
-- [ ] T083 [US-AUTH-003] Setup Flyway or Liquibase migration framework in core-api
-- [ ] T084 [US-AUTH-003] Create `services/core-api/src/main/resources/db/migration/V1__create_base_schema.sql` (empty for now, will be populated by entity creation)
+- [ ] T2-005 [US-AUTH-003] Configure PostgreSQL connection in `eventpro-api/modules/eventpro-api/src/main/resources/application.yml`
+- [ ] T2-006 [US-AUTH-003] Setup Flyway or Liquibase migration framework in eventpro-api
+- [ ] T2-007 [US-AUTH-003] Create `eventpro-api/modules/eventpro-api/src/main/resources/db/migration/V1__create_base_schema.sql` (empty for now, will be populated by entity creation)
 
 ### Authentication Framework
 
-- [ ] T085 [US-AUTH-001] Add AWS Cognito SDK dependency to `services/core-api/build.gradle`
-- [ ] T086 [US-AUTH-001] Create `CognitoConfig` class in `services/core-api/src/main/java/com/accessplus/eventpro/core/config/CognitoConfig.java`
-- [ ] T087 [US-AUTH-001] Configure JWT decoder for Cognito in `CognitoConfig`
-- [ ] T088 [US-AUTH-001] Create `SecurityConfig` class in `services/core-api/src/main/java/com/accessplus/eventpro/core/security/SecurityConfig.java`
-- [ ] T089 [US-AUTH-001] Configure Spring Security filter chain with OAuth2 resource server
-- [ ] T090 [US-AUTH-001] Configure JWT token validation in `SecurityConfig`
-- [ ] T091 [US-AUTH-002] Create `CognitoRoleMapper` in `services/core-api/src/main/java/com/accessplus/eventpro/core/security/CognitoRoleMapper.java`
-- [ ] T092 [US-AUTH-002] Implement mapping from Cognito groups to Spring Security roles (ADMIN, ORGANIZER, USER)
-- [ ] T093 [US-AUTH-001] Test authentication with sample protected endpoint
+- [X] T2-008 [US-AUTH-001] Add AWS Cognito SDK dependency to `eventpro-api/modules/eventpro-core/build.gradle`
+- [ ] T2-009 [US-AUTH-001] Create `CognitoConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/config/CognitoConfig.java`
+- [ ] T2-010 [US-AUTH-001] Configure JWT decoder for Cognito in `CognitoConfig`
+- [ ] T2-011 [US-AUTH-001] Create `SecurityConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/security/SecurityConfig.java`
+- [ ] T2-012 [US-AUTH-001] Configure Spring Security filter chain with OAuth2 resource server
+- [ ] T2-013 [US-AUTH-001] Configure JWT token validation in `SecurityConfig`
+- [ ] T2-014 [US-AUTH-002] Create `CognitoRoleMapper` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/security/CognitoRoleMapper.java`
+- [ ] T2-015 [US-AUTH-002] Implement mapping from Cognito groups to Spring Security roles (ADMIN, ORGANIZER, USER)
+- [ ] T2-016 [US-AUTH-001] Test authentication with sample protected endpoint
 
 ### SQS Messaging Framework
 
-- [ ] T094 [US-CART-004] Add AWS SQS SDK v2 dependency to `services/core-api/build.gradle`
-- [ ] T095 [US-CART-004] Create `SQSConfig` class in `services/core-api/src/main/java/com/accessplus/eventpro/core/config/SQSConfig.java`
-- [ ] T096 [US-CART-004] Create `SQSMessagePublisher` in `services/shared/messaging/src/main/java/com/accessplus/eventpro/messaging/SQSMessagePublisher.java`
-- [ ] T097 [US-CART-004] Implement methods to publish messages to order-queue, payment-queue, notification-queue
+- [X] T2-017 [US-CART-004] Add AWS SQS SDK v2 dependency to `eventpro-api/modules/eventpro-core/build.gradle`
+- [X] T2-018 [US-CART-004] Create `SQSMessagePublisher` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/messaging/sqs/SQSMessagePublisher.java`
+- [ ] T2-019 [US-CART-004] Create `SQSConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/config/SQSConfig.java`
+- [ ] T2-020 [US-CART-004] Implement methods to publish messages to order-queue, payment-queue, notification-queue
 
 ### API Structure
 
-- [ ] T098 [US-AUTH-005] Create base controller structure with `/api/v1` prefix
-- [ ] T099 [US-AUTH-005] Configure Swagger/OpenAPI documentation in `services/core-api`
-- [ ] T100 [US-AUTH-005] Create `ApiResponse` wrapper class for consistent JSON responses
-- [ ] T101 [US-AUTH-005] Create `ErrorResponse` class matching API contract schema
+- [ ] T2-021 [US-AUTH-005] Create base controller structure with `/api/v1` prefix
+- [ ] T2-022 [US-AUTH-005] Configure Swagger/OpenAPI documentation in `eventpro-api/modules/eventpro-api`
+- [ ] T2-023 [US-AUTH-005] Create `ApiResponse` wrapper class for consistent JSON responses
+- [ ] T2-024 [US-AUTH-005] Create `ErrorResponse` class matching API contract schema
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -184,96 +169,96 @@
 
 ### Backend: User Entity and Repository
 
-- [ ] T098 [P] [US-AUTH-003] Create `UserEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/UserEntity.java`
-- [ ] T099 [P] [US-AUTH-003] Add JPA annotations: `@Entity`, `@Table`, `@Id`, `@Column`, relationships
-- [ ] T100 [P] [US-AUTH-003] Create `UserRepository` interface in `services/core-api/src/main/java/com/accessplus/eventpro/core/repository/UserRepository.java`
-- [ ] T101 [P] [US-AUTH-003] Add custom query methods: `findByCognitoUserId`, `findByEmail`
-- [ ] T102 [US-AUTH-003] Create Flyway migration `V2__create_user_table.sql` in `services/core-api/src/main/resources/db/migration/`
-- [ ] T103 [US-AUTH-003] Write unit tests for `UserRepository` in `services/core-api/src/test/java/com/accessplus/eventpro/core/repository/UserRepositoryTest.java`
+- [ ] T3-001 [P] [US-AUTH-003] Create `UserEntity` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/entity/UserEntity.java`
+- [ ] T3-002 [P] [US-AUTH-003] Add JPA annotations: `@Entity`, `@Table`, `@Id`, `@Column`, relationships
+- [ ] T3-003 [P] [US-AUTH-003] Create `UserRepository` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/repository/UserRepository.java`
+- [ ] T3-004 [P] [US-AUTH-003] Add custom query methods: `findByCognitoUserId`, `findByEmail`
+- [ ] T3-005 [US-AUTH-003] Create Flyway migration `V2__create_user_table.sql` in `eventpro-api/modules/eventpro-api/src/main/resources/db/migration/`
+- [ ] T3-006 [US-AUTH-003] Write unit tests for `UserRepository` in `eventpro-api/modules/eventpro-core/src/test/java/com/accessplus/eventpro/core/user/repository/UserRepositoryTest.java`
 
 ### Backend: User Service
 
-- [ ] T104 [US-AUTH-004] Create `UserService` interface in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/UserService.java`
-- [ ] T105 [US-AUTH-004] Create `UserServiceImpl` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/UserServiceImpl.java`
-- [ ] T106 [US-AUTH-004] Implement `createUserFromCognito` method (syncs user after Cognito signup)
-- [ ] T107 [US-AUTH-004] Implement `getUserByCognitoId` method
-- [ ] T108 [US-AUTH-004] Implement `updateUserProfile` method
-- [ ] T109 [US-AUTH-004] Add error handling for user not found, duplicate email
-- [ ] T110 [US-AUTH-004] Write unit tests for `UserService` (>80% coverage)
+- [ ] T3-007 [US-AUTH-004] Create `UserService` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/service/UserService.java`
+- [ ] T3-008 [US-AUTH-004] Create `UserServiceImpl` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/service/UserServiceImpl.java`
+- [ ] T3-009 [US-AUTH-004] Implement `createUserFromCognito` method (syncs user after Cognito signup)
+- [ ] T3-010 [US-AUTH-004] Implement `getUserByCognitoId` method
+- [ ] T3-011 [US-AUTH-004] Implement `updateUserProfile` method
+- [ ] T3-012 [US-AUTH-004] Add error handling for user not found, duplicate email
+- [ ] T3-013 [US-AUTH-004] Write unit tests for `UserService` (>80% coverage)
 
 ### Backend: User Controller
 
-- [ ] T111 [US-AUTH-005] Create `UserController` in `services/core-api/src/main/java/com/accessplus/eventpro/core/api/controller/UserController.java`
-- [ ] T112 [US-AUTH-005] Implement `GET /api/v1/users/me` endpoint (get current user)
-- [ ] T113 [US-AUTH-005] Implement `PUT /api/v1/users/me` endpoint (update current user)
-- [ ] T114 [US-AUTH-005] Implement `GET /api/v1/users/{id}` endpoint (admin only, with `@PreAuthorize`)
-- [ ] T115 [US-AUTH-005] Implement `GET /api/v1/users` endpoint (admin only, paginated)
-- [ ] T116 [US-AUTH-005] Add input validation with `@Valid` annotations
-- [ ] T117 [US-AUTH-005] Create DTOs: `UserResponse`, `UpdateUserRequest` in `services/core-api/src/main/java/com/accessplus/eventpro/core/dto/`
-- [ ] T118 [US-AUTH-005] Write integration tests for all UserController endpoints
+- [ ] T3-014 [US-AUTH-005] Create `UserController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/UserController.java`
+- [ ] T3-015 [US-AUTH-005] Implement `GET /api/v1/users/me` endpoint (get current user)
+- [ ] T3-016 [US-AUTH-005] Implement `PUT /api/v1/users/me` endpoint (update current user)
+- [ ] T3-017 [US-AUTH-005] Implement `GET /api/v1/users/{id}` endpoint (admin only, with `@PreAuthorize`)
+- [ ] T3-018 [US-AUTH-005] Implement `GET /api/v1/users` endpoint (admin only, paginated)
+- [ ] T3-019 [US-AUTH-005] Add input validation with `@Valid` annotations
+- [ ] T3-020 [US-AUTH-005] Create DTOs: `UserResponse`, `UpdateUserRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/`
+- [ ] T3-021 [US-AUTH-005] Write integration tests for all UserController endpoints
 
 ### Frontend: Cognito Authentication
 
-- [ ] T119 [US-AUTH-007] Install AWS Cognito SDK in `web/package.json`
-- [ ] T120 [US-AUTH-007] Create `web/src/services/authService.ts` with Cognito client
-- [ ] T121 [US-AUTH-007] Implement `signUp` method in `authService.ts`
-- [ ] T122 [US-AUTH-007] Implement `signIn` method in `authService.ts`
-- [ ] T123 [US-AUTH-007] Implement `signOut` method in `authService.ts`
-- [ ] T124 [US-AUTH-007] Implement `getCurrentUser` method in `authService.ts`
-- [ ] T125 [US-AUTH-007] Implement token storage and retrieval (localStorage)
-- [ ] T126 [US-AUTH-007] Implement token refresh logic
-- [ ] T127 [US-AUTH-007] Write unit tests for `authService.ts`
+- [ ] T3-022 [US-AUTH-007] Install AWS Cognito SDK in `web/package.json`
+- [ ] T3-023 [US-AUTH-007] Create `web/src/services/authService.ts` with Cognito client
+- [ ] T3-024 [US-AUTH-007] Implement `signUp` method in `authService.ts`
+- [ ] T3-025 [US-AUTH-007] Implement `signIn` method in `authService.ts`
+- [ ] T3-026 [US-AUTH-007] Implement `signOut` method in `authService.ts`
+- [ ] T3-027 [US-AUTH-007] Implement `getCurrentUser` method in `authService.ts`
+- [ ] T3-028 [US-AUTH-007] Implement token storage and retrieval (localStorage)
+- [ ] T3-029 [US-AUTH-007] Implement token refresh logic
+- [ ] T3-030 [US-AUTH-007] Write unit tests for `authService.ts`
 
 ### Frontend: Redux Auth Slice
 
-- [ ] T128 [US-AUTH-013] Create `web/src/store/slices/authSlice.ts` with Redux Toolkit
-- [ ] T129 [US-AUTH-013] Define auth state: `user`, `token`, `isAuthenticated`, `isLoading`
-- [ ] T130 [US-AUTH-013] Create actions: `signIn`, `signOut`, `setUser`, `setLoading`
-- [ ] T131 [US-AUTH-013] Create async thunks: `signInAsync`, `signUpAsync`, `signOutAsync`, `fetchCurrentUser`
-- [ ] T132 [US-AUTH-013] Implement token persistence in localStorage
-- [ ] T133 [US-AUTH-013] Write unit tests for `authSlice.ts`
+- [ ] T3-031 [US-AUTH-013] Create `web/src/store/slices/authSlice.ts` with Redux Toolkit
+- [ ] T3-032 [US-AUTH-013] Define auth state: `user`, `token`, `isAuthenticated`, `isLoading`
+- [ ] T3-033 [US-AUTH-013] Create actions: `signIn`, `signOut`, `setUser`, `setLoading`
+- [ ] T3-034 [US-AUTH-013] Create async thunks: `signInAsync`, `signUpAsync`, `signOutAsync`, `fetchCurrentUser`
+- [ ] T3-035 [US-AUTH-013] Implement token persistence in localStorage
+- [ ] T3-036 [US-AUTH-013] Write unit tests for `authSlice.ts`
 
 ### Frontend: Login Page
 
-- [ ] T134 [US-AUTH-008] Create `web/src/pages/Login.tsx` page component
-- [ ] T135 [US-AUTH-008] Create login form with shadcn/ui Input components (email, password)
-- [ ] T136 [US-AUTH-008] Add form validation with error messages
-- [ ] T137 [US-AUTH-008] Add loading states during sign in
-- [ ] T138 [US-AUTH-008] Integrate with `authService` and Redux `authSlice`
-- [ ] T139 [US-AUTH-008] Add error handling and display error messages
-- [ ] T140 [US-AUTH-008] Make page responsive (mobile-friendly)
-- [ ] T141 [US-AUTH-008] Add accessibility attributes (WCAG 2.1 AA)
+- [ ] T3-037 [US-AUTH-008] Create `web/src/pages/Login.tsx` page component
+- [ ] T3-038 [US-AUTH-008] Create login form with shadcn/ui Input components (email, password)
+- [ ] T3-039 [US-AUTH-008] Add form validation with error messages
+- [ ] T3-040 [US-AUTH-008] Add loading states during sign in
+- [ ] T3-041 [US-AUTH-008] Integrate with `authService` and Redux `authSlice`
+- [ ] T3-042 [US-AUTH-008] Add error handling and display error messages
+- [ ] T3-043 [US-AUTH-008] Make page responsive (mobile-friendly)
+- [ ] T3-044 [US-AUTH-008] Add accessibility attributes (WCAG 2.1 AA)
 
 ### Frontend: Sign Up Page
 
-- [ ] T142 [US-AUTH-009] Create `web/src/pages/SignUp.tsx` page component
-- [ ] T143 [US-AUTH-009] Create sign up form with fields: email, password, confirmPassword, firstName, lastName, phoneNumber
-- [ ] T144 [US-AUTH-009] Add form validation (email format, password strength, matching passwords)
-- [ ] T145 [US-AUTH-009] Add password strength indicator component
-- [ ] T146 [US-AUTH-009] Integrate with `authService` signUp method
-- [ ] T147 [US-AUTH-009] Handle email verification flow (redirect to verification page)
-- [ ] T148 [US-AUTH-009] Add loading states and error handling
-- [ ] T149 [US-AUTH-009] Make page responsive
+- [ ] T3-045 [US-AUTH-009] Create `web/src/pages/SignUp.tsx` page component
+- [ ] T3-046 [US-AUTH-009] Create sign up form with fields: email, password, confirmPassword, firstName, lastName, phoneNumber
+- [ ] T3-047 [US-AUTH-009] Add form validation (email format, password strength, matching passwords)
+- [ ] T3-048 [US-AUTH-009] Add password strength indicator component
+- [ ] T3-049 [US-AUTH-009] Integrate with `authService` signUp method
+- [ ] T3-050 [US-AUTH-009] Handle email verification flow (redirect to verification page)
+- [ ] T3-051 [US-AUTH-009] Add loading states and error handling
+- [ ] T3-052 [US-AUTH-009] Make page responsive
 
 ### Frontend: Protected Routes
 
-- [ ] T150 [US-AUTH-012] Create `web/src/components/common/ProtectedRoute.tsx` component
-- [ ] T151 [US-AUTH-012] Implement route guard logic (check authentication)
-- [ ] T152 [US-AUTH-012] Redirect to login if not authenticated
-- [ ] T153 [US-AUTH-012] Create `AdminRoute` component for admin-only routes
-- [ ] T154 [US-AUTH-012] Create `OrganizerRoute` component for organizer-only routes
-- [ ] T155 [US-AUTH-012] Integrate protected routes in `web/src/App.tsx` routing
+- [ ] T3-053 [US-AUTH-012] Create `web/src/components/common/ProtectedRoute.tsx` component
+- [ ] T3-054 [US-AUTH-012] Implement route guard logic (check authentication)
+- [ ] T3-055 [US-AUTH-012] Redirect to login if not authenticated
+- [ ] T3-056 [US-AUTH-012] Create `AdminRoute` component for admin-only routes
+- [ ] T3-057 [US-AUTH-012] Create `OrganizerRoute` component for organizer-only routes
+- [ ] T3-058 [US-AUTH-012] Integrate protected routes in `web/src/App.tsx` routing
 
 ### Frontend: User Profile Page
 
-- [ ] T156 [US-AUTH-011] Create `web/src/pages/Profile.tsx` page component
-- [ ] T157 [US-AUTH-011] Display current user information (read-only view)
-- [ ] T158 [US-AUTH-011] Create edit profile form (firstName, lastName, phoneNumber)
-- [ ] T159 [US-AUTH-011] Add form validation
-- [ ] T160 [US-AUTH-011] Integrate with `PUT /api/v1/users/me` endpoint
-- [ ] T161 [US-AUTH-011] Add success/error messages
-- [ ] T162 [US-AUTH-011] Add loading states
-- [ ] T163 [US-AUTH-011] Make page responsive
+- [ ] T3-059 [US-AUTH-011] Create `web/src/pages/Profile.tsx` page component
+- [ ] T3-060 [US-AUTH-011] Display current user information (read-only view)
+- [ ] T3-061 [US-AUTH-011] Create edit profile form (firstName, lastName, phoneNumber)
+- [ ] T3-062 [US-AUTH-011] Add form validation
+- [ ] T3-063 [US-AUTH-011] Integrate with `PUT /api/v1/users/me` endpoint
+- [ ] T3-064 [US-AUTH-011] Add success/error messages
+- [ ] T3-065 [US-AUTH-011] Add loading states
+- [ ] T3-066 [US-AUTH-011] Make page responsive
 
 **Checkpoint**: User authentication and profile management fully functional. Users can sign up, sign in, and manage profiles.
 
@@ -287,33 +272,33 @@
 
 ### Backend: Category Entity
 
-- [ ] T164 [P] [US-EVENT-002] Create `CategoryEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/CategoryEntity.java`
-- [ ] T165 [P] [US-EVENT-002] Create `CategoryRepository` in `services/core-api/src/main/java/com/accessplus/eventpro/core/repository/CategoryRepository.java`
-- [ ] T166 [US-EVENT-002] Create Flyway migration `V3__create_category_table.sql`
-- [ ] T167 [US-EVENT-002] Create seed data script `V4__seed_categories.sql` with predefined categories
-- [ ] T168 [US-EVENT-002] Write unit tests for `CategoryRepository`
+- [ ] T4-001 [P] [US-EVENT-002] Create `CategoryEntity` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/category/entity/CategoryEntity.java`
+- [ ] T4-002 [P] [US-EVENT-002] Create `CategoryRepository` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/category/repository/CategoryRepository.java`
+- [ ] T4-003 [US-EVENT-002] Create Flyway migration `V3__create_category_table.sql`
+- [ ] T4-004 [US-EVENT-002] Create seed data script `V4__seed_categories.sql` with predefined categories
+- [ ] T4-005 [US-EVENT-002] Write unit tests for `CategoryRepository`
 
 ### Backend: Address Entity
 
-- [ ] T169 [P] [US-EVENT-003] Create `AddressEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/AddressEntity.java`
-- [ ] T170 [P] [US-EVENT-003] Add one-to-one relationship with Event
-- [ ] T171 [US-EVENT-003] Create `AddressRepository` in `services/core-api/src/main/java/com/accessplus/eventpro/core/repository/AddressRepository.java`
-- [ ] T172 [US-EVENT-003] Create Flyway migration `V5__create_address_table.sql`
-- [ ] T173 [US-EVENT-003] Write unit tests for `AddressRepository`
+- [ ] T4-006 [P] [US-EVENT-003] Create `AddressEntity` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/address/entity/AddressEntity.java`
+- [ ] T4-007 [P] [US-EVENT-003] Add one-to-one relationship with Event
+- [ ] T4-008 [US-EVENT-003] Create `AddressRepository` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/address/repository/AddressRepository.java`
+- [ ] T4-009 [US-EVENT-003] Create Flyway migration `V5__create_address_table.sql`
+- [ ] T4-010 [US-EVENT-003] Write unit tests for `AddressRepository`
 
 ### Backend: Event Entity
 
-- [ ] T174 [US-EVENT-001] Create `EventEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/EventEntity.java`
-- [ ] T175 [US-EVENT-001] Add relationships: organizer (User), category, address, tickets
-- [ ] T176 [US-EVENT-001] Create `EventRepository` in `services/core-api/src/main/java/com/accessplus/eventpro/core/repository/EventRepository.java`
-- [ ] T177 [US-EVENT-001] Add custom query methods: `findByCategory`, `findByOrganizer`, `findByMarketingEnabled`
-- [ ] T178 [US-EVENT-001] Create Flyway migration `V6__create_event_table.sql`
-- [ ] T179 [US-EVENT-001] Write unit tests for `EventRepository`
+- [ ] T4-011 [US-EVENT-001] Create `EventEntity` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/event/entity/EventEntity.java`
+- [ ] T4-012 [US-EVENT-001] Add relationships: organizer (User), category, address, tickets
+- [ ] T4-013 [US-EVENT-001] Create `EventRepository` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/event/repository/EventRepository.java`
+- [ ] T4-014 [US-EVENT-001] Add custom query methods: `findByCategory`, `findByOrganizer`, `findByMarketingEnabled`
+- [ ] T4-015 [US-EVENT-001] Create Flyway migration `V6__create_event_table.sql`
+- [ ] T4-016 [US-EVENT-001] Write unit tests for `EventRepository`
 
 ### Backend: S3 Image Service
 
-- [ ] T180 [US-EVENT-005] Add AWS S3 SDK v2 dependency to `services/core-api/build.gradle`
-- [ ] T181 [US-EVENT-005] Create `AWSS3ImageService` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/AWSS3ImageService.java`
+- [ ] T180 [US-EVENT-005] Add AWS S3 SDK v2 dependency to `eventpro-api/modules/eventpro-core/build.gradle`
+- [ ] T181 [US-EVENT-005] Create `AWSS3ImageService` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/AWSS3ImageService.java`
 - [ ] T182 [US-EVENT-005] Implement `uploadImage` method (multipart file upload)
 - [ ] T183 [US-EVENT-005] Implement `deleteImage` method
 - [ ] T184 [US-EVENT-005] Implement `getImageUrl` method
@@ -323,8 +308,8 @@
 
 ### Backend: Event Service
 
-- [ ] T188 [US-EVENT-004] Create `EventService` interface in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/EventService.java`
-- [ ] T189 [US-EVENT-004] Create `EventServiceImpl` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/EventServiceImpl.java`
+- [ ] T188 [US-EVENT-004] Create `EventService` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/EventService.java`
+- [ ] T189 [US-EVENT-004] Create `EventServiceImpl` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/EventServiceImpl.java`
 - [ ] T190 [US-EVENT-004] Implement `createEvent` method (with image upload)
 - [ ] T191 [US-EVENT-004] Implement `updateEvent` method
 - [ ] T192 [US-EVENT-004] Implement `deleteEvent` method
@@ -337,7 +322,7 @@
 
 ### Backend: Event Controller
 
-- [ ] T199 [US-EVENT-006] Create `EventController` in `services/core-api/src/main/java/com/accessplus/eventpro/core/api/controller/EventController.java`
+- [ ] T199 [US-EVENT-006] Create `EventController` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/api/controller/EventController.java`
 - [ ] T200 [US-EVENT-006] Implement `POST /api/v1/events` endpoint (admin/organizer only)
 - [ ] T201 [US-EVENT-006] Implement `GET /api/v1/events/{id}` endpoint (public)
 - [ ] T202 [US-EVENT-006] Implement `GET /api/v1/events` endpoint (public, paginated, searchable)
@@ -432,18 +417,18 @@
 
 ### Backend: Ticket Entity
 
-- [ ] T263 [P] [US-TICKET-001] Create `TicketEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/TicketEntity.java`
+- [ ] T263 [P] [US-TICKET-001] Create `TicketEntity` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/entity/TicketEntity.java`
 - [ ] T264 [P] [US-TICKET-001] Add enums: `TicketType` (VIP, REGULAR, EARLY_BIRD), `TicketStatus` (AVAILABLE, SOLD, RESERVED)
 - [ ] T265 [P] [US-TICKET-001] Add relationships: event, purchaser (User), creator (User), orderItem
-- [ ] T266 [US-TICKET-001] Create `TicketRepository` in `services/core-api/src/main/java/com/accessplus/eventpro/core/repository/TicketRepository.java`
+- [ ] T266 [US-TICKET-001] Create `TicketRepository` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/repository/TicketRepository.java`
 - [ ] T267 [US-TICKET-001] Add custom query methods: `findByEvent`, `findByStatus`, `findByEventAndType`
 - [ ] T268 [US-TICKET-001] Create Flyway migration `V7__create_ticket_table.sql`
 - [ ] T269 [US-TICKET-001] Write unit tests for `TicketRepository`
 
 ### Backend: QR Code Service
 
-- [ ] T270 [US-TICKET-003] Add QR code library dependency (e.g., ZXing) to `services/core-api/build.gradle`
-- [ ] T271 [US-TICKET-003] Create `QRCodeService` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/QRCodeService.java`
+- [ ] T270 [US-TICKET-003] Add QR code library dependency (e.g., ZXing) to `eventpro-api/modules/eventpro-core/build.gradle`
+- [ ] T271 [US-TICKET-003] Create `QRCodeService` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/QRCodeService.java`
 - [ ] T272 [US-TICKET-003] Implement `generateQRCode` method (creates QR code image with ticket ID)
 - [ ] T273 [US-TICKET-003] Implement `uploadQRCodeToS3` method (stores QR code image in S3)
 - [ ] T274 [US-TICKET-003] Implement `getQRCodeUrl` method
@@ -451,8 +436,8 @@
 
 ### Backend: Ticket Service
 
-- [ ] T276 [US-TICKET-002] Create `TicketService` interface in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/TicketService.java`
-- [ ] T277 [US-TICKET-002] Create `TicketServiceImpl` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/TicketServiceImpl.java`
+- [ ] T276 [US-TICKET-002] Create `TicketService` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/TicketService.java`
+- [ ] T277 [US-TICKET-002] Create `TicketServiceImpl` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/TicketServiceImpl.java`
 - [ ] T278 [US-TICKET-002] Implement `createTickets` method (bulk creation for event)
 - [ ] T279 [US-TICKET-002] Implement `updateTicket` method
 - [ ] T280 [US-TICKET-002] Implement `deleteTicket` method
@@ -466,7 +451,7 @@
 
 ### Backend: Ticket Controller
 
-- [ ] T288 [US-TICKET-004] Create `TicketController` in `services/core-api/src/main/java/com/accessplus/eventpro/core/api/controller/TicketController.java`
+- [ ] T288 [US-TICKET-004] Create `TicketController` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/api/controller/TicketController.java`
 - [ ] T289 [US-TICKET-004] Implement `POST /api/v1/tickets` endpoint (admin/organizer only, bulk creation)
 - [ ] T290 [US-TICKET-004] Implement `GET /api/v1/tickets/{id}` endpoint (public)
 - [ ] T291 [US-TICKET-004] Implement `GET /api/v1/tickets/event/{eventId}` endpoint (public)
@@ -547,30 +532,30 @@
 
 ### Backend: Cart Entity
 
-- [ ] T341 [P] [US-CART-001] Create `CartEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/CartEntity.java`
+- [ ] T341 [P] [US-CART-001] Create `CartEntity` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/entity/CartEntity.java`
 - [ ] T342 [P] [US-CART-001] Add relationships: user, ticket
-- [ ] T343 [US-CART-001] Create `CartRepository` in `services/core-api/src/main/java/com/accessplus/eventpro/core/repository/CartRepository.java`
+- [ ] T343 [US-CART-001] Create `CartRepository` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/repository/CartRepository.java`
 - [ ] T344 [US-CART-001] Add custom query methods: `findByUser`, `findByUserAndTicket`
 - [ ] T345 [US-CART-001] Create Flyway migration `V8__create_cart_table.sql` with unique constraint on user+ticket
 - [ ] T346 [US-CART-001] Write unit tests for `CartRepository`
 
 ### Backend: Order and OrderItem Entities
 
-- [ ] T347 [P] [US-CART-002] Create `OrderEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/OrderEntity.java`
+- [ ] T347 [P] [US-CART-002] Create `OrderEntity` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/entity/OrderEntity.java`
 - [ ] T348 [P] [US-CART-002] Add enum: `OrderStatus` (PENDING, PAID, CANCELLED, REFUNDED)
 - [ ] T349 [P] [US-CART-002] Add relationships: user, orderItems, payment
-- [ ] T350 [P] [US-CART-002] Create `OrderItemEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/OrderItemEntity.java`
+- [ ] T350 [P] [US-CART-002] Create `OrderItemEntity` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/entity/OrderItemEntity.java`
 - [ ] T351 [P] [US-CART-002] Add relationships: order, ticket
-- [ ] T352 [US-CART-002] Create `OrderRepository` in `services/core-api/src/main/java/com/accessplus/eventpro/core/repository/OrderRepository.java`
-- [ ] T353 [US-CART-002] Create `OrderItemRepository` in `services/core-api/src/main/java/com/accessplus/eventpro/core/repository/OrderItemRepository.java`
+- [ ] T352 [US-CART-002] Create `OrderRepository` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/repository/OrderRepository.java`
+- [ ] T353 [US-CART-002] Create `OrderItemRepository` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/repository/OrderItemRepository.java`
 - [ ] T354 [US-CART-002] Add custom query methods: `findByUser`, `findByStatus`, `findByOrderNumber`
 - [ ] T355 [US-CART-002] Create Flyway migration `V9__create_order_and_order_item_tables.sql`
 - [ ] T356 [US-CART-002] Write unit tests for repositories
 
 ### Backend: Cart Service
 
-- [ ] T357 [US-CART-003] Create `CartService` interface in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/CartService.java`
-- [ ] T358 [US-CART-003] Create `CartServiceImpl` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/CartServiceImpl.java`
+- [ ] T357 [US-CART-003] Create `CartService` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/CartService.java`
+- [ ] T358 [US-CART-003] Create `CartServiceImpl` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/CartServiceImpl.java`
 - [ ] T359 [US-CART-003] Implement `addItemToCart` method (with ticket availability check)
 - [ ] T360 [US-CART-003] Implement `updateCartItemQuantity` method
 - [ ] T361 [US-CART-003] Implement `removeItemFromCart` method
@@ -582,8 +567,8 @@
 
 ### Backend: Order Service
 
-- [ ] T367 [US-CART-004] Create `OrderService` interface in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/OrderService.java`
-- [ ] T368 [US-CART-004] Create `OrderServiceImpl` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/OrderServiceImpl.java`
+- [ ] T367 [US-CART-004] Create `OrderService` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/OrderService.java`
+- [ ] T368 [US-CART-004] Create `OrderServiceImpl` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/OrderServiceImpl.java`
 - [ ] T369 [US-CART-004] Implement `createOrderFromCart` method (creates order, publishes to SQS)
 - [ ] T370 [US-CART-004] Implement `getOrderById` method
 - [ ] T371 [US-CART-004] Implement `getUserOrders` method
@@ -595,7 +580,7 @@
 
 ### Backend: Cart Controller
 
-- [ ] T377 [US-CART-005] Create `CartController` in `services/core-api/src/main/java/com/accessplus/eventpro/core/api/controller/CartController.java`
+- [ ] T377 [US-CART-005] Create `CartController` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/api/controller/CartController.java`
 - [ ] T378 [US-CART-005] Implement `POST /api/v1/cart/add` endpoint (authenticated users only)
 - [ ] T379 [US-CART-005] Implement `GET /api/v1/cart` endpoint (authenticated users only)
 - [ ] T380 [US-CART-005] Implement `PATCH /api/v1/cart/update` endpoint (authenticated users only)
@@ -606,7 +591,7 @@
 
 ### Backend: Order Controller
 
-- [ ] T385 [US-CART-006] Create `OrderController` in `services/core-api/src/main/java/com/accessplus/eventpro/core/api/controller/OrderController.java`
+- [ ] T385 [US-CART-006] Create `OrderController` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/api/controller/OrderController.java`
 - [ ] T386 [US-CART-006] Implement `POST /api/v1/orders` endpoint (create order from cart, authenticated users only)
 - [ ] T387 [US-CART-006] Implement `GET /api/v1/orders/{id}` endpoint (authenticated users, own orders or admin)
 - [ ] T388 [US-CART-006] Implement `GET /api/v1/orders` endpoint (user's orders, or all orders if admin)
@@ -673,15 +658,15 @@
 
 ### Lambda: Order Processor Setup
 
-- [ ] T427 [US-CART-004] Configure Quarkus Lambda handler in `services/lambdas/order-processor/src/main/resources/application.properties`
-- [ ] T428 [US-CART-004] Add AWS SQS SDK dependency to `services/lambdas/order-processor/build.gradle`
+- [ ] T427 [US-CART-004] Configure Quarkus Lambda handler in `lambdas/order-processor/src/main/resources/application.properties`
+- [ ] T428 [US-CART-004] Add AWS SQS SDK dependency to `lambdas/order-processor/build.gradle`
 - [ ] T429 [US-CART-004] Add PostgreSQL/Hibernate dependencies for database access
-- [ ] T430 [US-CART-004] Create Lambda handler class in `services/lambdas/order-processor/src/main/java/com/accessplus/eventpro/order/handler/OrderProcessorHandler.java`
+- [ ] T430 [US-CART-004] Create Lambda handler class in `lambdas/order-processor/src/main/java/com/accessplus/eventpro/order/handler/OrderProcessorHandler.java`
 - [ ] T431 [US-CART-004] Implement `RequestHandler` interface for SQS event processing
 
 ### Lambda: Order Processing Logic
 
-- [ ] T432 [US-CART-004] Create `OrderProcessorService` in `services/lambdas/order-processor/src/main/java/com/accessplus/eventpro/order/service/OrderProcessorService.java`
+- [ ] T432 [US-CART-004] Create `OrderProcessorService` in `lambdas/order-processor/src/main/java/com/accessplus/eventpro/order/service/OrderProcessorService.java`
 - [ ] T433 [US-CART-004] Implement `processOrder` method (validates order, reserves tickets)
 - [ ] T434 [US-CART-004] Implement ticket availability check logic
 - [ ] T435 [US-CART-004] Implement ticket reservation (update status to RESERVED)
@@ -711,17 +696,17 @@
 
 ### Backend: Payment Entity
 
-- [ ] T446 [P] [US-PAY-002] Create `PaymentEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/PaymentEntity.java`
+- [ ] T446 [P] [US-PAY-002] Create `PaymentEntity` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/entity/PaymentEntity.java`
 - [ ] T447 [P] [US-PAY-002] Add enum: `PaymentStatus` (PENDING, SUCCESS, FAILED, REFUNDED)
 - [ ] T448 [P] [US-PAY-002] Add relationship: order (one-to-one)
-- [ ] T449 [US-PAY-002] Create `PaymentRepository` in `services/core-api/src/main/java/com/accessplus/eventpro/core/repository/PaymentRepository.java`
+- [ ] T449 [US-PAY-002] Create `PaymentRepository` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/repository/PaymentRepository.java`
 - [ ] T450 [US-PAY-002] Create Flyway migration `V10__create_payment_table.sql`
 - [ ] T451 [US-PAY-002] Write unit tests for `PaymentRepository`
 
 ### Backend: Stripe Integration
 
-- [ ] T452 [US-PAY-001] Add Stripe Java SDK dependency to `services/core-api/build.gradle`
-- [ ] T453 [US-PAY-001] Create `StripeService` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/StripeService.java`
+- [ ] T452 [US-PAY-001] Add Stripe Java SDK dependency to `eventpro-api/modules/eventpro-core/build.gradle`
+- [ ] T453 [US-PAY-001] Create `StripeService` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/StripeService.java`
 - [ ] T454 [US-PAY-001] Implement `createPaymentIntent` method
 - [ ] T455 [US-PAY-001] Implement `confirmPayment` method
 - [ ] T456 [US-PAY-001] Implement `handleWebhook` method (signature verification)
@@ -731,8 +716,8 @@
 
 ### Backend: Payment Service
 
-- [ ] T460 [US-PAY-003] Create `PaymentService` interface in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/PaymentService.java`
-- [ ] T461 [US-PAY-003] Create `PaymentServiceImpl` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/PaymentServiceImpl.java`
+- [ ] T460 [US-PAY-003] Create `PaymentService` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/PaymentService.java`
+- [ ] T461 [US-PAY-003] Create `PaymentServiceImpl` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/PaymentServiceImpl.java`
 - [ ] T462 [US-PAY-003] Implement `processPayment` method (creates payment intent, processes payment)
 - [ ] T463 [US-PAY-003] Implement `handlePaymentWebhook` method (updates payment status from Stripe webhook)
 - [ ] T464 [US-PAY-003] Implement `updatePaymentStatus` method
@@ -744,7 +729,7 @@
 
 ### Backend: Payment Controller
 
-- [ ] T470 [US-PAY-004] Create `PaymentController` in `services/core-api/src/main/java/com/accessplus/eventpro/core/api/controller/PaymentController.java`
+- [ ] T470 [US-PAY-004] Create `PaymentController` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/api/controller/PaymentController.java`
 - [ ] T471 [US-PAY-004] Implement `POST /api/v1/payments/stripe` endpoint (process Stripe payment)
 - [ ] T472 [US-PAY-004] Implement `POST /api/v1/payments/webhook` endpoint (Stripe webhook, no auth required)
 - [ ] T473 [US-PAY-004] Implement `GET /api/v1/payments/{id}` endpoint (authenticated users, own payments or admin)
@@ -755,14 +740,14 @@
 
 ### Lambda: Payment Processor Setup
 
-- [ ] T478 [US-PAY-003] Configure Quarkus Lambda handler in `services/lambdas/payment-processor/src/main/resources/application.properties`
-- [ ] T479 [US-PAY-003] Add Stripe Java SDK dependency to `services/lambdas/payment-processor/build.gradle`
+- [ ] T478 [US-PAY-003] Configure Quarkus Lambda handler in `lambdas/payment-processor/src/main/resources/application.properties`
+- [ ] T479 [US-PAY-003] Add Stripe Java SDK dependency to `lambdas/payment-processor/build.gradle`
 - [ ] T480 [US-PAY-003] Add AWS SQS SDK and PostgreSQL dependencies
-- [ ] T481 [US-PAY-003] Create Lambda handler class in `services/lambdas/payment-processor/src/main/java/com/accessplus/eventpro/payment/handler/PaymentProcessorHandler.java`
+- [ ] T481 [US-PAY-003] Create Lambda handler class in `lambdas/payment-processor/src/main/java/com/accessplus/eventpro/payment/handler/PaymentProcessorHandler.java`
 
 ### Lambda: Payment Processing Logic
 
-- [ ] T482 [US-PAY-003] Create `PaymentProcessorService` in `services/lambdas/payment-processor/src/main/java/com/accessplus/eventpro/payment/service/PaymentProcessorService.java`
+- [ ] T482 [US-PAY-003] Create `PaymentProcessorService` in `lambdas/payment-processor/src/main/java/com/accessplus/eventpro/payment/service/PaymentProcessorService.java`
 - [ ] T483 [US-PAY-003] Implement `processPayment` method (processes payment via Stripe)
 - [ ] T484 [US-PAY-003] Implement payment status update (SUCCESS or FAILED)
 - [ ] T485 [US-PAY-003] Implement order status update (PAID or CANCELLED)
@@ -805,17 +790,17 @@
 
 ### Backend: Notification Entities
 
-- [ ] T506 [P] [US-NOTIF-001] Create `NotificationEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/NotificationEntity.java`
-- [ ] T507 [P] [US-NOTIF-001] Create `UserNotificationEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/UserNotificationEntity.java`
-- [ ] T508 [P] [US-NOTIF-001] Create `NotificationPreferenceEntity` in `services/core-api/src/main/java/com/accessplus/eventpro/core/entity/NotificationPreferenceEntity.java`
+- [ ] T506 [P] [US-NOTIF-001] Create `NotificationEntity` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/entity/NotificationEntity.java`
+- [ ] T507 [P] [US-NOTIF-001] Create `UserNotificationEntity` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/entity/UserNotificationEntity.java`
+- [ ] T508 [P] [US-NOTIF-001] Create `NotificationPreferenceEntity` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/entity/NotificationPreferenceEntity.java`
 - [ ] T509 [US-NOTIF-001] Create repositories for all notification entities
 - [ ] T510 [US-NOTIF-001] Create Flyway migration `V11__create_notification_tables.sql`
 - [ ] T511 [US-NOTIF-001] Write unit tests for repositories
 
 ### Backend: AWS SES Integration
 
-- [ ] T512 [US-NOTIF-002] Add AWS SES SDK dependency to `services/core-api/build.gradle`
-- [ ] T513 [US-NOTIF-002] Create `AWSSesService` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/AWSSesService.java`
+- [ ] T512 [US-NOTIF-002] Add AWS SES SDK dependency to `eventpro-api/modules/eventpro-core/build.gradle`
+- [ ] T513 [US-NOTIF-002] Create `AWSSesService` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/AWSSesService.java`
 - [ ] T514 [US-NOTIF-002] Implement `sendEmail` method
 - [ ] T515 [US-NOTIF-002] Implement email template support
 - [ ] T516 [US-NOTIF-002] Add error handling
@@ -823,16 +808,16 @@
 
 ### Backend: AWS SNS Integration
 
-- [ ] T518 [US-NOTIF-003] Add AWS SNS SDK dependency to `services/core-api/build.gradle`
-- [ ] T519 [US-NOTIF-003] Create `SNSService` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/SNSService.java`
+- [ ] T518 [US-NOTIF-003] Add AWS SNS SDK dependency to `eventpro-api/modules/eventpro-core/build.gradle`
+- [ ] T519 [US-NOTIF-003] Create `SNSService` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/SNSService.java`
 - [ ] T520 [US-NOTIF-003] Implement `sendSMS` method
 - [ ] T521 [US-NOTIF-003] Add error handling
 - [ ] T522 [US-NOTIF-003] Write unit tests for `SNSService`
 
 ### Backend: Notification Service
 
-- [ ] T523 [US-NOTIF-004] Create `NotificationService` interface in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/NotificationService.java`
-- [ ] T524 [US-NOTIF-004] Create `NotificationServiceImpl` in `services/core-api/src/main/java/com/accessplus/eventpro/core/service/NotificationServiceImpl.java`
+- [ ] T523 [US-NOTIF-004] Create `NotificationService` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/NotificationService.java`
+- [ ] T524 [US-NOTIF-004] Create `NotificationServiceImpl` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/service/NotificationServiceImpl.java`
 - [ ] T525 [US-NOTIF-004] Implement `createNotification` method
 - [ ] T526 [US-NOTIF-004] Implement `sendNotification` method (email, SMS, in-app based on preferences)
 - [ ] T527 [US-NOTIF-004] Implement `getUserNotifications` method
@@ -843,9 +828,9 @@
 
 ### Backend: WebSocket Server
 
-- [ ] T532 [US-NOTIF-005] Add Spring WebSocket dependency to `services/core-api/build.gradle`
-- [ ] T533 [US-NOTIF-005] Create `WebSocketConfig` in `services/core-api/src/main/java/com/accessplus/eventpro/core/config/WebSocketConfig.java`
-- [ ] T534 [US-NOTIF-005] Create WebSocket endpoint in `services/core-api/src/main/java/com/accessplus/eventpro/core/api/controller/NotificationWebSocketController.java`
+- [ ] T532 [US-NOTIF-005] Add Spring WebSocket dependency to `eventpro-api/modules/eventpro-core/build.gradle`
+- [ ] T533 [US-NOTIF-005] Create `WebSocketConfig` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/config/WebSocketConfig.java`
+- [ ] T534 [US-NOTIF-005] Create WebSocket endpoint in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/api/controller/NotificationWebSocketController.java`
 - [ ] T535 [US-NOTIF-005] Implement authentication for WebSocket connections
 - [ ] T536 [US-NOTIF-005] Implement message broadcasting
 - [ ] T537 [US-NOTIF-005] Implement connection management
@@ -853,7 +838,7 @@
 
 ### Backend: Notification Controller
 
-- [ ] T539 [US-NOTIF-006] Create `NotificationController` in `services/core-api/src/main/java/com/accessplus/eventpro/core/api/controller/NotificationController.java`
+- [ ] T539 [US-NOTIF-006] Create `NotificationController` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/api/controller/NotificationController.java`
 - [ ] T540 [US-NOTIF-006] Implement `GET /api/v1/notifications` endpoint (user's notifications)
 - [ ] T541 [US-NOTIF-006] Implement `GET /api/v1/notifications/{id}` endpoint
 - [ ] T542 [US-NOTIF-006] Implement `PATCH /api/v1/notifications/{id}/read` endpoint
@@ -864,13 +849,13 @@
 
 ### Lambda: Notification Sender Setup
 
-- [ ] T547 [US-NOTIF-004] Configure Quarkus Lambda handler in `services/lambdas/notification-sender/src/main/resources/application.properties`
+- [ ] T547 [US-NOTIF-004] Configure Quarkus Lambda handler in `lambdas/notification-sender/src/main/resources/application.properties`
 - [ ] T548 [US-NOTIF-004] Add AWS SES, SNS SDK dependencies
-- [ ] T549 [US-NOTIF-004] Create Lambda handler class in `services/lambdas/notification-sender/src/main/java/com/accessplus/eventpro/notification/handler/NotificationSenderHandler.java`
+- [ ] T549 [US-NOTIF-004] Create Lambda handler class in `lambdas/notification-sender/src/main/java/com/accessplus/eventpro/notification/handler/NotificationSenderHandler.java`
 
 ### Lambda: Notification Sending Logic
 
-- [ ] T550 [US-NOTIF-004] Create `NotificationSenderService` in `services/lambdas/notification-sender/src/main/java/com/accessplus/eventpro/notification/service/NotificationSenderService.java`
+- [ ] T550 [US-NOTIF-004] Create `NotificationSenderService` in `lambdas/notification-sender/src/main/java/com/accessplus/eventpro/notification/service/NotificationSenderService.java`
 - [ ] T551 [US-NOTIF-004] Implement `sendNotification` method (processes notification message from SQS)
 - [ ] T552 [US-NOTIF-004] Implement email sending via SES
 - [ ] T553 [US-NOTIF-004] Implement SMS sending via SNS
@@ -911,7 +896,7 @@
 
 ### Backend: Analytics Endpoints
 
-- [ ] T572 [US-ANALYTICS-001] Create `AnalyticsController` in `services/event-api/src/main/java/com/accessplus/eventpro/event/api/controller/AnalyticsController.java`
+- [ ] T572 [US-ANALYTICS-001] Create `AnalyticsController` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/api/controller/AnalyticsController.java`
 - [ ] T573 [US-ANALYTICS-001] Implement `GET /api/v1/analytics/events` endpoint (event performance metrics)
 - [ ] T574 [US-ANALYTICS-001] Implement `GET /api/v1/analytics/sales` endpoint (sales analytics)
 - [ ] T575 [US-ANALYTICS-001] Implement `GET /api/v1/analytics/users` endpoint (user engagement metrics)

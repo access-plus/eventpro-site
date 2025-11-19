@@ -1,0 +1,53 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.7' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
+}
+
+allprojects {
+    group = 'com.accessplus.eventpro'
+    version = '1.0.0'
+    
+    repositories {
+        mavenCentral()
+        maven { url 'https://repo.spring.io/milestone' }
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+    
+    // Java 21 configuration
+    java {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+    
+    // Common dependency management
+    dependencyManagement {
+        imports {
+            mavenBom 'org.springframework.boot:spring-boot-dependencies:3.5.7'
+        }
+    }
+    
+    // Common configurations
+    configurations {
+        compileOnly {
+            extendsFrom annotationProcessor
+        }
+    }
+    
+    // Common test configuration
+    tasks.named('test') {
+        useJUnitPlatform()
+    }
+    
+    // Common dependency versions
+    ext {
+        awsSdkVersion = '2.21.29'
+        lombokVersion = '1.18.30'
+        postgresqlVersion = '42.7.1'
+    }
+}
+
