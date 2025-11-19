@@ -6,9 +6,6 @@ include:
   - local: .gitlab/templates/terraform-base.yml
   - local: .gitlab/templates/create-release.yml
 
-variables:
-  SERVICES: lambda,todo-app
-
 workflow:
   rules:
     # only run if the pipeline is triggered by a merge request or the branch is the default branch
@@ -32,31 +29,41 @@ calculate-version:
 test-eventpro-api:
   extends: .test-service
   stage: test
+  needs:
+    - job: calculate-version
+      artifacts: true
 
 gradle-build-eventpro-api:
   extends: .build-eventpro-api
   stage: build
+  needs:
+    - job: calculate-version
+      artifacts: true
+    - job: test-eventpro-api
 
 npm-build-web:
   stage: build
   image: node:22-alpine
+  before_script:
+    - cd web
   script:
     - npm ci
     - npm run build
   artifacts:
     paths:
-      - build/
-    expire_in: "1 hour"
-    reports:
-      junit: reports/junit.xml
+      - web/dist/
+    expire_in: 1 week
 
 docker-build-secret-rotation-lambda:
   extends: .build-service-docker-image  
   variables:
     SERVICES_DIR: secret-rotation
     DOCKERFILE_PATH: Dockerfile
-    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/todo-db-rotation-lambda
+    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-secret-rotation
     VERSION: $VERSION
+  needs:
+    - job: calculate-version
+      artifacts: true
 
 docker-build-eventpro-api:
   extends: .build-service-docker-image
@@ -65,6 +72,10 @@ docker-build-eventpro-api:
     DOCKERFILE_PATH: Dockerfile
     ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-eventpro-api
     VERSION: $VERSION
+  needs:
+    - job: calculate-version
+      artifacts: true
+    - job: gradle-build-eventpro-api
 
 terraform-deploy-eventpro:
   extends: .terraform-base
@@ -80,8 +91,8 @@ terraform-deploy-eventpro:
         -var="eventpro-api_image=$ECR_REGISTRY/access-eventpro-api:$VERSION" \
         -var="secret-rotation_lambda_image=$ECR_REGISTRY/access-secret-rotation:$VERSION" 
     # Extract ALB URL for GitLab Environment
-    - echo "ALB_URL=$(terraform output -raw alb_url)" >> deploy.env
-    - echo "Application Load Balancer URL is $(terraform output -raw alb_url)"
+    - echo "ALB_URL=https://$(terraform output -raw alb_dns_name)" >> deploy.env
+    - echo "Application Load Balancer URL is https://$(terraform output -raw alb_dns_name)"
   artifacts:
     reports:
       dotenv: deploy.env
@@ -92,15 +103,18 @@ terraform-deploy-eventpro:
 
 serve-web-static-files:
   stage: post-deploy
-  image: node:20
+  image: amazon/aws-cli:2.23.0
   needs: 
     - job: terraform-deploy-eventpro
     - job: npm-build-web
       artifacts: true
+  before_script:
+    - cd terraform/environments/dev
   script:
-    - |
-      echo "Serving web static files from $(terraform output -raw s3_bucket_name)"
-      echo "Web static files are served from $(terraform output -raw s3_bucket_name)"
+    - S3_BUCKET=$(terraform output -raw frontend_bucket_name)
+    - echo "Uploading web static files to $S3_BUCKET"
+    - aws s3 sync ../../../web/dist/ s3://$S3_BUCKET/ --delete
+    - echo "Web static files uploaded to s3://$S3_BUCKET"
 
 create-release:
   extends: .create-release
@@ -114,6 +128,9 @@ create-release:
 terraform-destroy-eventpro:
   extends: .terraform-base
   stage: tear-down
+  needs:
+    - job: calculate-version
+      artifacts: true
   script:
     - |
       terraform destroy --auto-approve \
