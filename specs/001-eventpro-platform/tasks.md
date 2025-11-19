@@ -127,35 +127,38 @@
 
 ### Database Configuration
 
-- [ ] T2-005 [US-AUTH-003] Configure PostgreSQL connection in `eventpro-api/modules/eventpro-api/src/main/resources/application.yml`
-- [ ] T2-006 [US-AUTH-003] Setup Flyway or Liquibase migration framework in eventpro-api
-- [ ] T2-007 [US-AUTH-003] Create `eventpro-api/modules/eventpro-api/src/main/resources/db/migration/V1__create_base_schema.sql` (empty for now, will be populated by entity creation)
+- [X] T2-005 [US-AUTH-003] Configure PostgreSQL connection in `eventpro-api/modules/eventpro-api/src/main/resources/application.yml`
+- [X] T2-006 [US-AUTH-003] Add Flyway dependency to `eventpro-api/modules/eventpro-api/build.gradle` (org.flywaydb:flyway-core)
+- [X] T2-007 [US-AUTH-003] Configure Flyway in `eventpro-api/modules/eventpro-api/src/main/resources/application.yml` (enable Flyway, set locations to db/migration, set baseline-on-migrate to true)
+- [X] T2-008 [US-AUTH-003] Verify JPA ddl-auto is set to `validate` (NOT create, update, or create-drop) to prevent JPA from managing schema
+- [X] T2-009 [US-AUTH-003] Create migration directory `eventpro-api/modules/eventpro-api/src/main/resources/db/migration/`
+- [X] T2-010 [US-AUTH-003] Verify Flyway creates schema history table on first run (Flyway automatically creates `flyway_schema_history` table - no manual migration needed)
 
 ### Authentication Framework
 
-- [X] T2-008 [US-AUTH-001] Add AWS Cognito SDK dependency to `eventpro-api/modules/eventpro-core/build.gradle`
-- [ ] T2-009 [US-AUTH-001] Create `CognitoConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/config/CognitoConfig.java`
-- [ ] T2-010 [US-AUTH-001] Configure JWT decoder for Cognito in `CognitoConfig`
-- [ ] T2-011 [US-AUTH-001] Create `SecurityConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/security/SecurityConfig.java`
-- [ ] T2-012 [US-AUTH-001] Configure Spring Security filter chain with OAuth2 resource server
-- [ ] T2-013 [US-AUTH-001] Configure JWT token validation in `SecurityConfig`
-- [ ] T2-014 [US-AUTH-002] Create `CognitoRoleMapper` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/security/CognitoRoleMapper.java`
-- [ ] T2-015 [US-AUTH-002] Implement mapping from Cognito groups to Spring Security roles (ADMIN, ORGANIZER, USER)
-- [ ] T2-016 [US-AUTH-001] Test authentication with sample protected endpoint
+- [X] T2-011 [US-AUTH-001] Add AWS Cognito SDK dependency to `eventpro-api/modules/eventpro-core/build.gradle`
+- [ ] T2-012 [US-AUTH-001] Create `CognitoConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/config/CognitoConfig.java`
+- [ ] T2-013 [US-AUTH-001] Configure JWT decoder for Cognito in `CognitoConfig`
+- [ ] T2-014 [US-AUTH-001] Create `SecurityConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/security/SecurityConfig.java`
+- [ ] T2-015 [US-AUTH-001] Configure Spring Security filter chain with OAuth2 resource server
+- [ ] T2-016 [US-AUTH-001] Configure JWT token validation in `SecurityConfig`
+- [ ] T2-017 [US-AUTH-002] Create `CognitoRoleMapper` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/security/CognitoRoleMapper.java`
+- [ ] T2-018 [US-AUTH-002] Implement mapping from Cognito groups to Spring Security roles (ADMIN, ORGANIZER, USER)
+- [ ] T2-019 [US-AUTH-001] Test authentication with sample protected endpoint
 
 ### SQS Messaging Framework
 
-- [X] T2-017 [US-CART-004] Add AWS SQS SDK v2 dependency to `eventpro-api/modules/eventpro-core/build.gradle`
-- [X] T2-018 [US-CART-004] Create `SQSMessagePublisher` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/messaging/sqs/SQSMessagePublisher.java`
-- [ ] T2-019 [US-CART-004] Create `SQSConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/config/SQSConfig.java`
-- [ ] T2-020 [US-CART-004] Implement methods to publish messages to order-queue, payment-queue, notification-queue
+- [X] T2-020 [US-CART-004] Add AWS SQS SDK v2 dependency to `eventpro-api/modules/eventpro-core/build.gradle`
+- [X] T2-021 [US-CART-004] Create `SQSMessagePublisher` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/messaging/sqs/SQSMessagePublisher.java`
+- [ ] T2-022 [US-CART-004] Create `SQSConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/config/SQSConfig.java`
+- [ ] T2-023 [US-CART-004] Implement methods to publish messages to order-queue, payment-queue, notification-queue
 
 ### API Structure
 
-- [ ] T2-021 [US-AUTH-005] Create base controller structure with `/api/v1` prefix
-- [ ] T2-022 [US-AUTH-005] Configure Swagger/OpenAPI documentation in `eventpro-api/modules/eventpro-api`
-- [ ] T2-023 [US-AUTH-005] Create `ApiResponse` wrapper class for consistent JSON responses
-- [ ] T2-024 [US-AUTH-005] Create `ErrorResponse` class matching API contract schema
+- [ ] T2-024 [US-AUTH-005] Create base controller structure with `/api/v1` prefix
+- [ ] T2-025 [US-AUTH-005] Configure Swagger/OpenAPI documentation in `eventpro-api/modules/eventpro-api`
+- [ ] T2-026 [US-AUTH-005] Create `ApiResponse` wrapper class for consistent JSON responses
+- [ ] T2-027 [US-AUTH-005] Create `ErrorResponse` class matching API contract schema
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 

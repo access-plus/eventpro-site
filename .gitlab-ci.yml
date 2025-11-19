@@ -38,15 +38,16 @@ gradle-build-eventpro-api:
 
 npm-build-web:
   stage: build
-  image: node:20
+  image: node:22-alpine
   script:
-    - cd web
-    - npm install
+    - npm ci
     - npm run build
   artifacts:
     paths:
-      - web/dist
-    expire_in: 1 hour
+      - build/
+    expire_in: "1 hour"
+    reports:
+      junit: reports/junit.xml
 
 docker-build-secret-rotation-lambda:
   extends: .build-service-docker-image  
