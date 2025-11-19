@@ -196,14 +196,19 @@ module "secrets_manager" {
       name        = "database-credentials"
       description = "RDS PostgreSQL database credentials"
       secret_key_value = {
+        host     = module.rds.db_instance_endpoint
         username = module.rds.db_instance_username
         password = module.rds.db_password
-        engine   = "postgres"
-        host     = module.rds.db_instance_endpoint
+        dbname   = module.rds.db_instance_name
         port     = tostring(module.rds.db_instance_port)
-        dbname   = var.db_name
       }
       rotation_enabled = false # Can be enabled later with Lambda function
+    }
+    jwt = {
+      name        = "jwt-secret"
+      description = "JWT secret key for token signing and verification"
+      secret_string = var.jwt_secret != "" ? var.jwt_secret : null
+      rotation_enabled = false
     }
     stripe = {
       name        = "stripe-api-keys"

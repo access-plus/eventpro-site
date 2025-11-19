@@ -206,3 +206,30 @@ web-preview:
 	@echo "Previewing Web production build..."
 	cd $(WEB_DIR) && npm run preview
 
+image-core-api:
+	@echo "Building Core API Docker image..."
+	cd $(SERVICES_DIR) && docker image build -f core-api/Dockerfile -t access-core-api:latest .
+
+image-event-api:
+	@echo "Building Event API Docker image..."
+	cd $(SERVICES_DIR) && docker image build -f event-api/Dockerfile -t access-event-api:latest .
+
+image-order-processor:
+	@echo "Building Order Processor Docker image..."
+	cd $(SERVICES_DIR) && docker image build -f lambdas/order-processor/Dockerfile -t access-order-processor:latest .
+
+image-payment-processor:
+	@echo "Building Payment Processor Docker image..."
+	cd $(SERVICES_DIR) && docker image build -f lambdas/payment-processor/Dockerfile -t access-payment-processor:latest .
+
+image-notification-sender:
+	@echo "Building Notification Sender Docker image..."
+	cd $(SERVICES_DIR) && docker image build -f lambdas/notification-sender/Dockerfile -t access-notification-sender:latest .
+
+image-analytics-service:
+	@echo "Building Analytics Service Docker image..."
+	cd $(SERVICES_DIR) && docker image build -f lambdas/analytics-service/Dockerfile -t access-analytics-service:latest .
+
+image-secret-rotation-lambda:
+	@echo "Building Secret Rotation Lambda Docker image..."
+	cd secret-rotation && docker image build -f Dockerfile -t access-secret-rotation:latest .

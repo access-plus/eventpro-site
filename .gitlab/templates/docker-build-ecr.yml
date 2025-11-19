@@ -9,10 +9,10 @@
     DOCKER_HOST: tcp://docker:2375/
   before_script:
     - amazon-linux-extras install docker
-    - cd services
+    - cd $SERVICES_DIR
   script:
     - aws --version
     - docker version
-    - docker build -t -f $DOCKERFILE_PATH $ECR_REPOSITORY_IMAGE:$VERSION .
+    - docker image build -t -f $DOCKERFILE_PATH $ECR_REPOSITORY_IMAGE:$VERSION .
     - aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
-    - docker push $ECR_REPOSITORY_IMAGE:$VERSION
+    - docker image push $ECR_REPOSITORY_IMAGE:$VERSION

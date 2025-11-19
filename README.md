@@ -642,53 +642,53 @@ cd services
 <details>
 <summary>Docker Image Build Commands</summary>
 
-**Important**: All Docker image build commands must be executed from within the service directory (not from the project root).
+```bash
+cd services
+```
+
+**Important**: All Docker image build commands must be executed from the project root
 
 #### For API Services (Core API, Event API)
 
 ```bash
-# Navigate to the service directory first
-cd services/core-api
-docker build -t core-api:latest .
-
-# Or for Event API
-cd services/event-api
-docker build -t event-api:latest .
+docker image build -f core-api/Dockerfile -t access-core-api:latest .
+docker image build -f event-api/Dockerfile -t access-event-api:latest .
 ```
 
 #### For Lambda Functions
 
 ```bash
-# Navigate to the lambda service directory first
-cd services/lambdas/order-processor
-docker build -t order-processor:latest .
+docker image build -f lambdas/order-processor/Dockerfile -t access-order-processor:latest .
+docker image build -f lambdas/payment-processor/Dockerfile -t access-payment-processor:latest .
+docker image build -f lambdas/notification-sender/Dockerfile -t access-notification-sender:latest .
+docker image build -f lambdas/analytics-service/Dockerfile -t access-analytics-service:latest .
+```
 
-# Or for other lambdas
-cd services/lambdas/payment-processor
-docker build -t payment-processor:latest .
-
-cd services/lambdas/notification-sender
-docker build -t notification-sender:latest .
-
-cd services/lambdas/analytics-service
-docker build -t analytics-service:latest .
+```bash
+# From root directory
+docker image build -f secret-rotation/Dockerfile -t access-secret-rotation:latest .
 ```
 
 **Note**: The Dockerfile in each service directory expects to be run from that directory's context, which is why you must execute the build command from within the service directory.
 
 </details>
 
-#### Backend Services
+#### Backend Gradle Build Commands 
 
 ```bash
-# Build Docker images
-cd services/core-api
-docker build -t core-api:latest .
+# From root directory
+cd services
 
-# Build Lambda packages (Quarkus generates function.zip automatically)
-cd services/lambdas/order-processor
+# Build all projects
 ./gradlew build
-# Package will be in: build/function.zip
+
+# Build all Lambda functions (Quarkus automatically generates function.zip)
+./gradlew :lambdas:order-processor:build
+./gradlew :lambdas:payment-processor:build
+./gradlew :lambdas:notification-sender:build
+./gradlew :lambdas:analytics-service:build
+
+# Lambda packages are ready in build/function.zip for each service
 ```
 
 #### Frontend
@@ -757,24 +757,30 @@ npm run build
 
 #### Core API (Port 8080)
 
-- **User Management**
+- **User Controller**
   - `GET /api/v1/users/me` - Get current user profile
   - `PUT /api/v1/users/me` - Update current user profile
   - `GET /api/v1/users/{id}` - Get user by ID (admin only)
 
-- **Event Management**
+- **Ticket Controller**
+  - `GET /api/v1/tickets/event/{eventId}` - Get tickets by event
+  - `POST /api/v1/tickets` - Create tickets (admin/organizer)
+  - `PATCH /api/v1/tickets/{id}` - Update ticket (admin/organizer)
+  - `DELETE /api/v1/tickets/{id}` - Delete ticket (admin/organizer)
+
+- **Event Controller**
   - `GET /api/v1/events` - List all events
   - `GET /api/v1/events/{id}` - Get event by ID
   - `POST /api/v1/events` - Create event (admin/organizer)
   - `PATCH /api/v1/events/{id}` - Update event (admin/organizer)
   - `DELETE /api/v1/events/{id}` - Delete event (admin/organizer)
 
-- **Ticket Management**
+- **Ticket Controller**
   - `GET /api/v1/tickets/event/{eventId}` - Get tickets by event
   - `POST /api/v1/tickets` - Create tickets (admin/organizer)
   - `PATCH /api/v1/tickets/{id}` - Update ticket (admin/organizer)
 
-- **Cart & Orders**
+- **Cart Controller**
   - `POST /api/v1/cart/add` - Add item to cart
   - `GET /api/v1/cart` - Get user's cart
   - `POST /api/v1/orders` - Create order from cart
@@ -865,9 +871,9 @@ npm run lint
 
 1. **Build and Push Docker Image**
    ```bash
-   docker build -t core-api:latest .
-   docker tag core-api:latest <ecr-registry>/core-api:latest
-   docker push <ecr-registry>/core-api:latest
+   docker image build -t core-api:latest .
+   docker image tag core-api:latest <ecr-registry>/core-api:latest
+   docker image push <ecr-registry>/core-api:latest
    ```
 
 2. **Update ECS Service**

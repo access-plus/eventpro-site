@@ -53,6 +53,6 @@ subprojects {
         postgresqlVersion = '42.7.1'
         
         // Quarkus version (for Lambda projects)
-        quarkusVersion = '3.26.2'
+        quarkusVersion = '3.27.0'
     }
 }

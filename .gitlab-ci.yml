@@ -44,56 +44,77 @@ detect-changes:
       - services.env
     expire_in: 2 hour
 
-build_rotation_lambda_docker_image:
-  image: 
-    name: amazon/aws-cli:2.23.0
-    entrypoint: [""]
-  stage: docker
-  services:
-    - docker:27-dind
-  variables: 
-    DOCKER_HOST: tcp://docker:2375/
-  before_script:
-    - amazon-linux-extras install docker
-    - cd lambda
-  script:
-    - aws --version
-    - docker version
-    - docker build -t $ECR_REGISTRY/todo-db-rotation-lambda:$VERSION .
-    - aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
-    - docker push $ECR_REGISTRY/todo-db-rotation-lambda:$VERSION
+docker-build-secret-rotation-lambda:
+  extends: .build-service-docker-image  
+  variables:
+    SERVICES_DIR: secret-rotation
+    DOCKERFILE_PATH: Dockerfile
+    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/todo-db-rotation-lambda
+    VERSION: $VERSION
 
-build_core_api_docker_image:
-  image: 
-    name: amazon/aws-cli:2.23.0
-    entrypoint: [""]
-  stage: docker
-  services:
-    - docker:27-dind
-  variables: 
-    DOCKER_HOST: tcp://docker:2375/
-  before_script:
-    - amazon-linux-extras install docker
-  script:
-    - aws --version
-    - docker version
-    - docker build -t $ECR_REGISTRY/todo-app:$VERSION .
-    - aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
-    - docker push $ECR_REGISTRY/todo-app:$VERSION
+docker-build-core-api:
+  extends: .build-service-docker-image
+  variables:
+    SERVICES_DIR: services
+    DOCKERFILE_PATH: core-api/Dockerfile
+    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-core-api
+    VERSION: $VERSION
 
-deploy-todo-app:
+docker-build-event-api:
+  extends: .build-service-docker-image
+  variables:
+    SERVICES_DIR: services
+    DOCKERFILE_PATH: event-api/Dockerfile
+    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-event-api
+    VERSION: $VERSION
+
+docker-build-order-processor:
+  extends: .build-service-docker-image
+  variables:
+    SERVICES_DIR: services
+    DOCKERFILE_PATH: lambdas/order-processor/Dockerfile
+    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-order-processor
+    VERSION: $VERSION
+
+docker-build-payment-processor:
+  extends: .build-service-docker-image
+  variables:
+    SERVICES_DIR: services
+    DOCKERFILE_PATH: lambdas/payment-processor/Dockerfile
+    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-payment-processor
+    VERSION: $VERSION
+
+docker-build-notification-sender:
+  extends: .build-service-docker-image
+  variables:
+    SERVICES_DIR: services
+    DOCKERFILE_PATH: lambdas/notification-sender/Dockerfile
+    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-notification-sender
+    VERSION: $VERSION
+
+deploy-eventpro:
   extends: .terraform-base
   stage: deploy
   needs:
     - job: calculate-version
       artifacts: true
-    - job: build_todo_app_docker_image
-    - job: build_rotation_lambda_docker_image
+    - job: docker-build-secret-rotation-lambda
+    - job: docker-build-core-api
+    - job: docker-build-event-api
+    - job: docker-build-order-processor
+    - job: docker-build-payment-processor
+    - job: docker-build-notification-sender
+    - job: docker-build-analytics-service
   script:
     - |
       terraform apply --auto-approve \
-        -var="todo_backend_image=$ECR_REGISTRY/todo-app:$VERSION" \
-        -var="rotation_lambda_image=$ECR_REGISTRY/todo-db-rotation-lambda:$VERSION"
+        -var="core-api_image=$ECR_REGISTRY/access-core-api:$VERSION" \
+        -var="event-api_image=$ECR_REGISTRY/access-event-api:$VERSION" \
+        -var="order-processor_image=$ECR_REGISTRY/access-order-processor:$VERSION" \
+        -var="payment-processor_image=$ECR_REGISTRY/access-payment-processor:$VERSION" \
+        -var="notification-sender_image=$ECR_REGISTRY/access-notification-sender:$VERSION" \
+        -var="analytics-service_image=$ECR_REGISTRY/access-analytics-service:$VERSION" \
+        -var="secret-rotation_lambda_image=$ECR_REGISTRY/access-secret-rotation:$VERSION" 
     # Extract ALB URL for GitLab Environment
     - echo "ALB_URL=$(terraform output -raw alb_url)" >> deploy.env
     - echo "Application Load Balancer URL is $(terraform output -raw alb_url)"
@@ -114,12 +135,17 @@ create-release:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-tear-down-todo-app:
+tear-down-eventpro:
   extends: .terraform-base
   stage: tear-down
   script:
     - |
       terraform destroy --auto-approve \
-        -var="todo_backend_image=$ECR_REGISTRY/todo-app:$VERSION" \
-        -var="rotation_lambda_image=$ECR_REGISTRY/todo-db-rotation-lambda:$VERSION"
+        -var="core-api_image=$ECR_REGISTRY/access-core-api:$VERSION" \
+        -var="event-api_image=$ECR_REGISTRY/access-event-api:$VERSION" \
+        -var="order-processor_image=$ECR_REGISTRY/access-order-processor:$VERSION" \
+        -var="payment-processor_image=$ECR_REGISTRY/access-payment-processor:$VERSION" \
+        -var="notification-sender_image=$ECR_REGISTRY/access-notification-sender:$VERSION" \
+        -var="analytics-service_image=$ECR_REGISTRY/access-analytics-service:$VERSION" \
+        -var="secret-rotation_lambda_image=$ECR_REGISTRY/access-secret-rotation:$VERSION" 
   when: manual

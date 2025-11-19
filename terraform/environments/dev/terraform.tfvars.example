@@ -43,6 +43,15 @@ cognito_certificate_arn = null  # Set to ACM certificate ARN for custom domain (
 # Secrets Manager Configuration
 stripe_secret_key      = ""  # Your Stripe secret key (sk_test_... for dev)
 stripe_publishable_key = ""  # Your Stripe publishable key (pk_test_... for dev)
+jwt_secret             = ""  # JWT secret key for token signing (generate a strong random string)
+
+# ECS Container Images
+core_api_image         = "eventpro/core-api:latest"
+event_api_image        = "eventpro/event-api:latest"
+order_processor_image  = "eventpro/order-processor:latest"
+payment_processor_image = "eventpro/payment-processor:latest"
+notification_sender_image = "eventpro/notification-sender:latest"
+analytics_service_image = "eventpro/analytics-service:latest"
 
 # Tags
 tags = {

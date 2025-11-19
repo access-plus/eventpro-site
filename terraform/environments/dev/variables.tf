@@ -147,6 +147,13 @@ variable "stripe_publishable_key" {
   default     = ""
 }
 
+variable "jwt_secret" {
+  description = "JWT secret key for token signing"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 # Tags
 variable "tags" {
   description = "Common tags for all resources"
