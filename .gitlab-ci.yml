@@ -64,6 +64,7 @@ docker-build-secret-rotation-lambda:
   needs:
     - job: calculate-version
       artifacts: true
+    - job: gradle-build-eventpro-api
 
 docker-build-eventpro-api:
   extends: .build-service-docker-image
