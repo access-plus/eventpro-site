@@ -1,0 +1,119 @@
+services:
+  # Database - PostgreSQL for local development
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: eventpro
+      POSTGRES_USER: eventpro
+      POSTGRES_PASSWORD: eventpro
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eventpro -d eventpro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - eventpro
+
+  # LocalStack - AWS services emulation for local development
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    environment:
+      - SERVICES=sqs,s3,secretsmanager,cognito-idp,sns,ses
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - PERSISTENCE=1
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - eventpro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # EventPro Backend API - Development mode with hot reload
+  backend:
+    image: gradle:8.5-jdk21
+    container_name: backend
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - gradle_cache:/root/.gradle
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - DB_URL=jdbc:postgresql://postgres:5432/eventpro
+      - DB_USERNAME=eventpro
+      - DB_PASSWORD=eventpro
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID:-}
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID:-}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-eventpro-images-local}
+    command: >
+      sh -c "
+        chmod +x ./gradlew &&
+        ./gradlew :eventpro-api:bootRun --no-daemon
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    networks:
+      - eventpro
+    stdin_open: true
+    tty: true
+
+  # Frontend Development Server - Hot Module Replacement enabled
+  frontend-dev:
+    image: node:22-alpine
+    container_name: frontend-dev
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      # Vite reads from process.env (Docker) or .env.local file (when running directly)
+      # Docker Compose automatically reads .env file from project root
+      - VITE_API_BASE_URL=http://localhost:8080
+      - VITE_COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID:-}
+      - VITE_COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID:-}
+      - VITE_AWS_REGION=us-east-1
+      - VITE_S3_BUCKET_NAME=${S3_BUCKET_NAME:-eventpro-images-local}
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - backend
+    networks:
+      - eventpro
+    stdin_open: true
+    tty: true
+
+volumes:
+  postgres_data:
+  localstack_data:
+  gradle_cache:
+
+networks:
+  eventpro:
+    driver: bridge

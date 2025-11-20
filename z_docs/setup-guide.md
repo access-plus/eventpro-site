@@ -1320,7 +1320,7 @@ tree -L 3 -I 'build|.gradle|target' eventpro-site
 # │   ├── common/
 # │   ├── messaging/
 # │   └── database/
-# └── terraform/
+# └── infrastructure/
 #     └── lambda-packages/
 ```
 

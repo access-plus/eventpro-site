@@ -1,16 +1,13 @@
 <!--
 Sync Impact Report:
-Version change: 1.1.0 → 2.0.0 (MAJOR: Removed Test-First Development principle - backward incompatible change)
-Modified principles: 
-  - Removed: III. Test-First Development (NON-NEGOTIABLE)
-  - Added: III. Testing Requirements (non-TDD approach)
-  - Renumbered: IV→III, V→IV, VI→V, VII→VI, VIII→VII
-Added sections: None
-Removed sections: Test-First Development principle
+Version change: 2.0.0 → 2.1.0 (MINOR: Added Request/Response naming consistency principle)
+Modified principles: None
+Added sections: IX. Request/Response Naming Consistency (NON-NEGOTIABLE)
+Removed sections: None
 Templates requiring updates:
-  ✅ plan-template.md - Removed TDD requirement from constitution check
-  ✅ tasks-template.md - Updated test writing guidance to remove TDD requirement
-  ✅ spec-template.md - No changes needed
+  ✅ plan-template.md - No changes needed (naming consistency is code quality standard)
+  ✅ tasks-template.md - No changes needed (naming consistency applies to all API tasks)
+  ✅ spec-template.md - No changes needed (naming consistency is implementation detail)
 Follow-up TODOs: None
 -->
 
@@ -94,6 +91,11 @@ All endpoints MUST be secured (except explicitly public endpoints). AWS Cognito 
 
 **Rationale**: Security is critical for a payment processing platform handling sensitive user and financial data.
 
+### IX. Request/Response Naming Consistency (NON-NEGOTIABLE)
+Request and Response objects MUST have identical names between frontend and backend, differing only in file extension. Frontend TypeScript/TSX files MUST match backend Java class names exactly. For example: `EventRequest.tsx` in frontend MUST correspond to `EventRequest.java` in backend. Response objects consumed by frontend MUST also match backend response class names exactly (e.g., `EventResponse.ts` matches `EventResponse.java`). This ensures type safety, reduces confusion, and simplifies API contract maintenance.
+
+**Rationale**: Consistent naming across frontend and backend eliminates ambiguity, improves developer experience, and ensures API contracts remain synchronized between client and server implementations.
+
 ## Additional Constraints
 
 ### Database Strategy
@@ -105,7 +107,7 @@ Use Flyway for database migrations. Never modify existing migrations. Test migra
 **Rationale**: Flyway is a mature and reliable database migration tool that is easy to use and understand. It is a good choice for the EventPro project because it is easy to use and understand.
 
 ### API Design Standards
-RESTful APIs MUST follow conventions: GET, POST, PUT, PATCH, DELETE. APIs MUST be versioned: `/api/v1/...`. Consistent JSON response format required. Proper HTTP status codes MUST be used. Global exception handling MUST be implemented.
+RESTful APIs MUST follow conventions: GET, POST, PUT, PATCH, DELETE. APIs MUST be versioned: `/api/v1/...`. Consistent JSON response format required. Proper HTTP status codes MUST be used. Global exception handling MUST be implemented. Request and Response object names MUST match between frontend and backend (see Principle IX).
 
 ### Code Quality Standards
 - **Java**: Follow Google Java Style Guide, maximum method length 50 lines, maximum class length 500 lines
@@ -171,4 +173,4 @@ This constitution supersedes all other development practices and guidelines. All
 - Technology stack deviations MUST be approved
 - Use `z_docs/guideline.md` for runtime development guidance
 
-**Version**: 2.0.0 | **Ratified**: 2025-01-15 | **Last Amended**: 2025-01-15
+**Version**: 2.1.0 | **Ratified**: 2025-01-15 | **Last Amended**: 2025-01-19
