@@ -1,4 +1,4 @@
-rootProject.name = 'eventpro-api'
+rootProject.name = 'backend'
 
 // Modular Monolith Modules
 include 'eventpro-core'

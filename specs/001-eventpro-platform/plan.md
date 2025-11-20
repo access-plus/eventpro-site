@@ -181,7 +181,7 @@ web/                            # Frontend Application
 ├── vite.config.ts
 └── tailwind.config.js
 
-terraform/                      # Infrastructure as Code
+infrastructure/                 # Infrastructure as Code
 ├── environments/
 │   ├── dev/                     # Development environment
 │   └── prod/                    # Production environment

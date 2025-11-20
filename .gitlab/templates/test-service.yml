@@ -1,18 +1,18 @@
 .test-service:
   image: eclipse-temurin:21-jdk-alpine
   before_script:
-    - cd eventpro-api
+    - cd backend
   script:
-    - echo "Testing eventpro-api"
+    - echo "Testing backend"
     - ./gradlew test jacocoTestReport --info
     - echo "Test coverage report generated"
   artifacts:
     reports:
-      junit: eventpro-api/build/test-results/test/TEST-*.xml
+      junit: backend/build/test-results/test/TEST-*.xml
       coverage_report:
         coverage_format: jacoco
-        path: eventpro-api/build/reports/jacoco/test/jacocoTestReport.xml
+        path: backend/build/reports/jacoco/test/jacocoTestReport.xml
     paths:
-      - eventpro-api/build/test-results/
-      - eventpro-api/build/reports/jacoco/
+      - backend/build/test-results/
+      - backend/build/reports/jacoco/
     expire_in: 1 week

@@ -408,7 +408,7 @@ PostgreSQL    PostgreSQL    SQS Queues
 
 1. **Terraform Workflow**:
    ```bash
-   cd terraform/environments/dev
+   cd infrastructure/environments/dev
    terraform init
    terraform plan
    terraform apply
@@ -569,7 +569,7 @@ cd frontend && npm run dev
 ./gradlew test
 
 # Deploy infrastructure
-cd terraform/environments/dev && terraform apply
+cd infrastructure/environments/dev && terraform apply
 ```
 
 ### Key Endpoints

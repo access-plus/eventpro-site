@@ -1,7 +1,8 @@
 include:
   - local: .gitlab/templates/calculate-version.yml
   - local: .gitlab/templates/test-service.yml
-  - local: .gitlab/templates/build-eventpro-api.yml
+  - local: .gitlab/templates/test-web.yml
+  - local: .gitlab/templates/build-backend.yml
   - local: .gitlab/templates/docker-build-ecr.yml
   - local: .gitlab/templates/terraform-base.yml
   - local: .gitlab/templates/create-release.yml
@@ -26,35 +27,46 @@ calculate-version:
   stage: .pre
   extends: .calculate-version
 
-test-eventpro-api:
+.test-backend:
   extends: .test-service
   stage: test
   needs:
     - job: calculate-version
       artifacts: true
 
-gradle-build-eventpro-api:
-  extends: .build-eventpro-api
+.test-web:
+  extends: .test-web
+  stage: test
+  needs:
+    - job: calculate-version
+      artifacts: true
+
+.gradle-build-backend:
+  extends: .build-backend
   stage: build
   needs:
     - job: calculate-version
       artifacts: true
-    - job: test-eventpro-api
+    - job: test-backend
 
-npm-build-web:
+.npm-build-frontend:
   stage: build
   image: node:22-alpine
   before_script:
-    - cd web
+    - cd frontend
   script:
     - npm ci
     - npm run build
   artifacts:
     paths:
-      - web/dist/
+      - frontend/dist/
     expire_in: 1 week
+  needs:
+    - job: calculate-version
+      artifacts: true
+    - job: test-web
 
-docker-build-secret-rotation-lambda:
+.docker-build-secret-rotation-lambda:
   extends: .build-service-docker-image  
   variables:
     SERVICES_DIR: secret-rotation
@@ -64,32 +76,32 @@ docker-build-secret-rotation-lambda:
   needs:
     - job: calculate-version
       artifacts: true
-    - job: gradle-build-eventpro-api
+    - job: gradle-build-backend
 
-docker-build-eventpro-api:
+.docker-build-backend:
   extends: .build-service-docker-image
   variables:
-    SERVICES_DIR: eventpro-api
+    SERVICES_DIR: backend
     DOCKERFILE_PATH: Dockerfile
-    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-eventpro-api
+    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-backend
     VERSION: $VERSION
   needs:
     - job: calculate-version
       artifacts: true
-    - job: gradle-build-eventpro-api
+    - job: gradle-build-backend
 
-terraform-deploy-eventpro:
+.terraform-deploy-eventpro:
   extends: .terraform-base
   stage: deploy
   needs:
     - job: calculate-version
       artifacts: true
     - job: docker-build-secret-rotation-lambda
-    - job: docker-build-eventpro-api
+    - job: docker-build-backend
   script:
     - |
       terraform apply --auto-approve \
-        -var="eventpro-api_image=$ECR_REGISTRY/access-eventpro-api:$VERSION" \
+        -var="backend_image=$ECR_REGISTRY/access-backend:$VERSION" \
         -var="secret-rotation_lambda_image=$ECR_REGISTRY/access-secret-rotation:$VERSION" 
     # Extract ALB URL for GitLab Environment
     - echo "ALB_URL=https://$(terraform output -raw alb_dns_name)" >> deploy.env
@@ -102,22 +114,22 @@ terraform-deploy-eventpro:
     url: $ALB_URL
   when: manual
 
-serve-web-static-files:
+.serve-frontend-static-files:
   stage: post-deploy
   image: amazon/aws-cli:2.23.0
   needs: 
     - job: terraform-deploy-eventpro
-    - job: npm-build-web
+    - job: npm-build-frontend
       artifacts: true
   before_script:
-    - cd terraform/environments/dev
+    - cd infrastructure/environments/dev
   script:
     - S3_BUCKET=$(terraform output -raw frontend_bucket_name)
-    - echo "Uploading web static files to $S3_BUCKET"
-    - aws s3 sync ../../../web/dist/ s3://$S3_BUCKET/ --delete
-    - echo "Web static files uploaded to s3://$S3_BUCKET"
+    - echo "Uploading frontend static files to $S3_BUCKET"
+    - aws s3 sync ../../../frontend/dist/ s3://$S3_BUCKET/ --delete
+    - echo "Frontend static files uploaded to s3://$S3_BUCKET"
 
-create-release:
+.create-release:
   extends: .create-release
   stage: release
   needs:
@@ -126,7 +138,7 @@ create-release:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-terraform-destroy-eventpro:
+.terraform-destroy-eventpro:
   extends: .terraform-base
   stage: tear-down
   needs:
@@ -135,6 +147,6 @@ terraform-destroy-eventpro:
   script:
     - |
       terraform destroy --auto-approve \
-        -var="eventpro-api_image=$ECR_REGISTRY/access-eventpro-api:$VERSION" \
+        -var="backend_image=$ECR_REGISTRY/access-backend:$VERSION" \
         -var="secret-rotation_lambda_image=$ECR_REGISTRY/access-secret-rotation:$VERSION" 
   when: manual

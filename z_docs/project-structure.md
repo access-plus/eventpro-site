@@ -270,7 +270,7 @@ eventpro-site/
 │       │   │       └── BaseRepository.java
 │       └── build.gradle
 │
-├── terraform/                      # Infrastructure as Code
+├── infrastructure/                  # Infrastructure as Code
 │   ├── environments/
 │   │   ├── dev/
 │   │   │   ├── main.tf
@@ -504,7 +504,7 @@ services/lambdas/order-processor/
 └── build.gradle
 ```
 
-**Note:** Lambda infrastructure is defined in `terraform/modules/lambda/` (see Terraform section below)
+**Note:** Lambda infrastructure is defined in `infrastructure/modules/lambda/` (see Terraform section below)
 
 ### 3. Payment Processor Lambda Structure
 
@@ -560,7 +560,7 @@ services/lambdas/payment-processor/
 
 ## Terraform Lambda Module Structure
 
-### terraform/modules/lambda/main.tf
+### infrastructure/modules/lambda/main.tf
 
 ```hcl
 # Order Processor Lambda
@@ -1043,7 +1043,7 @@ resource "aws_security_group" "lambda" {
 }
 ```
 
-### terraform/modules/lambda/variables.tf
+### infrastructure/modules/lambda/variables.tf
 
 ```hcl
 variable "environment" {
@@ -1139,7 +1139,7 @@ variable "dynamodb_table_arn" {
 }
 ```
 
-### terraform/modules/lambda/outputs.tf
+### infrastructure/modules/lambda/outputs.tf
 
 ```hcl
 output "order_processor_function_arn" {
@@ -1271,7 +1271,7 @@ task buildZip(type: Zip) {
 task prepareLambdaPackage(type: Copy) {
     dependsOn buildZip
     from "${buildDir}/distributions/${project.name}-${project.version}.zip"
-    into "${rootProject.projectDir}/terraform/lambda-packages"
+    into "${rootProject.projectDir}/infrastructure/lambda-packages"
     rename { "${project.name}.zip" }
 }
 ```
@@ -1451,7 +1451,7 @@ deploy-lambdas-dev:
   stage: deploy
   image: hashicorp/terraform:latest
   script:
-    - cd terraform/environments/dev
+    - cd infrastructure/environments/dev
     - terraform init
     - terraform plan -var="order_processor_zip_path=../../lambda-packages/order-processor.zip"
     - terraform apply -auto-approve -var="order_processor_zip_path=../../lambda-packages/order-processor.zip"
@@ -1524,7 +1524,7 @@ logging:
 - `Dockerfile` - Container image (for ECS services only)
 - `src/main/resources/application.yml` - Configuration
 
-**Note:** Lambda functions are deployed via Terraform (see `terraform/modules/lambda/`)
+**Note:** Lambda functions are deployed via Terraform (see `infrastructure/modules/lambda/`)
 
 ### Shared Modules
 - Common utilities, messaging, database configs
