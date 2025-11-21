@@ -877,6 +877,773 @@ backend/
 
 ---
 
+<details>
+<summary><strong>📡 API Endpoints Reference</strong></summary>
+
+This section documents all API endpoints from the legacy EventPro implementation. These endpoints serve as a reference for the new implementation.
+
+### Base URL
+All endpoints are prefixed with `/api/v1`
+
+---
+
+### Users API (`/api/v1/users`)
+
+#### POST `/register` - User Registration
+- **Auth Required**: No
+- **Request Body**: `UserRequest`
+  ```json
+  {
+    "firstName": "string (required)",
+    "lastName": "string (required)",
+    "email": "string (required, valid email)",
+    "password": "string (required)",
+    "phoneNumber": "string (required)",
+    "roles": ["RoleDto"] // Optional, Set<RoleDto>
+  }
+  ```
+- **Response**: `UserResponse` (201 Created)
+  ```json
+  {
+    "id": "UUID",
+    "firstName": "string",
+    "lastName": "string",
+    "email": "string",
+    "phoneNumber": "string",
+    "accountNonExpired": true,
+    "accountNonLocked": true,
+    "credentialsNonExpired": true,
+    "enabled": true,
+    "events": ["EventResponse"], // Optional
+    "orders": ["OrderResponse"], // Optional
+    "roles": ["RoleDto"] // Optional
+  }
+  ```
+
+#### POST `/login` - User Login with Email
+- **Auth Required**: No
+- **Request Body**: `UserLogin`
+  ```json
+  {
+    "email": "string (required, valid email)",
+    "password": "string (required)",
+    "phoneNumber": "string" // Optional
+  }
+  ```
+- **Response**: `JwtAuthResponse` (200 OK)
+  ```json
+  {
+    "id": "UUID",
+    "accessToken": "string",
+    "tokenType": "Bearer",
+    "roles": ["string"] // Set<String>
+  }
+  ```
+
+#### POST `/login/phone` - Phone Login (Send OTP)
+- **Auth Required**: No
+- **Request Body**: `PhoneLoginRequest`
+  ```json
+  {
+    "phoneNumber": "string (required)"
+  }
+  ```
+- **Response**: `Void` (200 OK)
+
+#### POST `/login/phone/verify` - Verify OTP for Phone Login
+- **Auth Required**: No
+- **Request Body**: `PhoneOtpVerificationRequest`
+  ```json
+  {
+    "otp": "string (required)",
+    "phoneNumber": "string"
+  }
+  ```
+- **Response**: `JwtAuthResponse` (200 OK)
+
+#### GET `/` - Get All Users (Paginated)
+- **Auth Required**: Yes
+- **Roles**: ADMIN
+- **Query Parameters**:
+  - `page` (default: 1) - Page number
+  - `size` (default: 5) - Page size
+  - `sortBy` (default: "email") - Sort field
+  - `dir` (default: "asc") - Sort direction
+- **Response**: `PageResponse<UserResponse, UserEntity>` (200 OK)
+  ```json
+  {
+    "content": ["UserResponse"],
+    "page": 0,
+    "size": 10,
+    "totalElements": 100,
+    "totalPages": 10,
+    "last": false
+  }
+  ```
+
+#### GET `/email/{email}` - Get User by Email
+- **Auth Required**: Yes
+- **Roles**: User (own email) or ADMIN
+- **Response**: `UserResponse` (200 OK)
+
+#### GET `/id/{id}` - Get User by ID
+- **Auth Required**: Yes
+- **Roles**: User (own ID) or ADMIN
+- **Response**: `UserResponse` (200 OK)
+
+#### DELETE `/{id}` - Delete User
+- **Auth Required**: Yes
+- **Roles**: User (own ID) or ADMIN
+- **Response**: `String` (200 OK) - Success message
+
+#### PATCH `/{id}` - Update User
+- **Auth Required**: Yes
+- **Roles**: User (own ID) or ADMIN
+- **Request Body**: `UserUpdateRequest`
+  ```json
+  {
+    "firstName": "string", // Optional
+    "lastName": "string" // Optional
+  }
+  ```
+- **Response**: `UserResponse` (200 OK)
+
+---
+
+### Events API (`/api/v1/events`)
+
+#### POST `/` - Create Event (with Image)
+- **Auth Required**: Yes
+- **Roles**: ADMIN
+- **Content-Type**: `multipart/form-data`
+- **Request Parts**:
+  - `request` (String, JSON) - `EventCreateRequest`
+    ```json
+    {
+      "name": "string",
+      "description": "string",
+      "startTime": "string (ISO-8601)",
+      "endTime": "string (ISO-8601)",
+      "marketingEnabled": false,
+      "category": "Category enum",
+      "address": {
+        "street": "string",
+        "city": "string",
+        "state": "string",
+        "zipCode": "string",
+        "country": "string",
+        "latitude": "BigDecimal",
+        "longitude": "BigDecimal"
+      }
+    }
+    ```
+  - `imageFile` (MultipartFile) - Event image file
+- **Response**: `EventResponse` (200 OK)
+  - **Note**: Despite `@ResponseStatus(CREATED)` annotation, the actual response is 200 OK due to `ResponseEntity.ok()` usage
+  ```json
+  {
+    "id": "string (UUID)",
+    "name": "string",
+    "description": "string",
+    "imageUrl": "string",
+    "marketingEnabled": false,
+    "startTime": "string",
+    "endTime": "string",
+    "userId": "string",
+    "categoryId": "string",
+    "categoryName": "string",
+    "addressStreet": "string",
+    "addressCity": "string",
+    "addressState": "string",
+    "addressCountry": "string",
+    "addressZipCode": "string"
+  }
+  ```
+
+#### GET `/{eventId}` - Get Event by ID
+- **Auth Required**: No
+- **Response**: `List<EventResponse>` (200 OK)
+
+#### GET `/` - Get All Events
+- **Auth Required**: No
+- **Response**: `List<EventResponse>` (200 OK)
+
+#### PATCH `/{eventId}` - Update Event
+- **Auth Required**: Yes
+- **Roles**: ADMIN
+- **Request Body**: `EventUpdateRequest`
+  ```json
+  {
+    "name": "string", // Optional
+    "description": "string", // Optional
+    "imageUrl": "string", // Optional
+    "marketingEnabled": false, // Optional
+    "startTime": "string", // Optional
+    "endTime": "string", // Optional
+    "userId": "string", // Optional
+    "category": "Category enum", // Optional
+    "address": {
+      "street": "string",
+      "city": "string (required)",
+      "state": "string",
+      "country": "string (required)",
+      "zipCode": "string"
+    } // Optional
+  }
+  ```
+- **Query Parameters**:
+  - `imageFile` (optional, MultipartFile) - New image file (sent as query parameter, not in request body)
+- **Response**: `EventResponse` (200 OK)
+
+#### DELETE `/{eventId}` - Delete Event
+- **Auth Required**: Yes
+- **Roles**: ADMIN
+- **Response**: `Void` (200 OK)
+
+#### GET `/category/{categoryName}` - Get Events by Category
+- **Auth Required**: No
+- **Response**: `List<EventResponse>` (200 OK)
+
+#### GET `/upcoming` - Get Upcoming Events
+- **Auth Required**: No
+- **Response**: `List<EventResponse>` (200 OK)
+
+#### GET `/search?keyword={keyword}` - Search Events
+- **Auth Required**: No
+- **Query Parameters**:
+  - `keyword` (required) - Search keyword
+- **Response**: `List<EventResponse>` (200 OK)
+
+---
+
+### Tickets API (`/api/v1/tickets`)
+
+#### POST `/` - Create Tickets (Bulk)
+- **Auth Required**: Yes
+- **Roles**: ADMIN, ORGANIZER
+- **Request Body**: `TicketCreateRequest`
+  ```json
+  {
+    "eventId": "UUID",
+    "tickets": [
+      {
+        "price": "BigDecimal",
+        "ticketType": "TicketType enum (VIP, REGULAR, EARLY_BIRD)",
+        "quantity": "Long",
+        "eventId": "UUID"
+      }
+    ]
+  }
+  ```
+- **Response**: `List<TicketResponse>` (201 Created)
+  ```json
+  [
+    {
+      "id": "UUID",
+      "name": "string",
+      "ticketType": "TicketType",
+      "ticketStatus": "TicketStatus (AVAILABLE, SOLD, RESERVED)",
+      "price": "BigDecimal",
+      "startTime": "LocalDateTime",
+      "endTime": "LocalDateTime",
+      "qrCode": "string",
+      "printOutUrl": "string",
+      "eventIdType": "string"
+    }
+  ]
+  ```
+
+#### GET `/{ticketId}` - Get Ticket by ID
+- **Auth Required**: Yes
+- **Roles**: ADMIN, ORGANIZER
+- **Response**: `List<TicketResponse>` (200 OK)
+
+#### GET `/event/{eventId}` - Get Event Tickets
+- **Auth Required**: No
+- **Response**: `List<TicketResponse>` (200 OK)
+
+#### GET `/groupTickets/{eventId}` - Get Tickets Grouped by Type
+- **Auth Required**: No
+- **Response**: `Map<TicketType, List<TicketResponse>>` (200 OK)
+  ```json
+  {
+    "VIP": ["TicketResponse"],
+    "REGULAR": ["TicketResponse"],
+    "EARLY_BIRD": ["TicketResponse"]
+  }
+  ```
+
+#### GET `/group/{eventId}` - Get Ticket Summary
+- **Auth Required**: No
+- **Response**: `EventSummary` (200 OK)
+  ```json
+  {
+    "eventName": "string",
+    "startTime": "string (formatted)",
+    "endTime": "string (formatted)",
+    "tickets": [
+      {
+        "ticketType": "TicketType",
+        "price": "BigDecimal",
+        "count": "int"
+      }
+    ]
+  }
+  ```
+
+#### DELETE `/{ticketId}` - Delete Ticket
+- **Auth Required**: Yes
+- **Roles**: ADMIN, ORGANIZER
+- **Response**: `Void` (200 OK)
+
+#### PATCH `/{ticketId}` - Update Ticket
+- **Auth Required**: Yes
+- **Roles**: ADMIN, ORGANIZER
+- **Request Body**: `TicketUpdateRequest`
+  ```json
+  {
+    "name": "string", // Optional
+    "description": "string", // Optional
+    "price": "BigDecimal", // Optional
+    "quantity": "Long", // Optional
+    "startTime": "LocalDateTime", // Optional
+    "endTime": "LocalDateTime", // Optional
+    "printOutUrl": "string", // Optional
+    "eventId": "UUID" // Optional
+  }
+  ```
+- **Response**: `TicketResponse` (200 OK)
+
+#### GET `/user/{userId}` - Get User's Purchased Tickets
+- **Auth Required**: No
+- **Path Variables**:
+  - `{userId}` - User UUID
+- **Response**: `List<TicketResponse>` (200 OK)
+  - **Note**: Returns list directly (not wrapped in ResponseEntity)
+
+#### GET `/organizer` - Get Organizer's Tickets
+- **Auth Required**: Yes
+- **Roles**: ADMIN, ORGANIZER
+- **Response**: `List<TicketResponse>` (200 OK)
+  - **Note**: Returns list directly (not wrapped in ResponseEntity)
+
+#### PUT `/archive/{ticketId}` - Archive Ticket
+- **Auth Required**: No
+- **Response**: `Void` (200 OK)
+
+#### GET `/available-tickets?eventId={eventId}` - Get Available Ticket Count
+- **Auth Required**: No
+- **Query Parameters**:
+  - `eventId` (required, UUID) - Event ID
+- **Response**: `Integer` (200 OK)
+
+#### GET `/event-revenue?eventId={eventId}` - Get Event Revenue
+- **Auth Required**: No
+- **Query Parameters**:
+  - `eventId` (required, UUID) - Event ID
+- **Response**: `BigDecimal` (200 OK)
+
+#### GET `/tickets-sold?eventId={eventId}` - Get Total Tickets Sold
+- **Auth Required**: No
+- **Query Parameters**:
+  - `eventId` (required, UUID) - Event ID
+- **Response**: `Integer` (200 OK)
+
+---
+
+### Shopping Cart API (`/api/v1/user/{userId}/cart`)
+
+#### POST `/add` - Add Item to Cart
+- **Auth Required**: No
+- **Path Variables**:
+  - `{userId}` - User UUID
+- **Request Body**: `AddToCartRequest`
+  ```json
+  {
+    "id": "UUID",
+    "eventIdType": "string",
+    "ticketType": "TicketType enum",
+    "quantity": "int"
+  }
+  ```
+- **Response**: `CartResponse` (201 Created)
+  ```json
+  {
+    "id": "UUID",
+    "tickets": [
+      {
+        "id": "UUID",
+        "name": "string",
+        "ticketType": "TicketType",
+        "ticketStatus": "TicketStatus",
+        "price": "BigDecimal",
+        "startTime": "LocalDateTime",
+        "endTime": "LocalDateTime",
+        "eventIdType": "string"
+      }
+    ],
+    "quantity": "Integer",
+    "totalCost": "BigDecimal",
+    "message": "string"
+  }
+  ```
+  - **Note**: `tickets` is a `Set<CartTicket>` (unique tickets)
+
+#### PATCH `/increment/ticket/{eventIdAndType}` - Increment Ticket Quantity
+- **Auth Required**: No
+- **Path Variables**:
+  - `{userId}` - User UUID
+  - `{eventIdAndType}` - Event ID and ticket type combined
+- **Response**: `CartResponse` (201 Created)
+
+#### PATCH `/decrement/ticket/{eventIdAndType}` - Decrement Ticket Quantity
+- **Auth Required**: No
+- **Path Variables**:
+  - `{userId}` - User UUID
+  - `{eventIdAndType}` - Event ID and ticket type combined
+- **Response**: `CartResponse` (201 Created)
+
+#### GET `/` - Get User's Cart Items
+- **Auth Required**: No
+- **Path Variables**:
+  - `{userId}` - User UUID
+- **Response**: `CartResponse` (200 OK)
+
+#### DELETE `/clearCart` - Clear User's Cart
+- **Auth Required**: No
+- **Path Variables**:
+  - `{userId}` - User UUID
+- **Response**: `Void` (200 OK)
+
+---
+
+### Orders API (`/api/v1/orders`)
+
+#### GET `/{id}` - Get Order by ID
+- **Auth Required**: Yes
+- **Roles**: User (own order) or ADMIN
+- **Response**: `OrderResponse` (200 OK)
+  ```json
+  {
+    "id": "UUID",
+    "amount": "Long",
+    "orderItems": ["TicketResponse"],
+    "payment": {
+      "id": "UUID",
+      "amount": "BigDecimal",
+      "paymentMethod": "string",
+      "status": "PaymentStatus (PENDING, SUCCESS, FAILED, REFUNDED)",
+      "currency": "string",
+      "description": "string"
+    }
+  }
+  ```
+
+#### GET `/` - Get All Orders (Paginated)
+- **Auth Required**: Yes
+- **Roles**: ADMIN
+- **Query Parameters**:
+  - `page` (default: 1) - Page number
+  - `size` (default: 5) - Page size
+  - `sortBy` (default: "email") - Sort field
+  - `dir` (default: "asc") - Sort direction
+- **Response**: `PageResponse<OrderResponse, OrderEntity>` (200 OK)
+
+#### GET `/users/{userId}` - Get User's Orders (Paginated)
+- **Auth Required**: Yes
+- **Roles**: User (own orders) or ADMIN
+- **Path Variables**:
+  - `{userId}` - User UUID
+- **Query Parameters**:
+  - `page` (default: 1) - Page number
+  - `size` (default: 5) - Page size
+  - `sortBy` (default: "email") - Sort field
+  - `dir` (default: "asc") - Sort direction
+- **Response**: `PageResponse<OrderResponse, OrderEntity>` (200 OK)
+
+---
+
+### Payments API (`/api/v1/payments`)
+
+#### POST `/stripe` - Initiate Stripe Payment
+- **Auth Required**: No
+- **Request Body**: `StripeDto`
+  ```json
+  {
+    "id": "string",
+    "userId": "UUID"
+  }
+  ```
+- **Response**: `OrderResponse` (201 Created)
+
+#### POST `/paypal/create` - Create PayPal Payment
+- **Auth Required**: No
+- **Request Body**: `PaypalRequest`
+  ```json
+  {
+    "userId": "UUID",
+    "currency": "string",
+    "method": "string",
+    "intent": "string",
+    "description": "string",
+    "cancelUrl": "string",
+    "successUrl": "string"
+  }
+  ```
+- **Response**: `Map<String, String>` (201 Created)
+  ```json
+  {
+    "paymentId": "string",
+    "approvalUrl": "string"
+  }
+  ```
+
+#### GET `/paypal/execute?paymentId={paymentId}&PayerID={payerId}` - Execute PayPal Payment
+- **Auth Required**: No
+- **Query Parameters**:
+  - `paymentId` (required) - PayPal payment ID
+  - `PayerID` (required) - PayPal payer ID
+- **Response**: `String` (201 Created) - Success message
+
+#### GET `/{id}` - Get Payment by ID
+- **Auth Required**: No
+- **Response**: `PaymentResponse` (200 OK)
+  ```json
+  {
+    "id": "UUID",
+    "amount": "BigDecimal",
+    "paymentMethod": "string",
+    "status": "PaymentStatus",
+    "currency": "string",
+    "description": "string"
+  }
+  ```
+
+#### GET `/users/{userId}` - Get User's Payments
+- **Auth Required**: No
+- **Path Variables**:
+  - `{userId}` - User UUID
+- **Response**: `List<PaymentResponse>` (200 OK)
+
+---
+
+### Notifications API (`/api/v1/notifications`)
+
+#### POST `/subscribe` - Subscribe User to Notifications
+- **Auth Required**: No
+- **Request Body**: `NotificationRequest`
+  ```json
+  {
+    "type": "NotificationType enum",
+    "deliveryType": "NotificationDeliveryType enum (EMAIL, SMS, IN_APP, PUSH)",
+    "message": "string",
+    "enabled": true
+  }
+  ```
+- **Response**: `Void` (200 OK)
+
+#### GET `/preferences` - Get Notification Preferences
+- **Auth Required**: No
+- **Response**: `List<NotificationPreferenceResponse>` (200 OK)
+  ```json
+  [
+    {
+      "id": "UUID",
+      "notificationType": "NotificationType",
+      "deliveryType": "NotificationDeliveryType",
+      "enabled": true
+    }
+  ]
+  ```
+
+#### POST `/preferences` - Create Notification Preference
+- **Auth Required**: No
+- **Request Body**: `NotificationRequest`
+- **Response**: `NotificationPreferenceResponse` (200 OK)
+
+#### PUT `/preferences/{id}` - Update Notification Preference
+- **Auth Required**: No
+- **Path Variables**:
+  - `{id}` - Preference UUID
+- **Request Body**: `NotificationRequest`
+- **Response**: `NotificationPreferenceResponse` (200 OK)
+
+#### DELETE `/preferences/{id}` - Delete Notification Preference
+- **Auth Required**: No
+- **Path Variables**:
+  - `{id}` - Preference UUID
+- **Response**: `Void` (200 OK)
+
+#### POST `/events/upcoming` - Send Upcoming Events Notifications
+- **Auth Required**: Yes
+- **Roles**: ADMIN
+- **Response**: `String` (200 OK) - Success message
+
+**Note:** `/unsubscribe` endpoint exists but is commented out in the code.
+
+---
+
+### Email API (`/api/v1/emails`)
+
+| Method | Endpoint | Description | Auth Required | Roles |
+|--------|----------|-------------|---------------|-------|
+| POST | `/` | Send email (commented out in code) | No | - |
+
+**Note:** This endpoint is currently disabled in the implementation.
+
+---
+
+### Reports API (`/api/v1/reports`)
+
+#### GET `/sales/{eventId}` - Get Sales Data by Event
+- **Auth Required**: No
+- **Path Variables**:
+  - `{eventId}` - Event UUID
+- **Response**: `ReportResponse` (200 OK)
+  ```json
+  {
+    "totalTicketsSold": "int",
+    "totalRevenue": "BigDecimal",
+    "ticketPriceRangeSales": {
+      "string": "int"
+    },
+    "totalAttendanceProjection": "int",
+    "ticketPurchasingChannels": {
+      "string": "int"
+    },
+    "comparisonWithPreviousEvents": {
+      "string": "int"
+    },
+    "ticketTypeBreakdown": {
+      "string": "int"
+    },
+    "salesOverTime": {
+      "string": {
+        "string": "int"
+      }
+    }
+  }
+  ```
+
+---
+
+## Authentication
+
+Most endpoints require JWT authentication. Include the token in the Authorization header:
+
+```
+Authorization: Bearer <jwt_token>
+```
+
+## Response Format
+
+All endpoints return JSON responses. Error responses follow this format:
+
+```json
+{
+  "timestamp": "2025-01-15T10:30:00Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Error message",
+  "path": "/api/v1/endpoint"
+}
+```
+
+## Pagination
+
+Paginated endpoints return data in this format:
+
+```json
+{
+  "content": [...],
+  "page": 1,
+  "size": 5,
+  "totalElements": 100,
+  "totalPages": 20,
+  "last": false
+}
+```
+
+**Default Pagination Values:**
+- `page`: 1 (first page)
+- `size`: 5 (items per page)
+- `sortBy`: "email" (default sort field)
+- `dir`: "asc" (ascending order)
+
+**Note**: The `page` value in the response is 1-based (page 1, 2, 3...), but Spring Data internally uses 0-based indexing.
+
+## Data Transfer Objects (DTOs) Reference
+
+### Common Enums
+
+**TicketType**: `VIP`, `REGULAR`, `EARLY_BIRD`  
+**TicketStatus**: `AVAILABLE`, `SOLD`, `RESERVED`  
+**PaymentStatus**: `PENDING`, `SUCCESS`, `FAILED`, `REFUNDED`  
+**NotificationType**: `ORDER_CONFIRMATION`, `PAYMENT_SUCCESS`, `PAYMENT_FAILED`, `EVENT_REMINDER`, `TICKET_READY`, `SYSTEM_ANNOUNCEMENT`  
+**NotificationDeliveryType**: `EMAIL`, `SMS`, `IN_APP`, `PUSH`  
+**Category**: Enum values from `Category` enum  
+**RoleType**: Enum values from `RoleType` enum
+
+### Nested Objects
+
+**AddressEntity**:
+```json
+{
+  "id": "UUID",
+  "street": "string",
+  "city": "string (required)",
+  "state": "string",
+  "zipCode": "string",
+  "country": "string (required)",
+  "createdAt": "LocalDateTime",
+  "updatedAt": "LocalDateTime"
+}
+```
+
+**RoleDto**:
+```json
+{
+  "name": "RoleType enum"
+}
+```
+
+**TicketInfo** (used in TicketCreateRequest):
+```json
+{
+  "price": "BigDecimal",
+  "ticketType": "TicketType enum",
+  "quantity": "Long",
+  "eventId": "UUID"
+}
+```
+
+**CartTicket** (used in CartResponse):
+```json
+{
+  "id": "UUID",
+  "name": "string",
+  "ticketType": "TicketType",
+  "ticketStatus": "TicketStatus",
+  "price": "BigDecimal",
+  "startTime": "LocalDateTime",
+  "endTime": "LocalDateTime",
+  "eventIdType": "string"
+}
+```
+
+**EventTickets** (used in EventSummary):
+```json
+{
+  "ticketType": "TicketType",
+  "price": "BigDecimal",
+  "count": "int"
+}
+```
+
+</details>
+
+---
+
 ## Additional Documentation
 
 - `backend/README.md` - Backend application documentation

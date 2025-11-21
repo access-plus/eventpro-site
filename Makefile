@@ -49,6 +49,16 @@ help:
 	@echo "  make docker-analytics - Build Analytics Service Docker image"
 	@echo "  make docker-secret-rotation - Build Secret Rotation Lambda image"
 	@echo ""
+	@echo "Local Development:"
+	@echo "  make local-setup    - Complete first-time setup (all steps)"
+	@echo "  make local-infra-only - Step 1: Start PostgreSQL + LocalStack"
+	@echo "  make local-infra    - Step 2: Provision resources + create .env"
+	@echo "  make local-up       - Step 3: Start Backend + Frontend"
+	@echo "  make local-down     - Stop all services"
+	@echo "  make local-reset    - Reset containers (fixes conflicts)"
+	@echo "  make local-clean    - Clean everything (containers + Terraform)"
+	@echo "  make local-logs    - View all logs"
+	@echo ""
 	@echo "Quick Commands:"
 	@echo "  make rebuild        - Clean and rebuild everything"
 	@echo "  make test-no-cache  - Run all tests without build cache"
@@ -213,120 +223,94 @@ docker-secret-rotation:
 # Local Development (Docker Compose + LocalStack)
 # ============================================================================
 
-# Start local development environment (all services)
-local-up:
-	@echo "Starting local development environment..."
-	@if [ ! -f .env ]; then \
-		echo ".env file not found. Creating from Terraform outputs..."; \
-		cd infrastructure/environments/local && \
-		terraform output -json > /dev/null 2>&1 || (echo "Terraform not initialized. Run 'make local-infra' first" && exit 1); \
-		export COGNITO_USER_POOL_ID=$$(terraform output -raw cognito_user_pool_id 2>/dev/null || echo ""); \
-		export COGNITO_CLIENT_ID=$$(terraform output -raw cognito_user_pool_client_id 2>/dev/null || echo ""); \
-		cd ../../..; \
-		if [ -z "$$COGNITO_USER_POOL_ID" ] || [ -z "$$COGNITO_CLIENT_ID" ]; then \
-			echo "Cognito values not found. Run 'make local-infra' first to provision resources."; \
-			exit 1; \
-		fi; \
-		echo "COGNITO_USER_POOL_ID=$$COGNITO_USER_POOL_ID" > .env; \
-		echo "COGNITO_CLIENT_ID=$$COGNITO_CLIENT_ID" >> .env; \
-		echo "✓ Created .env file with Cognito values"; \
-	fi
-	@echo "Starting services..."
-	@docker-compose --env-file .env up -d
-	@echo "Waiting for services to be healthy..."
-	@sleep 10
-	@echo "✓ PostgreSQL: http://localhost:5432"
-	@echo "✓ LocalStack: http://localhost:4566"
-	@echo "✓ Backend API: http://localhost:8080"
-	@echo "✓ Frontend: http://localhost:5173"
+# Complete setup (first time) - runs all steps in order
+local-setup: local-infra-only local-infra local-up
 	@echo ""
-	@echo "View logs: docker-compose logs -f"
-	@echo "Update .env file if Cognito values change, then restart: docker-compose restart frontend-dev"
+	@echo "🎉 Complete setup finished!"
+	@echo "   Frontend: http://localhost:5173"
+	@echo "   Backend:  http://localhost:8080"
 
-# Start only infrastructure (PostgreSQL + LocalStack)
+# Step 1: Start infrastructure (PostgreSQL + LocalStack)
 local-infra-only:
-	@echo "Starting infrastructure services only..."
-	@docker-compose up -d postgres localstack
-	@echo "Waiting for services to be healthy..."
-	@sleep 5
-	@echo "✓ PostgreSQL: http://localhost:5432"
-	@echo "✓ LocalStack: http://localhost:4566"
-	@echo "Run 'make local-infra' to provision AWS resources"
+	@echo "Step 1: Starting infrastructure services (PostgreSQL + LocalStack)..."
+	@docker-compose up -d postgres localstack || \
+		(echo ""; \
+		 echo "⚠️  Container conflict! Run: make local-reset"; \
+		 exit 1)
+	@echo "⏳ Waiting for services to be healthy..."
+	@sleep 10
+	@echo "✓ Infrastructure ready"
 
-# Stop local development environment
+# Step 2: Provision AWS resources (Terraform) and create .env files
+local-infra:
+	@echo "Step 2: Provisioning AWS resources (Cognito, S3, SQS)..."
+	@if ! docker ps | grep -q "localstack"; then \
+		echo "⚠️  LocalStack not running. Starting it..."; \
+		$(MAKE) local-infra-only; \
+	fi
+	@cd infrastructure/environments/local && \
+		terraform init && \
+		terraform apply -auto-approve
+	@echo "Step 3: Creating environment files..."
+	@cd infrastructure/environments/local && \
+		COGNITO_USER_POOL_ID=$$(terraform output -raw cognito_user_pool_id) && \
+		COGNITO_CLIENT_ID=$$(terraform output -raw cognito_user_pool_client_id) && \
+		S3_BUCKET_NAME=$$(terraform output -raw s3_images_bucket_name) && \
+		cd ../../.. && \
+		echo "COGNITO_USER_POOL_ID=$$COGNITO_USER_POOL_ID" > .env && \
+		echo "COGNITO_CLIENT_ID=$$COGNITO_CLIENT_ID" >> .env && \
+		echo "S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> .env && \
+		echo "VITE_API_BASE_URL=http://localhost:8080" > frontend/.env.local && \
+		echo "VITE_COGNITO_USER_POOL_ID=$$COGNITO_USER_POOL_ID" >> frontend/.env.local && \
+		echo "VITE_COGNITO_CLIENT_ID=$$COGNITO_CLIENT_ID" >> frontend/.env.local && \
+		echo "VITE_AWS_REGION=us-east-1" >> frontend/.env.local && \
+		echo "VITE_S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> frontend/.env.local
+	@echo "✓ Environment files created"
+
+# Step 3: Start all services (Backend + Frontend)
+# Note: Flyway migrations run automatically when backend starts
+local-up:
+	@echo "Step 4: Starting application services..."
+	@if [ ! -f .env ]; then \
+		echo "⚠️  .env file not found. Run 'make local-infra' first."; \
+		exit 1; \
+	fi
+	@if ! docker ps | grep -q "postgres"; then $(MAKE) local-infra-only; fi
+	@docker-compose --env-file .env up -d backend frontend-dev
+	@echo "⏳ Waiting for services to start (migrations run automatically)..."
+	@sleep 15
+	@echo ""
+	@echo "✅ All services started!"
+	@echo "   Frontend: http://localhost:5173"
+	@echo "   Backend:  http://localhost:8080"
+
+# Stop all services
 local-down:
-	@echo "Stopping local development environment..."
 	@docker-compose down
 	@echo "✓ Services stopped"
 
-# View logs from all services
+# Reset containers (fixes conflicts)
+local-reset:
+	@docker-compose down 2>/dev/null || true
+	@docker rm -f postgres localstack backend frontend-dev 2>/dev/null || true
+	@echo "✓ Containers reset"
+
+# View logs
 local-logs:
 	@docker-compose logs -f
 
-# View logs from specific service
-local-logs-api:
+local-logs-backend:
 	@docker-compose logs -f backend
 
 local-logs-frontend:
 	@docker-compose logs -f frontend-dev
 
-# Provision LocalStack resources via Terraform
-local-infra:
-	@echo "Provisioning LocalStack resources..."
-	@cd infrastructure/environments/local && \
-		terraform init && \
-		terraform apply -auto-approve
-	@echo "✓ LocalStack resources provisioned"
-	@echo ""
-	@echo "Creating/updating .env file with Cognito values..."
-	@cd infrastructure/environments/local && \
-		COGNITO_USER_POOL_ID=$$(terraform output -raw cognito_user_pool_id) && \
-		COGNITO_CLIENT_ID=$$(terraform output -raw cognito_user_pool_client_id) && \
-		S3_BUCKET_NAME=$$(terraform output -raw s3_images_bucket_name) && \
-		cd ../../.. && \
-		echo "# EventPro Platform - Environment Variables" > .env && \
-		echo "# Auto-generated by 'make local-infra' - DO NOT EDIT MANUALLY" >> .env && \
-		echo "# Regenerate by running: make local-infra" >> .env && \
-		echo "" >> .env && \
-		echo "COGNITO_USER_POOL_ID=$$COGNITO_USER_POOL_ID" >> .env && \
-		echo "COGNITO_CLIENT_ID=$$COGNITO_CLIENT_ID" >> .env && \
-		echo "S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> .env && \
-		echo "✓ Created/updated .env file"
-	@echo ""
-	@echo "Creating frontend/.env.local for frontend (when running directly)..."
-	@cd infrastructure/environments/local && \
-		COGNITO_USER_POOL_ID=$$(terraform output -raw cognito_user_pool_id) && \
-		COGNITO_CLIENT_ID=$$(terraform output -raw cognito_user_pool_client_id) && \
-		S3_BUCKET_NAME=$$(terraform output -raw s3_images_bucket_name) && \
-		cd ../../.. && \
-		echo "# EventPro Frontend - Local Development Environment Variables" > frontend/.env.local && \
-		echo "# Auto-generated by 'make local-infra' - DO NOT EDIT MANUALLY" >> frontend/.env.local && \
-		echo "# Regenerate by running: make local-infra" >> frontend/.env.local && \
-		echo "" >> frontend/.env.local && \
-		echo "VITE_API_BASE_URL=http://localhost:8080" >> frontend/.env.local && \
-		echo "VITE_COGNITO_USER_POOL_ID=$$COGNITO_USER_POOL_ID" >> frontend/.env.local && \
-		echo "VITE_COGNITO_CLIENT_ID=$$COGNITO_CLIENT_ID" >> frontend/.env.local && \
-		echo "VITE_AWS_REGION=us-east-1" >> frontend/.env.local && \
-		echo "VITE_S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> frontend/.env.local && \
-		echo "✓ Created/updated frontend/.env.local file"
-	@echo ""
-	@echo "Summary:"
-	@echo "  ✓ .env file created (for docker-compose)"
-	@echo "  ✓ frontend/.env.local file created (for direct frontend execution)"
-	@echo ""
-	@echo "You can now run: make local-up"
-
-# Clean up local resources (Terraform destroy + Docker volumes)
+# Clean everything (containers + Terraform resources)
 local-clean:
-	@echo "Cleaning up local resources..."
 	@cd infrastructure/environments/local && terraform destroy -auto-approve || true
 	@docker-compose down -v
-	@echo "✓ Local resources cleaned up"
-
-# Show LocalStack resource outputs
-local-outputs:
-	@echo "LocalStack Resource Outputs:"
-	@cd infrastructure/environments/local && terraform output
+	@rm -f .env frontend/.env.local
+	@echo "✓ Everything cleaned up"
 
 # ============================================================================
 # Development Helpers

@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit'
 import counterReducer from './slices/counterSlice'
+import authReducer from './slices/authSlice'
 
 /**
  * Redux store configuration using Redux Toolkit
@@ -12,7 +13,7 @@ import counterReducer from './slices/counterSlice'
 export const store = configureStore({
   reducer: {
     counter: counterReducer,
-    // Add more slice reducers here as they are created
+    auth: authReducer,
   },
   // Redux DevTools configuration
   // Enabled in development, disabled in production for security

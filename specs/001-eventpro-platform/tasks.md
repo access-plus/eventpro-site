@@ -3,6 +3,14 @@
 **Input**: Design documents from `/specs/001-eventpro-platform/`
 **Prerequisites**: plan.md ✅, research.md ✅, data-model.md ✅, contracts/ ✅
 
+**⚠️ IMPORTANT**: **API Endpoints Reference**: All endpoint implementations should reference the comprehensive API documentation in `/README.md` (see "📡 API Endpoints Reference" section). The README contains:
+- Complete request/response DTO structures for all endpoints
+- Field types, validation requirements, and optional/required fields
+- Path variables, query parameters, and default values
+- Authentication and authorization requirements
+- Pagination format and defaults
+- Common enums and nested object definitions
+
 **Organization**: Tasks are grouped by epic and priority to enable independent implementation and testing of each feature increment.
 
 ## Format: `[ID] [P?] [Story] Description`
@@ -151,30 +159,31 @@
 ### Authentication Framework
 
 - [X] T2-011 [US-AUTH-001] Add AWS Cognito SDK dependency to `eventpro-api/modules/eventpro-core/build.gradle`
-- [ ] T2-011a [US-AUTH-001] Add `spring-boot-starter-oauth2-resource-server` dependency to `eventpro-api/modules/eventpro-core/build.gradle` for JWT access token validation
-- [ ] T2-012 [US-AUTH-001] Create `CognitoConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/config/CognitoConfig.java`
-- [ ] T2-013 [US-AUTH-001] Configure JWT decoder for Cognito access tokens in `CognitoConfig` using JWK Set URI: `https://cognito-idp.{region}.amazonaws.com/{userPoolId}/.well-known/jwks.json`
-- [ ] T2-014 [US-AUTH-001] Create `SecurityConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/security/SecurityConfig.java`
-- [ ] T2-015 [US-AUTH-001] Configure Spring Security filter chain with OAuth2 resource server for JWT access token validation (backend validates tokens, not relying on ALB)
-- [ ] T2-016 [US-AUTH-001] Configure public endpoint `/actuator/health` to permit all requests without authentication in `SecurityConfig`
-- [ ] T2-017 [US-AUTH-002] Create `CognitoRoleMapper` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/security/CognitoRoleMapper.java`
-- [ ] T2-018 [US-AUTH-002] Implement mapping from Cognito groups (`cognito:groups` claim) to Spring Security roles: ADMIN → `ROLE_ADMIN`, ORGANIZER → `ROLE_ORGANIZER`, USER → `ROLE_USER`
+- [X] T2-011a [US-AUTH-001] Add `spring-boot-starter-oauth2-resource-server` dependency to `eventpro-api/modules/eventpro-core/build.gradle` for JWT access token validation
+- [X] T2-012 [US-AUTH-001] Create `CognitoConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/config/CognitoConfig.java`
+- [X] T2-013 [US-AUTH-001] Configure JWT decoder for Cognito access tokens in `CognitoConfig` using JWK Set URI: `https://cognito-idp.{region}.amazonaws.com/{userPoolId}/.well-known/jwks.json`
+- [X] T2-014 [US-AUTH-001] Create `SecurityConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/security/SecurityConfig.java`
+- [X] T2-015 [US-AUTH-001] Configure Spring Security filter chain with OAuth2 resource server for JWT access token validation (backend validates tokens, not relying on ALB)
+- [X] T2-016 [US-AUTH-001] Configure public endpoint `/actuator/health` to permit all requests without authentication in `SecurityConfig`
+- [X] T2-017 [US-AUTH-002] Create `CognitoRoleMapper` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/security/CognitoRoleMapper.java`
+- [X] T2-018 [US-AUTH-002] Implement mapping from Cognito groups (`cognito:groups` claim) to Spring Security roles: ADMIN → `ROLE_ADMIN`, ORGANIZER → `ROLE_ORGANIZER`, USER → `ROLE_USER`
 - [ ] T2-019 [US-AUTH-001] Test authentication with sample protected endpoint using Cognito access token
-- [ ] T2-020 [US-AUTH-003] Create Terraform resources for 3 admin users in `infrastructure/environments/dev/cognito-admins.tf` using `aws_cognito_user` and `aws_cognito_user_group_membership` to assign them to ADMIN group (only application owners can be admins, created via infrastructure)
+- [X] T2-020 [US-AUTH-003] Create Terraform resources for 3 admin users in `infrastructure/environments/dev/cognito-admins.tf` using `aws_cognito_user` and `aws_cognito_user_group_membership` to assign them to ADMIN group (only application owners can be admins, created via infrastructure)
 
 ### SQS Messaging Framework
 
 - [X] T2-021 [US-CART-004] Add AWS SQS SDK v2 dependency to `eventpro-api/modules/eventpro-core/build.gradle`
 - [X] T2-022 [US-CART-004] Create `SQSMessagePublisher` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/messaging/sqs/SQSMessagePublisher.java`
-- [ ] T2-023 [US-CART-004] Create `SQSConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/config/SQSConfig.java`
-- [ ] T2-024 [US-CART-004] Implement methods to publish messages to order-queue, payment-queue, notification-queue in `SQSMessagePublisher`
+- [X] T2-023 [US-CART-004] Create `SQSConfig` class in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/config/SQSConfig.java`
+- [X] T2-024 [US-CART-004] Implement methods to publish messages to order-queue, payment-queue, notification-queue in `SQSMessagePublisher`
 
 ### API Structure
 
-- [ ] T2-025 [US-AUTH-005] Create base controller structure with `/api/v1` prefix in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/BaseController.java`
-- [ ] T2-026 [US-AUTH-005] Configure Swagger/OpenAPI documentation in `eventpro-api/modules/eventpro-api` (add springdoc-openapi dependency and create OpenAPI config)
-- [ ] T2-027 [US-AUTH-005] Create `ApiResponse` wrapper class in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/ApiResponse.java` for consistent JSON responses
-- [ ] T2-028 [US-AUTH-005] Verify `ErrorResponse` class exists in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/exception/ErrorResponse.java` and matches API contract schema
+- [X] T2-025 [US-AUTH-005] Create base controller structure with `/api/v1` prefix in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/BaseController.java`
+- [X] T2-026 [US-AUTH-005] Configure Swagger/OpenAPI documentation in `eventpro-api/modules/eventpro-api` (add springdoc-openapi dependency and create OpenAPI config)
+- [X] T2-027 [US-AUTH-005] Create `ApiResponse` wrapper class in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/ApiResponse.java` for consistent JSON responses
+- [X] T2-028 [US-AUTH-005] Verify `ErrorResponse` class exists in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/common/exception/ErrorResponse.java` and matches API contract schema
+- [X] T2-029 [US-AUTH-005] **Reference Task**: Review `/README.md` "📡 API Endpoints Reference" section before implementing any controller endpoints. Use documented request/response DTO structures, field types, validation requirements, and pagination defaults (page: 1, size: 5, sortBy: "email", dir: "asc")
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -188,98 +197,100 @@
 
 ### Backend: User Entity and Repository
 
-- [ ] T3-001 [P] [US-AUTH-003] Create `UserEntity` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/entity/UserEntity.java`
-- [ ] T3-002 [P] [US-AUTH-003] Add JPA annotations: `@Entity`, `@Table`, `@Id`, `@Column`, relationships
-- [ ] T3-003 [P] [US-AUTH-003] Create `UserRepository` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/repository/UserRepository.java`
-- [ ] T3-004 [P] [US-AUTH-003] Add custom query methods: `findByCognitoUserId`, `findByEmail`
-- [ ] T3-006 [US-AUTH-003] Write unit tests for `UserRepository` in `eventpro-api/modules/eventpro-core/src/test/java/com/accessplus/eventpro/core/user/repository/UserRepositoryTest.java`
+- [X] T3-001 [P] [US-AUTH-003] Create `UserEntity` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/entity/UserEntity.java`
+- [X] T3-002 [P] [US-AUTH-003] Add JPA annotations: `@Entity`, `@Table`, `@Id`, `@Column`, relationships
+- [X] T3-003 [P] [US-AUTH-003] Create `UserRepository` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/repository/UserRepository.java`
+- [X] T3-004 [P] [US-AUTH-003] Add custom query methods: `findByCognitoUserId`, `findByEmail`
+- [X] T3-006 [US-AUTH-003] Write unit tests for `UserRepository` in `eventpro-api/modules/eventpro-core/src/test/java/com/accessplus/eventpro/core/user/repository/UserRepositoryTest.java`
 
 ### Backend: User Service
 
-- [ ] T3-007 [US-AUTH-004] Create `UserService` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/service/UserService.java`
-- [ ] T3-008 [US-AUTH-004] Create `UserServiceImpl` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/service/UserServiceImpl.java`
-- [ ] T3-009 [US-AUTH-004] Implement `createUserFromCognito` method (syncs user after Cognito signup)
-- [ ] T3-010 [US-AUTH-004] Implement `getUserByCognitoId` method
-- [ ] T3-011 [US-AUTH-004] Implement `updateUserProfile` method
-- [ ] T3-012 [US-AUTH-004] Add error handling for user not found, duplicate email
-- [ ] T3-013 [US-AUTH-004] Write unit tests for `UserService` (>80% coverage)
+- [X] T3-007 [US-AUTH-004] Create `UserService` interface in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/service/UserService.java`
+- [X] T3-008 [US-AUTH-004] Create `UserServiceImpl` in `eventpro-api/modules/eventpro-core/src/main/java/com/accessplus/eventpro/core/user/service/UserServiceImpl.java`
+- [X] T3-009 [US-AUTH-004] Implement `createUserFromCognito` method (syncs user after Cognito signup)
+- [X] T3-010 [US-AUTH-004] Implement `getUserByCognitoId` method
+- [X] T3-011 [US-AUTH-004] Implement `updateUserProfile` method
+- [X] T3-012 [US-AUTH-004] Add error handling for user not found, duplicate email
+- [X] T3-013 [US-AUTH-004] Write unit tests for `UserService` (>80% coverage)
 
 ### Backend: User Controller
 
-- [ ] T3-014 [US-AUTH-005] Create `UserController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/UserController.java`
-- [ ] T3-015 [US-AUTH-005] Implement `GET /api/v1/users/me` endpoint (get current user)
-- [ ] T3-016 [US-AUTH-005] Implement `PUT /api/v1/users/me` endpoint (update current user)
-- [ ] T3-017 [US-AUTH-005] Implement `GET /api/v1/users/{id}` endpoint (admin only, with `@PreAuthorize`)
-- [ ] T3-018 [US-AUTH-005] Implement `GET /api/v1/users` endpoint (admin only, paginated)
-- [ ] T3-019 [US-AUTH-005] Add input validation with `@Valid` annotations
-- [ ] T3-020 [US-AUTH-005] Create DTOs: `UserResponse`, `UpdateUserRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/`
-- [ ] T3-020a [US-AUTH-005] Create `PromoteUserRequest` DTO in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` with target role field (ORGANIZER only, cannot promote to ADMIN)
-- [ ] T3-020b [US-AUTH-005] Implement `POST /api/v1/admin/users/{userId}/promote` endpoint in `UserController` (ADMIN only, direct promotion with no approval workflow) to promote USER → ORGANIZER using AWS Cognito Admin API
-- [ ] T3-020c [US-AUTH-005] Add validation to prevent promoting users to ADMIN role (only Terraform can create admins)
-- [ ] T3-021 [US-AUTH-005] Write integration tests for all UserController endpoints including promotion endpoint
+**Reference**: See `/README.md` "Users API" section for complete endpoint specifications, request/response DTOs, and field definitions.
+
+- [X] T3-014 [US-AUTH-005] Create `UserController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/UserController.java`
+- [X] T3-015 [US-AUTH-005] Implement `GET /api/v1/users/me` endpoint (get current user) - **Reference**: README.md Users API `GET /id/{id}` for response structure (`UserResponse`)
+- [X] T3-016 [US-AUTH-005] Implement `PUT /api/v1/users/me` endpoint (update current user) - **Reference**: README.md Users API `PATCH /{id}` for request structure (`UserUpdateRequest` with firstName, lastName fields)
+- [X] T3-017 [US-AUTH-005] Implement `GET /api/v1/users/{id}` endpoint (admin only, with `@PreAuthorize`) - **Reference**: README.md Users API `GET /id/{id}` for response structure
+- [X] T3-018 [US-AUTH-005] Implement `GET /api/v1/users` endpoint (admin only, paginated) - **Reference**: README.md Users API `GET /` for pagination defaults (page: 1, size: 5, sortBy: "email", dir: "asc") and response structure (`PageResponse<UserResponse, UserEntity>`)
+- [X] T3-019 [US-AUTH-005] Add input validation with `@Valid` annotations - **Reference**: README.md for required fields (e.g., UserRequest: firstName, lastName, email, password, phoneNumber are required)
+- [X] T3-020 [US-AUTH-005] Create DTOs: `UserResponse`, `UpdateUserRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Users API section for complete field definitions and types (UUID id, String fields, boolean account flags, Set<RoleDto> roles, etc.)
+- [X] T3-020a [US-AUTH-005] Create `PromoteUserRequest` DTO in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` with target role field (ORGANIZER only, cannot promote to ADMIN)
+- [X] T3-020b [US-AUTH-005] Implement `POST /api/v1/admin/users/{userId}/promote` endpoint in `UserController` (ADMIN only, direct promotion with no approval workflow) to promote USER → ORGANIZER using AWS Cognito Admin API
+- [X] T3-020c [US-AUTH-005] Add validation to prevent promoting users to ADMIN role (only Terraform can create admins)
+- [X] T3-021 [US-AUTH-005] Write integration tests for all UserController endpoints including promotion endpoint
 
 ### Frontend: Cognito Authentication
 
-- [ ] T3-022 [US-AUTH-007] Install AWS Cognito SDK in `web/package.json`
-- [ ] T3-023 [US-AUTH-007] Create `web/src/services/authService.ts` with Cognito client
-- [ ] T3-024 [US-AUTH-007] Implement `signUp` method in `authService.ts`
-- [ ] T3-025 [US-AUTH-007] Implement `signIn` method in `authService.ts`
-- [ ] T3-026 [US-AUTH-007] Implement `signOut` method in `authService.ts`
-- [ ] T3-027 [US-AUTH-007] Implement `getCurrentUser` method in `authService.ts`
-- [ ] T3-028 [US-AUTH-007] Implement token storage and retrieval (localStorage)
-- [ ] T3-029 [US-AUTH-007] Implement token refresh logic
+- [X] T3-022 [US-AUTH-007] Install AWS Cognito SDK in `frontend/package.json`
+- [X] T3-023 [US-AUTH-007] Create `frontend/src/services/authService.ts` with Cognito client
+- [X] T3-024 [US-AUTH-007] Implement `signUp` method in `authService.ts`
+- [X] T3-025 [US-AUTH-007] Implement `signIn` method in `authService.ts`
+- [X] T3-026 [US-AUTH-007] Implement `signOut` method in `authService.ts`
+- [X] T3-027 [US-AUTH-007] Implement `getCurrentUser` method in `authService.ts`
+- [X] T3-028 [US-AUTH-007] Implement token storage and retrieval (localStorage)
+- [X] T3-029 [US-AUTH-007] Implement token refresh logic
 - [ ] T3-030 [US-AUTH-007] Write unit tests for `authService.ts`
 
 ### Frontend: Redux Auth Slice
 
-- [ ] T3-031 [US-AUTH-013] Create `web/src/store/slices/authSlice.ts` with Redux Toolkit
-- [ ] T3-032 [US-AUTH-013] Define auth state: `user`, `token`, `isAuthenticated`, `isLoading`
-- [ ] T3-033 [US-AUTH-013] Create actions: `signIn`, `signOut`, `setUser`, `setLoading`
-- [ ] T3-034 [US-AUTH-013] Create async thunks: `signInAsync`, `signUpAsync`, `signOutAsync`, `fetchCurrentUser`
-- [ ] T3-035 [US-AUTH-013] Implement token persistence in localStorage
+- [X] T3-031 [US-AUTH-013] Create `frontend/src/store/slices/authSlice.ts` with Redux Toolkit
+- [X] T3-032 [US-AUTH-013] Define auth state: `user`, `token`, `isAuthenticated`, `isLoading`
+- [X] T3-033 [US-AUTH-013] Create actions: `signIn`, `signOut`, `setUser`, `setLoading`
+- [X] T3-034 [US-AUTH-013] Create async thunks: `signInAsync`, `signUpAsync`, `signOutAsync`, `fetchCurrentUser`
+- [X] T3-035 [US-AUTH-013] Implement token persistence in localStorage
 - [ ] T3-036 [US-AUTH-013] Write unit tests for `authSlice.ts`
 
 ### Frontend: Login Page
 
-- [ ] T3-037 [US-AUTH-008] Create `web/src/pages/Login.tsx` page component
-- [ ] T3-038 [US-AUTH-008] Create login form with shadcn/ui Input components (email, password)
-- [ ] T3-039 [US-AUTH-008] Add form validation with error messages
-- [ ] T3-040 [US-AUTH-008] Add loading states during sign in
-- [ ] T3-041 [US-AUTH-008] Integrate with `authService` and Redux `authSlice`
-- [ ] T3-042 [US-AUTH-008] Add error handling and display error messages
-- [ ] T3-043 [US-AUTH-008] Make page responsive (mobile-friendly)
-- [ ] T3-044 [US-AUTH-008] Add accessibility attributes (WCAG 2.1 AA)
+- [X] T3-037 [US-AUTH-008] Create `frontend/src/pages/Login.tsx` page component
+- [X] T3-038 [US-AUTH-008] Create login form with shadcn/ui Input components (email, password)
+- [X] T3-039 [US-AUTH-008] Add form validation with error messages
+- [X] T3-040 [US-AUTH-008] Add loading states during sign in
+- [X] T3-041 [US-AUTH-008] Integrate with `authService` and Redux `authSlice`
+- [X] T3-042 [US-AUTH-008] Add error handling and display error messages
+- [X] T3-043 [US-AUTH-008] Make page responsive (mobile-friendly)
+- [X] T3-044 [US-AUTH-008] Add accessibility attributes (WCAG 2.1 AA)
 
 ### Frontend: Sign Up Page
 
-- [ ] T3-045 [US-AUTH-009] Create `web/src/pages/SignUp.tsx` page component
-- [ ] T3-046 [US-AUTH-009] Create sign up form with fields: email, password, confirmPassword, firstName, lastName, phoneNumber
-- [ ] T3-047 [US-AUTH-009] Add form validation (email format, password strength, matching passwords)
-- [ ] T3-048 [US-AUTH-009] Add password strength indicator component
-- [ ] T3-049 [US-AUTH-009] Integrate with `authService` signUp method
-- [ ] T3-050 [US-AUTH-009] Handle email verification flow (redirect to verification page)
-- [ ] T3-051 [US-AUTH-009] Add loading states and error handling
-- [ ] T3-052 [US-AUTH-009] Make page responsive
+- [X] T3-045 [US-AUTH-009] Create `frontend/src/pages/SignUp.tsx` page component
+- [X] T3-046 [US-AUTH-009] Create sign up form with fields: email, password, confirmPassword, firstName, lastName, phoneNumber
+- [X] T3-047 [US-AUTH-009] Add form validation (email format, password strength, matching passwords)
+- [X] T3-048 [US-AUTH-009] Add password strength indicator component
+- [X] T3-049 [US-AUTH-009] Integrate with `authService` signUp method
+- [X] T3-050 [US-AUTH-009] Handle email verification flow (redirect to verification page)
+- [X] T3-051 [US-AUTH-009] Add loading states and error handling
+- [X] T3-052 [US-AUTH-009] Make page responsive
 
 ### Frontend: Protected Routes
 
-- [ ] T3-053 [US-AUTH-012] Create `web/src/components/common/ProtectedRoute.tsx` component
-- [ ] T3-054 [US-AUTH-012] Implement route guard logic (check authentication)
-- [ ] T3-055 [US-AUTH-012] Redirect to login if not authenticated
-- [ ] T3-056 [US-AUTH-012] Create `AdminRoute` component for admin-only routes
-- [ ] T3-057 [US-AUTH-012] Create `OrganizerRoute` component for organizer-only routes
-- [ ] T3-058 [US-AUTH-012] Integrate protected routes in `web/src/App.tsx` routing
+- [X] T3-053 [US-AUTH-012] Create `frontend/src/components/common/ProtectedRoute.tsx` component
+- [X] T3-054 [US-AUTH-012] Implement route guard logic (check authentication)
+- [X] T3-055 [US-AUTH-012] Redirect to login if not authenticated
+- [X] T3-056 [US-AUTH-012] Create `AdminRoute` component for admin-only routes
+- [X] T3-057 [US-AUTH-012] Create `OrganizerRoute` component for organizer-only routes
+- [X] T3-058 [US-AUTH-012] Integrate protected routes in `frontend/src/App.tsx` routing
 
 ### Frontend: User Profile Page
 
-- [ ] T3-059 [US-AUTH-011] Create `web/src/pages/Profile.tsx` page component
-- [ ] T3-060 [US-AUTH-011] Display current user information (read-only view)
-- [ ] T3-061 [US-AUTH-011] Create edit profile form (firstName, lastName, phoneNumber)
-- [ ] T3-062 [US-AUTH-011] Add form validation
-- [ ] T3-063 [US-AUTH-011] Integrate with `PUT /api/v1/users/me` endpoint
-- [ ] T3-064 [US-AUTH-011] Add success/error messages
-- [ ] T3-065 [US-AUTH-011] Add loading states
-- [ ] T3-066 [US-AUTH-011] Make page responsive
+- [X] T3-059 [US-AUTH-011] Create `frontend/src/pages/Profile.tsx` page component
+- [X] T3-060 [US-AUTH-011] Display current user information (read-only view)
+- [X] T3-061 [US-AUTH-011] Create edit profile form (firstName, lastName, phoneNumber)
+- [X] T3-062 [US-AUTH-011] Add form validation
+- [X] T3-063 [US-AUTH-011] Integrate with `PUT /api/v1/users/me` endpoint
+- [X] T3-064 [US-AUTH-011] Add success/error messages
+- [X] T3-065 [US-AUTH-011] Add loading states
+- [X] T3-066 [US-AUTH-011] Make page responsive
 
 **Checkpoint**: User authentication and profile management fully functional. Users can sign up, sign in, and manage profiles.
 
@@ -339,15 +350,18 @@
 
 ### Backend: Event Controller
 
+**Reference**: See `/README.md` "Events API" section for complete endpoint specifications, request/response DTOs, multipart form-data structure, and AddressEntity definition.
+
 - [ ] T199 [US-EVENT-006] Create `EventController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/EventController.java`
-- [ ] T200 [US-EVENT-006] Implement `POST /api/v1/events` endpoint (admin/organizer only)
-- [ ] T201 [US-EVENT-006] Implement `GET /api/v1/events/{id}` endpoint (public)
-- [ ] T202 [US-EVENT-006] Implement `GET /api/v1/events` endpoint (public, paginated, searchable)
-- [ ] T203 [US-EVENT-006] Implement `GET /api/v1/events/category/{categoryId}` endpoint (public)
-- [ ] T204 [US-EVENT-006] Implement `PATCH /api/v1/events/{id}` endpoint (admin/organizer only)
-- [ ] T205 [US-EVENT-006] Implement `DELETE /api/v1/events/{id}` endpoint (admin/organizer only)
-- [ ] T206 [US-EVENT-006] Add multipart file upload support for image in POST endpoint
-- [ ] T207 [US-EVENT-006] Create DTOs: `EventResponse`, `CreateEventRequest`, `UpdateEventRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/`
+- [ ] T200 [US-EVENT-006] Implement `POST /api/v1/events` endpoint (admin/organizer only) - **Reference**: README.md Events API `POST /` for multipart/form-data structure (request JSON part with EventCreateRequest fields: name, description, startTime, endTime, marketingEnabled, category, address), imageFile part, and response structure (`EventResponse` with all address fields flattened)
+- [ ] T201 [US-EVENT-006] Implement `GET /api/v1/events/{id}` endpoint (public) - **Reference**: README.md Events API `GET /{eventId}` for response structure (`List<EventResponse>`)
+- [ ] T202 [US-EVENT-006] Implement `GET /api/v1/events` endpoint (public, paginated, searchable) - **Reference**: README.md Events API `GET /` for response structure (`List<EventResponse>`)
+- [ ] T203 [US-EVENT-006] Implement `GET /api/v1/events/category/{categoryId}` endpoint (public) - **Reference**: README.md Events API `GET /category/{categoryName}` (note: uses categoryName, not categoryId)
+- [ ] T204 [US-EVENT-006] Implement `PATCH /api/v1/events/{id}` endpoint (admin/organizer only) - **Reference**: README.md Events API `PATCH /{eventId}` for request structure (`EventUpdateRequest` with optional fields), query parameter `imageFile` (MultipartFile), and response structure
+- [ ] T205 [US-EVENT-006] Implement `DELETE /api/v1/events/{id}` endpoint (admin/organizer only) - **Reference**: README.md Events API `DELETE /{eventId}` for response (Void, 200 OK)
+- [ ] T206 [US-EVENT-006] Add multipart file upload support for image in POST endpoint - **Reference**: README.md Events API `POST /` for Content-Type `multipart/form-data` with `request` (JSON string) and `imageFile` (MultipartFile) parts
+- [ ] T207 [US-EVENT-006] Create DTOs: `EventResponse`, `CreateEventRequest`, `UpdateEventRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Events API section for complete field definitions (EventResponse: id, name, description, imageUrl, marketingEnabled, startTime, endTime, userId, categoryId, categoryName, address fields flattened; EventCreateRequest: name, description, startTime, endTime, marketingEnabled, category, address; EventUpdateRequest: all optional fields)
+- [ ] T207a [US-EVENT-006] Create `AddressEntity` DTO matching README.md structure: street, city (required), state, zipCode, country (required), id, createdAt, updatedAt from BaseEntity
 - [ ] T208 [US-EVENT-006] Add role-based authorization with `@PreAuthorize`
 - [ ] T209 [US-EVENT-006] Write integration tests for all EventController endpoints
 
@@ -467,15 +481,19 @@
 
 ### Backend: Ticket Controller
 
+**Reference**: See `/README.md` "Tickets API" section for complete endpoint specifications, request/response DTOs, TicketType/TicketStatus enums, and TicketInfo structure.
+
 - [ ] T288 [US-TICKET-004] Create `TicketController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/TicketController.java`
-- [ ] T289 [US-TICKET-004] Implement `POST /api/v1/tickets` endpoint (admin/organizer only, bulk creation)
-- [ ] T290 [US-TICKET-004] Implement `GET /api/v1/tickets/{id}` endpoint (public)
-- [ ] T291 [US-TICKET-004] Implement `GET /api/v1/tickets/event/{eventId}` endpoint (public)
-- [ ] T292 [US-TICKET-004] Implement `GET /api/v1/tickets/groupTickets/{eventId}` endpoint (public, groups by type)
-- [ ] T293 [US-TICKET-004] Implement `GET /api/v1/tickets/group/{eventId}` endpoint (public, summary)
-- [ ] T294 [US-TICKET-004] Implement `PATCH /api/v1/tickets/{id}` endpoint (admin/organizer only)
-- [ ] T295 [US-TICKET-004] Implement `DELETE /api/v1/tickets/{id}` endpoint (admin/organizer only)
-- [ ] T296 [US-TICKET-004] Create DTOs: `TicketResponse`, `CreateTicketRequest`, `BulkCreateTicketRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/`
+- [ ] T289 [US-TICKET-004] Implement `POST /api/v1/tickets` endpoint (admin/organizer only, bulk creation) - **Reference**: README.md Tickets API `POST /` for request structure (`TicketCreateRequest` with eventId UUID and tickets List<TicketInfo> where TicketInfo has price BigDecimal, ticketType enum, quantity Long, eventId UUID), response structure (`List<TicketResponse>`)
+- [ ] T290 [US-TICKET-004] Implement `GET /api/v1/tickets/{id}` endpoint (public) - **Reference**: README.md Tickets API `GET /{ticketId}` for response structure (`List<TicketResponse>`)
+- [ ] T291 [US-TICKET-004] Implement `GET /api/v1/tickets/event/{eventId}` endpoint (public) - **Reference**: README.md Tickets API `GET /event/{eventId}` for response structure (`List<TicketResponse>`)
+- [ ] T292 [US-TICKET-004] Implement `GET /api/v1/tickets/groupTickets/{eventId}` endpoint (public, groups by type) - **Reference**: README.md Tickets API `GET /groupTickets/{eventId}` for response structure (`Map<TicketType, List<TicketResponse>>`)
+- [ ] T293 [US-TICKET-004] Implement `GET /api/v1/tickets/group/{eventId}` endpoint (public, summary) - **Reference**: README.md Tickets API `GET /group/{eventId}` for response structure (`EventSummary` with eventName, startTime, endTime, tickets List<EventTickets>)
+- [ ] T294 [US-TICKET-004] Implement `PATCH /api/v1/tickets/{id}` endpoint (admin/organizer only) - **Reference**: README.md Tickets API `PATCH /{ticketId}` for request structure (`TicketUpdateRequest` with optional fields: name, description, price, quantity, startTime, endTime, printOutUrl, eventId)
+- [ ] T295 [US-TICKET-004] Implement `DELETE /api/v1/tickets/{id}` endpoint (admin/organizer only) - **Reference**: README.md Tickets API `DELETE /{ticketId}` for response (Void, 200 OK)
+- [ ] T296 [US-TICKET-004] Create DTOs: `TicketResponse`, `CreateTicketRequest`, `BulkCreateTicketRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Tickets API section for complete field definitions (TicketResponse: id UUID, name, ticketType enum, ticketStatus enum, price BigDecimal, startTime/endTime LocalDateTime, qrCode, printOutUrl, eventIdType; TicketCreateRequest: eventId UUID, tickets List<TicketInfo>; TicketInfo: price, ticketType, quantity, eventId)
+- [ ] T296a [US-TICKET-004] Create enums: `TicketType` (VIP, REGULAR, EARLY_BIRD) and `TicketStatus` (AVAILABLE, SOLD, RESERVED) - **Reference**: README.md "Common Enums" section
+- [ ] T296b [US-TICKET-004] Create `EventSummary` and `EventTickets` DTOs - **Reference**: README.md Tickets API `GET /group/{eventId}` response structure
 - [ ] T297 [US-TICKET-004] Add role-based authorization
 - [ ] T298 [US-TICKET-004] Write integration tests for all TicketController endpoints
 
@@ -594,22 +612,28 @@
 
 ### Backend: Cart Controller
 
+**Reference**: See `/README.md` "Shopping Cart API" section for complete endpoint specifications. **Note**: Legacy API uses `/api/v1/user/{userId}/cart` path pattern, but new implementation should use `/api/v1/cart` with authenticated user context.
+
 - [ ] T377 [US-CART-005] Create `CartController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/CartController.java`
-- [ ] T378 [US-CART-005] Implement `POST /api/v1/cart/add` endpoint (authenticated users only)
-- [ ] T379 [US-CART-005] Implement `GET /api/v1/cart` endpoint (authenticated users only)
-- [ ] T380 [US-CART-005] Implement `PATCH /api/v1/cart/update` endpoint (authenticated users only)
-- [ ] T381 [US-CART-005] Implement `DELETE /api/v1/cart/delete/{itemId}` endpoint (authenticated users only)
-- [ ] T382 [US-CART-005] Implement `DELETE /api/v1/cart/clear` endpoint (authenticated users only)
-- [ ] T383 [US-CART-005] Create DTOs: `CartResponse`, `CartItemResponse`, `AddToCartRequest`, `UpdateCartRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/`
+- [ ] T378 [US-CART-005] Implement `POST /api/v1/cart/add` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `POST /add` for request structure (`AddToCartRequest` with id UUID, eventIdType String, ticketType enum, quantity int), response structure (`CartResponse` with id UUID, tickets Set<CartTicket>, quantity Integer, totalCost BigDecimal, message String)
+- [ ] T379 [US-CART-005] Implement `GET /api/v1/cart` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `GET /` for response structure (`CartResponse`)
+- [ ] T380 [US-CART-005] Implement `PATCH /api/v1/cart/update` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `PATCH /increment/ticket/{eventIdAndType}` and `PATCH /decrement/ticket/{eventIdAndType}` for increment/decrement operations
+- [ ] T381 [US-CART-005] Implement `DELETE /api/v1/cart/delete/{itemId}` endpoint (authenticated users only) - **Note**: Legacy API doesn't have this endpoint, but it's a common pattern
+- [ ] T382 [US-CART-005] Implement `DELETE /api/v1/cart/clear` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `DELETE /clearCart` for response (Void, 200 OK)
+- [ ] T383 [US-CART-005] Create DTOs: `CartResponse`, `CartItemResponse`, `AddToCartRequest`, `UpdateCartRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Shopping Cart API section for complete field definitions (CartResponse: id UUID, tickets Set<CartTicket>, quantity Integer, totalCost BigDecimal, message String; AddToCartRequest: id UUID, eventIdType String, ticketType enum, quantity int; CartTicket: id UUID, name, ticketType, ticketStatus, price BigDecimal, startTime/endTime LocalDateTime, eventIdType String)
 - [ ] T384 [US-CART-005] Write integration tests for all CartController endpoints
 
 ### Backend: Order Controller
 
+**Reference**: See `/README.md` "Orders API" section for complete endpoint specifications, request/response DTOs, and pagination defaults.
+
 - [ ] T385 [US-CART-006] Create `OrderController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/OrderController.java`
-- [ ] T386 [US-CART-006] Implement `POST /api/v1/orders` endpoint (create order from cart, authenticated users only)
-- [ ] T387 [US-CART-006] Implement `GET /api/v1/orders/{id}` endpoint (authenticated users, own orders or admin)
-- [ ] T388 [US-CART-006] Implement `GET /api/v1/orders` endpoint (user's orders, or all orders if admin)
-- [ ] T389 [US-CART-006] Create DTOs: `OrderResponse`, `OrderItemResponse`, `CreateOrderRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/`
+- [ ] T386 [US-CART-006] Implement `POST /api/v1/orders` endpoint (create order from cart, authenticated users only) - **Note**: Legacy API doesn't have POST endpoint documented, but it's needed for order creation
+- [ ] T387 [US-CART-006] Implement `GET /api/v1/orders/{id}` endpoint (authenticated users, own orders or admin) - **Reference**: README.md Orders API `GET /{id}` for response structure (`OrderResponse` with id UUID, amount Long, orderItems List<TicketResponse>, payment PaymentResponse)
+- [ ] T388 [US-CART-006] Implement `GET /api/v1/orders` endpoint (user's orders, or all orders if admin) - **Reference**: README.md Orders API `GET /` for pagination defaults (page: 1, size: 5, sortBy: "email", dir: "asc") and response structure (`PageResponse<OrderResponse, OrderEntity>`)
+- [ ] T388a [US-CART-006] Implement `GET /api/v1/orders/users/{userId}` endpoint (user's orders, paginated) - **Reference**: README.md Orders API `GET /users/{userId}` for pagination and response structure
+- [ ] T389 [US-CART-006] Create DTOs: `OrderResponse`, `OrderItemResponse`, `CreateOrderRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Orders API section for complete field definitions (OrderResponse: id UUID, amount Long, orderItems List<TicketResponse>, payment PaymentResponse; PaymentResponse: id UUID, amount BigDecimal, paymentMethod String, status PaymentStatus enum, currency String, description String)
+- [ ] T389a [US-CART-006] Create `PaymentStatus` enum (PENDING, SUCCESS, FAILED, REFUNDED) - **Reference**: README.md "Common Enums" section
 - [ ] T390 [US-CART-006] Add role-based authorization
 - [ ] T391 [US-CART-006] Write integration tests for all OrderController endpoints
 
@@ -742,13 +766,18 @@
 
 ### Backend: Payment Controller
 
+**Reference**: See `/README.md` "Payments API" section for complete endpoint specifications, request/response DTOs, and Stripe/PayPal integration details.
+
 - [ ] T470 [US-PAY-004] Create `PaymentController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/PaymentController.java`
-- [ ] T471 [US-PAY-004] Implement `POST /api/v1/payments/stripe` endpoint (process Stripe payment)
-- [ ] T472 [US-PAY-004] Implement `POST /api/v1/payments/webhook` endpoint (Stripe webhook, no auth required)
-- [ ] T473 [US-PAY-004] Implement `GET /api/v1/payments/{id}` endpoint (authenticated users, own payments or admin)
-- [ ] T474 [US-PAY-004] Implement `POST /api/v1/payments/{id}/refund` endpoint (admin only)
+- [ ] T471 [US-PAY-004] Implement `POST /api/v1/payments/stripe` endpoint (process Stripe payment) - **Reference**: README.md Payments API `POST /stripe` for request structure (`StripeDto` with id String, userId UUID), response structure (`OrderResponse`)
+- [ ] T471a [US-PAY-004] Implement `POST /api/v1/payments/paypal/create` endpoint (create PayPal payment) - **Reference**: README.md Payments API `POST /paypal/create` for request structure (`PaypalRequest` with userId UUID, currency, method, intent, description, cancelUrl, successUrl), response structure (`Map<String, String>` with paymentId and approvalUrl)
+- [ ] T471b [US-PAY-004] Implement `GET /api/v1/payments/paypal/execute` endpoint (execute PayPal payment) - **Reference**: README.md Payments API `GET /paypal/execute` for query parameters (paymentId, PayerID), response (String success message)
+- [ ] T472 [US-PAY-004] Implement `POST /api/v1/payments/webhook` endpoint (Stripe webhook, no auth required) - **Note**: Legacy API doesn't document this, but it's standard for Stripe integration
+- [ ] T473 [US-PAY-004] Implement `GET /api/v1/payments/{id}` endpoint (authenticated users, own payments or admin) - **Reference**: README.md Payments API `GET /{id}` for response structure (`PaymentResponse`)
+- [ ] T473a [US-PAY-004] Implement `GET /api/v1/payments/users/{userId}` endpoint (get user's payments) - **Reference**: README.md Payments API `GET /users/{userId}` for response structure (`List<PaymentResponse>`)
+- [ ] T474 [US-PAY-004] Implement `POST /api/v1/payments/{id}/refund` endpoint (admin only) - **Note**: Legacy API doesn't document this, but it's a common requirement
 - [ ] T475 [US-PAY-004] Add webhook signature verification in webhook endpoint
-- [ ] T476 [US-PAY-004] Create DTOs: `PaymentResponse`, `ProcessPaymentRequest`, `RefundRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/`
+- [ ] T476 [US-PAY-004] Create DTOs: `PaymentResponse`, `ProcessPaymentRequest`, `RefundRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Payments API section for complete field definitions (PaymentResponse: id UUID, amount BigDecimal, paymentMethod String, status PaymentStatus enum, currency String, description String; StripeDto: id String, userId UUID; PaypalRequest: userId UUID, currency, method, intent, description, cancelUrl, successUrl)
 - [ ] T477 [US-PAY-004] Write integration tests for all PaymentController endpoints
 
 ### Lambda: Payment Processor Setup
@@ -850,13 +879,20 @@
 
 ### Backend: Notification Controller
 
+**Reference**: See `/README.md` "Notifications API" section for complete endpoint specifications, request/response DTOs, and NotificationType/NotificationDeliveryType enums.
+
 - [ ] T539 [US-NOTIF-006] Create `NotificationController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/NotificationController.java`
-- [ ] T540 [US-NOTIF-006] Implement `GET /api/v1/notifications` endpoint (user's notifications)
-- [ ] T541 [US-NOTIF-006] Implement `GET /api/v1/notifications/{id}` endpoint
-- [ ] T542 [US-NOTIF-006] Implement `PATCH /api/v1/notifications/{id}/read` endpoint
-- [ ] T543 [US-NOTIF-006] Implement `GET /api/v1/notifications/preferences` endpoint
-- [ ] T544 [US-NOTIF-006] Implement `PUT /api/v1/notifications/preferences` endpoint
-- [ ] T545 [US-NOTIF-006] Create DTOs: `NotificationResponse`, `NotificationPreferenceResponse` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/`
+- [ ] T540 [US-NOTIF-006] Implement `GET /api/v1/notifications` endpoint (user's notifications) - **Reference**: README.md Notifications API `GET /preferences` for response structure (`List<NotificationPreferenceResponse>`)
+- [ ] T540a [US-NOTIF-006] Implement `POST /api/v1/notifications/subscribe` endpoint - **Reference**: README.md Notifications API `POST /subscribe` for request structure (`NotificationRequest` with type NotificationType enum, deliveryType NotificationDeliveryType enum, message String, enabled boolean)
+- [ ] T541 [US-NOTIF-006] Implement `GET /api/v1/notifications/{id}` endpoint - **Note**: Legacy API doesn't document this, but it's a common pattern
+- [ ] T542 [US-NOTIF-006] Implement `PATCH /api/v1/notifications/{id}/read` endpoint - **Note**: Legacy API doesn't document this, but it's a common pattern
+- [ ] T543 [US-NOTIF-006] Implement `GET /api/v1/notifications/preferences` endpoint - **Reference**: README.md Notifications API `GET /preferences` for response structure (`List<NotificationPreferenceResponse>`)
+- [ ] T544 [US-NOTIF-006] Implement `PUT /api/v1/notifications/preferences` endpoint - **Reference**: README.md Notifications API `PUT /preferences/{id}` for request structure (`NotificationRequest`), response structure (`NotificationPreferenceResponse`)
+- [ ] T544a [US-NOTIF-006] Implement `POST /api/v1/notifications/preferences` endpoint - **Reference**: README.md Notifications API `POST /preferences` for request/response structures
+- [ ] T544b [US-NOTIF-006] Implement `DELETE /api/v1/notifications/preferences/{id}` endpoint - **Reference**: README.md Notifications API `DELETE /preferences/{id}` for response (Void, 200 OK)
+- [ ] T544c [US-NOTIF-006] Implement `POST /api/v1/notifications/events/upcoming` endpoint (ADMIN only) - **Reference**: README.md Notifications API `POST /events/upcoming` for response (String success message)
+- [ ] T545 [US-NOTIF-006] Create DTOs: `NotificationResponse`, `NotificationPreferenceResponse` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Notifications API section for complete field definitions (NotificationPreferenceResponse: id UUID, notificationType NotificationType enum, deliveryType NotificationDeliveryType enum, enabled boolean; NotificationRequest: type NotificationType enum, deliveryType NotificationDeliveryType enum, message String, enabled boolean)
+- [ ] T545a [US-NOTIF-006] Create enums: `NotificationType` (ORDER_CONFIRMATION, PAYMENT_SUCCESS, PAYMENT_FAILED, EVENT_REMINDER, TICKET_READY, SYSTEM_ANNOUNCEMENT) and `NotificationDeliveryType` (EMAIL, SMS, IN_APP, PUSH) - **Reference**: README.md "Common Enums" section
 - [ ] T546 [US-NOTIF-006] Write integration tests for all NotificationController endpoints
 
 ### Lambda: Notification Sender Setup
@@ -908,14 +944,18 @@
 
 ### Backend: Analytics Endpoints
 
+**Reference**: See `/README.md` "Reports API" section for sales analytics endpoint specification.
+
 - [ ] T572 [US-ANALYTICS-001] Create `AnalyticsController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/AnalyticsController.java`
-- [ ] T573 [US-ANALYTICS-001] Implement `GET /api/v1/analytics/events` endpoint (event performance metrics)
-- [ ] T574 [US-ANALYTICS-001] Implement `GET /api/v1/analytics/sales` endpoint (sales analytics)
-- [ ] T575 [US-ANALYTICS-001] Implement `GET /api/v1/analytics/users` endpoint (user engagement metrics)
-- [ ] T576 [US-ANALYTICS-001] Implement `GET /api/v1/analytics/revenue` endpoint (revenue analytics)
+- [ ] T572a [US-ANALYTICS-001] Implement `GET /api/v1/reports/sales/{eventId}` endpoint - **Reference**: README.md Reports API `GET /sales/{eventId}` for response structure (`ReportResponse` with totalTicketsSold int, totalRevenue BigDecimal, ticketPriceRangeSales Map, totalAttendanceProjection int, ticketPurchasingChannels Map, comparisonWithPreviousEvents Map, ticketTypeBreakdown Map, salesOverTime Map<String, Map<String, Integer>>)
+- [ ] T573 [US-ANALYTICS-001] Implement `GET /api/v1/analytics/events` endpoint (event performance metrics) - **Note**: Not in legacy API, but useful for new implementation
+- [ ] T574 [US-ANALYTICS-001] Implement `GET /api/v1/analytics/sales` endpoint (sales analytics) - **Note**: Not in legacy API, but useful for new implementation
+- [ ] T575 [US-ANALYTICS-001] Implement `GET /api/v1/analytics/users` endpoint (user engagement metrics) - **Note**: Not in legacy API, but useful for new implementation
+- [ ] T576 [US-ANALYTICS-001] Implement `GET /api/v1/analytics/revenue` endpoint (revenue analytics) - **Note**: Not in legacy API, but useful for new implementation
 - [ ] T577 [US-ANALYTICS-001] Add data aggregation logic (queries, calculations)
 - [ ] T578 [US-ANALYTICS-001] Add role-based authorization (admin/organizer only)
-- [ ] T579 [US-ANALYTICS-001] Create DTOs: `EventAnalyticsResponse`, `SalesAnalyticsResponse`, `RevenueAnalyticsResponse` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/`
+- [ ] T579 [US-ANALYTICS-001] Create DTOs: `EventAnalyticsResponse`, `SalesAnalyticsResponse`, `RevenueAnalyticsResponse` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Reports API section for `ReportResponse` structure as a starting point
+- [ ] T579a [US-ANALYTICS-001] Create `ReportResponse` DTO - **Reference**: README.md Reports API section for complete field definitions
 - [ ] T580 [US-ANALYTICS-001] Write integration tests for all AnalyticsController endpoints
 
 ### Frontend: Analytics Dashboard
