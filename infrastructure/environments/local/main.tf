@@ -3,14 +3,14 @@
 
 terraform {
   required_version = ">= 1.5.0"
-  
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 6.21.0"
     }
   }
-  
+
   backend "local" {
     path = "terraform.tfstate"
   }
@@ -21,10 +21,10 @@ terraform {
 
 # SQS Queues
 resource "aws_sqs_queue" "order_queue" {
-  name                      = "order-queue"
-  message_retention_seconds = 345600 # 4 days
+  name                       = "order-queue"
+  message_retention_seconds  = 345600 # 4 days
   visibility_timeout_seconds = 30
-  
+
   tags = {
     Name        = "order-queue"
     Environment = "local"
@@ -33,10 +33,10 @@ resource "aws_sqs_queue" "order_queue" {
 }
 
 resource "aws_sqs_queue" "payment_queue" {
-  name                      = "payment-queue"
-  message_retention_seconds = 345600 # 4 days
+  name                       = "payment-queue"
+  message_retention_seconds  = 345600 # 4 days
   visibility_timeout_seconds = 30
-  
+
   tags = {
     Name        = "payment-queue"
     Environment = "local"
@@ -45,10 +45,10 @@ resource "aws_sqs_queue" "payment_queue" {
 }
 
 resource "aws_sqs_queue" "notification_queue" {
-  name                      = "notification-queue"
-  message_retention_seconds = 345600 # 4 days
+  name                       = "notification-queue"
+  message_retention_seconds  = 345600 # 4 days
   visibility_timeout_seconds = 30
-  
+
   tags = {
     Name        = "notification-queue"
     Environment = "local"
@@ -60,7 +60,7 @@ resource "aws_sqs_queue" "notification_queue" {
 resource "aws_s3_bucket" "images" {
   bucket        = "eventpro-images-local"
   force_destroy = true
-  
+
   tags = {
     Name        = "eventpro-images-local"
     Environment = "local"
@@ -110,8 +110,10 @@ resource "aws_s3_bucket_policy" "images" {
 }
 
 # Cognito User Pool
+# Note: Cognito requires LocalStack Pro. Set enable_cognito = true only if using Pro.
 resource "aws_cognito_user_pool" "main" {
-  name = "eventpro-local-user-pool"
+  count = var.enable_cognito ? 1 : 0
+  name  = "eventpro-local-user-pool"
 
   # Password Policy
   password_policy {
@@ -154,8 +156,9 @@ resource "aws_cognito_user_pool" "main" {
 
 # Cognito User Pool Client
 resource "aws_cognito_user_pool_client" "main" {
+  count        = var.enable_cognito ? 1 : 0
   name         = "eventpro-local-client"
-  user_pool_id = aws_cognito_user_pool.main.id
+  user_pool_id = aws_cognito_user_pool.main[0].id
 
   # OAuth Configuration
   generate_secret                      = false
@@ -164,11 +167,11 @@ resource "aws_cognito_user_pool_client" "main" {
   allowed_oauth_flows_user_pool_client = true
   callback_urls                        = ["http://localhost:5173", "http://localhost:3000"]
   logout_urls                          = ["http://localhost:5173", "http://localhost:3000"]
-  
+
   # Token Validity
-  access_token_validity  = 60  # 1 hour
-  id_token_validity      = 60  # 1 hour
-  refresh_token_validity = 30  # 30 days
+  access_token_validity  = 6  # 6 hour
+  id_token_validity      = 6  # 6 hour
+  refresh_token_validity = 30 # 30 days
 
   # Explicit Auth Flows
   explicit_auth_flows = [
@@ -182,22 +185,25 @@ resource "aws_cognito_user_pool_client" "main" {
 
 # Cognito User Pool Groups
 resource "aws_cognito_user_group" "admin" {
+  count        = var.enable_cognito ? 1 : 0
   name         = "ADMIN"
-  user_pool_id = aws_cognito_user_pool.main.id
+  user_pool_id = aws_cognito_user_pool.main[0].id
   description  = "Administrator group"
   precedence   = 1
 }
 
 resource "aws_cognito_user_group" "organizer" {
+  count        = var.enable_cognito ? 1 : 0
   name         = "ORGANIZER"
-  user_pool_id = aws_cognito_user_pool.main.id
+  user_pool_id = aws_cognito_user_pool.main[0].id
   description  = "Event organizer group"
   precedence   = 2
 }
 
 resource "aws_cognito_user_group" "user" {
+  count        = var.enable_cognito ? 1 : 0
   name         = "USER"
-  user_pool_id = aws_cognito_user_pool.main.id
+  user_pool_id = aws_cognito_user_pool.main[0].id
   description  = "Regular user group"
   precedence   = 3
 }
@@ -236,7 +242,7 @@ resource "aws_secretsmanager_secret" "jwt" {
 }
 
 resource "aws_secretsmanager_secret_version" "jwt" {
-  secret_id = aws_secretsmanager_secret.jwt.id
+  secret_id     = aws_secretsmanager_secret.jwt.id
   secret_string = "Dh7fjbnd2O2iSkqpYL/lz2nM3LE/8fC36iFNPHERysc="
 }
 

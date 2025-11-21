@@ -29,3 +29,9 @@ variable "tags" {
   }
 }
 
+variable "enable_cognito" {
+  description = "Enable Cognito resources (requires LocalStack Pro). Set to false for Community Edition."
+  type        = bool
+  default     = false
+}
+

@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -36,13 +36,14 @@ public class GlobalExceptionHandler {
             BusinessException ex, WebRequest request) {
         logger.warn("Business exception: {}", ex.getMessage());
         
+        HttpStatus status = determineHttpStatus(ex);
+        String path = extractPath(request);
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .error(ex.getErrorCode())
                 .message(ex.getMessage())
-                .timestamp(LocalDateTime.now())
+                .path(path)
+                .timestamp(Instant.now())
                 .build();
         
-        HttpStatus status = determineHttpStatus(ex);
         return new ResponseEntity<>(errorResponse, status);
     }
     
@@ -54,10 +55,11 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException ex, WebRequest request) {
         logger.warn("Resource not found: {}", ex.getMessage());
         
+        String path = extractPath(request);
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .error(ex.getErrorCode())
                 .message(ex.getMessage())
-                .timestamp(LocalDateTime.now())
+                .path(path)
+                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
@@ -71,11 +73,13 @@ public class GlobalExceptionHandler {
             ValidationException ex, WebRequest request) {
         logger.warn("Validation error: {}", ex.getMessage());
         
+        String path = extractPath(request);
+        // Note: ValidationException has List<String> errors, not field-specific
+        // Fields map is only populated when we have field-level errors (e.g., MethodArgumentNotValidException)
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .error(ex.getErrorCode())
                 .message(ex.getMessage())
-                .timestamp(LocalDateTime.now())
-                .validationErrors(ex.getValidationErrors())
+                .path(path)
+                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
@@ -89,10 +93,11 @@ public class GlobalExceptionHandler {
             UnauthorizedException ex, WebRequest request) {
         logger.warn("Unauthorized: {}", ex.getMessage());
         
+        String path = extractPath(request);
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .error(ex.getErrorCode())
                 .message(ex.getMessage())
-                .timestamp(LocalDateTime.now())
+                .path(path)
+                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
@@ -106,10 +111,11 @@ public class GlobalExceptionHandler {
             ConflictException ex, WebRequest request) {
         logger.warn("Conflict: {}", ex.getMessage());
         
+        String path = extractPath(request);
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .error(ex.getErrorCode())
                 .message(ex.getMessage())
-                .timestamp(LocalDateTime.now())
+                .path(path)
+                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
@@ -133,11 +139,12 @@ public class GlobalExceptionHandler {
         String message = "Validation failed: " + errors.values().stream()
                 .collect(Collectors.joining(", "));
         
+        String path = extractPath(request);
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .error("VALIDATION_ERROR")
                 .message(message)
-                .timestamp(LocalDateTime.now())
-                .validationErrors(errors.values().stream().toList())
+                .path(path)
+                .timestamp(Instant.now())
+                .fields(errors) // Field-specific validation errors
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
@@ -155,10 +162,11 @@ public class GlobalExceptionHandler {
                 .map(ConstraintViolation::getMessage)
                 .collect(Collectors.joining(", "));
         
+        String path = extractPath(request);
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .error("VALIDATION_ERROR")
                 .message("Validation failed: " + message)
-                .timestamp(LocalDateTime.now())
+                .path(path)
+                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
@@ -172,10 +180,11 @@ public class GlobalExceptionHandler {
             AccessDeniedException ex, WebRequest request) {
         logger.warn("Access denied: {}", ex.getMessage());
         
+        String path = extractPath(request);
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .error("ACCESS_DENIED")
                 .message("You do not have permission to access this resource")
-                .timestamp(LocalDateTime.now())
+                .path(path)
+                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
@@ -189,10 +198,11 @@ public class GlobalExceptionHandler {
             AuthenticationCredentialsNotFoundException ex, WebRequest request) {
         logger.warn("Authentication error: {}", ex.getMessage());
         
+        String path = extractPath(request);
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .error("UNAUTHENTICATED")
                 .message("Authentication required")
-                .timestamp(LocalDateTime.now())
+                .path(path)
+                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
@@ -206,13 +216,22 @@ public class GlobalExceptionHandler {
             Exception ex, WebRequest request) {
         logger.error("Unexpected error occurred", ex);
         
+        String path = extractPath(request);
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .error("INTERNAL_SERVER_ERROR")
                 .message("An unexpected error occurred. Please try again later.")
-                .timestamp(LocalDateTime.now())
+                .path(path)
+                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    
+    /**
+     * Extract the request path from WebRequest.
+     */
+    private String extractPath(WebRequest request) {
+        String description = request.getDescription(false);
+        return description.replace("uri=", "");
     }
     
     /**

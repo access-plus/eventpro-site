@@ -8,9 +8,16 @@ export default defineConfig({
   plugins: [
     react(),
   ],
+  define: {
+    // Polyfill for Node.js 'global' variable
+    global: 'globalThis',
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Polyfills for Node.js modules used by amazon-cognito-identity-js
+      buffer: 'buffer',
+      process: 'process/browser',
     },
   },
   server: {
@@ -36,7 +43,12 @@ export default defineConfig({
   },
   // Optimize dependencies
   optimizeDeps: {
-    include: ['react', 'react-dom'],
+    include: ['react', 'react-dom', 'buffer', 'process'],
+    esbuildOptions: {
+      define: {
+        global: 'globalThis',
+      },
+    },
   },
   // Vitest configuration
   // @ts-expect-error - Vitest types extend Vite config, but TypeScript sees version mismatch

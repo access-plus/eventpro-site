@@ -3,12 +3,19 @@ import Home from './pages/Home'
 import About from './pages/About'
 import ComponentsDemo from './pages/ComponentsDemo'
 import ReduxDemo from './pages/ReduxDemo'
+import Login from './pages/Login'
+import SignUp from './pages/SignUp'
+import Profile from './pages/Profile'
+import AdminRoute from './components/common/AdminRoute'
+import OrganizerRoute from './components/common/OrganizerRoute'
+import AuthInitializer from './components/common/AuthInitializer'
 import './App.css'
 
 // Root layout component with navigation
 function Root() {
   return (
     <div className="min-h-screen bg-background">
+      <AuthInitializer />
       <nav className="border-b">
         <div className="container mx-auto px-4 py-4">
           <ul className="flex space-x-6">
@@ -63,6 +70,43 @@ const router = createBrowserRouter([
       {
         path: 'redux',
         element: <ReduxDemo />,
+      },
+      {
+        path: 'login',
+        element: <Login />,
+      },
+      {
+        path: 'signup',
+        element: <SignUp />,
+      },
+      // Protected routes - require authentication
+      {
+        path: 'profile',
+        element: <Profile />,
+      },
+      // Admin-only routes
+      {
+        path: 'admin',
+        element: (
+          <AdminRoute>
+            <div>
+              <h1>Admin Dashboard</h1>
+              <p>This is an admin-only route. Only users with ADMIN role can see this.</p>
+            </div>
+          </AdminRoute>
+        ),
+      },
+      // Organizer-only routes (also accessible by admins)
+      {
+        path: 'organizer',
+        element: (
+          <OrganizerRoute>
+            <div>
+              <h1>Organizer Dashboard</h1>
+              <p>This is an organizer-only route. Only users with ORGANIZER or ADMIN role can see this.</p>
+            </div>
+          </OrganizerRoute>
+        ),
       },
     ],
   },

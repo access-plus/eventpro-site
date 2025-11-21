@@ -1,3 +1,14 @@
+// Polyfills for Node.js globals required by amazon-cognito-identity-js
+import { Buffer } from 'buffer'
+import process from 'process'
+
+// Make Buffer and process available globally
+if (typeof window !== 'undefined') {
+  ;(window as any).Buffer = Buffer
+  ;(window as any).process = process
+  ;(window as any).global = window
+}
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'

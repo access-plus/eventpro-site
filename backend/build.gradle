@@ -56,9 +56,9 @@ subprojects {
     
     // Common dependency versions
     ext {
-        awsSdkVersion = '2.21.29'
-        lombokVersion = '1.18.30'
-        postgresqlVersion = '42.7.1'
+        awsSdkVersion = '2.38.7'
+        lombokVersion = '1.18.34'
+        postgresqlVersion = '42.7.6'
     }
 }
 

@@ -27,23 +27,23 @@ output "s3_images_bucket_arn" {
 }
 
 output "cognito_user_pool_id" {
-  description = "Cognito User Pool ID"
-  value       = aws_cognito_user_pool.main.id
+  description = "Cognito User Pool ID (only if enable_cognito = true)"
+  value       = var.enable_cognito ? aws_cognito_user_pool.main[0].id : null
 }
 
 output "cognito_user_pool_arn" {
-  description = "Cognito User Pool ARN"
-  value       = aws_cognito_user_pool.main.arn
+  description = "Cognito User Pool ARN (only if enable_cognito = true)"
+  value       = var.enable_cognito ? aws_cognito_user_pool.main[0].arn : null
 }
 
 output "cognito_user_pool_client_id" {
-  description = "Cognito User Pool Client ID"
-  value       = aws_cognito_user_pool_client.main.id
+  description = "Cognito User Pool Client ID (only if enable_cognito = true)"
+  value       = var.enable_cognito ? aws_cognito_user_pool_client.main[0].id : null
 }
 
 output "cognito_user_pool_domain" {
-  description = "Cognito User Pool Domain (if configured)"
-  value       = aws_cognito_user_pool.main.domain
+  description = "Cognito User Pool Domain (only if enable_cognito = true)"
+  value       = var.enable_cognito ? aws_cognito_user_pool.main[0].domain : null
 }
 
 output "secrets_manager_database_secret_arn" {
@@ -65,13 +65,13 @@ output "secrets_manager_stripe_secret_arn" {
 output "environment_variables" {
   description = "Environment variables for application configuration"
   value = {
-    ORDER_QUEUE_URL         = aws_sqs_queue.order_queue.url
-    PAYMENT_QUEUE_URL       = aws_sqs_queue.payment_queue.url
+    ORDER_QUEUE_URL        = aws_sqs_queue.order_queue.url
+    PAYMENT_QUEUE_URL      = aws_sqs_queue.payment_queue.url
     NOTIFICATION_QUEUE_URL = aws_sqs_queue.notification_queue.url
-    S3_BUCKET_NAME          = aws_s3_bucket.images.id
-    COGNITO_USER_POOL_ID    = aws_cognito_user_pool.main.id
-    COGNITO_CLIENT_ID       = aws_cognito_user_pool_client.main.id
-    DB_SECRET_ARN           = aws_secretsmanager_secret.database.arn
+    S3_BUCKET_NAME         = aws_s3_bucket.images.id
+    COGNITO_USER_POOL_ID   = var.enable_cognito ? aws_cognito_user_pool.main[0].id : null
+    COGNITO_CLIENT_ID      = var.enable_cognito ? aws_cognito_user_pool_client.main[0].id : null
+    DB_SECRET_ARN          = aws_secretsmanager_secret.database.arn
   }
 }
 

@@ -28,12 +28,17 @@ spring:
     out-of-order: false
 
 aws:
+  region: ${AWS_REGION:us-east-1}
   cognito:
     userPoolId: ${COGNITO_USER_POOL_ID}
     clientId: ${COGNITO_CLIENT_ID}
-    region: ${AWS_REGION:us-east-1}
   s3:
     bucketName: ${S3_BUCKET_NAME}
+  sqs:
+    endpoint: ${SQS_ENDPOINT:} # Optional: for LocalStack (e.g., http://localhost:4566)
+    orderQueueUrl: ${ORDER_QUEUE_URL}
+    paymentQueueUrl: ${PAYMENT_QUEUE_URL}
+    notificationQueueUrl: ${NOTIFICATION_QUEUE_URL}
   ses:
     region: ${AWS_REGION:us-east-1}
   sns:
@@ -71,7 +76,19 @@ logging:
   level:
     com.accessplus.eventpro: INFO
     org.springframework: WARN
+    org.springframework.boot.context.logging: WARN
+    org.springframework.boot.logging: WARN
     root: INFO
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} %-5p [%c{2.}] (%t) %s%e%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5p [%c{2}] (%t) %s%e%n"
+
+# OpenAPI/Swagger Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
 

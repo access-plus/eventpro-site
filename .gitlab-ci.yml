@@ -27,21 +27,21 @@ calculate-version:
   stage: .pre
   extends: .calculate-version
 
-.test-backend:
+test-backend:
   extends: .test-service
   stage: test
   needs:
     - job: calculate-version
       artifacts: true
 
-.test-web:
+test-web:
   extends: .test-web
   stage: test
   needs:
     - job: calculate-version
       artifacts: true
 
-.gradle-build-backend:
+gradle-build-backend:
   extends: .build-backend
   stage: build
   needs:
@@ -49,7 +49,7 @@ calculate-version:
       artifacts: true
     - job: test-backend
 
-.npm-build-frontend:
+npm-build-frontend:
   stage: build
   image: node:22-alpine
   before_script:
@@ -66,31 +66,29 @@ calculate-version:
       artifacts: true
     - job: test-web
 
-.docker-build-secret-rotation-lambda:
-  extends: .build-service-docker-image  
-  variables:
-    SERVICES_DIR: secret-rotation
-    DOCKERFILE_PATH: Dockerfile
-    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-secret-rotation
-    VERSION: $VERSION
+docker-build-secret-rotation-lambda:
+  extends: .docker-build-ecr  
   needs:
     - job: calculate-version
       artifacts: true
     - job: gradle-build-backend
+  script:
+    - aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+    - docker image build -t $ECR_REGISTRY/eventpro-secret-rotation:$VERSION ./secret-rotation
+    - docker image push $ECR_REGISTRY/eventpro-secret-rotation:$VERSION
 
-.docker-build-backend:
-  extends: .build-service-docker-image
-  variables:
-    SERVICES_DIR: backend
-    DOCKERFILE_PATH: Dockerfile
-    ECR_REPOSITORY_IMAGE: $ECR_REGISTRY/access-backend
-    VERSION: $VERSION
+docker-build-backend:
+  extends: .docker-build-ecr
   needs:
     - job: calculate-version
       artifacts: true
     - job: gradle-build-backend
+  script:
+    - aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+    - docker image build -t $ECR_REGISTRY/eventpro-backend:$VERSION ./backend
+    - docker image push $ECR_REGISTRY/eventpro-backend:$VERSION
 
-.terraform-deploy-eventpro:
+terraform-deploy-eventpro:
   extends: .terraform-base
   stage: deploy
   needs:
@@ -101,8 +99,8 @@ calculate-version:
   script:
     - |
       terraform apply --auto-approve \
-        -var="backend_image=$ECR_REGISTRY/access-backend:$VERSION" \
-        -var="secret-rotation_lambda_image=$ECR_REGISTRY/access-secret-rotation:$VERSION" 
+        -var="backend_image=$ECR_REGISTRY/eventpro-backend:$VERSION" \
+        -var="secret-rotation_lambda_image=$ECR_REGISTRY/eventpro-secret-rotation:$VERSION" 
     # Extract ALB URL for GitLab Environment
     - echo "ALB_URL=https://$(terraform output -raw alb_dns_name)" >> deploy.env
     - echo "Application Load Balancer URL is https://$(terraform output -raw alb_dns_name)"
@@ -114,7 +112,7 @@ calculate-version:
     url: $ALB_URL
   when: manual
 
-.serve-frontend-static-files:
+serve-frontend-static-files:
   stage: post-deploy
   image: amazon/aws-cli:2.23.0
   needs: 
@@ -129,7 +127,7 @@ calculate-version:
     - aws s3 sync ../../../frontend/dist/ s3://$S3_BUCKET/ --delete
     - echo "Frontend static files uploaded to s3://$S3_BUCKET"
 
-.create-release:
+create-release:
   extends: .create-release
   stage: release
   needs:
@@ -138,7 +136,7 @@ calculate-version:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-.terraform-destroy-eventpro:
+terraform-destroy-eventpro:
   extends: .terraform-base
   stage: tear-down
   needs:
@@ -147,6 +145,6 @@ calculate-version:
   script:
     - |
       terraform destroy --auto-approve \
-        -var="backend_image=$ECR_REGISTRY/access-backend:$VERSION" \
-        -var="secret-rotation_lambda_image=$ECR_REGISTRY/access-secret-rotation:$VERSION" 
+        -var="backend_image=$ECR_REGISTRY/eventpro-backend:$VERSION" \
+        -var="secret-rotation_lambda_image=$ECR_REGISTRY/eventpro-secret-rotation:$VERSION" 
   when: manual
