@@ -1,6 +1,6 @@
 # EventPro API - Modular Monolith
 
-This is the main EventPro API application built as a modular monolith using Spring Boot 3.5.7.
+This is the main EventPro API application built as a modular monolith using Spring Boot 4.0.0.
 
 ## Architecture
 

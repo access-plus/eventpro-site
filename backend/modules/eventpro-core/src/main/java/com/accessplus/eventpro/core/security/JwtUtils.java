@@ -21,8 +21,14 @@ public class JwtUtils {
     public static String getCurrentUserCognitoId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
-        if (authentication == null || !(authentication instanceof JwtAuthenticationToken)) {
-            throw new IllegalStateException("No valid JWT authentication found");
+        if (authentication == null) {
+            throw new IllegalStateException("No valid JWT authentication found: authentication is null");
+        }
+        
+        if (!(authentication instanceof JwtAuthenticationToken)) {
+            throw new IllegalStateException(
+                String.format("No valid JWT authentication found: authentication type is %s, expected JwtAuthenticationToken", 
+                    authentication.getClass().getName()));
         }
         
         JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;

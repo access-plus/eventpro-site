@@ -55,7 +55,7 @@ public class LocalAuthConfig {
      */
     @Bean
     @Primary
-    public JwtDecoder localJwtDecoder() {
+    public JwtDecoder jwtDecoder() {
         return new JwtDecoder() {
             @Override
             public Jwt decode(String token) throws JwtException {
@@ -78,6 +78,12 @@ public class LocalAuthConfig {
                     }
                     if (!claims.containsKey("email") || claims.get("email") == null) {
                         claims.put("email", defaultEmail);
+                    }
+                    if (!claims.containsKey("given_name") || claims.get("given_name") == null) {
+                        claims.put("given_name", "Local");
+                    }
+                    if (!claims.containsKey("family_name") || claims.get("family_name") == null) {
+                        claims.put("family_name", "Developer");
                     }
                     if (!claims.containsKey("cognito:groups") || claims.get("cognito:groups") == null) {
                         claims.put("cognito:groups", parseGroups(defaultGroups));

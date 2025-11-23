@@ -48,7 +48,7 @@ CREATE TABLE category (
 );
 
 -- 2. User Table
-CREATE TABLE "user" (
+CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) NOT NULL,
     phone_number VARCHAR(20),
@@ -87,7 +87,7 @@ CREATE TABLE event (
     address_id UUID,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_event_organizer FOREIGN KEY (organizer_id) REFERENCES "user"(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_event_organizer FOREIGN KEY (organizer_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_event_category FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE RESTRICT,
     CONSTRAINT fk_event_address FOREIGN KEY (address_id) REFERENCES address(id) ON DELETE CASCADE
 );
@@ -109,8 +109,8 @@ CREATE TABLE ticket (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_ticket_event FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE CASCADE,
-    CONSTRAINT fk_ticket_purchaser FOREIGN KEY (purchaser_id) REFERENCES "user"(id) ON DELETE SET NULL,
-    CONSTRAINT fk_ticket_creator FOREIGN KEY (creator_id) REFERENCES "user"(id) ON DELETE RESTRICT
+    CONSTRAINT fk_ticket_purchaser FOREIGN KEY (purchaser_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_ticket_creator FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE RESTRICT
 );
 
 -- 6. Cart Table
@@ -121,7 +121,7 @@ CREATE TABLE cart (
     ticket_id UUID NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_cart_user FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cart_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_cart_ticket FOREIGN KEY (ticket_id) REFERENCES ticket(id) ON DELETE CASCADE
 );
 
@@ -135,7 +135,7 @@ CREATE TABLE "order" (
     user_id UUID NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_order_user FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE RESTRICT
+    CONSTRAINT fk_order_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
 );
 
 -- 8. OrderItem Table
@@ -185,7 +185,7 @@ CREATE TABLE user_notification (
     notification_id UUID NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_user_notification_user FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_notification_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_user_notification_notification FOREIGN KEY (notification_id) REFERENCES notification(id) ON DELETE CASCADE
 );
 
@@ -198,15 +198,15 @@ CREATE TABLE notification_preference (
     user_id UUID NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_notification_preference_user FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
+    CONSTRAINT fk_notification_preference_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- ============================================================================
 -- UNIQUE CONSTRAINTS
 -- ============================================================================
 
-ALTER TABLE "user" ADD CONSTRAINT uk_user_email UNIQUE (email);
-ALTER TABLE "user" ADD CONSTRAINT uk_user_cognito_id UNIQUE (cognito_user_id);
+ALTER TABLE users ADD CONSTRAINT uk_user_email UNIQUE (email);
+ALTER TABLE users ADD CONSTRAINT uk_user_cognito_id UNIQUE (cognito_user_id);
 ALTER TABLE category ADD CONSTRAINT uk_category_name UNIQUE (name);
 ALTER TABLE "order" ADD CONSTRAINT uk_order_number UNIQUE (order_number);
 ALTER TABLE payment ADD CONSTRAINT uk_payment_transaction_id UNIQUE (transaction_id);
@@ -250,8 +250,8 @@ ALTER TABLE user_notification ADD CONSTRAINT chk_user_notification_read_at
 -- ============================================================================
 
 -- User indexes
-CREATE INDEX idx_user_email ON "user"(email);
-CREATE INDEX idx_user_cognito_id ON "user"(cognito_user_id);
+CREATE INDEX idx_user_email ON users(email);
+CREATE INDEX idx_user_cognito_id ON users(cognito_user_id);
 
 -- Category indexes
 CREATE INDEX idx_category_name ON category(name);

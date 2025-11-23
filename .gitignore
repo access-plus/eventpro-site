@@ -192,3 +192,7 @@ z_old_project/**
 **/*.tfvars
 **/.terraform/**
 **/*.tfstate
+**/*.tfstate.backup
+terraform.tfstate.backup
+**/terraform.tfstate.backup
+ticket-**/
