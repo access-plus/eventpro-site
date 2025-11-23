@@ -228,111 +228,99 @@ local-setup: local-infra-only local-infra local-up
 	@echo ""
 	@echo "🎉 Complete setup finished!"
 	@echo "   Frontend: http://localhost:5173"
-	@echo "   Backend:  http://localhost:8080"
+	@echo "   Backend:  http://localhost:8080/actuator/health"
 
 # Step 1: Start infrastructure (PostgreSQL + LocalStack)
 local-infra-only:
 	@echo "Step 1: Starting infrastructure services (PostgreSQL + LocalStack)..."
 	@docker-compose up -d postgres localstack || \
 		(echo ""; \
-		 echo "⚠️  Container conflict! Run: make local-reset"; \
+		 echo "Container conflict! Run: make local-reset"; \
 		 exit 1)
-	@echo "⏳ Waiting for services to be healthy..."
+	@echo "Waiting for services to be healthy..."
 	@sleep 10
-	@echo "✓ Infrastructure ready"
+	@echo "Infrastructure ready"
 
 # Step 2: Provision AWS resources (Terraform) and create .env files
 local-infra:
 	@echo "Step 2: Provisioning AWS resources (Cognito, S3, SQS)..."
 	@if ! docker ps | grep -q "localstack"; then \
-		echo "⚠️  LocalStack not running. Starting it..."; \
+		echo "LocalStack not running. Starting it..."; \
 		$(MAKE) local-infra-only; \
 	fi
 	@cd infrastructure/environments/local && \
-		terraform init && \
+		terraform init -upgrade && \
 		terraform apply -auto-approve
 	@echo "Step 3: Creating environment files..."
 	@cd infrastructure/environments/local && \
-		COGNITO_USER_POOL_ID=$$(terraform output -raw cognito_user_pool_id) && \
-		COGNITO_CLIENT_ID=$$(terraform output -raw cognito_user_pool_client_id) && \
 		S3_BUCKET_NAME=$$(terraform output -raw s3_images_bucket_name) && \
+		ORDER_QUEUE_URL=$$(terraform output -raw sqs_order_queue_url) && \
+		PAYMENT_QUEUE_URL=$$(terraform output -raw sqs_payment_queue_url) && \
+		NOTIFICATION_QUEUE_URL=$$(terraform output -raw sqs_notification_queue_url) && \
+		COGNITO_USER_POOL_ID=$$(terraform output -raw cognito_user_pool_id 2>/dev/null | grep -v "^null$$" || echo "") && \
+		COGNITO_CLIENT_ID=$$(terraform output -raw cognito_user_pool_client_id 2>/dev/null | grep -v "^null$$" || echo "") && \
 		cd ../../.. && \
 		echo "COGNITO_USER_POOL_ID=$$COGNITO_USER_POOL_ID" > .env && \
 		echo "COGNITO_CLIENT_ID=$$COGNITO_CLIENT_ID" >> .env && \
 		echo "S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> .env && \
+		echo "ORDER_QUEUE_URL=$$ORDER_QUEUE_URL" >> .env && \
+		echo "PAYMENT_QUEUE_URL=$$PAYMENT_QUEUE_URL" >> .env && \
+		echo "NOTIFICATION_QUEUE_URL=$$NOTIFICATION_QUEUE_URL" >> .env && \
 		echo "VITE_API_BASE_URL=http://localhost:8080" > frontend/.env.local && \
 		echo "VITE_COGNITO_USER_POOL_ID=$$COGNITO_USER_POOL_ID" >> frontend/.env.local && \
 		echo "VITE_COGNITO_CLIENT_ID=$$COGNITO_CLIENT_ID" >> frontend/.env.local && \
 		echo "VITE_AWS_REGION=us-east-1" >> frontend/.env.local && \
 		echo "VITE_S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> frontend/.env.local
-	@echo "✓ Environment files created"
+	@echo "Environment files created"
 
 # Step 3: Start all services (Backend + Frontend)
 # Note: Flyway migrations run automatically when backend starts
 local-up:
 	@echo "Step 4: Starting application services..."
 	@if [ ! -f .env ]; then \
-		echo "⚠️  .env file not found. Run 'make local-infra' first."; \
+		echo ".env file not found. Run 'make local-infra' first."; \
 		exit 1; \
 	fi
 	@if ! docker ps | grep -q "postgres"; then $(MAKE) local-infra-only; fi
-	@docker-compose --env-file .env up -d backend frontend-dev
-	@echo "⏳ Waiting for services to start (migrations run automatically)..."
+	@docker-compose --env-file .env up -d backend frontend
+	@echo "Waiting for services to start (migrations run automatically)..."
 	@sleep 15
 	@echo ""
-	@echo "✅ All services started!"
+	@echo "All services started!"
 	@echo "   Frontend: http://localhost:5173"
-	@echo "   Backend:  http://localhost:8080"
+	@echo "   Backend:  http://localhost:8080/actuator/health"
 
-# Stop all services
-local-down:
-	@docker-compose down
-	@echo "✓ Services stopped"
 
-# Reset containers (fixes conflicts)
-local-reset:
-	@docker-compose down 2>/dev/null || true
-	@docker rm -f postgres localstack backend frontend-dev 2>/dev/null || true
-	@echo "✓ Containers reset"
-
-# View logs
-local-logs:
-	@docker-compose logs -f
 
 local-logs-backend:
 	@docker-compose logs -f backend
 
 local-logs-frontend:
-	@docker-compose logs -f frontend-dev
+	@docker-compose logs -f frontend
 
 # Clean everything (containers + Terraform resources)
 local-clean:
 	@cd infrastructure/environments/local && terraform destroy -auto-approve || true
 	@docker-compose down -v
 	@rm -f .env frontend/.env.local
-	@echo "✓ Everything cleaned up"
+	@echo "Everything cleaned up"
 
-# ============================================================================
-# Development Helpers
-# ============================================================================
+pg-stack-start:
+	@echo "Starting PostgreSQL and LocalStack..."
+	docker-compose up -d postgres localstack
 
-# Run API and Web together (requires separate terminals or background processes)
-dev-all:
-	@echo "Starting all development servers..."
-	@echo "API: cd $(API_DIR) && ./gradlew :eventpro-api:bootRun"
-	@echo "Frontend: cd $(WEB_DIR) && npm run dev"
-	@echo "Run these commands in separate terminals"
+backend-start:
+	@echo "Starting backend..."
+	docker-compose up -d backend
 
-# Check if all required directories exist
-check-structure:
-	@echo "Checking project structure..."
-	@test -d "$(API_DIR)" || (echo "ERROR: $(API_DIR) not found" && exit 1)
-	@test -d "$(WEB_DIR)" || (echo "ERROR: $(WEB_DIR) not found" && exit 1)
-	@echo "✓ API directory: $(API_DIR)"
-	@echo "✓ Frontend directory: $(WEB_DIR)"
-	@if [ -d "$(ANALYTICS_DIR)" ]; then \
-		echo "✓ Analytics Service directory: $(ANALYTICS_DIR)"; \
-	else \
-		echo "Analytics Service directory not found: $(ANALYTICS_DIR)"; \
-	fi
-	@echo "Structure check complete!"
+frontend-start:
+	@echo "Starting frontend..."
+	docker-compose up -d frontend
+
+localstack-start:
+	@echo "Starting LocalStack..."
+	docker-compose up -d localstack
+
+postgres-start:
+	@echo "Starting PostgreSQL..."
+	docker-compose up -d postgres

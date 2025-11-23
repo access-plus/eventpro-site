@@ -217,7 +217,7 @@ aws --endpoint-url=http://localhost:4566 sqs list-queues
 ```bash
 # Create S3 buckets in LocalStack
 aws --endpoint-url=http://localhost:4566 s3 mb s3://eventpro-images-dev
-aws --endpoint-url=http://localhost:4566 s3 mb s3://eventpro-frontend-dev
+aws --endpoint-url=http://localhost:4566 s3 mb s3://eventpro-frontend
 
 # Verify buckets created
 aws --endpoint-url=http://localhost:4566 s3 ls

@@ -1,136 +1,469 @@
 # EventPro Platform
 
-A full-stack event ticketing platform built with a **Modular Monolith Architecture**.
+A comprehensive full-stack event ticketing platform built with a **Modular Monolith Architecture**. EventPro enables event organizers to create, manage, and sell tickets for events while providing customers with a seamless experience to discover, purchase, and attend events.
 
-## Project Structure
+---
 
-```text
-eventpro-site/
-├── backend/                   # Modular Monolith (Backend Application)
-│   ├── modules/
-│   │   ├── eventpro-core/     # Users, Auth, Common utilities
-│   │   ├── eventpro-event/   # Events, Tickets, Search
-│   │   ├── eventpro-order/    # Cart, Orders, Checkout
-│   │   ├── eventpro-payment/  # Payment Processing (Stripe)
-│   │   ├── eventpro-notification/ # Email, SMS, WebSocket
-│   │   └── eventpro-api/      # Main Application Module
-│   ├── build.gradle
-│   ├── settings.gradle
-│   ├── Dockerfile
-│   └── README.md
-│
-├── frontend/                  # Frontend (React + TypeScript)
-│   ├── src/
-│   ├── package.json
-│   └── vite.config.ts
-│
-├── infrastructure/            # Infrastructure as Code
-│   ├── environments/
-│   │   ├── dev/
-│   │   └── local/
-│   └── modules/
-│
-├── secret-rotation/          # Lambda for secret rotation
-│   └── lambda_function.py
-│
-├── specs/                    # Project specifications
-│   └── 001-eventpro-platform/
-│
-├── .gitlab-ci.yml           # CI/CD pipeline
-└── README.md                # This file
-```
+## Table of Contents
 
-## Main Application: EventPro API
+1. [Overview](#overview)
+2. [Architecture](#architecture)
+3. [Technology Stack](#technology-stack)
+4. [Project Structure](#project-structure)
+5. [Core Features](#core-features)
+6. [Services & Infrastructure](#services--infrastructure)
+7. [Getting Started](#getting-started)
+8. [Local Development](#local-development)
+9. [API Documentation](#api-documentation)
+10. [Additional Resources](#additional-resources)
 
-**Modular Monolith** - Single Spring Boot application with 6 modules:
+---
 
-- **eventpro-core**: User management, authentication, common utilities
-- **eventpro-event**: Event management, tickets, search
-- **eventpro-order**: Shopping cart, orders, checkout
-- **eventpro-payment**: Payment processing (Stripe)
-- **eventpro-notification**: Notifications (Email, SMS, WebSocket)
-- **eventpro-api**: Main application module
+## Overview
 
-**See `backend/README.md` for detailed backend documentation.**
+EventPro is a modern event ticketing platform designed to handle the complete lifecycle of event management and ticket sales. The platform supports:
 
-## Quick Start
+- **Event Management**: Create, update, and manage events with rich metadata
+- **Ticket Sales**: Multiple ticket types (VIP, Regular, Early Bird) with dynamic pricing
+- **User Management**: Role-based access control (Admin, Organizer, User) with authentication
+- **Shopping Cart & Checkout**: Seamless cart management and order processing
+- **Payment Processing**: Stripe integration for secure payments
+- **Notifications**: Multi-channel notifications (Email, SMS, In-App, Push)
+- **Search & Discovery**: Advanced event search and filtering capabilities
 
-### Build Backend
+### Key Characteristics
 
-```bash
-cd backend
-./gradlew build
-```
+- **Modular Monolith**: Single deployable unit with clear module boundaries
+- **Cloud-Native**: Built for AWS with infrastructure as code
+- **Scalable**: Designed to scale from startup to enterprise
+- **Secure**: AWS Cognito authentication, JWT-based authorization, encrypted data
+- **Developer-Friendly**: Hot reload, comprehensive testing, clear documentation
 
-### Run Backend Locally
+---
 
-```bash
-cd backend
-./gradlew :eventpro-api:bootRun
-```
+## Architecture
 
-### Build Docker Image
-
-```bash
-cd backend
-docker build -t backend:latest .
-```
+### High-Level Architecture
 
 <details>
-<summary><strong>Test Reports & Coverage</strong></summary>
+<summary>Click to expand</summary>
 
-#### Run Tests
-
-```bash
-cd backend
-./gradlew test
+```txt
+┌─────────────────────────────────────────────────────────────┐
+│              Frontend (React + TypeScript + Vite)           │
+│              Deployed on S3 + CloudFront CDN                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│         Application Load Balancer (ALB)                     │
+│         - Authentication (AWS Cognito)                      │
+│         - SSL/TLS Termination                               │
+│         - Request Routing                                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│    EventPro API (Modular Monolith - Spring Boot 4.0.0)      │
+│    ECS Fargate - Single Service                             │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │  Core Module │  │ Event Module │  │ Order Module │       │
+│  │  (Users,     │  │ (Search,     │  │ (Cart,       │       │
+│  │   Auth)      │  │  Tickets)    │  │  Checkout)   │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐                         │
+│  │Payment Module│  │Notification  │                         │
+│  │ (Stripe)     │  │  Module      │                         │
+│  └──────────────┘  └──────────────┘                         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│         PostgreSQL (RDS Multi-AZ)                           │
+│         - All entities in single database                   │
+│         - Module boundaries via package structure           │
+│         - Flyway for database migrations                    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    ▼                   ▼
+            ┌──────────────┐    ┌──────────────┐
+            │  AWS SES     │    │  AWS SNS     │
+            │  (Email)     │    │  (SMS)       │
+            └──────────────┘    └──────────────┘
+                    │
+                    ▼
+            ┌──────────────┐
+            │  AWS S3      │
+            │  (Images)    │
+            └──────────────┘
 ```
-
-#### View Test Reports
-
-After running tests, HTML reports are generated for each module:
-
-- **Test Reports**: `backend/modules/{module}/build/reports/tests/test/index.html`
-- **Coverage Reports**: `backend/modules/{module}/build/reports/jacoco/test/html/index.html`
-
-#### Show All Report Locations
-
-```bash
-cd backend
-./gradlew showTestReports
-```
-
-This command displays all test and coverage report locations across all modules.
-
-#### Generate Aggregated Coverage Report
-
-```bash
-cd backend
-./gradlew jacocoRootReport
-```
-
-Generates an aggregated coverage report for all modules at:
-- `backend/build/reports/jacoco/root/jacocoRootReport.xml`
-- `backend/build/reports/jacoco/root/html/index.html`
-
-#### Run Tests for Specific Module
-
-```bash
-cd backend
-./gradlew :eventpro-order:test
-./gradlew :eventpro-event:test
-./gradlew :eventpro-core:test
-```
-
-#### View Reports in Browser
-
-Open the HTML files directly in your browser:
-- Test results: Open `index.html` in `build/reports/tests/test/`
-- Coverage: Open `index.html` in `build/reports/jacoco/test/html/`
 
 </details>
 
-## Local Development
+### Architecture Pattern: Modular Monolith
+
+EventPro uses a **Modular Monolith** architecture, which provides:
+
+- ✅ **Single Build System**: No Spring Boot + Quarkus conflicts
+- ✅ **Simplified Deployment**: One Docker image, one ECS service
+- ✅ **Easier Development**: Single application to run locally
+- ✅ **Lower Costs**: ~$81/month vs ~$170/month (52% reduction)
+- ✅ **Future-Proof**: Can extract modules to microservices when needed
+
+**Module Communication:**
+
+- **Within Monolith**: Direct method calls, Spring Dependency Injection, Spring Events
+- **External**: REST API, Database (PostgreSQL), AWS Services (SQS, SES, SNS, S3)
+
+**When to Extract to Microservices:**
+
+- Multiple teams need independent deployment cycles
+- Clear scaling differences between modules
+- Technology diversity requirements
+- Service boundaries are well-defined and stable
+
+---
+
+## Technology Stack
+
+<details>
+
+### Backend
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Java** | 21 | Programming language |
+| **Spring Boot** | 4.0.0 | Application framework |
+| **Gradle** | 8.5+ | Build tool |
+| **PostgreSQL** | 16+ | Primary database |
+| **Spring Data JPA** | - | Database access layer |
+| **Spring Security** | - | Security framework |
+| **AWS SDK** | 2.38.7 | AWS service integration |
+| **Flyway** | - | Database migrations |
+| **JUnit 5** | - | Testing framework |
+| **JaCoCo** | - | Code coverage |
+
+### Frontend
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **React** | 19.2.0 | UI framework |
+| **TypeScript** | 5.9.3 | Type-safe JavaScript |
+| **Vite** | 7.2.2 | Build tool & dev server |
+| **Redux Toolkit** | 2.10.1 | State management |
+| **React Router** | 7.9.6 | Client-side routing |
+| **shadcn/ui** | - | UI component library |
+| **Tailwind CSS** | 3.4.18 | Utility-first CSS |
+| **Radix UI** | - | Accessible UI primitives |
+| **Amazon Cognito JS** | 6.3.15 | Authentication SDK |
+| **Vitest** | 2.1.8 | Testing framework |
+
+### Infrastructure
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Terraform** | 1.5+ | Infrastructure as Code |
+| **AWS Provider** | 6.21.0+ | AWS resource management |
+| **Docker** | - | Containerization |
+| **Docker Compose** | - | Local development orchestration |
+| **LocalStack** | 4.10.0 | AWS service emulation |
+
+### AWS Services
+
+| Service | Purpose |
+|---------|---------|
+| **ECS Fargate** | Container orchestration for backend |
+| **RDS PostgreSQL** | Managed database (Multi-AZ) |
+| **S3** | Image storage for events |
+| **CloudFront** | CDN for frontend and images |
+| **Cognito** | User authentication and authorization |
+| **ALB** | Application Load Balancer |
+| **Route53** | DNS management |
+| **Secrets Manager** | Secure credential storage |
+| **SES** | Email notifications |
+| **SNS** | SMS notifications |
+| **SQS** | Message queuing (for async processing) |
+| **Lambda** | Serverless functions (analytics, scheduled tasks) |
+
+---
+
+</details>
+
+## Project Structure
+
+<details>
+<summary>Click to expand</summary>
+
+```txt
+eventpro-site/
+├── backend/                      # Backend Application (Modular Monolith)
+│   ├── modules/
+│   │   ├── eventpro-core/        # Core module: Users, Auth, Common utilities
+│   │   ├── eventpro-event/       # Event module: Events, Tickets, Search
+│   │   ├── eventpro-order/       # Order module: Cart, Orders, Checkout
+│   │   ├── eventpro-payment/     # Payment module: Stripe integration
+│   │   ├── eventpro-notification/# Notification module: Email, SMS, WebSocket
+│   │   └── eventpro-api/         # Main application module (REST API layer)
+│   ├── build.gradle              # Root build configuration
+│   ├── settings.gradle           # Project settings
+│   ├── Dockerfile                # Docker image definition
+│   └── README.md                 # Backend documentation
+│
+├── frontend/                     # Frontend Application (React + TypeScript)
+│   ├── src/
+│   │   ├── components/           # React components
+│   │   ├── pages/                # Page components
+│   │   ├── services/             # API service layer
+│   │   ├── store/                # Redux store and slices
+│   │   ├── hooks/                # Custom React hooks
+│   │   └── lib/                  # Utility functions
+│   ├── public/                   # Static assets
+│   ├── package.json              # Dependencies and scripts
+│   ├── vite.config.ts           # Vite configuration
+│   ├── tailwind.config.js       # Tailwind CSS configuration
+│   └── README.md                # Frontend documentation
+│
+├── infrastructure/               # Infrastructure as Code (Terraform)
+│   ├── environments/
+│   │   ├── local/                # Local development environment
+│   │   └── dev/                  # Development environment
+│   └── modules/                  # Reusable Terraform modules
+│       ├── alb/                  # Application Load Balancer
+│       ├── cloudfront/           # CloudFront CDN
+│       ├── cognito/              # Cognito User Pool
+│       ├── ecs/                  # ECS Fargate service
+│       ├── rds/                  # RDS PostgreSQL
+│       ├── route53/              # Route53 DNS
+│       ├── s3/                   # S3 buckets
+│       ├── secrets-manager/      # Secrets Manager
+│       └── vpc/                  # VPC and networking
+│
+├── secret-rotation/             # Lambda function for secret rotation
+│   ├── lambda_function.py
+│   ├── requirements.txt
+│   └── Dockerfile
+│
+├── specs/                       # Project specifications and documentation
+│   └── 001-eventpro-platform/
+│       ├── data-model.md        # Database schema documentation
+│       ├── plan.md              # Implementation plan
+│       └── tasks.md             # Task tracking
+│
+├── z_docs/                      # Additional documentation
+│   ├── architecture-recommendation.md
+│   ├── modular-monolith-architecture.md
+│   ├── project-structure.md
+│   └── guideline.md
+│
+├── docker-compose.yml           # Local development orchestration
+├── Makefile                     # Development automation commands
+├── .gitlab-ci.yml              # CI/CD pipeline configuration
+└── README.md                   # This file
+```
+
+</details>
+
+### Module Breakdown
+
+<details>
+<summary>Click to expand</summary>
+
+#### Backend Modules
+
+1. **eventpro-core**
+   - User management (CRUD operations)
+   - Authentication/Authorization (AWS Cognito integration)
+   - Role management (ADMIN, ORGANIZER, USER)
+   - Common utilities, exceptions, and base entities
+   - JWT token validation and security configuration
+
+2. **eventpro-event**
+   - Event CRUD operations
+   - Ticket management (VIP, Regular, Early Bird)
+   - Event search and filtering
+   - Category management
+   - QR code generation for tickets
+
+3. **eventpro-order**
+   - Shopping cart management
+   - Order creation and processing
+   - Checkout flow
+   - Order history
+
+4. **eventpro-payment**
+   - Stripe payment integration
+   - Payment processing
+   - Webhook handling
+   - Payment status management
+
+5. **eventpro-notification**
+   - Email notifications (AWS SES)
+   - SMS notifications (AWS SNS)
+   - In-app notifications
+   - Push notifications (future)
+   - Notification preferences
+
+6. **eventpro-api**
+   - REST API controllers
+   - DTOs (Data Transfer Objects)
+   - API configuration
+   - Main application entry point
+   - Global exception handling
+
+</details>
+
+## Core Features
+
+<details>
+<summary>Click to expand</summary>
+
+### User Management
+
+- User registration and authentication (Email/Password, OAuth - planned)
+- Role-based access control (ADMIN, ORGANIZER, USER)
+- User profile management
+- Account settings and preferences
+
+### Event Management
+
+- Create, update, and delete events
+- Event categorization (Music, Sports, Arts & Crafts, etc.)
+- Event search and filtering
+- Event image upload and management
+- Marketing enablement per event
+
+### Ticket Management
+
+- Multiple ticket types (VIP, Regular, Early Bird)
+- Dynamic pricing
+- Ticket availability tracking
+- QR code generation for tickets
+- Ticket status management (Available, Sold, Reserved)
+
+### Shopping & Orders
+
+- Shopping cart functionality
+- Add/remove/update cart items
+- Secure checkout process
+- Order history and tracking
+- Order confirmation
+
+### Payment Processing
+
+- Stripe integration for secure payments
+- Payment status tracking
+- Payment webhook handling
+- Refund processing (future)
+
+### Notifications
+
+- Email notifications (order confirmations, event reminders)
+- SMS notifications (optional)
+- In-app notifications
+- Notification preferences management
+
+### Search & Discovery
+
+- Full-text event search
+- Category-based filtering
+- Upcoming events discovery
+- Event recommendations (future)
+
+</details>
+
+## Services & Infrastructure
+
+### AWS Services Used
+
+<details>
+<summary>Click to expan</summary>
+
+#### Compute
+
+- **ECS Fargate**: Hosts the EventPro API backend service
+  - Auto-scaling based on CPU/memory metrics
+  - Multi-AZ deployment for high availability
+
+#### Database
+
+- **RDS PostgreSQL (Multi-AZ)**: Primary database
+  - Automated backups
+  - Point-in-time recovery
+  - Read replicas (optional)
+
+#### Storage
+
+- **S3**: Event image storage
+  - Public read access for images
+  - CloudFront integration for CDN
+
+#### Networking
+
+- **VPC**: Isolated network environment
+  - Public and private subnets
+  - NAT Gateway for outbound internet access
+- **ALB**: Application Load Balancer
+  - SSL/TLS termination
+  - Health checks
+  - Request routing
+- **Route53**: DNS management
+  - Domain name resolution
+  - Health check routing
+
+#### Security
+
+- **Cognito**: User authentication and authorization
+  - User pools for user management
+  - JWT token generation
+  - OAuth integration (planned)
+- **Secrets Manager**: Secure credential storage
+  - Database credentials
+  - API keys
+  - JWT secrets
+
+#### Messaging & Notifications
+
+- **SES**: Email notifications
+  - Transactional emails
+  - Email templates
+- **SNS**: SMS notifications
+  - SMS delivery
+  - Topic subscriptions
+- **SQS**: Message queuing
+  - Async order processing
+  - Event-driven workflows
+
+#### CDN
+
+- **CloudFront**: Content delivery network
+  - Frontend static assets
+  - Event images
+  - Caching and performance optimization
+
+#### Serverless
+
+- **Lambda**: Serverless functions
+  - Analytics processing
+  - Scheduled tasks
+  - Secret rotation
+
+</details>
+
+### Local Development Services
+
+For local development, the following services are used:
+
+- **PostgreSQL (Docker)**: Local database
+- **LocalStack (Docker)**: AWS service emulation
+  - S3, SQS, Cognito, Secrets Manager, SES, SNS
+- **Docker Compose**: Service orchestration
+
+---
+
+## Getting Started
 
 ### Prerequisites
 
@@ -138,1460 +471,185 @@ Open the HTML files directly in your browser:
 - **Node.js 22+** and **npm** - [Download](https://nodejs.org/)
 - **Docker** and **Docker Compose** - [Download](https://www.docker.com/get-started)
 - **Terraform 1.5+** - [Download](https://www.terraform.io/downloads)
-- **AWS CLI** - [Download](https://aws.amazon.com/cli/) (for testing LocalStack)
+- **AWS CLI** - [Download](https://aws.amazon.com/cli/) (optional, for testing LocalStack)
 
-### Quick Start (Local Development)
+### Quick Start
 
-**Simplified Setup**: Docker Compose runs everything with hot reload enabled via volume mounts.
+1. **Clone the repository**
 
-```bash
-# 1. Provision LocalStack resources (creates/updates .env file automatically)
-make local-infra
+   ```bash
+   git clone <repository-url>
+   cd eventpro-site
+   ```
 
-# 2. Start everything with one command
-make local-up
+2. **Start local development environment**
 
-# Or manually:
-docker-compose up
-```
+   ```bash
+   # Provision infrastructure (LocalStack resources)
+   make local-infra
+   
+   # Start all services
+   make local-up
+   ```
 
-**How it works:**
+3. **Access the application**
+   - Frontend: <http://localhost:5173>
+   - Backend API: <http://localhost:8080>
+   - Health Check: <http://localhost:8080/actuator/health>
+   - Swagger UI: <http://localhost:8080/swagger-ui/index.html>
 
-- `make local-infra` provisions LocalStack resources and automatically creates/updates `.env` file with Cognito values
-- `make local-up` reads `.env` file and starts all services
-- Frontend can use `.env.local` file when running directly (see LOCAL_DEVELOPMENT.md)
-
-**Alternative: Run services separately** (if you prefer direct control):
-
-```bash
-# Start only infrastructure
-make local-infra-only
-make local-infra
-
-# Then run backend/frontend directly on your machine
-# (see LOCAL_DEVELOPMENT.md for details)
-```
-
-### Verify Setup
-
-**1. Check Backend Health:**
-
-```bash
-curl http://localhost:8080/actuator/health
-# Expected: {"status":"UP"}
-```
-
-**2. Check Database Migrations:**
-
-```bash
-docker exec -it postgres psql -U eventpro -d eventpro -c "\dt"
-# Should show all 12 tables created
-```
-
-**3. Check LocalStack Resources:**
-
-```bash
-# SQS Queues
-aws --endpoint-url=http://localhost:4566 sqs list-queues
-
-# S3 Buckets
-aws --endpoint-url=http://localhost:4566 s3 ls
-
-# Cognito User Pools
-aws --endpoint-url=http://localhost:4566 cognito-idp list-user-pools --max-results 10
-```
-
-**4. Access Frontend:**
-
-- Open `http://localhost:5173` in your browser
-
-### Makefile Commands
-
-| Command | Description |
-|---------|-------------|
-| `make local-up` | Start all services (PostgreSQL, LocalStack, Backend, Frontend) |
-| `make local-infra-only` | Start only infrastructure (PostgreSQL + LocalStack) |
-| `make local-down` | Stop all local services |
-| `make local-infra` | Provision LocalStack resources via Terraform |
-| `make local-clean` | Clean up all local resources (Terraform destroy + volumes) |
-| `make local-outputs` | Show Terraform outputs (Cognito IDs, queue URLs, etc.) |
-| `make local-logs` | View logs from all services |
-| `make local-logs-api` | View logs from backend API only |
-| `make local-logs-frontend` | View logs from frontend only |
-
-### Testing Locally
-
-**Test SQS Queue:**
-
-```bash
-# Send test message
-aws --endpoint-url=http://localhost:4566 sqs send-message \
-  --queue-url http://localhost:4566/000000000000/order-queue \
-  --message-body '{"orderId": "test-123"}'
-```
-
-**Test S3 Upload:**
-
-```bash
-# Upload test image
-aws --endpoint-url=http://localhost:4566 s3 cp test.jpg \
-  s3://eventpro-images-local/test.jpg
-```
-
-**Test Cognito:**
-
-```bash
-# Get user pool ID
-POOL_ID=$(cd infrastructure/environments/local && terraform output -raw cognito_user_pool_id)
-
-# Create test user
-aws --endpoint-url=http://localhost:4566 cognito-idp admin-create-user \
-  --user-pool-id $POOL_ID \
-  --username testuser \
-  --user-attributes Name=email,Value=test@example.com \
-  --temporary-password TempPass123!
-```
-
-### Cleanup
-
-```bash
-# Stop services
-make local-down
-
-# Clean up everything (including volumes)
-make local-clean
-```
-
-<details>
-<summary><strong>📖 Detailed Local Development Guide</strong></summary>
-
-This section provides comprehensive step-by-step instructions for local development setup, troubleshooting, and advanced configuration.
-
-## Prerequisites
-
-Before starting, ensure you have installed:
-
-- **Java 21** - [Download](https://adoptium.net/)
-- **Gradle 8.5+** - Included via Gradle wrapper (`./gradlew`)
-- **Node.js 22+** and **npm** - [Download](https://nodejs.org/)
-- **Docker** and **Docker Compose** - [Download](https://www.docker.com/get-started)
-- **Terraform 1.5+** - [Download](https://www.terraform.io/downloads)
-- **AWS CLI** - [Download](https://aws.amazon.com/cli/) (for testing LocalStack resources)
-
-## Step-by-Step Setup
-
-### Step 1: Start Infrastructure Services
-
-**Option A: Start Everything with Docker Compose (Recommended)**
-
-```bash
-# First, provision LocalStack resources
-make local-infra
-
-# Get Cognito values
-cd infrastructure/environments/local
-export COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
-export COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
-cd ../../..
-
-# Start all services (infrastructure + backend + frontend)
-COGNITO_USER_POOL_ID=$COGNITO_USER_POOL_ID \
-COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID \
-docker-compose up
-```
-
-**Benefits:**
-- One command starts everything
-- Hot reload works via volume mounts
-- All environment variables configured
-- Easy to view logs: `docker-compose logs -f`
-
-**Option B: Start Only Infrastructure**
-
-If you prefer to run backend/frontend directly on your machine:
-
-```bash
-make local-infra-only
-```
-
-Or manually:
-
-```bash
-docker-compose up -d postgres localstack
-```
-
-**Verify services are running:**
-
-```bash
-# Check PostgreSQL
-docker exec postgres pg_isready -U eventpro
-
-# Check LocalStack
-curl http://localhost:4566/_localstack/health
-```
-
-### Step 2: Provision LocalStack Resources
-
-Provision AWS resources (SQS queues, S3 buckets, Cognito, Secrets Manager) in LocalStack:
-
-```bash
-make local-infra
-```
-
-Or manually:
-
-```bash
-cd infrastructure/environments/local
-terraform init
-terraform apply
-```
-
-**Get resource outputs:**
-
-```bash
-cd infrastructure/environments/local
-terraform output
-```
-
-**Important outputs:**
-- `cognito_user_pool_id` - Use in frontend `.env.local`
-- `cognito_user_pool_client_id` - Use in frontend `.env.local`
-- `sqs_order_queue_url` - Used by backend
-- `s3_images_bucket_name` - Used by backend and frontend
-
-### Step 3: Configure Backend
-
-The backend uses `application-local.yml` when `SPRING_PROFILES_ACTIVE=local` is set.
-
-**If using Docker Compose (Option A):**
-- Backend runs automatically in `backend` container
-- Environment variables are pre-configured
-- Code changes trigger hot reload via volume mounts
-- View logs: `docker-compose logs -f backend`
-
-**If running directly (Option B):**
-
-**Set environment variables:**
-
-```bash
-export SPRING_PROFILES_ACTIVE=local
-export DB_URL=jdbc:postgresql://localhost:5432/eventpro
-export DB_USERNAME=eventpro
-export DB_PASSWORD=eventpro
-export AWS_ENDPOINT_URL=http://localhost:4566
-export AWS_REGION=us-east-1
-export AWS_ACCESS_KEY_ID=test
-export AWS_SECRET_ACCESS_KEY=test
-```
-
-**Get Cognito values from Terraform outputs:**
-
-```bash
-cd infrastructure/environments/local
-export COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
-export COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
-export S3_BUCKET_NAME=$(terraform output -raw s3_images_bucket_name)
-cd ../../..
-```
-
-**Start the backend:**
-
-```bash
-cd backend
-./gradlew :eventpro-api:bootRun
-```
-
-**Verify backend is running:**
-
-```bash
-curl http://localhost:8080/actuator/health
-```
-
-Expected response:
-```json
-{"status":"UP"}
-```
-
-### Step 4: Configure Frontend
-
-**If using Docker Compose (Option A):**
-- Frontend runs automatically in `frontend-dev` container
-- Environment variables are read from `.env` file (created by `make local-infra`)
-- Hot Module Replacement (HMR) works via volume mounts
-- View logs: `docker-compose logs -f frontend-dev`
-- Access at: `http://localhost:5173`
-
-**If running directly (Option B):**
-
-**Create `.env.local` file** (Vite automatically reads this):
-
-```bash
-cd frontend
-
-# Get Cognito values from Terraform
-cd ../infrastructure/environments/local
-COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
-COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
-cd ../../..
-
-# Create .env.local file
-cat > frontend/.env.local << EOF
-VITE_API_BASE_URL=http://localhost:8080
-VITE_COGNITO_USER_POOL_ID=$COGNITO_USER_POOL_ID
-VITE_COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID
-VITE_AWS_REGION=us-east-1
-VITE_S3_BUCKET_NAME=eventpro-images-local
-EOF
-
-# Start the frontend
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend will be available at `http://localhost:5173`
-
-**Note**: Vite reads environment variables from:
-1. `.env.local` file (highest priority, gitignored)
-2. Process environment variables (when running in Docker)
-3. `.env` file (lower priority)
-
-**Benefits of running frontend directly:**
-- Better debugging with browser DevTools
-- Direct access to Vite dev server logs
-
-### Step 5: Verify Setup
-
-**1. Database Migrations**
-
-Check that Flyway migrations ran successfully:
-
-```bash
-# Connect to PostgreSQL
-docker exec -it postgres psql -U eventpro -d eventpro
-
-# List tables
-\dt
-
-# Should see: category, "user", address, event, ticket, cart, "order", order_item, payment, notification, user_notification, notification_preference
-
-# Check categories were seeded
-SELECT * FROM category;
-
-# Exit
-\q
-```
-
-**2. LocalStack Resources**
-
-**SQS Queues:**
-```bash
-aws --endpoint-url=http://localhost:4566 sqs list-queues
-```
-
-**S3 Buckets:**
-```bash
-aws --endpoint-url=http://localhost:4566 s3 ls
-```
-
-**Cognito User Pool:**
-```bash
-aws --endpoint-url=http://localhost:4566 cognito-idp list-user-pools --max-results 10
-```
-
-**Secrets Manager:**
-```bash
-aws --endpoint-url=http://localhost:4566 secretsmanager list-secrets
-```
-
-**3. API Health Check**
-
-```bash
-curl http://localhost:8080/actuator/health
-```
-
-**4. Frontend**
-
-Open `http://localhost:5173` in your browser. You should see the EventPro frontend.
-
-## Development Workflow
-
-### Option 1: Docker Compose (Simplified)
-
-**Start everything with one command:**
-
-```bash
-# 1. Provision LocalStack resources (creates/updates .env file)
-make local-infra
-
-# 2. Start all services (reads .env file automatically)
-make local-up
-
-# Or manually:
-docker-compose up
-```
-
-**The `.env` file** (created by `make local-infra`):
-```bash
-COGNITO_USER_POOL_ID=<value-from-terraform>
-COGNITO_CLIENT_ID=<value-from-terraform>
-```
-
-**View logs:**
-```bash
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f backend
-docker-compose logs -f frontend-dev
-```
-
-**Hot reload works automatically** via volume mounts - code changes reflect immediately.
-
-**Update Cognito values:**
-If you re-run `make local-infra`, the `.env` file is automatically updated. Restart services:
-```bash
-docker-compose restart frontend-dev backend
-```
-
-### Option 2: Run Services Separately
-
-**Backend runs directly on your machine** (for IDE debugging):
-
-```bash
-# Set environment variables
-export SPRING_PROFILES_ACTIVE=local
-export DB_URL=jdbc:postgresql://localhost:5432/eventpro
-export DB_USERNAME=eventpro
-export DB_PASSWORD=eventpro
-export AWS_ENDPOINT_URL=http://localhost:4566
-export AWS_REGION=us-east-1
-export AWS_ACCESS_KEY_ID=test
-export AWS_SECRET_ACCESS_KEY=test
-
-# Get Cognito values from Terraform
-cd infrastructure/environments/local
-export COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
-export COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
-export S3_BUCKET_NAME=$(terraform output -raw s3_images_bucket_name)
-cd ../../..
-
-# Run backend
-cd backend
-./gradlew :eventpro-api:bootRun
-```
-
-**Frontend runs directly on your machine:**
-
-```bash
-cd frontend
-
-# Install dependencies (first time only)
-npm install
-
-# Start development server
-npm run dev
-```
-
-**Note**: Choose the approach that works best for you. Docker Compose is simpler, but running directly gives better IDE integration.
-
-### Testing LocalStack Resources
-
-**Send test message to SQS:**
-
-```bash
-aws --endpoint-url=http://localhost:4566 sqs send-message \
-  --queue-url http://localhost:4566/000000000000/order-queue \
-  --message-body '{"orderId": "test-123", "userId": "test-user"}'
-```
-
-**Upload test image to S3:**
-
-```bash
-aws --endpoint-url=http://localhost:4566 s3 cp test.jpg \
-  s3://eventpro-images-local/test.jpg
-```
-
-**Create test user in Cognito:**
-
-```bash
-# Get user pool ID
-POOL_ID=$(cd infrastructure/environments/local && terraform output -raw cognito_user_pool_id)
-
-# Create user
-aws --endpoint-url=http://localhost:4566 cognito-idp admin-create-user \
-  --user-pool-id $POOL_ID \
-  --username testuser \
-  --user-attributes Name=email,Value=test@example.com \
-  --temporary-password TempPass123!
-```
-
-## Troubleshooting
-
-### PostgreSQL Connection Issues
-
-```bash
-# Check if PostgreSQL is running
-docker ps | grep postgres
-
-# Check PostgreSQL logs
-docker logs postgres
-
-# Restart PostgreSQL
-docker-compose restart postgres
-```
-
-### LocalStack Connection Issues
-
-```bash
-# Check if LocalStack is running
-docker ps | grep localstack
-
-# Check LocalStack logs
-docker logs localstack
-
-# Restart LocalStack
-docker-compose restart localstack
-
-# Re-provision resources
-make local-infra
-```
-
-### Database Migration Issues
-
-```bash
-# Check Flyway migration status
-# Connect to database
-docker exec -it postgres psql -U eventpro -d eventpro
-
-# Check flyway_schema_history table
-SELECT * FROM flyway_schema_history;
-
-# If migrations failed, check application logs
-```
-
-### Frontend Not Connecting to Backend
-
-1. Verify backend is running: `curl http://localhost:8080/actuator/health`
-2. Check `.env.local` has correct `VITE_API_BASE_URL`
-3. Check browser console for CORS errors
-4. Verify backend CORS configuration allows `http://localhost:5173`
-
-### Cognito Authentication Issues
-
-1. Verify Cognito User Pool and Client ID in `.env.local`
-2. Check Terraform outputs: `cd infrastructure/environments/local && terraform output`
-3. Verify LocalStack Cognito is accessible: `aws --endpoint-url=http://localhost:4566 cognito-idp list-user-pools`
-
-## Cleanup
-
-**Stop all services:**
-
-```bash
-make local-down
-```
-
-**Clean up everything (including volumes):**
-
-```bash
-make local-clean
-```
-
-**Manual cleanup:**
-
-```bash
-# Destroy Terraform resources
-cd infrastructure/environments/local
-terraform destroy
-
-# Stop and remove containers
-docker-compose down -v
-```
-
-## Next Steps
-
-After local setup is complete:
-
-1. **Create test users** in Cognito (via Terraform or AWS CLI)
-2. **Test API endpoints** using Postman or curl
-3. **Test frontend** authentication flow
-4. **Test SQS message processing** (when implemented)
-5. **Test S3 image uploads** (when implemented)
-
-## Additional Resources
-
-- [Infrastructure Local Environment README](./infrastructure/environments/local/README.md)
-- [Backend README](./backend/README.md)
-- [Frontend README](./frontend/README.md)
-- [LocalStack Documentation](https://docs.localstack.cloud/)
-
-</details>
-
-## Architecture Benefits
-
-- ✅ **Single Build System** - No Spring Boot + Quarkus conflicts
-- ✅ **Simplified Deployment** - One Docker image, one ECS service
-- ✅ **Easier Development** - Single application to run locally
-- ✅ **Lower Costs** - ~$81/month vs ~$170/month (52% reduction)
-- ✅ **Future-Proof** - Can extract modules to microservices when needed
-
----
-
-<details>
-<summary><strong>📋 Project Structure & Architecture</strong></summary>
-
-### Current Architecture: Modular Monolith
-
-- **Backend**: Single Spring Boot 3.5.7 application with 6 modules
-- **Frontend**: React 19 + TypeScript + Vite
-- **Infrastructure**: AWS (ECS Fargate, RDS, S3, CloudFront, Cognito)
-- **Database**: PostgreSQL (RDS Multi-AZ)
-- **Payment**: Stripe integration
-- **Notifications**: AWS SES (Email), SNS (SMS), WebSocket
-
-### Module Structure
-
-```text
-backend/
-├── modules/
-│   ├── eventpro-core/         # Users, Auth, Common utilities
-│   ├── eventpro-event/       # Events, Tickets, Search
-│   ├── eventpro-order/       # Cart, Orders, Checkout
-│   ├── eventpro-payment/      # Payment Processing (Stripe)
-│   ├── eventpro-notification/ # Email, SMS, WebSocket
-│   └── eventpro-api/         # Main Application Module
-├── build.gradle
-├── settings.gradle
-└── Dockerfile
-```
-
-### Technology Stack
+### Build Commands
 
 **Backend:**
 
-- Spring Boot 3.5.7, Java 21, Gradle 8.5
-- PostgreSQL (via Spring Data JPA)
-- Spring Security + AWS Cognito
-- AWS SDK 2.21.29
+```bash
+cd backend
+./gradlew build          # Build all modules
+./gradlew test           # Run all tests
+./gradlew :eventpro-api:bootRun  # Run application
+```
 
 **Frontend:**
 
-- React 19.2.0, TypeScript 5.9.3, Vite 7.2.2
-- Redux Toolkit 2.10.1, React Router 7.9.6
-- shadcn/ui (Radix UI + Tailwind CSS)
-
-**Infrastructure:**
-
-- Terraform 1.5+, AWS Provider 6.21.0+
-
-### Why Modular Monolith?
-
-1. **Simplified Development**: Single build system, no Spring Boot + Quarkus conflicts
-2. **Lower Costs**: ~$81/month vs ~$170/month (52% reduction)
-3. **Easier Operations**: Single deployment, simpler monitoring
-4. **Faster Development**: Single application to run locally
-5. **Future-Proof**: Can extract modules to microservices when needed
-
-### Module Communication
-
-- **Within Monolith**: Direct method calls, Spring DI, Spring Events
-- **External**: REST API, Database, AWS Services (SQS, SES, SNS, S3)
-
-### Database Strategy
-
-- **Primary**: PostgreSQL (RDS Multi-AZ) - All entities in single database
-- **Module Boundaries**: Enforced via package structure, not separate databases
-
-</details>
-
-<details>
-<summary><strong>🔄 Migration Status</strong></summary>
-
-**Completed**
-
-1. Project structure created
-2. Build system configured (Gradle)
-3. Module boundaries defined
-4. Main application class created
-5. Configuration files created
-6. Shared utilities migrated to `eventpro-core`
-7. Old microservices removed
-8. Old Lambda functions removed (except analytics-service)
-
-### In Progress
-
-1. **eventpro-core**: User management, authentication
-2. **eventpro-event**: Event CRUD, tickets
-3. **eventpro-order**: Cart, orders, checkout
-4. **eventpro-payment**: Stripe integration
-5. **eventpro-notification**: Notifications
-
-**Pending**
-
-1. Code migration from old services (if available)
-2. API endpoint implementation
-3. Database entity creation
-4. Service layer implementation
-5. Controller layer implementation
-6. Integration tests
-7. Terraform updates for monolith
-8. CI/CD pipeline updates
-9. Frontend API integration
-
-### Migration Strategy
-
-**Recommended Approach (Incremental):**
-
-1. Start with `eventpro-core` (users, auth)
-2. Then `eventpro-event` (events, tickets)
-3. Then `eventpro-order` (cart, orders)
-4. Then `eventpro-payment` (payments)
-5. Finally `eventpro-notification` (notifications)
-
-### Key Differences from Microservices
-
-1. **No SQS Queues** (initially)
-   - Order processing: Synchronous within transaction
-   - Payment processing: Synchronous within transaction
-   - Notifications: Spring Events (async within application)
-
-2. **Single Database**
-   - All entities in one PostgreSQL database
-   - Module boundaries via package structure
-
-3. **Single Deployment**
-   - One Docker image
-   - One ECS service
-   - Simpler CI/CD
-
-4. **Module Communication**
-   - Direct method calls (same JVM)
-   - Spring dependency injection
-   - Spring Events for async
-
-</details>
-
-<details>
-<summary><strong>Implementation Status</strong></summary>
-
-### Project Structure: Completed
-
-**Project Structure:**
-
-- ✅ Created modular monolith structure with 6 modules
-- ✅ Configured Gradle build system
-- ✅ Set up module dependencies
-- ✅ Created main application class
-- ✅ Created Dockerfile
-- ✅ Created application.yml configuration
-- ✅ Build system verified
-
-**Code Migration:**
-
-- ✅ Migrated `BaseEntity` to `eventpro-core`
-- ✅ Migrated `BusinessException` to `eventpro-core`
-- ✅ Migrated `SQSMessagePublisher` to `eventpro-core`
-
-### Core Module: In Progress
-
-**Core Module (`eventpro-core`):**
-
-- ⏳ User entity and repository
-- ⏳ User service
-- ⏳ Authentication/Cognito integration
-- ⏳ Security configuration
-- ⏳ REST controllers
-
-### Current Structure
-
-```text
-backend/
-├── build.gradle              ✅ Root build config
-├── settings.gradle            ✅ Project settings
-├── Dockerfile                 ✅ Docker build
-├── README.md                  ✅ Documentation
-│
-└── modules/
-    ├── eventpro-core/         ✅ Structure created
-    │   ├── common/            ✅ BaseEntity, BusinessException
-    │   └── messaging/         ✅ SQSMessagePublisher
-    │
-    ├── eventpro-event/        ✅ Structure created
-    ├── eventpro-order/        ✅ Structure created
-    ├── eventpro-payment/      ✅ Structure created
-    ├── eventpro-notification/ ✅ Structure created
-    │
-    └── eventpro-api/          ✅ Structure created
-        ├── EventProApplication.java ✅ Created
-        └── application.yml    ✅ Created
+```bash
+cd frontend
+npm install              # Install dependencies
+npm run dev              # Start development server
+npm run build            # Build for production
+npm test                 # Run tests
 ```
 
-</details>
+**Docker:**
+
+```bash
+# Build backend image
+cd backend
+docker build -t eventpro-api:latest .
+
+# Build frontend image (if needed)
+cd frontend
+docker build -t eventpro-frontend:latest .
+```
 
 ---
 
-<details>
-<summary><strong>📡 API Endpoints Reference</strong></summary>
+## Local Development
 
-This section documents all API endpoints from the legacy EventPro implementation. These endpoints serve as a reference for the new implementation.
+For comprehensive local development setup, testing, and troubleshooting instructions, see:
+
+📖 **[LOCAL_DEVELOPMENT_GUIDE.md](./LOCAL_DEVELOPMENT_GUIDE.md)**
+
+The local development guide covers:
+
+- Detailed setup instructions
+- Authentication modes (Mock vs Real Cognito)
+- Step-by-step configuration
+- Testing procedures
+- Troubleshooting common issues
+- Makefile commands reference
+- Service management
+
+### Quick Reference
+
+| Service | URL | Port |
+|---------|-----|------|
+| Frontend | <http://localhost:5173> | 5173 |
+| Backend API | <http://localhost:8080> | 8080 |
+| Health Check | <http://localhost:8080/actuator/health> | 8080 |
+| Swagger UI | <http://localhost:8080/swagger-ui/index.html> | 8080 |
+| LocalStack | <http://localhost:4566> | 4566 |
+| PostgreSQL | localhost:5432 | 5432 |
+
+| Default Test User (Mock Auth) |
+|--------------------------------|
+| Email: `dev@local.test` |
+| Password: `password123` |
+| Role: `USER` |
+
+---
+
+## API Documentation
 
 ### Base URL
-All endpoints are prefixed with `/api/v1`
 
----
+All API endpoints are prefixed with `/api/v1`
 
-### Users API (`/api/v1/users`)
-
-#### POST `/register` - User Registration
-- **Auth Required**: No
-- **Request Body**: `UserRequest`
-  ```json
-  {
-    "firstName": "string (required)",
-    "lastName": "string (required)",
-    "email": "string (required, valid email)",
-    "password": "string (required)",
-    "phoneNumber": "string (required)",
-    "roles": ["RoleDto"] // Optional, Set<RoleDto>
-  }
-  ```
-- **Response**: `UserResponse` (201 Created)
-  ```json
-  {
-    "id": "UUID",
-    "firstName": "string",
-    "lastName": "string",
-    "email": "string",
-    "phoneNumber": "string",
-    "accountNonExpired": true,
-    "accountNonLocked": true,
-    "credentialsNonExpired": true,
-    "enabled": true,
-    "events": ["EventResponse"], // Optional
-    "orders": ["OrderResponse"], // Optional
-    "roles": ["RoleDto"] // Optional
-  }
-  ```
-
-#### POST `/login` - User Login with Email
-- **Auth Required**: No
-- **Request Body**: `UserLogin`
-  ```json
-  {
-    "email": "string (required, valid email)",
-    "password": "string (required)",
-    "phoneNumber": "string" // Optional
-  }
-  ```
-- **Response**: `JwtAuthResponse` (200 OK)
-  ```json
-  {
-    "id": "UUID",
-    "accessToken": "string",
-    "tokenType": "Bearer",
-    "roles": ["string"] // Set<String>
-  }
-  ```
-
-#### POST `/login/phone` - Phone Login (Send OTP)
-- **Auth Required**: No
-- **Request Body**: `PhoneLoginRequest`
-  ```json
-  {
-    "phoneNumber": "string (required)"
-  }
-  ```
-- **Response**: `Void` (200 OK)
-
-#### POST `/login/phone/verify` - Verify OTP for Phone Login
-- **Auth Required**: No
-- **Request Body**: `PhoneOtpVerificationRequest`
-  ```json
-  {
-    "otp": "string (required)",
-    "phoneNumber": "string"
-  }
-  ```
-- **Response**: `JwtAuthResponse` (200 OK)
-
-#### GET `/` - Get All Users (Paginated)
-- **Auth Required**: Yes
-- **Roles**: ADMIN
-- **Query Parameters**:
-  - `page` (default: 1) - Page number
-  - `size` (default: 5) - Page size
-  - `sortBy` (default: "email") - Sort field
-  - `dir` (default: "asc") - Sort direction
-- **Response**: `PageResponse<UserResponse, UserEntity>` (200 OK)
-  ```json
-  {
-    "content": ["UserResponse"],
-    "page": 0,
-    "size": 10,
-    "totalElements": 100,
-    "totalPages": 10,
-    "last": false
-  }
-  ```
-
-#### GET `/email/{email}` - Get User by Email
-- **Auth Required**: Yes
-- **Roles**: User (own email) or ADMIN
-- **Response**: `UserResponse` (200 OK)
-
-#### GET `/id/{id}` - Get User by ID
-- **Auth Required**: Yes
-- **Roles**: User (own ID) or ADMIN
-- **Response**: `UserResponse` (200 OK)
-
-#### DELETE `/{id}` - Delete User
-- **Auth Required**: Yes
-- **Roles**: User (own ID) or ADMIN
-- **Response**: `String` (200 OK) - Success message
-
-#### PATCH `/{id}` - Update User
-- **Auth Required**: Yes
-- **Roles**: User (own ID) or ADMIN
-- **Request Body**: `UserUpdateRequest`
-  ```json
-  {
-    "firstName": "string", // Optional
-    "lastName": "string" // Optional
-  }
-  ```
-- **Response**: `UserResponse` (200 OK)
-
----
-
-### Events API (`/api/v1/events`)
-
-#### POST `/` - Create Event (with Image)
-- **Auth Required**: Yes
-- **Roles**: ADMIN
-- **Content-Type**: `multipart/form-data`
-- **Request Parts**:
-  - `request` (String, JSON) - `EventCreateRequest`
-    ```json
-    {
-      "name": "string",
-      "description": "string",
-      "startTime": "string (ISO-8601)",
-      "endTime": "string (ISO-8601)",
-      "marketingEnabled": false,
-      "category": "Category enum",
-      "address": {
-        "street": "string",
-        "city": "string",
-        "state": "string",
-        "zipCode": "string",
-        "country": "string",
-        "latitude": "BigDecimal",
-        "longitude": "BigDecimal"
-      }
-    }
-    ```
-  - `imageFile` (MultipartFile) - Event image file
-- **Response**: `EventResponse` (200 OK)
-  - **Note**: Despite `@ResponseStatus(CREATED)` annotation, the actual response is 200 OK due to `ResponseEntity.ok()` usage
-  ```json
-  {
-    "id": "string (UUID)",
-    "name": "string",
-    "description": "string",
-    "imageUrl": "string",
-    "marketingEnabled": false,
-    "startTime": "string",
-    "endTime": "string",
-    "userId": "string",
-    "categoryId": "string",
-    "categoryName": "string",
-    "addressStreet": "string",
-    "addressCity": "string",
-    "addressState": "string",
-    "addressCountry": "string",
-    "addressZipCode": "string"
-  }
-  ```
-
-#### GET `/{eventId}` - Get Event by ID
-- **Auth Required**: No
-- **Response**: `List<EventResponse>` (200 OK)
-
-#### GET `/` - Get All Events
-- **Auth Required**: No
-- **Response**: `List<EventResponse>` (200 OK)
-
-#### PATCH `/{eventId}` - Update Event
-- **Auth Required**: Yes
-- **Roles**: ADMIN
-- **Request Body**: `EventUpdateRequest`
-  ```json
-  {
-    "name": "string", // Optional
-    "description": "string", // Optional
-    "imageUrl": "string", // Optional
-    "marketingEnabled": false, // Optional
-    "startTime": "string", // Optional
-    "endTime": "string", // Optional
-    "userId": "string", // Optional
-    "category": "Category enum", // Optional
-    "address": {
-      "street": "string",
-      "city": "string (required)",
-      "state": "string",
-      "country": "string (required)",
-      "zipCode": "string"
-    } // Optional
-  }
-  ```
-- **Query Parameters**:
-  - `imageFile` (optional, MultipartFile) - New image file (sent as query parameter, not in request body)
-- **Response**: `EventResponse` (200 OK)
-
-#### DELETE `/{eventId}` - Delete Event
-- **Auth Required**: Yes
-- **Roles**: ADMIN
-- **Response**: `Void` (200 OK)
-
-#### GET `/category/{categoryName}` - Get Events by Category
-- **Auth Required**: No
-- **Response**: `List<EventResponse>` (200 OK)
-
-#### GET `/upcoming` - Get Upcoming Events
-- **Auth Required**: No
-- **Response**: `List<EventResponse>` (200 OK)
-
-#### GET `/search?keyword={keyword}` - Search Events
-- **Auth Required**: No
-- **Query Parameters**:
-  - `keyword` (required) - Search keyword
-- **Response**: `List<EventResponse>` (200 OK)
-
----
-
-### Tickets API (`/api/v1/tickets`)
-
-#### POST `/` - Create Tickets (Bulk)
-- **Auth Required**: Yes
-- **Roles**: ADMIN, ORGANIZER
-- **Request Body**: `TicketCreateRequest`
-  ```json
-  {
-    "eventId": "UUID",
-    "tickets": [
-      {
-        "price": "BigDecimal",
-        "ticketType": "TicketType enum (VIP, REGULAR, EARLY_BIRD)",
-        "quantity": "Long",
-        "eventId": "UUID"
-      }
-    ]
-  }
-  ```
-- **Response**: `List<TicketResponse>` (201 Created)
-  ```json
-  [
-    {
-      "id": "UUID",
-      "name": "string",
-      "ticketType": "TicketType",
-      "ticketStatus": "TicketStatus (AVAILABLE, SOLD, RESERVED)",
-      "price": "BigDecimal",
-      "startTime": "LocalDateTime",
-      "endTime": "LocalDateTime",
-      "qrCode": "string",
-      "printOutUrl": "string",
-      "eventIdType": "string"
-    }
-  ]
-  ```
-
-#### GET `/{ticketId}` - Get Ticket by ID
-- **Auth Required**: Yes
-- **Roles**: ADMIN, ORGANIZER
-- **Response**: `List<TicketResponse>` (200 OK)
-
-#### GET `/event/{eventId}` - Get Event Tickets
-- **Auth Required**: No
-- **Response**: `List<TicketResponse>` (200 OK)
-
-#### GET `/groupTickets/{eventId}` - Get Tickets Grouped by Type
-- **Auth Required**: No
-- **Response**: `Map<TicketType, List<TicketResponse>>` (200 OK)
-  ```json
-  {
-    "VIP": ["TicketResponse"],
-    "REGULAR": ["TicketResponse"],
-    "EARLY_BIRD": ["TicketResponse"]
-  }
-  ```
-
-#### GET `/group/{eventId}` - Get Ticket Summary
-- **Auth Required**: No
-- **Response**: `EventSummary` (200 OK)
-  ```json
-  {
-    "eventName": "string",
-    "startTime": "string (formatted)",
-    "endTime": "string (formatted)",
-    "tickets": [
-      {
-        "ticketType": "TicketType",
-        "price": "BigDecimal",
-        "count": "int"
-      }
-    ]
-  }
-  ```
-
-#### DELETE `/{ticketId}` - Delete Ticket
-- **Auth Required**: Yes
-- **Roles**: ADMIN, ORGANIZER
-- **Response**: `Void` (200 OK)
-
-#### PATCH `/{ticketId}` - Update Ticket
-- **Auth Required**: Yes
-- **Roles**: ADMIN, ORGANIZER
-- **Request Body**: `TicketUpdateRequest`
-  ```json
-  {
-    "name": "string", // Optional
-    "description": "string", // Optional
-    "price": "BigDecimal", // Optional
-    "quantity": "Long", // Optional
-    "startTime": "LocalDateTime", // Optional
-    "endTime": "LocalDateTime", // Optional
-    "printOutUrl": "string", // Optional
-    "eventId": "UUID" // Optional
-  }
-  ```
-- **Response**: `TicketResponse` (200 OK)
-
-#### GET `/user/{userId}` - Get User's Purchased Tickets
-- **Auth Required**: No
-- **Path Variables**:
-  - `{userId}` - User UUID
-- **Response**: `List<TicketResponse>` (200 OK)
-  - **Note**: Returns list directly (not wrapped in ResponseEntity)
-
-#### GET `/organizer` - Get Organizer's Tickets
-- **Auth Required**: Yes
-- **Roles**: ADMIN, ORGANIZER
-- **Response**: `List<TicketResponse>` (200 OK)
-  - **Note**: Returns list directly (not wrapped in ResponseEntity)
-
-#### PUT `/archive/{ticketId}` - Archive Ticket
-- **Auth Required**: No
-- **Response**: `Void` (200 OK)
-
-#### GET `/available-tickets?eventId={eventId}` - Get Available Ticket Count
-- **Auth Required**: No
-- **Query Parameters**:
-  - `eventId` (required, UUID) - Event ID
-- **Response**: `Integer` (200 OK)
-
-#### GET `/event-revenue?eventId={eventId}` - Get Event Revenue
-- **Auth Required**: No
-- **Query Parameters**:
-  - `eventId` (required, UUID) - Event ID
-- **Response**: `BigDecimal` (200 OK)
-
-#### GET `/tickets-sold?eventId={eventId}` - Get Total Tickets Sold
-- **Auth Required**: No
-- **Query Parameters**:
-  - `eventId` (required, UUID) - Event ID
-- **Response**: `Integer` (200 OK)
-
----
-
-### Shopping Cart API (`/api/v1/user/{userId}/cart`)
-
-#### POST `/add` - Add Item to Cart
-- **Auth Required**: No
-- **Path Variables**:
-  - `{userId}` - User UUID
-- **Request Body**: `AddToCartRequest`
-  ```json
-  {
-    "id": "UUID",
-    "eventIdType": "string",
-    "ticketType": "TicketType enum",
-    "quantity": "int"
-  }
-  ```
-- **Response**: `CartResponse` (201 Created)
-  ```json
-  {
-    "id": "UUID",
-    "tickets": [
-      {
-        "id": "UUID",
-        "name": "string",
-        "ticketType": "TicketType",
-        "ticketStatus": "TicketStatus",
-        "price": "BigDecimal",
-        "startTime": "LocalDateTime",
-        "endTime": "LocalDateTime",
-        "eventIdType": "string"
-      }
-    ],
-    "quantity": "Integer",
-    "totalCost": "BigDecimal",
-    "message": "string"
-  }
-  ```
-  - **Note**: `tickets` is a `Set<CartTicket>` (unique tickets)
-
-#### PATCH `/increment/ticket/{eventIdAndType}` - Increment Ticket Quantity
-- **Auth Required**: No
-- **Path Variables**:
-  - `{userId}` - User UUID
-  - `{eventIdAndType}` - Event ID and ticket type combined
-- **Response**: `CartResponse` (201 Created)
-
-#### PATCH `/decrement/ticket/{eventIdAndType}` - Decrement Ticket Quantity
-- **Auth Required**: No
-- **Path Variables**:
-  - `{userId}` - User UUID
-  - `{eventIdAndType}` - Event ID and ticket type combined
-- **Response**: `CartResponse` (201 Created)
-
-#### GET `/` - Get User's Cart Items
-- **Auth Required**: No
-- **Path Variables**:
-  - `{userId}` - User UUID
-- **Response**: `CartResponse` (200 OK)
-
-#### DELETE `/clearCart` - Clear User's Cart
-- **Auth Required**: No
-- **Path Variables**:
-  - `{userId}` - User UUID
-- **Response**: `Void` (200 OK)
-
----
-
-### Orders API (`/api/v1/orders`)
-
-#### GET `/{id}` - Get Order by ID
-- **Auth Required**: Yes
-- **Roles**: User (own order) or ADMIN
-- **Response**: `OrderResponse` (200 OK)
-  ```json
-  {
-    "id": "UUID",
-    "amount": "Long",
-    "orderItems": ["TicketResponse"],
-    "payment": {
-      "id": "UUID",
-      "amount": "BigDecimal",
-      "paymentMethod": "string",
-      "status": "PaymentStatus (PENDING, SUCCESS, FAILED, REFUNDED)",
-      "currency": "string",
-      "description": "string"
-    }
-  }
-  ```
-
-#### GET `/` - Get All Orders (Paginated)
-- **Auth Required**: Yes
-- **Roles**: ADMIN
-- **Query Parameters**:
-  - `page` (default: 1) - Page number
-  - `size` (default: 5) - Page size
-  - `sortBy` (default: "email") - Sort field
-  - `dir` (default: "asc") - Sort direction
-- **Response**: `PageResponse<OrderResponse, OrderEntity>` (200 OK)
-
-#### GET `/users/{userId}` - Get User's Orders (Paginated)
-- **Auth Required**: Yes
-- **Roles**: User (own orders) or ADMIN
-- **Path Variables**:
-  - `{userId}` - User UUID
-- **Query Parameters**:
-  - `page` (default: 1) - Page number
-  - `size` (default: 5) - Page size
-  - `sortBy` (default: "email") - Sort field
-  - `dir` (default: "asc") - Sort direction
-- **Response**: `PageResponse<OrderResponse, OrderEntity>` (200 OK)
-
----
-
-### Payments API (`/api/v1/payments`)
-
-#### POST `/stripe` - Initiate Stripe Payment
-- **Auth Required**: No
-- **Request Body**: `StripeDto`
-  ```json
-  {
-    "id": "string",
-    "userId": "UUID"
-  }
-  ```
-- **Response**: `OrderResponse` (201 Created)
-
-#### POST `/paypal/create` - Create PayPal Payment
-- **Auth Required**: No
-- **Request Body**: `PaypalRequest`
-  ```json
-  {
-    "userId": "UUID",
-    "currency": "string",
-    "method": "string",
-    "intent": "string",
-    "description": "string",
-    "cancelUrl": "string",
-    "successUrl": "string"
-  }
-  ```
-- **Response**: `Map<String, String>` (201 Created)
-  ```json
-  {
-    "paymentId": "string",
-    "approvalUrl": "string"
-  }
-  ```
-
-#### GET `/paypal/execute?paymentId={paymentId}&PayerID={payerId}` - Execute PayPal Payment
-- **Auth Required**: No
-- **Query Parameters**:
-  - `paymentId` (required) - PayPal payment ID
-  - `PayerID` (required) - PayPal payer ID
-- **Response**: `String` (201 Created) - Success message
-
-#### GET `/{id}` - Get Payment by ID
-- **Auth Required**: No
-- **Response**: `PaymentResponse` (200 OK)
-  ```json
-  {
-    "id": "UUID",
-    "amount": "BigDecimal",
-    "paymentMethod": "string",
-    "status": "PaymentStatus",
-    "currency": "string",
-    "description": "string"
-  }
-  ```
-
-#### GET `/users/{userId}` - Get User's Payments
-- **Auth Required**: No
-- **Path Variables**:
-  - `{userId}` - User UUID
-- **Response**: `List<PaymentResponse>` (200 OK)
-
----
-
-### Notifications API (`/api/v1/notifications`)
-
-#### POST `/subscribe` - Subscribe User to Notifications
-- **Auth Required**: No
-- **Request Body**: `NotificationRequest`
-  ```json
-  {
-    "type": "NotificationType enum",
-    "deliveryType": "NotificationDeliveryType enum (EMAIL, SMS, IN_APP, PUSH)",
-    "message": "string",
-    "enabled": true
-  }
-  ```
-- **Response**: `Void` (200 OK)
-
-#### GET `/preferences` - Get Notification Preferences
-- **Auth Required**: No
-- **Response**: `List<NotificationPreferenceResponse>` (200 OK)
-  ```json
-  [
-    {
-      "id": "UUID",
-      "notificationType": "NotificationType",
-      "deliveryType": "NotificationDeliveryType",
-      "enabled": true
-    }
-  ]
-  ```
-
-#### POST `/preferences` - Create Notification Preference
-- **Auth Required**: No
-- **Request Body**: `NotificationRequest`
-- **Response**: `NotificationPreferenceResponse` (200 OK)
-
-#### PUT `/preferences/{id}` - Update Notification Preference
-- **Auth Required**: No
-- **Path Variables**:
-  - `{id}` - Preference UUID
-- **Request Body**: `NotificationRequest`
-- **Response**: `NotificationPreferenceResponse` (200 OK)
-
-#### DELETE `/preferences/{id}` - Delete Notification Preference
-- **Auth Required**: No
-- **Path Variables**:
-  - `{id}` - Preference UUID
-- **Response**: `Void` (200 OK)
-
-#### POST `/events/upcoming` - Send Upcoming Events Notifications
-- **Auth Required**: Yes
-- **Roles**: ADMIN
-- **Response**: `String` (200 OK) - Success message
-
-**Note:** `/unsubscribe` endpoint exists but is commented out in the code.
-
----
-
-### Email API (`/api/v1/emails`)
-
-| Method | Endpoint | Description | Auth Required | Roles |
-|--------|----------|-------------|---------------|-------|
-| POST | `/` | Send email (commented out in code) | No | - |
-
-**Note:** This endpoint is currently disabled in the implementation.
-
----
-
-### Reports API (`/api/v1/reports`)
-
-#### GET `/sales/{eventId}` - Get Sales Data by Event
-- **Auth Required**: No
-- **Path Variables**:
-  - `{eventId}` - Event UUID
-- **Response**: `ReportResponse` (200 OK)
-  ```json
-  {
-    "totalTicketsSold": "int",
-    "totalRevenue": "BigDecimal",
-    "ticketPriceRangeSales": {
-      "string": "int"
-    },
-    "totalAttendanceProjection": "int",
-    "ticketPurchasingChannels": {
-      "string": "int"
-    },
-    "comparisonWithPreviousEvents": {
-      "string": "int"
-    },
-    "ticketTypeBreakdown": {
-      "string": "int"
-    },
-    "salesOverTime": {
-      "string": {
-        "string": "int"
-      }
-    }
-  }
-  ```
-
----
-
-## Authentication
+### Authentication
 
 Most endpoints require JWT authentication. Include the token in the Authorization header:
 
-```
+```txt
 Authorization: Bearer <jwt_token>
 ```
 
-## Response Format
+### Available Endpoints
 
-All endpoints return JSON responses. Error responses follow this format:
+<details>
+<summary><strong>Click to expand</strong></summary>
+
+#### Users API (`/api/v1/users`)
+
+- `GET /api/v1/users` - List users (paginated, ADMIN only)
+- `GET /api/v1/users/{id}` - Get user by ID
+- `GET /api/v1/users/me` - Get current user profile
+- `PUT /api/v1/users/{id}` - Update user profile
+- `POST /api/v1/users/sync` - Sync user from Cognito
+
+#### Events API (`/api/v1/events`)
+
+- `GET /api/v1/events` - List/search events
+- `GET /api/v1/events/{id}` - Get event details
+- `POST /api/v1/events` - Create event (ORGANIZER/ADMIN)
+- `PUT /api/v1/events/{id}` - Update event (ORGANIZER/ADMIN)
+- `DELETE /api/v1/events/{id}` - Delete event (ORGANIZER/ADMIN)
+- `GET /api/v1/events/category/{categoryName}` - Get events by category
+- `GET /api/v1/events/upcoming` - Get upcoming events
+- `GET /api/v1/events/search?keyword={keyword}` - Search events
+
+#### Tickets API (`/api/v1/tickets`)
+
+- `GET /api/v1/tickets/{id}` - Get ticket by ID
+- `GET /api/v1/tickets/event/{eventId}` - Get event tickets
+- `POST /api/v1/tickets` - Create tickets (ORGANIZER/ADMIN)
+- `PUT /api/v1/tickets/{id}` - Update ticket (ORGANIZER/ADMIN)
+- `DELETE /api/v1/tickets/{id}` - Delete ticket (ORGANIZER/ADMIN)
+
+#### Orders API (`/api/v1/orders`)
+
+- `GET /api/v1/orders` - List orders (paginated, ADMIN only)
+- `GET /api/v1/orders/{id}` - Get order by ID
+- `GET /api/v1/orders/users/{userId}` - Get user's orders
+- `POST /api/v1/orders` - Create order
+
+#### Cart API (`/api/v1/user/{userId}/cart`)
+
+- `GET /api/v1/user/{userId}/cart` - Get user's cart
+- `POST /api/v1/user/{userId}/cart/add` - Add item to cart
+- `PATCH /api/v1/user/{userId}/cart/increment/ticket/{eventIdAndType}` - Increment quantity
+- `PATCH /api/v1/user/{userId}/cart/decrement/ticket/{eventIdAndType}` - Decrement quantity
+- `DELETE /api/v1/user/{userId}/cart/clearCart` - Clear cart
+
+</details>
+
+### Interactive API Documentation
+
+When running locally, access Swagger UI at:
+
+- <http://localhost:8080/swagger-ui/index.html>
+
+### Response Format
+
+**Success Response:**
+
+```json
+{
+  "id": "uuid",
+  "field1": "value1",
+  "field2": "value2"
+}
+```
+
+**Error Response:**
 
 ```json
 {
@@ -1603,103 +661,64 @@ All endpoints return JSON responses. Error responses follow this format:
 }
 ```
 
-## Pagination
-
-Paginated endpoints return data in this format:
+**Paginated Response:**
 
 ```json
 {
   "content": [...],
-  "page": 1,
-  "size": 5,
+  "page": 0,
+  "size": 10,
   "totalElements": 100,
-  "totalPages": 20,
+  "totalPages": 10,
   "last": false
 }
 ```
 
-**Default Pagination Values:**
-- `page`: 1 (first page)
-- `size`: 5 (items per page)
-- `sortBy`: "email" (default sort field)
-- `dir`: "asc" (ascending order)
+---
 
-**Note**: The `page` value in the response is 1-based (page 1, 2, 3...), but Spring Data internally uses 0-based indexing.
+## Additional Resources
 
-## Data Transfer Objects (DTOs) Reference
+### Documentation
 
-### Common Enums
+- **[LOCAL_DEVELOPMENT_GUIDE.md](./LOCAL_DEVELOPMENT_GUIDE.md)** - Comprehensive local development guide
+- **[backend/README.md](./backend/README.md)** - Backend application documentation
+- **[frontend/README.md](./frontend/README.md)** - Frontend application documentation
+- **[z_docs/modular-monolith-architecture.md](./z_docs/modular-monolith-architecture.md)** - Detailed architecture design
+- **[specs/001-eventpro-platform/data-model.md](./specs/001-eventpro-platform/data-model.md)** - Database schema documentation
 
-**TicketType**: `VIP`, `REGULAR`, `EARLY_BIRD`  
-**TicketStatus**: `AVAILABLE`, `SOLD`, `RESERVED`  
-**PaymentStatus**: `PENDING`, `SUCCESS`, `FAILED`, `REFUNDED`  
-**NotificationType**: `ORDER_CONFIRMATION`, `PAYMENT_SUCCESS`, `PAYMENT_FAILED`, `EVENT_REMINDER`, `TICKET_READY`, `SYSTEM_ANNOUNCEMENT`  
-**NotificationDeliveryType**: `EMAIL`, `SMS`, `IN_APP`, `PUSH`  
-**Category**: Enum values from `Category` enum  
-**RoleType**: Enum values from `RoleType` enum
+### External Resources
 
-### Nested Objects
+- [Spring Boot Documentation](https://spring.io/projects/spring-boot)
+- [React Documentation](https://react.dev/)
+- [AWS Documentation](https://docs.aws.amazon.com/)
+- [Terraform Documentation](https://www.terraform.io/docs)
+- [LocalStack Documentation](https://docs.localstack.cloud/)
 
-**AddressEntity**:
-```json
-{
-  "id": "UUID",
-  "street": "string",
-  "city": "string (required)",
-  "state": "string",
-  "zipCode": "string",
-  "country": "string (required)",
-  "createdAt": "LocalDateTime",
-  "updatedAt": "LocalDateTime"
-}
-```
+### CI/CD
 
-**RoleDto**:
-```json
-{
-  "name": "RoleType enum"
-}
-```
+- GitLab CI/CD pipeline configuration: `.gitlab-ci.yml`
+- Automated testing, building, and deployment
 
-**TicketInfo** (used in TicketCreateRequest):
-```json
-{
-  "price": "BigDecimal",
-  "ticketType": "TicketType enum",
-  "quantity": "Long",
-  "eventId": "UUID"
-}
-```
+### Testing
 
-**CartTicket** (used in CartResponse):
-```json
-{
-  "id": "UUID",
-  "name": "string",
-  "ticketType": "TicketType",
-  "ticketStatus": "TicketStatus",
-  "price": "BigDecimal",
-  "startTime": "LocalDateTime",
-  "endTime": "LocalDateTime",
-  "eventIdType": "string"
-}
-```
-
-**EventTickets** (used in EventSummary):
-```json
-{
-  "ticketType": "TicketType",
-  "price": "BigDecimal",
-  "count": "int"
-}
-```
-
-</details>
+- **Backend**: JUnit 5, JaCoCo for coverage
+- **Frontend**: Vitest, React Testing Library
+- **Integration**: Docker Compose for local integration testing
 
 ---
 
-## Additional Documentation
+## License
 
-- `backend/README.md` - Backend application documentation
-- `frontend/README.md` - Frontend application documentation
-- `z_docs/modular-monolith-architecture.md` - Detailed architecture design
+[Add your license information here]
+
+---
+
+## Contributing
+
+[Add contributing guidelines here]
+
+---
+
+## Support
+
+For issues, questions, or contributions, please refer to the project documentation or contact the development team.

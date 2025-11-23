@@ -14,17 +14,18 @@ import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityPr
  * Configures JWT decoder to validate access tokens from Cognito User Pool
  * and CognitoIdentityProviderClient for Admin API operations.
  * 
- * This configuration is only active when local.auth.enabled is false or not set.
+ * This configuration is only active when local.auth.enabled is explicitly set to "false".
+ * When local.auth.enabled is "true" or not set, LocalAuthConfig will be used instead.
  */
 @Configuration
 @ConditionalOnProperty(
     name = "local.auth.enabled",
     havingValue = "false",
-    matchIfMissing = true
+    matchIfMissing = false
 )
 public class CognitoConfig {
 
-    @Value("${aws.cognito.userPoolId}")
+    @Value("${aws.cognito.userPoolId:}")
     private String userPoolId;
 
     @Value("${aws.cognito.region:us-east-1}")
@@ -35,9 +36,16 @@ public class CognitoConfig {
      * The decoder fetches public keys from Cognito's well-known endpoint to verify token signatures.
      *
      * @return JwtDecoder configured for Cognito access tokens
+     * @throws IllegalStateException if userPoolId is not configured
      */
     @Bean
     public JwtDecoder jwtDecoder() {
+        if (userPoolId == null || userPoolId.trim().isEmpty()) {
+            throw new IllegalStateException(
+                "aws.cognito.userPoolId must be configured when using CognitoConfig. " +
+                "Either set COGNITO_USER_POOL_ID environment variable or set local.auth.enabled=true for local development."
+            );
+        }
         String jwkSetUri = String.format(
             "https://cognito-idp.%s.amazonaws.com/%s/.well-known/jwks.json",
             region,

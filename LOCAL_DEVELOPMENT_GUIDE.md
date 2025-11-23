@@ -9,12 +9,13 @@ Complete guide for setting up, running, and testing the EventPro application loc
 1. [Prerequisites](#prerequisites)
 2. [Quick Start](#quick-start)
 3. [Authentication Modes](#authentication-modes)
-4. [Detailed Setup](#detailed-setup)
-5. [Testing](#testing)
-6. [Manual Setup (Alternative)](#manual-setup-alternative)
-7. [Troubleshooting](#troubleshooting)
-8. [Clean Up](#clean-up)
-9. [Useful Commands](#useful-commands)
+4. [One by One Setup](#one-by-one-setup)
+5. [Detailed Setup](#detailed-setup)
+6. [Testing](#testing)
+7. [Manual Setup (Alternative)](#manual-setup-alternative)
+8. [Troubleshooting](#troubleshooting)
+9. [Clean Up](#clean-up)
+10. [Useful Commands](#useful-commands)
 
 ---
 
@@ -96,7 +97,267 @@ Requires LocalStack Pro or real AWS account.
 
 </details>
 
-## Run Locally-Detailed Setup
+## One by One Setup
+
+<details>
+<summary>Click to expand</summary>
+
+This section provides step-by-step instructions for starting services individually with separate environment files for better control and clarity.
+
+### Step 1: Start LocalStack
+
+```bash
+docker-compose up -d localstack
+```
+
+**Wait**: ~10 seconds for LocalStack to be healthy
+
+**Verify:**
+
+```bash
+docker-compose ps localstack
+# Should show "healthy"
+```
+
+---
+
+### Step 2: Start PostgreSQL
+
+```bash
+docker-compose up -d postgres
+```
+
+**Wait**: ~10 seconds for PostgreSQL to be healthy
+
+**Verify:**
+
+```bash
+docker-compose ps postgres
+# Should show "healthy"
+```
+
+---
+
+### Step 3: Provision Infrastructure (Terraform)
+
+```bash
+cd infrastructure/environments/local
+terraform init -upgrade
+terraform apply -auto-approve
+cd ../../..
+```
+
+**What this creates:**
+
+- S3 buckets (for images)
+- SQS queues (order, payment, notification)
+- Secrets Manager secrets (database, JWT, Stripe)
+- Cognito User Pool (only if `enable_cognito=true`)
+
+**Expected output:**
+
+```txt
+Apply complete! Resources: X added, 0 changed, 0 destroyed.
+
+Outputs:
+sqs_order_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-queue"
+sqs_payment_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/payment-queue"
+sqs_notification_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/notification-queue"
+s3_images_bucket_name = "eventpro-images-local"
+```
+
+---
+
+### Step 4: Create Backend Environment File
+
+Create `.env.backend` file with backend-specific environment variables:
+
+```bash
+cd infrastructure/environments/local
+cat > ../../.env.backend << EOF
+# AWS Configuration
+AWS_ENDPOINT_URL=http://localhost:4566
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
+
+# SQS Queue URLs
+ORDER_QUEUE_URL=$(terraform output -raw sqs_order_queue_url)
+PAYMENT_QUEUE_URL=$(terraform output -raw sqs_payment_queue_url)
+NOTIFICATION_QUEUE_URL=$(terraform output -raw sqs_notification_queue_url)
+
+# S3 Configuration
+S3_BUCKET_NAME=$(terraform output -raw s3_images_bucket_name)
+
+# Cognito Configuration (empty for mock auth, or set if using real Cognito)
+COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id 2>/dev/null | grep -v "^null$" || echo "")
+COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id 2>/dev/null | grep -v "^null$" || echo "")
+
+# Local Auth (set to false if using real Cognito)
+LOCAL_AUTH_ENABLED=true
+EOF
+cd ../../..
+```
+
+**Verify the file:**
+
+```bash
+cat .env.backend
+```
+
+Should contain:
+
+```txt
+AWS_ENDPOINT_URL=http://localhost:4566
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
+ORDER_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-queue
+PAYMENT_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/payment-queue
+NOTIFICATION_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/notification-queue
+S3_BUCKET_NAME=eventpro-images-local
+COGNITO_USER_POOL_ID=
+COGNITO_CLIENT_ID=
+LOCAL_AUTH_ENABLED=true
+```
+
+---
+
+### Step 5: Create Frontend Environment File
+
+Create `.env.frontend` file with frontend-specific environment variables:
+
+```bash
+cd infrastructure/environments/local
+cat > ../../.env.frontend << EOF
+# API Configuration
+VITE_API_BASE_URL=http://localhost:8080
+
+# Cognito Configuration (empty for mock auth, or set if using real Cognito)
+VITE_COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id 2>/dev/null | grep -v "^null$" || echo "")
+VITE_COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id 2>/dev/null | grep -v "^null$" || echo "")
+
+# AWS Configuration
+VITE_AWS_REGION=us-east-1
+VITE_S3_BUCKET_NAME=$(terraform output -raw s3_images_bucket_name)
+
+# Local Auth (optional - frontend auto-detects when Cognito credentials are empty)
+VITE_LOCAL_AUTH_ENABLED=true
+EOF
+cd ../../..
+```
+
+**Verify the file:**
+
+```bash
+cat .env.frontend
+```
+
+Should contain:
+
+```txt
+VITE_API_BASE_URL=http://localhost:8080
+VITE_COGNITO_USER_POOL_ID=
+VITE_COGNITO_CLIENT_ID=
+VITE_AWS_REGION=us-east-1
+VITE_S3_BUCKET_NAME=eventpro-images-local
+VITE_LOCAL_AUTH_ENABLED=true
+```
+
+---
+
+### Step 6: Start Backend
+
+```bash
+docker-compose --env-file .env.backend up -d backend
+```
+
+**What it does:**
+
+- Reads environment variables from `.env.backend` file
+- Starts Spring Boot backend with `SPRING_PROFILES_ACTIVE=local`
+- **Flyway migrations run automatically** during startup
+- Backend available at <http://localhost:8080>
+
+**Wait**: ~30 seconds for backend to start and migrations to complete
+
+**Verify:**
+
+```bash
+# Check health
+curl http://localhost:8080/actuator/health
+
+# Check migrations
+docker-compose logs backend | grep -i flyway
+# Should see: "Flyway migration successful"
+
+# Check environment variables are loaded
+docker-compose exec backend env | grep -E "ORDER_QUEUE_URL|PAYMENT_QUEUE_URL|NOTIFICATION_QUEUE_URL"
+# Should show the queue URLs from .env.backend file
+```
+
+---
+
+### Step 7: Start Frontend
+
+```bash
+docker-compose --env-file .env.frontend up -d frontend
+```
+
+**What it does:**
+
+- Reads environment variables from `.env.frontend` file
+- Starts React dev server with hot reload
+- Frontend available at <http://localhost:5173>
+
+**Wait**: ~10 seconds for frontend to start
+
+**Verify:**
+
+```bash
+curl http://localhost:5173
+# Should return HTML
+
+# Check frontend environment variables
+docker-compose exec frontend env | grep VITE_
+# Should show frontend configuration from .env.frontend
+```
+
+---
+
+### Benefits of This Approach
+
+✅ **Clear separation**: Backend and frontend configurations are in separate files  
+✅ **Explicit control**: You know exactly which file each service uses  
+✅ **Easy debugging**: Easy to verify which variables are loaded  
+✅ **Flexible**: Can easily switch between different configurations  
+
+### Command Reference
+
+```bash
+# Start infrastructure
+docker-compose up -d localstack postgres
+
+# Provision resources
+cd infrastructure/environments/local && terraform apply -auto-approve && cd ../../..
+
+# Create env files (see steps 4-5 above)
+
+# Start services
+docker-compose --env-file .env.backend up -d backend
+docker-compose --env-file .env.frontend up -d frontend
+
+# View logs
+docker-compose logs -f backend
+docker-compose logs -f frontend
+
+# Stop services
+docker-compose down
+```
+
+</details>
+
+## Detailed Setup
 
 <details>
 <summary>Click to expand</summary>
@@ -123,14 +384,50 @@ docker-compose ps
 
 ---
 
-### Step 2: Provision AWS Resources (Terraform)
+### Step 2: Provision AWS Resources (Terraform) and Create Environment Files
 
-**Note**: With mock authentication (default), Cognito resources are **optional**. Terraform will skip them automatically.
+**Important**: This step creates the `.env` file with all required configuration values (SQS queue URLs, S3 bucket name, Cognito credentials if enabled).
+
+**Option A: Using Make (Recommended)**
+
+```bash
+make local-infra
+```
+
+This command:
+
+1. Starts LocalStack if not running
+2. Provisions Terraform resources (S3, SQS, Secrets Manager, optional Cognito)
+3. **Automatically creates `.env` file** with all required values:
+   - `ORDER_QUEUE_URL`
+   - `PAYMENT_QUEUE_URL`
+   - `NOTIFICATION_QUEUE_URL`
+   - `S3_BUCKET_NAME`
+   - `COGNITO_USER_POOL_ID` (if Cognito enabled)
+   - `COGNITO_CLIENT_ID` (if Cognito enabled)
+4. **Automatically creates `frontend/.env.local`** with frontend configuration
+
+**Option B: Manual Terraform**
 
 ```bash
 cd infrastructure/environments/local
 terraform init -upgrade
 terraform apply -auto-approve
+cd ../../..
+```
+
+Then manually create `.env` file:
+
+```bash
+cd infrastructure/environments/local
+cat > ../../.env << EOF
+ORDER_QUEUE_URL=$(terraform output -raw sqs_order_queue_url)
+PAYMENT_QUEUE_URL=$(terraform output -raw sqs_payment_queue_url)
+NOTIFICATION_QUEUE_URL=$(terraform output -raw sqs_notification_queue_url)
+S3_BUCKET_NAME=$(terraform output -raw s3_images_bucket_name)
+COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
+COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
+EOF
 cd ../../..
 ```
 
@@ -147,39 +444,60 @@ cd ../../..
 Apply complete! Resources: X added, 0 changed, 0 destroyed.
 
 Outputs:
-sqs_order_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/..."
-sqs_payment_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/..."
+sqs_order_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-queue"
+sqs_payment_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/payment-queue"
+sqs_notification_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/notification-queue"
 s3_images_bucket_name = "eventpro-images-local"
 ```
 
-**Note**: If using mock auth, `cognito_user_pool_id` and `cognito_user_pool_client_id` outputs will be `null`.
+**Note**:
+
+- If using mock auth (default), `cognito_user_pool_id` and `cognito_user_pool_client_id` outputs will be `null`
+- The `.env` file is **required** - docker-compose reads from it to configure the backend
+- The `frontend/.env.local` file is also created automatically by `make local-infra`
 
 ---
 
-### Step 3: Configure Environment Variables
+### Step 3: Verify Environment Files
 
-#### For Mock Authentication (Default - Recommended)
-
-**Backend** (already configured in `application-local.yml`):
-
-```yaml
-local:
-  auth:
-    enabled: true  # Default
-```
-
-**Frontend** - Create `frontend/.env.local`:
+**Check `.env` file exists and has required values:**
 
 ```bash
-cat > frontend/.env.local << EOF
-VITE_API_BASE_URL=http://localhost:8080
-VITE_LOCAL_AUTH_ENABLED=true
-VITE_AWS_REGION=us-east-1
-VITE_S3_BUCKET_NAME=eventpro-images-local
-EOF
+cat .env
 ```
 
-**Note**: Do NOT set `VITE_COGNITO_USER_POOL_ID` or `VITE_COGNITO_CLIENT_ID` - this enables mock auth.
+Should contain:
+
+```txt
+ORDER_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-queue
+PAYMENT_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/payment-queue
+NOTIFICATION_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/notification-queue
+S3_BUCKET_NAME=eventpro-images-local
+COGNITO_USER_POOL_ID=
+COGNITO_CLIENT_ID=
+```
+
+**Check `frontend/.env.local` file:**
+
+```bash
+cat frontend/.env.local
+```
+
+Should contain:
+
+```txt
+VITE_API_BASE_URL=http://localhost:8080
+VITE_COGNITO_USER_POOL_ID=
+VITE_COGNITO_CLIENT_ID=
+VITE_AWS_REGION=us-east-1
+VITE_S3_BUCKET_NAME=eventpro-images-local
+```
+
+**Note**:
+
+- Empty Cognito values enable mock authentication (default)
+- Backend uses `application-local.yml` which has defaults for local development
+- Frontend will use mock auth when Cognito env vars are empty
 
 #### For Real Cognito (Optional)
 
@@ -223,13 +541,20 @@ If you want to use real Cognito (requires LocalStack Pro):
 
 ### Step 4: Start Backend
 
+**Important**: The `.env` file must exist before starting the backend. If you skipped Step 2, run `make local-infra` first.
+
 ```bash
-docker-compose up -d backend
+# Using Make (recommended - automatically uses .env file)
+make local-up
+
+# OR manually with docker-compose (requires .env file)
+docker-compose --env-file .env up -d backend
 ```
 
 **What it does:**
 
-- Starts Spring Boot backend
+- Reads environment variables from `.env` file
+- Starts Spring Boot backend with `SPRING_PROFILES_ACTIVE=local`
 - **Flyway migrations run automatically** during startup
 - Backend available at <http://localhost:8080>
 - [swagger-ui](http://localhost:8080/swagger-ui/index.html)
@@ -246,18 +571,34 @@ curl http://localhost:8080/actuator/health
 # Check migrations
 docker-compose logs backend | grep -i flyway
 # Should see: "Flyway migration successful"
+
+# Check environment variables are loaded
+docker-compose exec backend env | grep -E "ORDER_QUEUE_URL|PAYMENT_QUEUE_URL|NOTIFICATION_QUEUE_URL"
+# Should show the queue URLs from .env file
 ```
+
+**Troubleshooting**: If backend fails to start with "Could not resolve placeholder" errors:
+
+1. Verify `.env` file exists: `cat .env`
+2. Verify it contains SQS queue URLs: `grep QUEUE_URL .env`
+3. Re-run `make local-infra` to regenerate the file
 
 ---
 
 ### Step 5: Start Frontend
 
 ```bash
-docker-compose up -d frontend-dev
+# Using Make (recommended)
+make local-up
+# This starts both backend and frontend
+
+# OR manually
+docker-compose up -d frontend
 ```
 
 **What it does:**
 
+- Reads environment variables from `frontend/.env.local` (created by `make local-infra`)
 - Starts React dev server with hot reload
 - Frontend available at <http://localhost:5173>
 
@@ -268,6 +609,10 @@ docker-compose up -d frontend-dev
 ```bash
 curl http://localhost:5173
 # Should return HTML
+
+# Check frontend environment variables
+docker-compose exec frontend env | grep VITE_
+# Should show frontend configuration
 ```
 
 </details>
@@ -353,7 +698,7 @@ docker-compose logs backend | grep -i "sync\|user"
 
 You should see:
 
-```
+```txt
 Getting current user profile
 User not found in database, syncing from Cognito: cognitoUserId=...
 Successfully auto-synced user from Cognito: id=..., email=...
@@ -445,9 +790,12 @@ export AWS_ACCESS_KEY_ID=test
 export AWS_SECRET_ACCESS_KEY=test
 export LOCAL_AUTH_ENABLED=true  # Enable mock auth
 
-# Get S3 bucket name from Terraform (if needed)
+# Get required values from Terraform
 cd infrastructure/environments/local
 export S3_BUCKET_NAME=$(terraform output -raw s3_images_bucket_name)
+export ORDER_QUEUE_URL=$(terraform output -raw sqs_order_queue_url)
+export PAYMENT_QUEUE_URL=$(terraform output -raw sqs_payment_queue_url)
+export NOTIFICATION_QUEUE_URL=$(terraform output -raw sqs_notification_queue_url)
 cd ../../..
 
 # Run backend
@@ -488,7 +836,7 @@ cat frontend/.env.local
 # Should NOT have: VITE_COGNITO_USER_POOL_ID
 
 # Restart frontend
-docker-compose restart frontend-dev
+docker-compose restart frontend
 ```
 
 **Solution** (Real Cognito):
@@ -573,15 +921,58 @@ docker-compose ps postgres  # Should show "healthy"
 **Solution**:
 
 ```bash
-# Re-provision resources
-cd infrastructure/environments/local
-terraform apply -auto-approve
-cd ../../..
+# Re-provision resources and regenerate .env file
+make local-infra
 
 # Verify resources exist
 aws --endpoint-url=http://localhost:4566 s3 ls
 aws --endpoint-url=http://localhost:4566 sqs list-queues
+
+# Verify .env file has correct values
+cat .env | grep QUEUE_URL
 ```
+
+---
+
+### Issue: Backend Fails with "Could not resolve placeholder" Error
+
+**Symptoms**: Spring Boot startup fails with errors like:
+
+```txt
+Could not resolve placeholder 'aws.sqs.orderQueueUrl' in value "${aws.sqs.orderQueueUrl}"
+```
+
+**Solution**:
+
+1. **Verify `.env` file exists and has SQS queue URLs**:
+
+   ```bash
+   cat .env
+   # Should contain ORDER_QUEUE_URL, PAYMENT_QUEUE_URL, NOTIFICATION_QUEUE_URL
+   ```
+
+2. **Regenerate `.env` file**:
+
+   ```bash
+   make local-infra
+   ```
+
+3. **Verify docker-compose is using `.env` file**:
+
+   ```bash
+   # Make sure you're using --env-file .env
+   docker-compose --env-file .env up -d backend
+   
+   # OR use make command which does this automatically
+   make local-up
+   ```
+
+4. **Check environment variables in container**:
+
+   ```bash
+   docker-compose exec backend env | grep QUEUE_URL
+   # Should show the queue URLs
+   ```
 
 ---
 
@@ -648,7 +1039,7 @@ docker-compose logs -f
 
 # View specific service logs
 docker-compose logs -f backend
-docker-compose logs -f frontend-dev
+docker-compose logs -f frontend
 docker-compose logs -f postgres
 docker-compose logs -f localstack
 
@@ -657,7 +1048,7 @@ docker-compose ps
 
 # Restart a specific service
 docker-compose restart backend
-docker-compose restart frontend-dev
+docker-compose restart frontend
 ```
 
 ### Terraform
@@ -728,9 +1119,10 @@ When deploying to **dev**, **staging**, or **production** environments, you need
 
 ### Backend Configuration
 
-**Important**: The `application-local.yml` file is **only used when `SPRING_PROFILES_ACTIVE=local`**. 
+**Important**: The `application-local.yml` file is **only used when `SPRING_PROFILES_ACTIVE=local`**.
 
 **✅ Safe Default Behavior**: If you **don't set `SPRING_PROFILES_ACTIVE`** (or set it to anything other than `local`), the application will:
+
 - Use the base `application.yml` (which doesn't have mock auth config)
 - **Automatically use real Cognito** (because `CognitoConfig` has `matchIfMissing = true`)
 - **NOT load mock auth** (because `LocalAuthConfig` has `matchIfMissing = false`)
@@ -761,6 +1153,7 @@ AWS_REGION=us-east-1
 ```
 
 **Remove LocalStack endpoints** (if any):
+
 - Don't set `AWS_ENDPOINT_URL` (or set it empty)
 - The application will use real AWS services
 

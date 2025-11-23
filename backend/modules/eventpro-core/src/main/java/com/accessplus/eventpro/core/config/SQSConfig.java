@@ -22,13 +22,13 @@ public class SQSConfig {
     @Value("${aws.sqs.endpoint:}")
     private String sqsEndpoint; // Optional: for LocalStack or custom endpoints
 
-    @Value("${aws.sqs.orderQueueUrl}")
+    @Value("${aws.sqs.orderQueueUrl:}")
     private String orderQueueUrl;
 
-    @Value("${aws.sqs.paymentQueueUrl}")
+    @Value("${aws.sqs.paymentQueueUrl:}")
     private String paymentQueueUrl;
 
-    @Value("${aws.sqs.notificationQueueUrl}")
+    @Value("${aws.sqs.notificationQueueUrl:}")
     private String notificationQueueUrl;
 
     /**
@@ -41,7 +41,7 @@ public class SQSConfig {
     public SqsClient sqsClient() {
         var builder = SqsClient.builder()
                 .region(Region.of(awsRegion))
-                .credentialsProvider(DefaultCredentialsProvider.create());
+                .credentialsProvider(DefaultCredentialsProvider.builder().build());
 
         // Configure custom endpoint if provided (for LocalStack)
         if (sqsEndpoint != null && !sqsEndpoint.isEmpty()) {
