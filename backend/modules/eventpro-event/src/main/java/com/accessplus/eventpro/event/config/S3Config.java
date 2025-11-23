@@ -24,7 +24,7 @@ public class S3Config {
     @Value("${aws.s3.endpoint:}")
     private String s3Endpoint; // Optional: for LocalStack or custom endpoints
 
-    @Value("${aws.s3.bucketName}")
+    @Value("${aws.s3.bucketName:eventpro-images-local}")
     private String bucketName;
 
     /**

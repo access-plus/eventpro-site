@@ -28,13 +28,13 @@ import java.util.stream.Collectors;
 @ConditionalOnProperty(
     name = "local.auth.enabled",
     havingValue = "false",
-    matchIfMissing = true
+    matchIfMissing = false
 )
 public class CognitoAdminService implements CognitoAdminServiceInterface {
 
     private final CognitoIdentityProviderClient cognitoClient;
 
-    @Value("${aws.cognito.userPoolId}")
+    @Value("${aws.cognito.userPoolId:}")
     private String userPoolId;
 
     /**
@@ -51,6 +51,13 @@ public class CognitoAdminService implements CognitoAdminServiceInterface {
      */
     public void promoteUserToOrganizer(String cognitoUserId) {
         log.info("Promoting user to ORGANIZER role: cognitoUserId={}", cognitoUserId);
+
+        if (userPoolId == null || userPoolId.trim().isEmpty()) {
+            throw new IllegalStateException(
+                "aws.cognito.userPoolId must be configured when using CognitoAdminService. " +
+                "Either set COGNITO_USER_POOL_ID environment variable or set local.auth.enabled=true for local development."
+            );
+        }
 
         try {
             // Cognito Admin API accepts either username (email) or sub claim as username parameter
@@ -78,6 +85,13 @@ public class CognitoAdminService implements CognitoAdminServiceInterface {
      */
     public Map<String, String> getUserAttributes(String cognitoUserId) {
         log.debug("Getting user attributes from Cognito: cognitoUserId={}", cognitoUserId);
+
+        if (userPoolId == null || userPoolId.trim().isEmpty()) {
+            throw new IllegalStateException(
+                "aws.cognito.userPoolId must be configured when using CognitoAdminService. " +
+                "Either set COGNITO_USER_POOL_ID environment variable or set local.auth.enabled=true for local development."
+            );
+        }
 
         try {
             AdminGetUserRequest request = AdminGetUserRequest.builder()

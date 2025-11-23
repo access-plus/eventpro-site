@@ -30,7 +30,7 @@ import java.util.Map;
 @ConditionalOnProperty(
     name = "local.auth.enabled",
     havingValue = "true",
-    matchIfMissing = false
+    matchIfMissing = true
 )
 public class LocalAuthConfig {
 

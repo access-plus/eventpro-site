@@ -68,9 +68,15 @@ services:
       - AWS_REGION=us-east-1
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
+      - LOCAL_AUTH_ENABLED=true
       - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID:-}
       - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID:-}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME:-eventpro-images-local}
+      # SQS Queue URLs - loaded from .env file (created by make local-infra)
+      # If not set, application-local.yml defaults will be used
+      - ORDER_QUEUE_URL=${ORDER_QUEUE_URL:-}
+      - PAYMENT_QUEUE_URL=${PAYMENT_QUEUE_URL:-}
+      - NOTIFICATION_QUEUE_URL=${NOTIFICATION_QUEUE_URL:-}
       # Enable DevTools for hot reload
       - SPRING_DEVTOOLS_RESTART_ENABLED=true
     command: >
@@ -89,9 +95,9 @@ services:
     tty: true
 
   # Frontend Development Server - Hot Module Replacement enabled
-  frontend-dev:
+  frontend:
     image: node:22-alpine
-    container_name: frontend-dev
+    container_name: frontend
     working_dir: /app
     volumes:
       - ./frontend:/app
