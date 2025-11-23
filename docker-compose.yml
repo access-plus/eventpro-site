@@ -23,7 +23,7 @@ services:
 
   # LocalStack - AWS services emulation for local development
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:4.10.0
     container_name: localstack
     environment:
       - SERVICES=sqs,s3,secretsmanager,cognito-idp,sns,ses

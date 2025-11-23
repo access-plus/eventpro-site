@@ -62,7 +62,10 @@ public class UserEntity extends BaseEntity {
     
     /**
      * Events created by this user (as organizer).
-     * To be implemented when EventEntity is created.
+     * 
+     * NOTE: This relationship is commented out to avoid circular dependency.
+     * The eventpro-core module does not depend on eventpro-event module.
+     * To get events for a user, use EventRepository.findByOrganizerId(userId) instead.
      */
     // @OneToMany(mappedBy = "organizer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     // private List<EventEntity> events = new ArrayList<>();
