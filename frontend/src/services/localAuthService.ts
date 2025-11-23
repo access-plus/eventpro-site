@@ -30,15 +30,16 @@ const generateMockJWT = (claims: Record<string, any>): string => {
     typ: 'JWT',
   };
 
+  // Build payload with proper defaults - use given_name/family_name (not firstName/lastName)
   const payload = {
     sub: claims['sub'] || `local-user-${generateId()}`,
     email: claims['email'] || 'dev@local.test',
-    given_name: claims['firstName'] || 'Local',
-    family_name: claims['lastName'] || 'Developer',
-    'cognito:groups': claims['groups'] || ['USER'],
+    given_name: claims['given_name'] || claims['firstName'] || 'Local',
+    family_name: claims['family_name'] || claims['lastName'] || 'Developer',
+    'cognito:groups': claims['cognito:groups'] || claims['groups'] || ['USER'],
     iat: Math.floor(Date.now() / 1000) - 60,
     exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
-    ...claims,
+    ...claims, // Spread claims last to allow overrides
   };
 
   // Base64URL encode (without padding)

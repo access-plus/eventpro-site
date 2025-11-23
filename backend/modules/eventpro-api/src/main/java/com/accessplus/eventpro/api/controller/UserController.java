@@ -7,7 +7,6 @@ import com.accessplus.eventpro.api.dto.UserResponse;
 import com.accessplus.eventpro.core.common.exception.ValidationException;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
-import com.accessplus.eventpro.core.user.service.CognitoAdminService;
 import com.accessplus.eventpro.core.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -39,7 +38,7 @@ import java.util.UUID;
  */
 @Slf4j
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 @Tag(name = "Users", description = "User management API")
 @SecurityRequirement(name = "bearerAuth")
@@ -159,52 +158,52 @@ public class UserController extends BaseController {
                description = "Syncs the current authenticated user from Cognito to the application database. " +
                              "This endpoint should be called after user signup to create the user record in the database.")
     public ResponseEntity<ApiResponse<UserResponse>> syncUser() {
-        log.debug("Syncing user from Cognito to database");
+        log.info("Syncing user from Cognito to database");
 
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        
-        // Check if user already exists
-        try {
-            UserEntity existingUser = userService.getUserByCognitoId(cognitoUserId);
+            String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
+            
+            // Check if user already exists
+            try {
+                UserEntity existingUser = userService.getUserByCognitoId(cognitoUserId);
             log.debug("User already exists in database: cognitoUserId={}", cognitoUserId);
-            UserResponse response = UserResponse.fromEntity(existingUser);
-            return ResponseEntity.ok(ApiResponse.success(response, "User already synced"));
-        } catch (com.accessplus.eventpro.core.common.exception.ResourceNotFoundException e) {
-            // User doesn't exist, proceed with sync
-            log.debug("User not found in database, syncing from Cognito: cognitoUserId={}", cognitoUserId);
-        }
+                UserResponse response = UserResponse.fromEntity(existingUser);
+                return ResponseEntity.ok(ApiResponse.success(response, "User already synced"));
+            } catch (com.accessplus.eventpro.core.common.exception.ResourceNotFoundException e) {
+                // User doesn't exist, proceed with sync
+                log.debug("User not found in database, syncing from Cognito: cognitoUserId={}", cognitoUserId);
+            }
 
-        // Extract user attributes from JWT token
-        String email = JwtUtils.getClaim("email");
-        String firstName = JwtUtils.getClaim("given_name");
-        String lastName = JwtUtils.getClaim("family_name");
-        String phoneNumber = JwtUtils.getClaim("phone_number");
+            // Extract user attributes from JWT token
+            String email = JwtUtils.getClaim("email");
+            String firstName = JwtUtils.getClaim("given_name");
+            String lastName = JwtUtils.getClaim("family_name");
+            String phoneNumber = JwtUtils.getClaim("phone_number");
 
-        // Validate required fields
-        if (email == null || email.isEmpty()) {
-            throw new ValidationException("Email is required but not found in token");
-        }
-        if (firstName == null || firstName.isEmpty()) {
-            throw new ValidationException("First name is required but not found in token");
-        }
-        if (lastName == null || lastName.isEmpty()) {
-            throw new ValidationException("Last name is required but not found in token");
-        }
+            // Validate required fields
+            if (email == null || email.isEmpty()) {
+                throw new ValidationException("Email is required but not found in token");
+            }
+            if (firstName == null || firstName.isEmpty()) {
+                throw new ValidationException("First name is required but not found in token");
+            }
+            if (lastName == null || lastName.isEmpty()) {
+                throw new ValidationException("Last name is required but not found in token");
+            }
 
-        // Create user in database
-        UserEntity user = userService.createUserFromCognito(
-                cognitoUserId,
-                email,
-                firstName,
-                lastName,
-                phoneNumber
-        );
+            // Create user in database
+            UserEntity user = userService.createUserFromCognito(
+                    cognitoUserId,
+                    email,
+                    firstName,
+                    lastName,
+                    phoneNumber
+            );
 
-        UserResponse response = UserResponse.fromEntity(user);
-        log.info("Successfully synced user from Cognito: id={}, email={}, cognitoUserId={}", 
-                user.getId(), user.getEmail(), user.getCognitoUserId());
+            UserResponse response = UserResponse.fromEntity(user);
+            log.info("Successfully synced user from Cognito: id={}, email={}, cognitoUserId={}", 
+                    user.getId(), user.getEmail(), user.getCognitoUserId());
 
-        return ResponseEntity.ok(ApiResponse.success(response, "User synced successfully"));
+            return ResponseEntity.ok(ApiResponse.success(response, "User synced successfully"));
     }
 
     @PostMapping("/admin/users/{userId}/promote")

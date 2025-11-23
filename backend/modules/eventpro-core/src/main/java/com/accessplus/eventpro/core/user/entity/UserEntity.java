@@ -7,9 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * User entity representing application users (customers, organizers, admins).
  * 
@@ -35,7 +32,7 @@ import java.util.List;
  * </ul>
  */
 @Entity
-@Table(name = "user", indexes = {
+@Table(name = "users", indexes = {
     @Index(name = "idx_user_email", columnList = "email"),
     @Index(name = "idx_user_cognito_id", columnList = "cognito_user_id")
 })

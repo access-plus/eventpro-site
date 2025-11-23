@@ -52,10 +52,13 @@ services:
     container_name: backend
     working_dir: /app
     volumes:
+      # Mount entire backend directory - source code and build outputs
+      # This allows DevTools to detect changes and hot reload
       - ./backend:/app
       - gradle_cache:/root/.gradle
     ports:
       - "8080:8080"
+      - "35729:35729"  # DevTools LiveReload port
     environment:
       - SPRING_PROFILES_ACTIVE=local
       - DB_URL=jdbc:postgresql://postgres:5432/eventpro
@@ -68,10 +71,12 @@ services:
       - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID:-}
       - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID:-}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME:-eventpro-images-local}
+      # Enable DevTools for hot reload
+      - SPRING_DEVTOOLS_RESTART_ENABLED=true
     command: >
       sh -c "
         chmod +x ./gradlew &&
-        ./gradlew :eventpro-api:bootRun --no-daemon
+        ./gradlew :eventpro-api:bootRun --no-daemon --continuous
       "
     depends_on:
       postgres:

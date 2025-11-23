@@ -23,12 +23,16 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     
-    // Database Migration
-    implementation 'org.flywaydb:flyway-core'
+    // Database Migration - Use Spring Boot starter for proper auto-configuration
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    // PostgreSQL 16 support (required for PostgreSQL 16.11)
     implementation 'org.flywaydb:flyway-database-postgresql'
     
     // OpenAPI/Swagger Documentation
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13'
+    
+    // Spring Boot DevTools (for hot reload in development)
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
     
     // Lombok
     compileOnly "org.projectlombok:lombok:${project.ext.lombokVersion}"
