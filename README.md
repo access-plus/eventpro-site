@@ -76,6 +76,60 @@ cd backend
 docker build -t backend:latest .
 ```
 
+<details>
+<summary><strong>Test Reports & Coverage</strong></summary>
+
+#### Run Tests
+
+```bash
+cd backend
+./gradlew test
+```
+
+#### View Test Reports
+
+After running tests, HTML reports are generated for each module:
+
+- **Test Reports**: `backend/modules/{module}/build/reports/tests/test/index.html`
+- **Coverage Reports**: `backend/modules/{module}/build/reports/jacoco/test/html/index.html`
+
+#### Show All Report Locations
+
+```bash
+cd backend
+./gradlew showTestReports
+```
+
+This command displays all test and coverage report locations across all modules.
+
+#### Generate Aggregated Coverage Report
+
+```bash
+cd backend
+./gradlew jacocoRootReport
+```
+
+Generates an aggregated coverage report for all modules at:
+- `backend/build/reports/jacoco/root/jacocoRootReport.xml`
+- `backend/build/reports/jacoco/root/html/index.html`
+
+#### Run Tests for Specific Module
+
+```bash
+cd backend
+./gradlew :eventpro-order:test
+./gradlew :eventpro-event:test
+./gradlew :eventpro-core:test
+```
+
+#### View Reports in Browser
+
+Open the HTML files directly in your browser:
+- Test results: Open `index.html` in `build/reports/tests/test/`
+- Coverage: Open `index.html` in `build/reports/jacoco/test/html/`
+
+</details>
+
 ## Local Development
 
 ### Prerequisites

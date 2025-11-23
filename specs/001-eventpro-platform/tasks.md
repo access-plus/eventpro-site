@@ -304,137 +304,140 @@
 
 ### Backend: Category Entity
 
-- [ ] T4-001 [P] [US-EVENT-002] Create `CategoryEntity` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/category/entity/CategoryEntity.java`
-- [ ] T4-002 [P] [US-EVENT-002] Create `CategoryRepository` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/category/repository/CategoryRepository.java`
-- [ ] T4-005 [US-EVENT-002] Write unit tests for `CategoryRepository`
+- [X] T4-001 [P] [US-EVENT-002] Create `CategoryEntity` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/category/entity/CategoryEntity.java`
+- [X] T4-002 [P] [US-EVENT-002] Create `CategoryRepository` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/category/repository/CategoryRepository.java`
 
 ### Backend: Address Entity
 
-- [ ] T4-006 [P] [US-EVENT-003] Create `AddressEntity` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/address/entity/AddressEntity.java`
-- [ ] T4-007 [P] [US-EVENT-003] Add one-to-one relationship with Event
-- [ ] T4-008 [US-EVENT-003] Create `AddressRepository` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/address/repository/AddressRepository.java`
-- [ ] T4-010 [US-EVENT-003] Write unit tests for `AddressRepository`
+- [X] T4-006 [P] [US-EVENT-003] Create `AddressEntity` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/address/entity/AddressEntity.java`
+- [X] T4-007 [P] [US-EVENT-003] Add one-to-one relationship with Event (placeholder added, will be activated when EventEntity is created)
+- [X] T4-008 [US-EVENT-003] Create `AddressRepository` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/address/repository/AddressRepository.java`
 
 ### Backend: Event Entity
 
-- [ ] T4-011 [US-EVENT-001] Create `EventEntity` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/event/entity/EventEntity.java`
-- [ ] T4-012 [US-EVENT-001] Add relationships: organizer (User), category, address, tickets
-- [ ] T4-013 [US-EVENT-001] Create `EventRepository` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/event/repository/EventRepository.java`
-- [ ] T4-014 [US-EVENT-001] Add custom query methods: `findByCategory`, `findByOrganizer`, `findByMarketingEnabled`
-- [ ] T4-016 [US-EVENT-001] Write unit tests for `EventRepository`
+- [X] T4-011 [US-EVENT-001] Create `EventEntity` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/event/entity/EventEntity.java`
+- [X] T4-012 [US-EVENT-001] Add relationships: organizer (User), category, address, tickets
+- [X] T4-013 [US-EVENT-001] Create `EventRepository` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/event/repository/EventRepository.java`
+- [X] T4-014 [US-EVENT-001] Add custom query methods: `findByCategory`, `findByOrganizer`, `findByMarketingEnabled`
+- [X] T4-015 [US-EVENT-001] execute `./gradlew clean build` the backend
 
 ### Backend: S3 Image Service
 
-- [ ] T180 [US-EVENT-005] Add AWS S3 SDK v2 dependency to `eventpro-api/modules/eventpro-event/build.gradle`
-- [ ] T181 [US-EVENT-005] Create `AWSS3ImageService` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/service/AWSS3ImageService.java`
-- [ ] T182 [US-EVENT-005] Implement `uploadImage` method (multipart file upload)
-- [ ] T183 [US-EVENT-005] Implement `deleteImage` method
-- [ ] T184 [US-EVENT-005] Implement `getImageUrl` method
-- [ ] T185 [US-EVENT-005] Add image validation (size, format: JPEG, PNG, WebP)
-- [ ] T186 [US-EVENT-005] Add image optimization (resize, compress) - optional
-- [ ] T187 [US-EVENT-005] Write unit tests for `AWSS3ImageService`
+- [X] T4-016 [US-EVENT-005] Add AWS S3 SDK v2 dependency to `eventpro-api/modules/eventpro-event/build.gradle`
+- [X] T4-017 [US-EVENT-005] Create `AWSS3ImageService` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/service/AWSS3ImageService.java`
+- [X] T4-018 [US-EVENT-005] Implement `uploadImage` method (multipart file upload)
+- [X] T4-019 [US-EVENT-005] Implement `deleteImage` method
+- [X] T4-020 [US-EVENT-005] Implement `getImageUrl` method
+- [X] T4-021 [US-EVENT-005] Add image validation (size, format: JPEG, PNG, WebP)
+- [ ] T4-022 [US-EVENT-005] Add image optimization (resize, compress) - optional
+- [X] T4-022 [US-EVENT-005] Write unit tests for `AWSS3ImageService`
+- [ ] T4-023 [US-EVENT-001] execute `./gradlew clean build` the backend
 
 ### Backend: Event Service
 
-- [ ] T188 [US-EVENT-004] Create `EventService` interface in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/event/service/EventService.java`
-- [ ] T189 [US-EVENT-004] Create `EventServiceImpl` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/event/service/EventServiceImpl.java`
-- [ ] T190 [US-EVENT-004] Implement `createEvent` method (with image upload)
-- [ ] T191 [US-EVENT-004] Implement `updateEvent` method
-- [ ] T192 [US-EVENT-004] Implement `deleteEvent` method
-- [ ] T193 [US-EVENT-004] Implement `getEventById` method
-- [ ] T194 [US-EVENT-004] Implement `getAllEvents` method (paginated)
-- [ ] T195 [US-EVENT-004] Implement `getEventsByCategory` method
-- [ ] T196 [US-EVENT-004] Implement `getEventsByOrganizer` method
-- [ ] T197 [US-EVENT-004] Add error handling and validation
-- [ ] T198 [US-EVENT-004] Write unit tests for `EventService` (>80% coverage)
+- [X] T4-024 [US-EVENT-004] Create `EventService` interface in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/event/service/EventService.java`
+- [X] T4-025 [US-EVENT-004] Create `EventServiceImpl` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/event/service/EventServiceImpl.java`
+- [X] T4-026 [US-EVENT-004] Implement `createEvent` method (with image upload)
+- [X] T4-027 [US-EVENT-004] Implement `updateEvent` method
+- [X] T4-028 [US-EVENT-004] Implement `deleteEvent` method
+- [X] T4-029 [US-EVENT-004] Implement `getEventById` method
+- [X] T4-030 [US-EVENT-004] Implement `getAllEvents` method (paginated)
+- [X] T4-031 [US-EVENT-004] Implement `getEventsByCategory` method
+- [X] T4-032 [US-EVENT-004] Implement `getEventsByOrganizer` method
+- [X] T4-033 [US-EVENT-004] Add error handling and validation
+- [X] T4-034 [US-EVENT-004] Write unit tests for `EventService` (>80% coverage)
+- [ ] T4-035 [US-EVENT-001] execute `./gradlew clean build` the backend
 
 ### Backend: Event Controller
 
 **Reference**: See `/README.md` "Events API" section for complete endpoint specifications, request/response DTOs, multipart form-data structure, and AddressEntity definition.
 
-- [ ] T199 [US-EVENT-006] Create `EventController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/EventController.java`
-- [ ] T200 [US-EVENT-006] Implement `POST /api/v1/events` endpoint (admin/organizer only) - **Reference**: README.md Events API `POST /` for multipart/form-data structure (request JSON part with EventCreateRequest fields: name, description, startTime, endTime, marketingEnabled, category, address), imageFile part, and response structure (`EventResponse` with all address fields flattened)
-- [ ] T201 [US-EVENT-006] Implement `GET /api/v1/events/{id}` endpoint (public) - **Reference**: README.md Events API `GET /{eventId}` for response structure (`List<EventResponse>`)
-- [ ] T202 [US-EVENT-006] Implement `GET /api/v1/events` endpoint (public, paginated, searchable) - **Reference**: README.md Events API `GET /` for response structure (`List<EventResponse>`)
-- [ ] T203 [US-EVENT-006] Implement `GET /api/v1/events/category/{categoryId}` endpoint (public) - **Reference**: README.md Events API `GET /category/{categoryName}` (note: uses categoryName, not categoryId)
-- [ ] T204 [US-EVENT-006] Implement `PATCH /api/v1/events/{id}` endpoint (admin/organizer only) - **Reference**: README.md Events API `PATCH /{eventId}` for request structure (`EventUpdateRequest` with optional fields), query parameter `imageFile` (MultipartFile), and response structure
-- [ ] T205 [US-EVENT-006] Implement `DELETE /api/v1/events/{id}` endpoint (admin/organizer only) - **Reference**: README.md Events API `DELETE /{eventId}` for response (Void, 200 OK)
-- [ ] T206 [US-EVENT-006] Add multipart file upload support for image in POST endpoint - **Reference**: README.md Events API `POST /` for Content-Type `multipart/form-data` with `request` (JSON string) and `imageFile` (MultipartFile) parts
-- [ ] T207 [US-EVENT-006] Create DTOs: `EventResponse`, `CreateEventRequest`, `UpdateEventRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Events API section for complete field definitions (EventResponse: id, name, description, imageUrl, marketingEnabled, startTime, endTime, userId, categoryId, categoryName, address fields flattened; EventCreateRequest: name, description, startTime, endTime, marketingEnabled, category, address; EventUpdateRequest: all optional fields)
-- [ ] T207a [US-EVENT-006] Create `AddressEntity` DTO matching README.md structure: street, city (required), state, zipCode, country (required), id, createdAt, updatedAt from BaseEntity
-- [ ] T208 [US-EVENT-006] Add role-based authorization with `@PreAuthorize`
-- [ ] T209 [US-EVENT-006] Write integration tests for all EventController endpoints
+- [X] T4-036 [US-EVENT-006] Create `EventController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/EventController.java`
+- [X] T4-037 [US-EVENT-006] Implement `POST /api/v1/events` endpoint (admin/organizer only) - **Reference**: README.md Events API `POST /` for multipart/form-data structure (request JSON part with EventCreateRequest fields: name, description, startTime, endTime, marketingEnabled, category, address), imageFile part, and response structure (`EventResponse` with all address fields flattened)
+- [X] T4-037 [US-EVENT-006] Implement `GET /api/v1/events/{id}` endpoint (public) - **Reference**: README.md Events API `GET /{eventId}` for response structure (`List<EventResponse>`)
+- [X] T4-038 [US-EVENT-006] Implement `GET /api/v1/events` endpoint (public, paginated, searchable) - **Reference**: README.md Events API `GET /` for response structure (`List<EventResponse>`)
+- [X] T4-039 [US-EVENT-006] Implement `GET /api/v1/events/category/{categoryId}` endpoint (public) - **Reference**: README.md Events API `GET /category/{categoryName}` (note: uses categoryName, not categoryId)
+- [X] T4-040 [US-EVENT-006] Implement `PATCH /api/v1/events/{id}` endpoint (admin/organizer only) - **Reference**: README.md Events API `PATCH /{eventId}` for request structure (`EventUpdateRequest` with optional fields), query parameter `imageFile` (MultipartFile), and response structure
+- [X] T4-041 [US-EVENT-006] Implement `DELETE /api/v1/events/{id}` endpoint (admin/organizer only) - **Reference**: README.md Events API `DELETE /{eventId}` for response (Void, 200 OK)
+- [X] T4-042 [US-EVENT-006] Add multipart file upload support for image in POST endpoint - **Reference**: README.md Events API `POST /` for Content-Type `multipart/form-data` with `request` (JSON string) and `imageFile` (MultipartFile) parts
+- [X] T4-043 [US-EVENT-006] Create DTOs: `EventResponse`, `CreateEventRequest`, `UpdateEventRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Events API section for complete field definitions (EventResponse: id, name, description, imageUrl, marketingEnabled, startTime, endTime, userId, categoryId, categoryName, address fields flattened; EventCreateRequest: name, description, startTime, endTime, marketingEnabled, category, address; EventUpdateRequest: all optional fields)
+- [X] T4-044 [US-EVENT-006] Create `AddressEntity` DTO matching README.md structure: street, city (required), state, zipCode, country (required), id, createdAt, updatedAt from BaseEntity
+- [X] T4-045 [US-EVENT-006] Add role-based authorization with `@PreAuthorize`
+- [ ] T4-046 [US-EVENT-006] Write integration tests for all EventController endpoints
+- [X] T4-047 [US-EVENT-001] execute `./gradlew clean build` the backend
 
 ### Frontend: Redux Event Slice
 
-- [ ] T210 [US-EVENT-011] Create `web/src/store/slices/eventSlice.ts` with Redux Toolkit
-- [ ] T211 [US-EVENT-011] Define event state: `events`, `currentEvent`, `isLoading`, `error`
-- [ ] T212 [US-EVENT-011] Create actions: `setEvents`, `setCurrentEvent`, `setLoading`, `setError`
-- [ ] T213 [US-EVENT-011] Create async thunks: `fetchEvents`, `fetchEvent`, `createEvent`, `updateEvent`, `deleteEvent`
-- [ ] T214 [US-EVENT-011] Add caching logic for events
-- [ ] T215 [US-EVENT-011] Write unit tests for `eventSlice.ts`
+- [ ] T4-048 [US-EVENT-011] Create `web/src/store/slices/eventSlice.ts` with Redux Toolkit
+- [ ] T4-049 [US-EVENT-011] Define event state: `events`, `currentEvent`, `isLoading`, `error`
+- [ ] T4-050 [US-EVENT-011] Create actions: `setEvents`, `setCurrentEvent`, `setLoading`, `setError`
+- [ ] T4-051 [US-EVENT-011] Create async thunks: `fetchEvents`, `fetchEvent`, `createEvent`, `updateEvent`, `deleteEvent`
+- [ ] T4-052 [US-EVENT-011] Add caching logic for events
+- [ ] T4-053 [US-EVENT-011] Write unit tests for `eventSlice.ts`
+- [ ] T4-019 [US-EVENT-001] execute `npm run build` the frontend
 
 ### Frontend: Event API Service
 
-- [ ] T216 [US-EVENT-007] Create `web/src/services/eventService.ts` with API client
-- [ ] T217 [US-EVENT-007] Implement `getEvents` method (with pagination, search, category filter)
-- [ ] T218 [US-EVENT-007] Implement `getEventById` method
-- [ ] T219 [US-EVENT-007] Implement `createEvent` method (with image upload)
-- [ ] T220 [US-EVENT-007] Implement `updateEvent` method
-- [ ] T221 [US-EVENT-007] Implement `deleteEvent` method
-- [ ] T222 [US-EVENT-007] Add error handling and retry logic
-- [ ] T223 [US-EVENT-007] Write unit tests for `eventService.ts`
+- [ ] T4-054 [US-EVENT-007] Create `web/src/services/eventService.ts` with API client
+- [ ] T4-055 [US-EVENT-007] Implement `getEvents` method (with pagination, search, category filter)
+- [ ] T4-056 [US-EVENT-007] Implement `getEventById` method
+- [ ] T4-057 [US-EVENT-007] Implement `createEvent` method (with image upload)
+- [ ] T4-058 [US-EVENT-007] Implement `updateEvent` method
+- [ ] T4-059 [US-EVENT-007] Implement `deleteEvent` method
+- [ ] T4-060 [US-EVENT-007] Add error handling and retry logic
+- [ ] T4-061 [US-EVENT-007] Write unit tests for `eventService.ts`
+- [ ] T4-020 [US-EVENT-001] execute `npm run build` the frontend
 
 ### Frontend: Event Listing Page
 
-- [ ] T224 [US-EVENT-007] Create `web/src/pages/Events.tsx` page component
-- [ ] T225 [US-EVENT-007] Create event card component in `web/src/components/events/EventCard.tsx`
-- [ ] T226 [US-EVENT-007] Display event cards with image, name, date, location
-- [ ] T227 [US-EVENT-007] Implement pagination or infinite scroll
-- [ ] T228 [US-EVENT-007] Create category filter component
-- [ ] T229 [US-EVENT-007] Create search input component
-- [ ] T230 [US-EVENT-007] Implement sort by date, popularity
-- [ ] T231 [US-EVENT-007] Add loading states (skeleton loaders)
-- [ ] T232 [US-EVENT-007] Add error handling and error messages
-- [ ] T233 [US-EVENT-007] Make page responsive
-- [ ] T234 [US-EVENT-007] Integrate with Redux `eventSlice`
+- [ ] T4-062 [US-EVENT-007] Create `web/src/pages/Events.tsx` page component
+- [ ] T4-063 [US-EVENT-007] Create event card component in `web/src/components/events/EventCard.tsx`
+- [ ] T4-064 [US-EVENT-007] Display event cards with image, name, date, location
+- [ ] T4-065 [US-EVENT-007] Implement pagination or infinite scroll
+- [ ] T4-066 [US-EVENT-007] Create category filter component
+- [ ] T4-067 [US-EVENT-007] Create search input component
+- [ ] T4-068 [US-EVENT-007] Implement sort by date, popularity
+- [ ] T4-069 [US-EVENT-007] Add loading states (skeleton loaders)
+- [ ] T4-070 [US-EVENT-007] Add error handling and error messages
+- [ ] T4-071 [US-EVENT-007] Make page responsive
+- [ ] T4-072 [US-EVENT-007] Integrate with Redux `eventSlice`
 
 ### Frontend: Event Detail Page
 
-- [ ] T235 [US-EVENT-008] Create `web/src/pages/EventDetail.tsx` page component
-- [ ] T236 [US-EVENT-008] Display event image, name, description, date, location
-- [ ] T237 [US-EVENT-008] Display event organizer information
-- [ ] T238 [US-EVENT-008] Display available tickets (from ticket component)
-- [ ] T239 [US-EVENT-008] Integrate map component for location (Google Maps or similar)
-- [ ] T240 [US-EVENT-008] Add share functionality (social sharing)
-- [ ] T241 [US-EVENT-008] Add loading states
-- [ ] T242 [US-EVENT-008] Add error handling
-- [ ] T243 [US-EVENT-008] Make page responsive
+- [ ] T4-073 [US-EVENT-008] Create `web/src/pages/EventDetail.tsx` page component
+- [ ] T4-074 [US-EVENT-008] Display event image, name, description, date, location
+- [ ] T4-075 [US-EVENT-008] Display event organizer information
+- [ ] T4-076 [US-EVENT-008] Display available tickets (from ticket component)
+- [ ] T4-077 [US-EVENT-008] Integrate map component for location (Google Maps or similar)
+- [ ] T4-078 [US-EVENT-008] Add share functionality (social sharing)
+- [ ] T4-079 [US-EVENT-008] Add loading states
+- [ ] T4-080 [US-EVENT-008] Add error handling
+- [ ] T4-081 [US-EVENT-008] Make page responsive
 
 ### Frontend: Event Creation Form
 
-- [ ] T244 [US-EVENT-009] Create `web/src/pages/CreateEvent.tsx` page component
-- [ ] T245 [US-EVENT-009] Create event form with fields: name, description, category, startTime, endTime, address, image
-- [ ] T246 [US-EVENT-009] Add form validation (all required fields, date validation)
-- [ ] T247 [US-EVENT-009] Create image upload component with preview
-- [ ] T248 [US-EVENT-009] Integrate address autocomplete (Google Places API or similar)
-- [ ] T249 [US-EVENT-009] Add date/time picker component
-- [ ] T250 [US-EVENT-009] Implement save functionality (POST to API)
-- [ ] T251 [US-EVENT-009] Add success/error messages
-- [ ] T252 [US-EVENT-009] Add loading states
-- [ ] T253 [US-EVENT-009] Make form responsive
-- [ ] T254 [US-EVENT-009] Protect route (organizer/admin only)
+- [ ] T4-082 [US-EVENT-009] Create `web/src/pages/CreateEvent.tsx` page component
+- [ ] T4-083 [US-EVENT-009] Create event form with fields: name, description, category, startTime, endTime, address, image
+- [ ] T4-084 [US-EVENT-009] Add form validation (all required fields, date validation)
+- [ ] T4-085 [US-EVENT-009] Create image upload component with preview
+- [ ] T4-086 [US-EVENT-009] Integrate address autocomplete (Google Places API or similar)
+- [ ] T4-087 [US-EVENT-009] Add date/time picker component
+- [ ] T4-088 [US-EVENT-009] Implement save functionality (POST to API)
+- [ ] T4-089 [US-EVENT-009] Add success/error messages
+- [ ] T4-090 [US-EVENT-009] Add loading states
+- [ ] T4-091 [US-EVENT-009] Make form responsive
+- [ ] T4-092 [US-EVENT-009] Protect route (organizer/admin only)
 
 ### Frontend: Event Update Form
 
-- [ ] T255 [US-EVENT-010] Create `web/src/pages/EditEvent.tsx` page component
-- [ ] T256 [US-EVENT-010] Pre-populate form with existing event data
-- [ ] T257 [US-EVENT-010] Make all fields editable
-- [ ] T258 [US-EVENT-010] Add image update functionality
-- [ ] T259 [US-EVENT-010] Implement save functionality (PATCH to API)
-- [ ] T260 [US-EVENT-010] Add success/error messages
-- [ ] T261 [US-EVENT-010] Make form responsive
-- [ ] T262 [US-EVENT-010] Protect route (organizer/admin only)
+- [ ] T4-093 [US-EVENT-010] Create `web/src/pages/EditEvent.tsx` page component
+- [ ] T4-094 [US-EVENT-010] Pre-populate form with existing event data
+- [ ] T4-095 [US-EVENT-010] Make all fields editable
+- [ ] T4-096 [US-EVENT-010] Add image update functionality
+- [ ] T4-097 [US-EVENT-010] Implement save functionality (PATCH to API)
+- [ ] T4-098 [US-EVENT-010] Add success/error messages
+- [ ] T4-099 [US-EVENT-010] Make form responsive
+- [ ] T4-100 [US-EVENT-010] Protect route (organizer/admin only)
 
 **Checkpoint**: Event management fully functional. Organizers can create/update events, users can browse and view event details.
 
@@ -448,53 +451,53 @@
 
 ### Backend: Ticket Entity
 
-- [ ] T263 [P] [US-TICKET-001] Create `TicketEntity` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/ticket/entity/TicketEntity.java`
-- [ ] T264 [P] [US-TICKET-001] Add enums: `TicketType` (VIP, REGULAR, EARLY_BIRD), `TicketStatus` (AVAILABLE, SOLD, RESERVED)
-- [ ] T265 [P] [US-TICKET-001] Add relationships: event, purchaser (User), creator (User), orderItem
-- [ ] T266 [US-TICKET-001] Create `TicketRepository` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/ticket/repository/TicketRepository.java`
-- [ ] T267 [US-TICKET-001] Add custom query methods: `findByEvent`, `findByStatus`, `findByEventAndType`
+- [X] T263 [P] [US-TICKET-001] Create `TicketEntity` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/ticket/entity/TicketEntity.java`
+- [X] T264 [P] [US-TICKET-001] Add enums: `TicketType` (VIP, REGULAR, EARLY_BIRD), `TicketStatus` (AVAILABLE, SOLD, RESERVED)
+- [X] T265 [P] [US-TICKET-001] Add relationships: event, purchaser (User), creator (User), orderItem
+- [X] T266 [US-TICKET-001] Create `TicketRepository` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/ticket/repository/TicketRepository.java`
+- [X] T267 [US-TICKET-001] Add custom query methods: `findByEvent`, `findByStatus`, `findByEventAndType`
 - [ ] T269 [US-TICKET-001] Write unit tests for `TicketRepository`
 
 ### Backend: QR Code Service
 
-- [ ] T270 [US-TICKET-003] Add QR code library dependency (e.g., ZXing) to `eventpro-api/modules/eventpro-event/build.gradle`
-- [ ] T271 [US-TICKET-003] Create `QRCodeService` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/ticket/service/QRCodeService.java`
-- [ ] T272 [US-TICKET-003] Implement `generateQRCode` method (creates QR code image with ticket ID)
-- [ ] T273 [US-TICKET-003] Implement `uploadQRCodeToS3` method (stores QR code image in S3)
-- [ ] T274 [US-TICKET-003] Implement `getQRCodeUrl` method
+- [X] T270 [US-TICKET-003] Add QR code library dependency (e.g., ZXing) to `eventpro-api/modules/eventpro-event/build.gradle`
+- [X] T271 [US-TICKET-003] Create `QRCodeService` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/ticket/service/QRCodeService.java`
+- [X] T272 [US-TICKET-003] Implement `generateQRCode` method (creates QR code image with ticket ID)
+- [X] T273 [US-TICKET-003] Implement `uploadQRCodeToS3` method (stores QR code image in S3)
+- [X] T274 [US-TICKET-003] Implement `getQRCodeUrl` method
 - [ ] T275 [US-TICKET-003] Write unit tests for `QRCodeService`
 
 ### Backend: Ticket Service
 
-- [ ] T276 [US-TICKET-002] Create `TicketService` interface in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/ticket/service/TicketService.java`
-- [ ] T277 [US-TICKET-002] Create `TicketServiceImpl` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/ticket/service/TicketServiceImpl.java`
-- [ ] T278 [US-TICKET-002] Implement `createTickets` method (bulk creation for event)
-- [ ] T279 [US-TICKET-002] Implement `updateTicket` method
-- [ ] T280 [US-TICKET-002] Implement `deleteTicket` method
-- [ ] T281 [US-TICKET-002] Implement `getTicketById` method
-- [ ] T282 [US-TICKET-002] Implement `getTicketsByEvent` method
-- [ ] T283 [US-TICKET-002] Implement `groupTicketsByType` method
-- [ ] T284 [US-TICKET-002] Implement `checkTicketAvailability` method
-- [ ] T285 [US-TICKET-002] Integrate QR code generation when ticket is sold
-- [ ] T286 [US-TICKET-002] Add error handling and validation
+- [X] T276 [US-TICKET-002] Create `TicketService` interface in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/ticket/service/TicketService.java`
+- [X] T277 [US-TICKET-002] Create `TicketServiceImpl` in `eventpro-api/modules/eventpro-event/src/main/java/com/accessplus/eventpro/event/ticket/service/TicketServiceImpl.java`
+- [X] T278 [US-TICKET-002] Implement `createTickets` method (bulk creation for event)
+- [X] T279 [US-TICKET-002] Implement `updateTicket` method
+- [X] T280 [US-TICKET-002] Implement `deleteTicket` method
+- [X] T281 [US-TICKET-002] Implement `getTicketById` method
+- [X] T282 [US-TICKET-002] Implement `getTicketsByEvent` method
+- [X] T283 [US-TICKET-002] Implement `groupTicketsByType` method
+- [X] T284 [US-TICKET-002] Implement `checkTicketAvailability` method
+- [X] T285 [US-TICKET-002] Integrate QR code generation when ticket is sold
+- [X] T286 [US-TICKET-002] Add error handling and validation
 - [ ] T287 [US-TICKET-002] Write unit tests for `TicketService` (>80% coverage)
 
 ### Backend: Ticket Controller
 
 **Reference**: See `/README.md` "Tickets API" section for complete endpoint specifications, request/response DTOs, TicketType/TicketStatus enums, and TicketInfo structure.
 
-- [ ] T288 [US-TICKET-004] Create `TicketController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/TicketController.java`
-- [ ] T289 [US-TICKET-004] Implement `POST /api/v1/tickets` endpoint (admin/organizer only, bulk creation) - **Reference**: README.md Tickets API `POST /` for request structure (`TicketCreateRequest` with eventId UUID and tickets List<TicketInfo> where TicketInfo has price BigDecimal, ticketType enum, quantity Long, eventId UUID), response structure (`List<TicketResponse>`)
-- [ ] T290 [US-TICKET-004] Implement `GET /api/v1/tickets/{id}` endpoint (public) - **Reference**: README.md Tickets API `GET /{ticketId}` for response structure (`List<TicketResponse>`)
-- [ ] T291 [US-TICKET-004] Implement `GET /api/v1/tickets/event/{eventId}` endpoint (public) - **Reference**: README.md Tickets API `GET /event/{eventId}` for response structure (`List<TicketResponse>`)
-- [ ] T292 [US-TICKET-004] Implement `GET /api/v1/tickets/groupTickets/{eventId}` endpoint (public, groups by type) - **Reference**: README.md Tickets API `GET /groupTickets/{eventId}` for response structure (`Map<TicketType, List<TicketResponse>>`)
-- [ ] T293 [US-TICKET-004] Implement `GET /api/v1/tickets/group/{eventId}` endpoint (public, summary) - **Reference**: README.md Tickets API `GET /group/{eventId}` for response structure (`EventSummary` with eventName, startTime, endTime, tickets List<EventTickets>)
-- [ ] T294 [US-TICKET-004] Implement `PATCH /api/v1/tickets/{id}` endpoint (admin/organizer only) - **Reference**: README.md Tickets API `PATCH /{ticketId}` for request structure (`TicketUpdateRequest` with optional fields: name, description, price, quantity, startTime, endTime, printOutUrl, eventId)
-- [ ] T295 [US-TICKET-004] Implement `DELETE /api/v1/tickets/{id}` endpoint (admin/organizer only) - **Reference**: README.md Tickets API `DELETE /{ticketId}` for response (Void, 200 OK)
-- [ ] T296 [US-TICKET-004] Create DTOs: `TicketResponse`, `CreateTicketRequest`, `BulkCreateTicketRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Tickets API section for complete field definitions (TicketResponse: id UUID, name, ticketType enum, ticketStatus enum, price BigDecimal, startTime/endTime LocalDateTime, qrCode, printOutUrl, eventIdType; TicketCreateRequest: eventId UUID, tickets List<TicketInfo>; TicketInfo: price, ticketType, quantity, eventId)
-- [ ] T296a [US-TICKET-004] Create enums: `TicketType` (VIP, REGULAR, EARLY_BIRD) and `TicketStatus` (AVAILABLE, SOLD, RESERVED) - **Reference**: README.md "Common Enums" section
-- [ ] T296b [US-TICKET-004] Create `EventSummary` and `EventTickets` DTOs - **Reference**: README.md Tickets API `GET /group/{eventId}` response structure
-- [ ] T297 [US-TICKET-004] Add role-based authorization
+- [X] T288 [US-TICKET-004] Create `TicketController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/TicketController.java`
+- [X] T289 [US-TICKET-004] Implement `POST /api/v1/tickets` endpoint (admin/organizer only, bulk creation) - **Reference**: README.md Tickets API `POST /` for request structure (`TicketCreateRequest` with eventId UUID and tickets List<TicketInfo> where TicketInfo has price BigDecimal, ticketType enum, quantity Long, eventId UUID), response structure (`List<TicketResponse>`)
+- [X] T290 [US-TICKET-004] Implement `GET /api/v1/tickets/{id}` endpoint (public) - **Reference**: README.md Tickets API `GET /{ticketId}` for response structure (`List<TicketResponse>`)
+- [X] T291 [US-TICKET-004] Implement `GET /api/v1/tickets/event/{eventId}` endpoint (public) - **Reference**: README.md Tickets API `GET /event/{eventId}` for response structure (`List<TicketResponse>`)
+- [X] T292 [US-TICKET-004] Implement `GET /api/v1/tickets/groupTickets/{eventId}` endpoint (public, groups by type) - **Reference**: README.md Tickets API `GET /groupTickets/{eventId}` for response structure (`Map<TicketType, List<TicketResponse>>`)
+- [X] T293 [US-TICKET-004] Implement `GET /api/v1/tickets/group/{eventId}` endpoint (public, summary) - **Reference**: README.md Tickets API `GET /group/{eventId}` for response structure (`EventSummary` with eventName, startTime, endTime, tickets List<EventTickets>)
+- [X] T294 [US-TICKET-004] Implement `PATCH /api/v1/tickets/{id}` endpoint (admin/organizer only) - **Reference**: README.md Tickets API `PATCH /{ticketId}` for request structure (`TicketUpdateRequest` with optional fields: name, description, price, quantity, startTime, endTime, printOutUrl, eventId)
+- [X] T295 [US-TICKET-004] Implement `DELETE /api/v1/tickets/{id}` endpoint (admin/organizer only) - **Reference**: README.md Tickets API `DELETE /{ticketId}` for response (Void, 200 OK)
+- [X] T296 [US-TICKET-004] Create DTOs: `TicketResponse`, `CreateTicketRequest`, `BulkCreateTicketRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Tickets API section for complete field definitions (TicketResponse: id UUID, name, ticketType enum, ticketStatus enum, price BigDecimal, startTime/endTime LocalDateTime, qrCode, printOutUrl, eventIdType; TicketCreateRequest: eventId UUID, tickets List<TicketInfo>; TicketInfo: price, ticketType, quantity, eventId)
+- [X] T296a [US-TICKET-004] Create enums: `TicketType` (VIP, REGULAR, EARLY_BIRD) and `TicketStatus` (AVAILABLE, SOLD, RESERVED) - **Reference**: README.md "Common Enums" section
+- [X] T296b [US-TICKET-004] Create `EventSummary` and `EventTickets` DTOs - **Reference**: README.md Tickets API `GET /group/{eventId}` response structure
+- [X] T297 [US-TICKET-004] Add role-based authorization
 - [ ] T298 [US-TICKET-004] Write integration tests for all TicketController endpoints
 
 ### Frontend: Redux Ticket Slice
@@ -566,75 +569,75 @@
 
 ### Backend: Cart Entity
 
-- [ ] T341 [P] [US-CART-001] Create `CartEntity` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/cart/entity/CartEntity.java`
-- [ ] T342 [P] [US-CART-001] Add relationships: user, ticket
-- [ ] T343 [US-CART-001] Create `CartRepository` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/cart/repository/CartRepository.java`
-- [ ] T344 [US-CART-001] Add custom query methods: `findByUser`, `findByUserAndTicket`
+- [X] T341 [P] [US-CART-001] Create `CartEntity` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/cart/entity/CartEntity.java`
+- [X] T342 [P] [US-CART-001] Add relationships: user, ticket
+- [X] T343 [US-CART-001] Create `CartRepository` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/cart/repository/CartRepository.java`
+- [X] T344 [US-CART-001] Add custom query methods: `findByUser`, `findByUserAndTicket`
 - [ ] T346 [US-CART-001] Write unit tests for `CartRepository`
 
 ### Backend: Order and OrderItem Entities
 
-- [ ] T347 [P] [US-CART-002] Create `OrderEntity` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/entity/OrderEntity.java`
-- [ ] T348 [P] [US-CART-002] Add enum: `OrderStatus` (PENDING, PAID, CANCELLED, REFUNDED)
-- [ ] T349 [P] [US-CART-002] Add relationships: user, orderItems, payment
-- [ ] T350 [P] [US-CART-002] Create `OrderItemEntity` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/entity/OrderItemEntity.java`
-- [ ] T351 [P] [US-CART-002] Add relationships: order, ticket
-- [ ] T352 [US-CART-002] Create `OrderRepository` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/repository/OrderRepository.java`
-- [ ] T353 [US-CART-002] Create `OrderItemRepository` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/repository/OrderItemRepository.java`
-- [ ] T354 [US-CART-002] Add custom query methods: `findByUser`, `findByStatus`, `findByOrderNumber`
+- [X] T347 [P] [US-CART-002] Create `OrderEntity` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/entity/OrderEntity.java`
+- [X] T348 [P] [US-CART-002] Add enum: `OrderStatus` (PENDING, PAID, CANCELLED, REFUNDED)
+- [X] T349 [P] [US-CART-002] Add relationships: user, orderItems, payment
+- [X] T350 [P] [US-CART-002] Create `OrderItemEntity` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/entity/OrderItemEntity.java`
+- [X] T351 [P] [US-CART-002] Add relationships: order, ticket
+- [X] T352 [US-CART-002] Create `OrderRepository` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/repository/OrderRepository.java`
+- [X] T353 [US-CART-002] Create `OrderItemRepository` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/repository/OrderItemRepository.java`
+- [X] T354 [US-CART-002] Add custom query methods: `findByUser`, `findByStatus`, `findByOrderNumber`
 - [ ] T356 [US-CART-002] Write unit tests for repositories
 
 ### Backend: Cart Service
 
-- [ ] T357 [US-CART-003] Create `CartService` interface in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/cart/service/CartService.java`
-- [ ] T358 [US-CART-003] Create `CartServiceImpl` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/cart/service/CartServiceImpl.java`
-- [ ] T359 [US-CART-003] Implement `addItemToCart` method (with ticket availability check)
-- [ ] T360 [US-CART-003] Implement `updateCartItemQuantity` method
-- [ ] T361 [US-CART-003] Implement `removeItemFromCart` method
-- [ ] T362 [US-CART-003] Implement `getUserCart` method
-- [ ] T363 [US-CART-003] Implement `clearCart` method
-- [ ] T364 [US-CART-003] Add cart validation (ticket availability, quantity limits)
-- [ ] T365 [US-CART-003] Add error handling
-- [ ] T366 [US-CART-003] Write unit tests for `CartService` (>80% coverage)
+- [X] T357 [US-CART-003] Create `CartService` interface in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/cart/service/CartService.java`
+- [X] T358 [US-CART-003] Create `CartServiceImpl` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/cart/service/CartServiceImpl.java`
+- [X] T359 [US-CART-003] Implement `addItemToCart` method (with ticket availability check)
+- [X] T360 [US-CART-003] Implement `updateCartItemQuantity` method
+- [X] T361 [US-CART-003] Implement `removeItemFromCart` method
+- [X] T362 [US-CART-003] Implement `getUserCart` method
+- [X] T363 [US-CART-003] Implement `clearCart` method
+- [X] T364 [US-CART-003] Add cart validation (ticket availability, quantity limits)
+- [X] T365 [US-CART-003] Add error handling
+- [X] T366 [US-CART-003] Write unit tests for `CartService` (>80% coverage)
 
 ### Backend: Order Service
 
-- [ ] T367 [US-CART-004] Create `OrderService` interface in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/service/OrderService.java`
-- [ ] T368 [US-CART-004] Create `OrderServiceImpl` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/service/OrderServiceImpl.java`
-- [ ] T369 [US-CART-004] Implement `createOrderFromCart` method (creates order, publishes to SQS)
-- [ ] T370 [US-CART-004] Implement `getOrderById` method
-- [ ] T371 [US-CART-004] Implement `getUserOrders` method
-- [ ] T372 [US-CART-004] Implement `updateOrderStatus` method
-- [ ] T373 [US-CART-004] Implement `generateOrderNumber` method (unique order number generation)
-- [ ] T374 [US-CART-004] Integrate with `SQSMessagePublisher` to publish order to order-queue
-- [ ] T375 [US-CART-004] Add error handling and validation
-- [ ] T376 [US-CART-004] Write unit tests for `OrderService` (>80% coverage)
+- [X] T367 [US-CART-004] Create `OrderService` interface in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/service/OrderService.java`
+- [X] T368 [US-CART-004] Create `OrderServiceImpl` in `eventpro-api/modules/eventpro-order/src/main/java/com/accessplus/eventpro/order/order/service/OrderServiceImpl.java`
+- [X] T369 [US-CART-004] Implement `createOrderFromCart` method (creates order, publishes to SQS)
+- [X] T370 [US-CART-004] Implement `getOrderById` method
+- [X] T371 [US-CART-004] Implement `getUserOrders` method
+- [X] T372 [US-CART-004] Implement `updateOrderStatus` method
+- [X] T373 [US-CART-004] Implement `generateOrderNumber` method (unique order number generation)
+- [X] T374 [US-CART-004] Integrate with `SQSMessagePublisher` to publish order to order-queue
+- [X] T375 [US-CART-004] Add error handling and validation
+- [X] T376 [US-CART-004] Write unit tests for `OrderService` (>80% coverage)
 
 ### Backend: Cart Controller
 
 **Reference**: See `/README.md` "Shopping Cart API" section for complete endpoint specifications. **Note**: Legacy API uses `/api/v1/user/{userId}/cart` path pattern, but new implementation should use `/api/v1/cart` with authenticated user context.
 
-- [ ] T377 [US-CART-005] Create `CartController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/CartController.java`
-- [ ] T378 [US-CART-005] Implement `POST /api/v1/cart/add` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `POST /add` for request structure (`AddToCartRequest` with id UUID, eventIdType String, ticketType enum, quantity int), response structure (`CartResponse` with id UUID, tickets Set<CartTicket>, quantity Integer, totalCost BigDecimal, message String)
-- [ ] T379 [US-CART-005] Implement `GET /api/v1/cart` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `GET /` for response structure (`CartResponse`)
-- [ ] T380 [US-CART-005] Implement `PATCH /api/v1/cart/update` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `PATCH /increment/ticket/{eventIdAndType}` and `PATCH /decrement/ticket/{eventIdAndType}` for increment/decrement operations
-- [ ] T381 [US-CART-005] Implement `DELETE /api/v1/cart/delete/{itemId}` endpoint (authenticated users only) - **Note**: Legacy API doesn't have this endpoint, but it's a common pattern
-- [ ] T382 [US-CART-005] Implement `DELETE /api/v1/cart/clear` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `DELETE /clearCart` for response (Void, 200 OK)
-- [ ] T383 [US-CART-005] Create DTOs: `CartResponse`, `CartItemResponse`, `AddToCartRequest`, `UpdateCartRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Shopping Cart API section for complete field definitions (CartResponse: id UUID, tickets Set<CartTicket>, quantity Integer, totalCost BigDecimal, message String; AddToCartRequest: id UUID, eventIdType String, ticketType enum, quantity int; CartTicket: id UUID, name, ticketType, ticketStatus, price BigDecimal, startTime/endTime LocalDateTime, eventIdType String)
+- [X] T377 [US-CART-005] Create `CartController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/CartController.java`
+- [X] T378 [US-CART-005] Implement `POST /api/v1/cart/add` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `POST /add` for request structure (`AddToCartRequest` with id UUID, eventIdType String, ticketType enum, quantity int), response structure (`CartResponse` with id UUID, tickets Set<CartTicket>, quantity Integer, totalCost BigDecimal, message String)
+- [X] T379 [US-CART-005] Implement `GET /api/v1/cart` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `GET /` for response structure (`CartResponse`)
+- [X] T380 [US-CART-005] Implement `PATCH /api/v1/cart/update` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `PATCH /increment/ticket/{eventIdAndType}` and `PATCH /decrement/ticket/{eventIdAndType}` for increment/decrement operations
+- [X] T381 [US-CART-005] Implement `DELETE /api/v1/cart/delete/{itemId}` endpoint (authenticated users only) - **Note**: Legacy API doesn't have this endpoint, but it's a common pattern
+- [X] T382 [US-CART-005] Implement `DELETE /api/v1/cart/clear` endpoint (authenticated users only) - **Reference**: README.md Shopping Cart API `DELETE /clearCart` for response (Void, 200 OK)
+- [X] T383 [US-CART-005] Create DTOs: `CartResponse`, `CartItemResponse`, `AddToCartRequest`, `UpdateCartRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Shopping Cart API section for complete field definitions (CartResponse: id UUID, tickets Set<CartTicket>, quantity Integer, totalCost BigDecimal, message String; AddToCartRequest: id UUID, eventIdType String, ticketType enum, quantity int; CartTicket: id UUID, name, ticketType, ticketStatus, price BigDecimal, startTime/endTime LocalDateTime, eventIdType String)
 - [ ] T384 [US-CART-005] Write integration tests for all CartController endpoints
 
 ### Backend: Order Controller
 
 **Reference**: See `/README.md` "Orders API" section for complete endpoint specifications, request/response DTOs, and pagination defaults.
 
-- [ ] T385 [US-CART-006] Create `OrderController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/OrderController.java`
-- [ ] T386 [US-CART-006] Implement `POST /api/v1/orders` endpoint (create order from cart, authenticated users only) - **Note**: Legacy API doesn't have POST endpoint documented, but it's needed for order creation
-- [ ] T387 [US-CART-006] Implement `GET /api/v1/orders/{id}` endpoint (authenticated users, own orders or admin) - **Reference**: README.md Orders API `GET /{id}` for response structure (`OrderResponse` with id UUID, amount Long, orderItems List<TicketResponse>, payment PaymentResponse)
-- [ ] T388 [US-CART-006] Implement `GET /api/v1/orders` endpoint (user's orders, or all orders if admin) - **Reference**: README.md Orders API `GET /` for pagination defaults (page: 1, size: 5, sortBy: "email", dir: "asc") and response structure (`PageResponse<OrderResponse, OrderEntity>`)
-- [ ] T388a [US-CART-006] Implement `GET /api/v1/orders/users/{userId}` endpoint (user's orders, paginated) - **Reference**: README.md Orders API `GET /users/{userId}` for pagination and response structure
-- [ ] T389 [US-CART-006] Create DTOs: `OrderResponse`, `OrderItemResponse`, `CreateOrderRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Orders API section for complete field definitions (OrderResponse: id UUID, amount Long, orderItems List<TicketResponse>, payment PaymentResponse; PaymentResponse: id UUID, amount BigDecimal, paymentMethod String, status PaymentStatus enum, currency String, description String)
-- [ ] T389a [US-CART-006] Create `PaymentStatus` enum (PENDING, SUCCESS, FAILED, REFUNDED) - **Reference**: README.md "Common Enums" section
-- [ ] T390 [US-CART-006] Add role-based authorization
+- [X] T385 [US-CART-006] Create `OrderController` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/controller/OrderController.java`
+- [X] T386 [US-CART-006] Implement `POST /api/v1/orders` endpoint (create order from cart, authenticated users only) - **Note**: Legacy API doesn't have POST endpoint documented, but it's needed for order creation
+- [X] T387 [US-CART-006] Implement `GET /api/v1/orders/{id}` endpoint (authenticated users, own orders or admin) - **Reference**: README.md Orders API `GET /{id}` for response structure (`OrderResponse` with id UUID, amount Long, orderItems List<TicketResponse>, payment PaymentResponse)
+- [X] T388 [US-CART-006] Implement `GET /api/v1/orders` endpoint (user's orders, or all orders if admin) - **Reference**: README.md Orders API `GET /` for pagination defaults (page: 1, size: 5, sortBy: "email", dir: "asc") and response structure (`PageResponse<OrderResponse, OrderEntity>`)
+- [X] T388a [US-CART-006] Implement `GET /api/v1/orders/users/{userId}` endpoint (user's orders, paginated) - **Reference**: README.md Orders API `GET /users/{userId}` for pagination and response structure
+- [X] T389 [US-CART-006] Create DTOs: `OrderResponse`, `OrderItemResponse`, `CreateOrderRequest` in `eventpro-api/modules/eventpro-api/src/main/java/com/accessplus/eventpro/api/dto/` - **Reference**: README.md Orders API section for complete field definitions (OrderResponse: id UUID, amount Long, orderItems List<TicketResponse>, payment PaymentResponse; PaymentResponse: id UUID, amount BigDecimal, paymentMethod String, status PaymentStatus enum, currency String, description String)
+- [X] T389a [US-CART-006] Create `PaymentStatus` enum (PENDING, SUCCESS, FAILED, REFUNDED) - **Reference**: README.md "Common Enums" section
+- [X] T390 [US-CART-006] Add role-based authorization
 - [ ] T391 [US-CART-006] Write integration tests for all OrderController endpoints
 
 ### Frontend: Redux Cart Slice

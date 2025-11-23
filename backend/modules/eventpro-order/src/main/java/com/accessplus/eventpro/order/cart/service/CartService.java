@@ -1,0 +1,95 @@
+package com.accessplus.eventpro.order.cart.service;
+
+import com.accessplus.eventpro.order.cart.entity.CartEntity;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Service interface for cart management operations.
+ * 
+ * <p>Provides methods for:
+ * <ul>
+ *   <li>Adding items to cart with ticket availability validation</li>
+ *   <li>Updating cart item quantities</li>
+ *   <li>Removing items from cart</li>
+ *   <li>Retrieving user's cart</li>
+ *   <li>Clearing the entire cart</li>
+ *   <li>Cart validation (ticket availability, quantity limits)</li>
+ * </ul>
+ */
+public interface CartService {
+
+    /**
+     * Adds a ticket to the user's cart.
+     * Validates ticket availability and marks ticket as RESERVED.
+     * 
+     * @param userId the UUID of the user
+     * @param ticketId the UUID of the ticket to add
+     * @param quantity the quantity to add (defaults to 1 if not provided)
+     * @return the created or updated CartEntity
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if user or ticket not found
+     * @throws IllegalStateException if ticket is not available
+     * @throws IllegalArgumentException if validation fails
+     */
+    CartEntity addItemToCart(UUID userId, UUID ticketId, Integer quantity);
+
+    /**
+     * Updates the quantity of a cart item.
+     * 
+     * @param userId the UUID of the user
+     * @param ticketId the UUID of the ticket
+     * @param quantity the new quantity (must be > 0)
+     * @return the updated CartEntity
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if cart item not found
+     * @throws IllegalArgumentException if quantity is invalid
+     */
+    CartEntity updateCartItemQuantity(UUID userId, UUID ticketId, Integer quantity);
+
+    /**
+     * Removes an item from the user's cart.
+     * Marks the ticket as AVAILABLE if it was RESERVED.
+     * 
+     * @param userId the UUID of the user
+     * @param ticketId the UUID of the ticket to remove
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if cart item not found
+     */
+    void removeItemFromCart(UUID userId, UUID ticketId);
+
+    /**
+     * Retrieves all cart items for a user.
+     * 
+     * @param userId the UUID of the user
+     * @return list of CartEntity for the user
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if user not found
+     */
+    List<CartEntity> getUserCart(UUID userId);
+
+    /**
+     * Clears all items from the user's cart.
+     * Marks all reserved tickets as AVAILABLE.
+     * 
+     * @param userId the UUID of the user
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if user not found
+     */
+    void clearCart(UUID userId);
+
+    /**
+     * Calculates the total cost of items in the user's cart.
+     * 
+     * @param userId the UUID of the user
+     * @return total cost as BigDecimal
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if user not found
+     */
+    java.math.BigDecimal calculateCartTotal(UUID userId);
+
+    /**
+     * Gets the total number of items in the user's cart.
+     * 
+     * @param userId the UUID of the user
+     * @return total quantity of items
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if user not found
+     */
+    Integer getCartItemCount(UUID userId);
+}
+
