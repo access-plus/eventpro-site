@@ -169,6 +169,13 @@ variable "cognito_certificate_arn" {
 }
 
 # Secrets Manager Configuration
+variable "stripe_webhook_secret" {
+  description = "Stripe webhook secret for webhook verification"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "stripe_secret_key" {
   description = "Stripe secret key for payment processing"
   type        = string
@@ -206,4 +213,11 @@ variable "analytics_service_image" {
   description = "Docker image for Analytics Service Lambda (optional)"
   type        = string
   default     = null
+}
+
+# Secret Rotation Lambda
+variable "secret_rotation_lambda_image" {
+  description = "Docker image URI for secret rotation Lambda function"
+  type        = string
+  default     = ""
 }

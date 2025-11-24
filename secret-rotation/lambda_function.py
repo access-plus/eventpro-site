@@ -16,34 +16,44 @@ def lambda_handler(event, context):
     """
     Entry point for AWS Secrets Manager rotation.
     Event:
-      - SecretId
-      - ClientRequestToken
+      - SecretId: ARN of the secret
+      - ClientRequestToken: Unique token for this rotation
       - Step: createSecret | setSecret | testSecret | finishSecret
     """
     arn = event["SecretId"]
     token = event["ClientRequestToken"]
     step = event["Step"]
 
-    metadata = secrets_client.describe_secret(SecretId=arn)
-    versions = metadata["VersionIdsToStages"]
+    print(f"Rotation step '{step}' for secret {arn} with token {token}")
 
-    if token not in versions:
-        raise ValueError(f"Secret version {token} not found for {arn}")
+    try:
+        metadata = secrets_client.describe_secret(SecretId=arn)
+        versions = metadata["VersionIdsToStages"]
 
-    if "AWSCURRENT" in versions[token]:
-        print(f"Version {token} already AWSCURRENT for {arn}")
-        return
+        if token not in versions:
+            raise ValueError(f"Secret version {token} not found for {arn}")
 
-    if step == "createSecret":
-        create_secret(arn, token)
-    elif step == "setSecret":
-        set_secret(arn, token)
-    elif step == "testSecret":
-        test_secret(arn, token)
-    elif step == "finishSecret":
-        finish_secret(arn, token)
-    else:
-        raise ValueError(f"Invalid step: {step}")
+        if "AWSCURRENT" in versions[token]:
+            print(f"Version {token} already AWSCURRENT for {arn}")
+            return {"statusCode": 200, "message": "Already current"}
+
+        if step == "createSecret":
+            create_secret(arn, token)
+        elif step == "setSecret":
+            set_secret(arn, token)
+        elif step == "testSecret":
+            test_secret(arn, token)
+        elif step == "finishSecret":
+            finish_secret(arn, token)
+        else:
+            raise ValueError(f"Invalid step: {step}")
+
+        return {"statusCode": 200, "message": f"Step {step} completed successfully"}
+
+    except Exception as e:
+        error_msg = f"Error in rotation step '{step}': {str(e)}"
+        print(error_msg)
+        raise Exception(error_msg) from e
 
 
 def create_secret(arn: str, token: str) -> None:
@@ -77,15 +87,20 @@ def set_secret(arn: str, token: str) -> None:
     current = get_secret_dict(arn, "AWSCURRENT")
     pending = get_secret_dict(arn, "AWSPENDING", token)
 
+    # Use current username (username doesn't change during rotation)
+    # Only the password changes
     conn = get_connection(current)
     try:
         conn.autocommit = True
         with conn.cursor() as cur:
             query = sql.SQL("ALTER ROLE {user} WITH PASSWORD %s;").format(
-                user=sql.Identifier(pending["username"])
+                user=sql.Identifier(current["username"])
             )
             cur.execute(query, (pending["password"],))
         print("setSecret: Updated DB password.")
+    except Exception as e:
+        print(f"setSecret: Error updating password: {str(e)}")
+        raise
     finally:
         conn.close()
 
@@ -98,6 +113,9 @@ def test_secret(arn: str, token: str) -> None:
             cur.execute("SELECT 1;")
             cur.fetchone()
         print("testSecret: Connection successful with AWSPENDING.")
+    except Exception as e:
+        print(f"testSecret: Error testing connection: {str(e)}")
+        raise
     finally:
         conn.close()
 
@@ -142,18 +160,35 @@ def get_secret_dict(arn: str, stage: str, version_id: str | None = None) -> dict
 
 
 def get_connection(secret: dict):
+    """
+    Creates a PostgreSQL connection using credentials from the secret.
+    
+    Args:
+        secret: Dictionary containing connection parameters (host, port, dbname, username, password)
+    
+    Returns:
+        psycopg2 connection object
+    """
     host = secret["host"]
     port = secret.get("port", 5432)
     dbname = secret["dbname"]
     user = secret["username"]
     password = secret["password"]
+    
+    # SSL mode: use "require" for RDS, "prefer" for local development
+    # Can be overridden via environment variable
+    ssl_mode = os.getenv("DB_SSLMODE", "require")
 
-    return psycopg2.connect(
-        host=host,
-        port=port,
-        dbname=dbname,
-        user=user,
-        password=password,
-        connect_timeout=5,
-        sslmode="require",
-    )
+    try:
+        return psycopg2.connect(
+            host=host,
+            port=port,
+            dbname=dbname,
+            user=user,
+            password=password,
+            connect_timeout=10,  # Increased timeout for VPC connections
+            sslmode=ssl_mode,
+        )
+    except psycopg2.Error as e:
+        print(f"Database connection error: {str(e)}")
+        raise
