@@ -45,7 +45,8 @@ aws:
     region: ${AWS_REGION:us-east-1}
   secrets:
     manager:
-      databaseSecret: ${DB_SECRET_ARN}
+      databaseSecret: ${DB_SECRET_ARN:}
+      stripeSecret: ${STRIPE_SECRET_ARN:}
 
 stripe:
   secretKey: ${STRIPE_SECRET_KEY}

@@ -229,6 +229,7 @@ resource "aws_security_group" "rds" {
     security_groups = [aws_security_group.ecs.id]
   }
 
+
   egress {
     description = "Allow all outbound traffic"
     from_port   = 0

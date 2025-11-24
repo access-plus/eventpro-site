@@ -4,5 +4,5 @@
     entrypoint:
       - ''
   before_script:
-    - cd terraform/environments/dev
+    - cd infrastructure/environments/dev
     - terraform init -upgrade

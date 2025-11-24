@@ -1,5 +1,11 @@
 # Dev Environment - Outputs
 
+# AWS Region Output
+output "aws_region" {
+  description = "AWS region for resources"
+  value       = var.aws_region
+}
+
 # VPC Outputs
 output "vpc_id" {
   description = "ID of the VPC"
@@ -130,5 +136,21 @@ output "ecs_service_name" {
 output "ecs_service_arn" {
   description = "ARN of the EventPro API ECS service"
   value       = module.ecs_eventpro_api.service_arn
+}
+
+# SQS Queue Outputs
+output "sqs_order_queue_url" {
+  description = "SQS Order Queue URL"
+  value       = module.sqs_order.queue_url
+}
+
+output "sqs_payment_queue_url" {
+  description = "SQS Payment Queue URL"
+  value       = module.sqs_payment.queue_url
+}
+
+output "sqs_notification_queue_url" {
+  description = "SQS Notification Queue URL"
+  value       = module.sqs_notification.queue_url
 }
 

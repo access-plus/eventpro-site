@@ -84,6 +84,43 @@ module "s3_frontend" {
   tags = var.tags
 }
 
+# SQS Queues
+module "sqs_order" {
+  source = "../../modules/sqs"
+
+  queue_name                 = "${var.name_prefix}-order-queue"
+  queue_purpose              = "Order processing queue"
+  message_retention_seconds  = 345600 # 4 days
+  visibility_timeout_seconds = 30
+  receive_wait_time_seconds  = 20     # Long polling
+
+  tags = var.tags
+}
+
+module "sqs_payment" {
+  source = "../../modules/sqs"
+
+  queue_name                 = "${var.name_prefix}-payment-queue"
+  queue_purpose              = "Payment processing queue"
+  message_retention_seconds  = 345600 # 4 days
+  visibility_timeout_seconds = 30
+  receive_wait_time_seconds  = 20     # Long polling
+
+  tags = var.tags
+}
+
+module "sqs_notification" {
+  source = "../../modules/sqs"
+
+  queue_name                 = "${var.name_prefix}-notification-queue"
+  queue_purpose              = "Notification sending queue"
+  message_retention_seconds  = 345600 # 4 days
+  visibility_timeout_seconds = 30
+  receive_wait_time_seconds  = 20     # Long polling
+
+  tags = var.tags
+}
+
 # CloudFront Module
 module "cloudfront" {
   source = "../../modules/cloudfront"
@@ -185,6 +222,30 @@ module "cognito" {
   tags = var.tags
 }
 
+# Lambda Secret Rotation Module (if image is provided)
+module "lambda_secret_rotation" {
+  count  = var.secret_rotation_lambda_image != "" ? 1 : 0
+  source = "../../modules/lambda-secret-rotation"
+
+  name_prefix = var.name_prefix
+  image_uri   = var.secret_rotation_lambda_image
+  secret_arn  = module.secrets_manager.secret_arns["database"]
+
+  vpc_config = {
+    vpc_id                 = module.vpc.vpc_id
+    subnet_ids             = module.vpc.private_subnet_ids
+    rds_security_group_ids = [module.vpc.rds_security_group_id]
+  }
+
+  timeout     = 60
+  memory_size = 256
+  db_sslmode  = "require"
+
+  tags = var.tags
+
+  depends_on = [module.secrets_manager]
+}
+
 # Secrets Manager Module
 module "secrets_manager" {
   source = "../../modules/secrets-manager"
@@ -202,7 +263,10 @@ module "secrets_manager" {
         dbname   = module.rds.db_instance_name
         port     = tostring(module.rds.db_instance_port)
       }
-      rotation_enabled = false # Can be enabled later with Lambda function
+      rotation_enabled                = var.secret_rotation_lambda_image != "" ? true : false
+      rotation_lambda_arn             = var.secret_rotation_lambda_image != "" ? module.lambda_secret_rotation[0].lambda_function_arn : null
+      rotate_immediately              = false
+      rotation_automatically_after_days = 30
     }
     jwt = {
       name        = "jwt-secret"
@@ -216,6 +280,7 @@ module "secrets_manager" {
       secret_key_value = {
         secret_key      = var.stripe_secret_key != "" ? var.stripe_secret_key : "sk_test_placeholder"
         publishable_key = var.stripe_publishable_key != "" ? var.stripe_publishable_key : "pk_test_placeholder"
+        webhook_secret  = var.stripe_webhook_secret != "" ? var.stripe_webhook_secret : "whsec_test_placeholder"
       }
       rotation_enabled = false
     }
@@ -287,10 +352,6 @@ module "ecs_eventpro_api" {
       value = module.rds.db_instance_username
     },
     {
-      name  = "DB_PASSWORD"
-      value = module.rds.db_password
-    },
-    {
       name  = "COGNITO_USER_POOL_ID"
       value = module.cognito.user_pool_id
     },
@@ -307,16 +368,54 @@ module "ecs_eventpro_api" {
       value = module.secrets_manager.secret_arns["database"]
     },
     {
+      name  = "STRIPE_SECRET_ARN"
+      value = module.secrets_manager.secret_arns["stripe"]
+    },
+    {
       name  = "S3_BUCKET_NAME"
-      value = module.s3_images.bucket_name
+      value = module.s3_images.bucket_id
     },
     {
-      name  = "STRIPE_SECRET_KEY"
-      value = var.stripe_secret_key != "" ? var.stripe_secret_key : ""
+      name  = "ORDER_QUEUE_URL"
+      value = module.sqs_order.queue_url
     },
     {
-      name  = "STRIPE_PUBLISHABLE_KEY"
-      value = var.stripe_publishable_key != "" ? var.stripe_publishable_key : ""
+      name  = "PAYMENT_QUEUE_URL"
+      value = module.sqs_payment.queue_url
+    },
+    {
+      name  = "NOTIFICATION_QUEUE_URL"
+      value = module.sqs_notification.queue_url
+    },
+    {
+      name  = "LOCAL_AUTH_ENABLED"
+      value = "false"
+    },
+    {
+      name  = "USE_SECRETS_MANAGER"
+      value = "true"
+    }
+  ]
+
+  # Secrets from AWS Secrets Manager
+  # ECS will inject these as environment variables
+  # For JSON secrets, ECS extracts the specific key using the format: arn:key::
+  secrets = [
+    {
+      name      = "DB_PASSWORD"
+      valueFrom = "${module.secrets_manager.secret_arns["database"]}:password::"
+    },
+    {
+      name      = "STRIPE_SECRET_KEY"
+      valueFrom = "${module.secrets_manager.secret_arns["stripe"]}:secret_key::"
+    },
+    {
+      name      = "STRIPE_PUBLISHABLE_KEY"
+      valueFrom = "${module.secrets_manager.secret_arns["stripe"]}:publishable_key::"
+    },
+    {
+      name      = "STRIPE_WEBHOOK_SECRET"
+      valueFrom = "${module.secrets_manager.secret_arns["stripe"]}:webhook_secret::"
     }
   ]
 
@@ -332,7 +431,11 @@ module "ecs_eventpro_api" {
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes"
         ]
-        Resource = "*" # Can be restricted to specific queues later
+        Resource = [
+          module.sqs_order.queue_arn,
+          module.sqs_payment.queue_arn,
+          module.sqs_notification.queue_arn
+        ]
       },
       {
         Effect = "Allow"
