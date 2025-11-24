@@ -13,7 +13,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "abc-project-terraform-state"
+    bucket = "immigrant-dream-tf-state"
     key    = "eventpro/dev/terraform.tfstate"
     region = "us-east-1"
     encrypt      = true
