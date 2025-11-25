@@ -221,3 +221,10 @@ variable "secret_rotation_lambda_image" {
   type        = string
   default     = ""
 }
+
+# Order Processor Lambda
+variable "order_processor_lambda_image" {
+  description = "Docker image URI for order processor Lambda function"
+  type        = string
+  default     = ""
+}

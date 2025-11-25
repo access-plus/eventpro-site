@@ -2,16 +2,16 @@
   image: eclipse-temurin:21-jdk-alpine
   stage: build
   before_script:
-    - cd backend
+    - cd backend/services
   script:
-    - echo "Building backend"
+    - echo "Building backend services"
     - | 
-      echo "Backend has changes, building..."; 
+      echo "Backend services have changes, building..."; 
       ./gradlew build -x test; 
-      echo "Backend build completed"; 
+      echo "Backend services build completed"; 
 
   artifacts:
     paths:
-      - backend/build/libs/
+      - backend/services/build/libs/
     expire_in: 1 week
 

@@ -1,6 +1,8 @@
-import { Home, Calendar, Ticket, Plus, User, Settings, LogIn } from "lucide-react";
+import { Home, Calendar, Ticket, Plus, User, Settings, LogIn, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { selectIsAuthenticated, signOutAsync } from "@/store/slices/authSlice";
 
 import {
   Sidebar,
@@ -21,8 +23,7 @@ const navItems = [
   { title: "Create Event", url: "/create", icon: Plus },
 ];
 
-const bottomItems = [
-  { title: "Login", url: "/login", icon: LogIn },
+const staticBottomItems = [
   { title: "Profile", url: "/profile", icon: User },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
@@ -30,8 +31,28 @@ const bottomItems = [
 export function AppSidebar() {
   const { open } = useSidebar();
   const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   const isActive = (path: string) => location.pathname === path;
+
+  /**
+   * Handles logout action.
+   * Dispatches signOutAsync to clear authentication state and tokens,
+   * then navigates to home page.
+   */
+  const handleLogout = async () => {
+    try {
+      await dispatch(signOutAsync()).unwrap();
+      // Navigate to home page after successful logout
+      navigate('/', { replace: true });
+    } catch (error) {
+      // Even if logout fails, navigate away and clear local state
+      console.error('Logout failed:', error);
+      navigate('/', { replace: true });
+    }
+  };
 
   return (
     <Sidebar className="border-r border-sidebar-border">
@@ -83,7 +104,36 @@ export function AppSidebar() {
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
             <SidebarMenu>
-              {bottomItems.map((item) => (
+              {/* Login/Logout button - conditional based on auth state */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild={!isAuthenticated}
+                  onClick={isAuthenticated ? handleLogout : undefined}
+                  className="transition-smooth hover:bg-sidebar-accent data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
+                >
+                  {isAuthenticated ? (
+                    <button
+                      className="flex items-center gap-3 w-full text-left"
+                      type="button"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      <span>Logout</span>
+                    </button>
+                  ) : (
+                    <NavLink 
+                      to="/login"
+                      className="flex items-center gap-3"
+                      activeClassName="font-medium"
+                    >
+                      <LogIn className="w-5 h-5" />
+                      <span>Login</span>
+                    </NavLink>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              
+              {/* Static bottom items */}
+              {staticBottomItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild

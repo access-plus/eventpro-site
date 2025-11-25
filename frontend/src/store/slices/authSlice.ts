@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from '../index'
-import { authService, type CurrentUser, type SignInParams, type SignUpParams } from '../../services/authService'
+import { authService, type CurrentUser, type SignInParams, type SignUpParams, type VerifyEmailParams, type ResendVerificationCodeParams } from '../../services/authService'
+import { userService } from '../../services/userService'
 
 /**
  * Authentication slice for managing user authentication state.
@@ -91,6 +92,18 @@ export const signInAsync = createAsyncThunk(
         return rejectWithValue('Failed to get user information after sign in')
       }
 
+      // Sync user to backend database after successful login
+      // This ensures user data is synced from Cognito to the application database
+      // Errors are logged but don't fail the login process
+      try {
+        await userService.syncUserFromCognito()
+        console.log('User successfully synced to backend database')
+      } catch (syncError) {
+        // Log sync error but don't fail login - user is still authenticated
+        console.error('Failed to sync user to backend database:', syncError)
+        // User can still use the app, sync can be retried later
+      }
+
       return {
         user,
         token: tokens.accessToken,
@@ -116,6 +129,40 @@ export const signUpAsync = createAsyncThunk(
       return null
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Sign up failed')
+    }
+  }
+)
+
+/**
+ * Async thunk for verifying a user's email address.
+ * 
+ * Calls authService.verifyEmail to confirm the user's email with a verification code.
+ */
+export const verifyEmailAsync = createAsyncThunk(
+  'auth/verifyEmail',
+  async (params: VerifyEmailParams, { rejectWithValue }) => {
+    try {
+      await authService.verifyEmail(params)
+      return null
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Email verification failed')
+    }
+  }
+)
+
+/**
+ * Async thunk for resending verification code.
+ * 
+ * Calls authService.resendVerificationCode to send a new verification code to the user's email.
+ */
+export const resendVerificationCodeAsync = createAsyncThunk(
+  'auth/resendVerificationCode',
+  async (params: ResendVerificationCodeParams, { rejectWithValue }) => {
+    try {
+      await authService.resendVerificationCode(params)
+      return null
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Failed to resend verification code')
     }
   }
 )
@@ -289,6 +336,37 @@ export const authSlice = createSlice({
         // Note: User is not authenticated after signup until email is verified
       })
       .addCase(signUpAsync.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.payload as string
+      })
+
+    // verifyEmailAsync
+    builder
+      .addCase(verifyEmailAsync.pending, (state) => {
+        state.isLoading = true
+        state.error = null
+      })
+      .addCase(verifyEmailAsync.fulfilled, (state) => {
+        state.isLoading = false
+        state.error = null
+        // Note: User still needs to sign in after verification
+      })
+      .addCase(verifyEmailAsync.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.payload as string
+      })
+
+    // resendVerificationCodeAsync
+    builder
+      .addCase(resendVerificationCodeAsync.pending, (state) => {
+        state.isLoading = true
+        state.error = null
+      })
+      .addCase(resendVerificationCodeAsync.fulfilled, (state) => {
+        state.isLoading = false
+        state.error = null
+      })
+      .addCase(resendVerificationCodeAsync.rejected, (state, action) => {
         state.isLoading = false
         state.error = action.payload as string
       })

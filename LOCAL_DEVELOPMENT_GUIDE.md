@@ -2,6 +2,11 @@
 
 Complete guide for setting up, running, and testing the EventPro application locally.
 
+**Note**: This project has been reorganized. The new structure is:
+- `backend/services/` - Spring Boot modular monolith (was `backend/`)
+- `backend/lambdas/` - Lambda functions (was `lambdas/`)
+- `backend/shared/` - Shared entities and DTOs (was `shared/`)
+
 ---
 
 ## Table of Contents
@@ -22,15 +27,35 @@ Complete guide for setting up, running, and testing the EventPro application loc
 1. **Docker & Docker Compose** installed and running
 2. **Terraform 1.5+** installed
 3. **Node.js 22+** (if running frontend directly)
-4. **Java 21** (if running backend directly)
-5. **AWS CLI** (optional, for testing LocalStack resources)
-6. **AWS Account with Credentials** (required for Cognito)
+4. **Java 21** (if running backend services or lambdas directly)
+5. **Gradle 9.2+** (or use the Gradle wrapper included in each project)
+6. **AWS CLI** (optional, for testing LocalStack resources)
+7. **AWS Account with Credentials** (required for Cognito)
    - Cognito is created in real AWS (not LocalStack)
    - Configure AWS credentials using one of these methods:
      - Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables, OR
      - Run `aws configure` to set up credentials
    - Terraform will automatically create Cognito User Pool and Client in your AWS account
    - See [Setting Up Cognito Credentials](#setting-up-cognito-credentials) for details
+
+### Project Structure
+
+```txt
+eventpro-site/
+├── backend/
+│   ├── services/          # Spring Boot modular monolith
+│   │   ├── modules/       # Individual service modules
+│   │   ├── build.gradle
+│   │   └── settings.gradle
+│   ├── lambdas/           # AWS Lambda functions
+│   │   ├── order-processor/
+│   │   ├── payment-processor/
+│   │   ├── notification-sender/
+│   │   └── secret-rotation/
+│   └── shared/            # Shared entities, enums, DTOs
+├── frontend/              # React frontend
+└── infrastructure/        # Terraform configurations
+```
 
 ---
 
@@ -90,7 +115,7 @@ See [Detailed Setup](#detailed-setup) section below.
 ### Step 1: Start Infrastructure Services
 
 ```bash
-docker-compose up -d postgres localstack
+make start-pg-and-localstack
 ```
 
 **What it does:**
@@ -131,61 +156,6 @@ This command:
    - `COGNITO_USER_POOL_ID` (if Cognito enabled)
    - `COGNITO_CLIENT_ID` (if Cognito enabled)
 4. **Automatically creates `frontend/.env.local`** with frontend configuration
-
-**Option B**
-
-<details>
-<summary>Without Make</summary>
-
-```bash
-cd infrastructure/environments/local
-terraform init -upgrade
-terraform apply -auto-approve
-cd ../../..
-```
-
-Then manually create `.env` file:
-
-```bash
-cd infrastructure/environments/local
-cat > ../../.env << EOF
-ORDER_QUEUE_URL=$(terraform output -raw sqs_order_queue_url)
-PAYMENT_QUEUE_URL=$(terraform output -raw sqs_payment_queue_url)
-NOTIFICATION_QUEUE_URL=$(terraform output -raw sqs_notification_queue_url)
-S3_BUCKET_NAME=$(terraform output -raw s3_images_bucket_name)
-COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
-COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
-EOF
-cd ../../..
-```
-
-**What this creates:**
-
-- S3 buckets (for images)
-- SQS queues (order, payment, notification)
-- Secrets Manager secrets (database, JWT, Stripe)
-- Cognito User Pool (only if `enable_cognito=true`)
-
-**Expected output:**
-
-```txt
-Apply complete! Resources: X added, 0 changed, 0 destroyed.
-
-Outputs:
-sqs_order_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-queue"
-sqs_payment_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/payment-queue"
-sqs_notification_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/notification-queue"
-s3_images_bucket_name = "eventpro-images-local"
-```
-
-**Note**:
-
-- Cognito requires LocalStack Pro. In LocalStack Community Edition, `cognito_user_pool_id` and `cognito_user_pool_client_id` outputs will be `null`
-- If Cognito outputs are null, you must provide Cognito credentials from your AWS account manually
-- The `.env` file is **required** - docker-compose reads from it to configure the backend
-- The `frontend/.env.local` file is also created automatically by `make local-infra`
-
-</details>
 
 ### Step 3: Verify Environment Files
 
@@ -234,24 +204,7 @@ VITE_S3_BUCKET_NAME=eventpro-images-local
 <details>
 <summary>Click to expand</summary>
 
-**Option 1: Using LocalStack Pro**
-
-If you have LocalStack Pro, Cognito resources will be created automatically:
-
-1. **Terraform**: Cognito resources are created automatically (no `enable_cognito` variable needed)
-
-2. **Get Cognito values**:
-
-   ```bash
-   export COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
-   export COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
-   ```
-
-3. **Update `.env` file** with the values from Terraform outputs
-
-4. **Update `frontend/.env.local`** with the same values
-
-**Option 2: Using Real AWS Cognito (Recommended - Terraform Creates It)**
+**Using Real AWS Cognito**
 
 Terraform will automatically create Cognito resources in your real AWS account. You just need to configure AWS credentials:
 
@@ -303,7 +256,7 @@ Terraform will automatically create Cognito resources in your real AWS account. 
 make local-up
 
 # OR manually with docker-compose (requires .env file)
-docker-compose --env-file .env up -d backend
+make start-backend
 ```
 
 **What it does:**
@@ -348,7 +301,7 @@ make local-up
 # This starts both backend and frontend
 
 # OR manually
-docker-compose up -d frontend
+make start-frontend
 ```
 
 **What it does:**
@@ -594,7 +547,7 @@ docker-compose ps postgres  # Should show "healthy"
 **Solution**:
 
 1. **Check backend is running**: <http://localhost:8080/actuator/health>
-2. **Check CORS configuration** in `application-local.yml`
+2. **Check CORS configuration** in `backend/services/modules/eventpro-api/src/main/resources/application-local.yml`
 3. **Verify VITE_API_BASE_URL** in `frontend/.env.local`:
 
    ```bash
@@ -787,6 +740,28 @@ SELECT id, email, first_name, last_name, cognito_user_id FROM "user";
 SELECT * FROM flyway_schema_history ORDER BY installed_rank DESC;
 ```
 
+### Building Services and Lambdas
+
+```bash
+# Build backend services
+cd backend/services
+./gradlew clean build
+
+# Build a specific Lambda (example: order-processor)
+cd backend/lambdas/order-processor
+./gradlew clean build
+
+# Build shared module
+cd backend/shared
+./gradlew clean build
+
+# Run backend services locally (without Docker)
+cd backend/services
+./gradlew :eventpro-api:bootRun
+# Or use the script:
+./run-backend-local.sh
+```
+
 </details>
 
 ## Expected Test Results
@@ -813,7 +788,7 @@ When deploying to **dev**, **staging**, or **production** environments, ensure C
 
 ### Backend Configuration
 
-**Important**: The `application-local.yml` file is **only used when `SPRING_PROFILES_ACTIVE=local`**.
+**Important**: The `application-local.yml` file (located at `backend/services/modules/eventpro-api/src/main/resources/application-local.yml`) is **only used when `SPRING_PROFILES_ACTIVE=local`**.
 
 **For higher environments:**
 
@@ -948,8 +923,12 @@ Once local testing is successful:
 1. **Run automated tests**:
 
    ```bash
-   # Backend tests
-   cd backend
+# Backend services tests
+cd backend/services
+./gradlew test
+
+# Lambda tests (example: order-processor)
+cd backend/lambdas/order-processor
    ./gradlew test
 
    # Frontend tests
@@ -960,7 +939,7 @@ Once local testing is successful:
 2. **Check code coverage**:
 
    ```bash
-   cd backend
+cd backend/services
    ./gradlew test jacocoTestReport
    ```
 

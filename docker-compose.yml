@@ -52,9 +52,10 @@ services:
     container_name: backend
     working_dir: /app
     volumes:
-      # Mount entire backend directory - source code and build outputs
+      # Mount entire backend directory to access services, shared, and lambdas
       # This allows DevTools to detect changes and hot reload
-      - ./backend:/app
+      # The shared module is needed for composite builds
+      - ./backend:/app/backend
       - gradle_cache:/root/.gradle
     ports:
       - "8080:8080"
@@ -83,6 +84,7 @@ services:
       - SPRING_DEVTOOLS_RESTART_ENABLED=true
     command: >
       sh -c "
+        cd /app/backend/services &&
         chmod +x ./gradlew &&
         ./gradlew :eventpro-api:bootRun --no-daemon --continuous
       "

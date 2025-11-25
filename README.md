@@ -1,6 +1,6 @@
 # EventPro Platform
 
-A comprehensive full-stack event ticketing platform built with a **Modular Monolith Architecture**. EventPro enables event organizers to create, manage, and sell tickets for events while providing customers with a seamless experience to discover, purchase, and attend events.
+A comprehensive full-stack event ticketing platform built with a **Modular Monolith Architecture** and **Serverless Lambda Functions**. EventPro enables event organizers to create, manage, and sell tickets for events while providing customers with a seamless experience to discover, purchase, and attend events.
 
 ---
 
@@ -30,10 +30,13 @@ EventPro is a modern event ticketing platform designed to handle the complete li
 - **Payment Processing**: Stripe integration for secure payments
 - **Notifications**: Multi-channel notifications (Email, SMS, In-App, Push)
 - **Search & Discovery**: Advanced event search and filtering capabilities
+- **Async Processing**: Event-driven order processing, payment processing, and notifications via Lambda functions
 
 ### Key Characteristics
 
 - **Modular Monolith**: Single deployable unit with clear module boundaries
+- **Serverless Functions**: Quarkus-based Lambda functions for async processing
+- **Shared Module**: Framework-agnostic entities, enums, and utilities
 - **Cloud-Native**: Built for AWS with infrastructure as code
 - **Scalable**: Designed to scale from startup to enterprise
 - **Secure**: AWS Cognito authentication, JWT-based authorization, encrypted data
@@ -90,9 +93,18 @@ EventPro is a modern event ticketing platform designed to handle the complete li
                     ┌─────────┴─────────┐
                     ▼                   ▼
             ┌──────────────┐    ┌──────────────┐
-            │  AWS SES     │    │  AWS SNS     │
-            │  (Email)     │    │  (SMS)       │
+            │  AWS SQS     │    │  AWS SES     │
+            │  (Queues)    │    │  (Email)     │
             └──────────────┘    └──────────────┘
+                    │                   │
+                    ▼                   ▼
+        ┌───────────────────┐   ┌──────────────┐
+        │  Lambda Functions │   │  AWS SNS     │
+        │  (Quarkus)        │   │  (SMS)       │
+        │  - Order Processor│   └──────────────┘
+        │  - Payment Proc.  │
+        │  - Notification   │
+        └───────────────────┘
                     │
                     ▼
             ┌──────────────┐
@@ -103,19 +115,33 @@ EventPro is a modern event ticketing platform designed to handle the complete li
 
 </details>
 
-### Architecture Pattern: Modular Monolith
+### Architecture Pattern: Modular Monolith + Serverless
 
-EventPro uses a **Modular Monolith** architecture, which provides:
+EventPro uses a **Modular Monolith** architecture for the main API service, combined with **Serverless Lambda Functions** for async processing:
 
+**Main API Service (Spring Boot):**
 - ✅ **Single Build System**: No Spring Boot + Quarkus conflicts
 - ✅ **Simplified Deployment**: One Docker image, one ECS service
 - ✅ **Easier Development**: Single application to run locally
 - ✅ **Lower Costs**: ~$81/month vs ~$170/month (52% reduction)
 - ✅ **Future-Proof**: Can extract modules to microservices when needed
 
+**Lambda Functions (Quarkus):**
+- ✅ **Fast Cold Starts**: 50-200ms with native compilation
+- ✅ **Cost-Effective**: Pay per invocation
+- ✅ **Auto-Scaling**: Handles traffic spikes automatically
+- ✅ **Event-Driven**: SQS-triggered async processing
+
+**Shared Module:**
+- ✅ **Single Source of Truth**: Entities, enums, DTOs defined once
+- ✅ **Framework-Agnostic**: Works with both Spring Boot and Quarkus
+- ✅ **Type Safety**: Same types across backend and Lambda
+- ✅ **No Duplication**: Eliminates code duplication
+
 **Module Communication:**
 
 - **Within Monolith**: Direct method calls, Spring Dependency Injection, Spring Events
+- **Async Processing**: SQS queues → Lambda functions (Order Processor, Payment Processor, Notification Sender)
 - **External**: REST API, Database (PostgreSQL), AWS Services (SQS, SES, SNS, S3)
 
 **When to Extract to Microservices:**
@@ -136,10 +162,12 @@ EventPro uses a **Modular Monolith** architecture, which provides:
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | **Java** | 21 | Programming language |
-| **Spring Boot** | 4.0.0 | Application framework |
+| **Spring Boot** | 4.0.0 | Application framework (Main API) |
+| **Quarkus** | 3.27.0 | Lambda framework (Async processing) |
 | **Gradle** | 9.2.1 | Build tool |
 | **PostgreSQL** | 16+ | Primary database |
 | **Spring Data JPA** | - | Database access layer |
+| **Hibernate Panache** | - | Database access (Lambda) |
 | **Spring Security** | - | Security framework |
 | **AWS SDK** | 2.38.7 | AWS service integration |
 | **Flyway** | - | Database migrations |
@@ -176,6 +204,7 @@ EventPro uses a **Modular Monolith** architecture, which provides:
 | Service | Purpose |
 |---------|---------|
 | **ECS Fargate** | Container orchestration for backend |
+| **Lambda** | Serverless functions (Order, Payment, Notification processing) |
 | **RDS PostgreSQL** | Managed database (Multi-AZ) |
 | **S3** | Image storage for events |
 | **CloudFront** | CDN for frontend and images |
@@ -186,7 +215,7 @@ EventPro uses a **Modular Monolith** architecture, which provides:
 | **SES** | Email notifications |
 | **SNS** | SMS notifications |
 | **SQS** | Message queuing (for async processing) |
-| **Lambda** | Serverless functions (analytics, scheduled tasks) |
+| **ECR** | Container registry for Lambda images |
 
 ---
 
@@ -199,18 +228,40 @@ EventPro uses a **Modular Monolith** architecture, which provides:
 
 ```txt
 eventpro-site/
-├── backend/                      # Backend Application (Modular Monolith)
-│   ├── modules/
-│   │   ├── eventpro-core/        # Core module: Users, Auth, Common utilities
-│   │   ├── eventpro-event/       # Event module: Events, Tickets, Search
-│   │   ├── eventpro-order/       # Order module: Cart, Orders, Checkout
-│   │   ├── eventpro-payment/     # Payment module: Stripe integration
-│   │   ├── eventpro-notification/# Notification module: Email, SMS, WebSocket
-│   │   └── eventpro-api/         # Main application module (REST API layer)
-│   ├── build.gradle              # Root build configuration
-│   ├── settings.gradle           # Project settings
-│   ├── Dockerfile                # Docker image definition
-│   └── README.md                 # Backend documentation
+├── backend/                      # Backend Application
+│   ├── services/                 # Spring Boot Modular Monolith
+│   │   ├── modules/
+│   │   │   ├── eventpro-core/   # Core module: Users, Auth, Common utilities
+│   │   │   ├── eventpro-event/  # Event module: Events, Tickets, Search
+│   │   │   ├── eventpro-order/  # Order module: Cart, Orders, Checkout
+│   │   │   ├── eventpro-payment/# Payment module: Stripe integration
+│   │   │   ├── eventpro-notification/# Notification module: Email, SMS, WebSocket
+│   │   │   └── eventpro-api/    # Main application module (REST API layer)
+│   │   ├── build.gradle         # Root build configuration
+│   │   ├── settings.gradle      # Project settings
+│   │   ├── Dockerfile           # Docker image definition
+│   │   └── README.md            # Backend documentation
+│   │
+│   ├── lambdas/                 # AWS Lambda Functions (Quarkus)
+│   │   ├── order-processor/     # Order processing Lambda
+│   │   │   ├── src/
+│   │   │   ├── build.gradle
+│   │   │   ├── Dockerfile       # JVM build
+│   │   │   ├── Dockerfile.native# Native build
+│   │   │   └── settings.gradle
+│   │   ├── payment-processor/   # Payment processing Lambda
+│   │   ├── notification-sender/ # Notification Lambda
+│   │   └── secret-rotation/    # Secret rotation Lambda (Python)
+│   │
+│   └── shared/                   # Shared Module (Framework-agnostic)
+│       ├── src/main/java/com/accessplus/eventpro/shared/
+│       │   ├── entity/          # JPA entities (BaseEntity, OrderEntity, etc.)
+│       │   ├── enums/           # Enums (OrderStatus, TicketStatus, etc.)
+│       │   ├── model/           # DTOs (OrderMessage, PaymentMessage)
+│       │   ├── exception/       # Common exceptions
+│       │   └── util/            # Common utilities
+│       ├── build.gradle
+│       └── settings.gradle
 │
 ├── frontend/                     # Frontend Application (React + TypeScript)
 │   ├── src/
@@ -235,16 +286,13 @@ eventpro-site/
 │       ├── cloudfront/           # CloudFront CDN
 │       ├── cognito/              # Cognito User Pool
 │       ├── ecs/                  # ECS Fargate service
+│       ├── lambda/               # Lambda functions
 │       ├── rds/                  # RDS PostgreSQL
 │       ├── route53/              # Route53 DNS
 │       ├── s3/                   # S3 buckets
 │       ├── secrets-manager/      # Secrets Manager
+│       ├── sqs/                  # SQS queues
 │       └── vpc/                  # VPC and networking
-│
-├── secret-rotation/             # Lambda function for secret rotation
-│   ├── lambda_function.py
-│   ├── requirements.txt
-│   └── Dockerfile
 │
 ├── specs/                       # Project specifications and documentation
 │   └── 001-eventpro-platform/
@@ -261,6 +309,9 @@ eventpro-site/
 ├── docker-compose.yml           # Local development orchestration
 ├── Makefile                     # Development automation commands
 ├── .gitlab-ci.yml              # CI/CD pipeline configuration
+├── LOCAL_DEVELOPMENT_GUIDE.md  # Comprehensive local development guide
+├── SHARED_MODULE_GUIDE.md      # Shared module documentation
+├── LAMBDA_IMPLEMENTATION_GUIDE.md # Lambda functions documentation
 └── README.md                   # This file
 ```
 
@@ -271,7 +322,7 @@ eventpro-site/
 <details>
 <summary>Click to expand</summary>
 
-#### Backend Modules
+#### Backend Services Modules (Spring Boot)
 
 1. **eventpro-core**
    - User management (CRUD operations)
@@ -292,6 +343,7 @@ eventpro-site/
    - Order creation and processing
    - Checkout flow
    - Order history
+   - SQS message publishing for async processing
 
 4. **eventpro-payment**
    - Stripe payment integration
@@ -312,6 +364,38 @@ eventpro-site/
    - API configuration
    - Main application entry point
    - Global exception handling
+
+#### Lambda Functions (Quarkus)
+
+1. **order-processor**
+   - Processes orders from SQS queue
+   - Validates orders and reserves tickets
+   - Publishes to payment queue
+   - Uses shared module for entities and enums
+
+2. **payment-processor**
+   - Processes payments from SQS queue
+   - Stripe payment integration
+   - Updates order status
+   - Publishes to notification queue
+
+3. **notification-sender**
+   - Sends notifications from SQS queue
+   - Email (SES) and SMS (SNS) delivery
+   - Notification preferences handling
+
+4. **secret-rotation** (Python)
+   - Rotates database credentials
+   - Secrets Manager integration
+   - Scheduled execution
+
+#### Shared Module
+
+- **Entities**: BaseEntity, OrderEntity, OrderItemEntity, TicketEntity
+- **Enums**: OrderStatus, TicketStatus, TicketType
+- **Models**: OrderMessage, PaymentMessage
+- **Exceptions**: BusinessException, ResourceNotFoundException, ValidationException, etc.
+- **Utilities**: DateUtils, StringUtils, UuidUtils
 
 </details>
 
@@ -350,12 +434,14 @@ eventpro-site/
 - Secure checkout process
 - Order history and tracking
 - Order confirmation
+- Async order processing via Lambda
 
 ### Payment Processing
 
 - Stripe integration for secure payments
 - Payment status tracking
 - Payment webhook handling
+- Async payment processing via Lambda
 - Refund processing (future)
 
 ### Notifications
@@ -363,6 +449,7 @@ eventpro-site/
 - Email notifications (order confirmations, event reminders)
 - SMS notifications (optional)
 - In-app notifications
+- Async notification delivery via Lambda
 - Notification preferences management
 
 ### Search & Discovery
@@ -379,13 +466,20 @@ eventpro-site/
 ### AWS Services Used
 
 <details>
-<summary>Click to expan</summary>
+<summary>Click to expand</summary>
 
 #### Compute
 
 - **ECS Fargate**: Hosts the EventPro API backend service
   - Auto-scaling based on CPU/memory metrics
   - Multi-AZ deployment for high availability
+
+- **Lambda**: Serverless functions for async processing
+  - Order Processor (Quarkus)
+  - Payment Processor (Quarkus)
+  - Notification Sender (Quarkus)
+  - Secret Rotation (Python)
+  - Container images deployed via ECR
 
 #### Database
 
@@ -399,6 +493,10 @@ eventpro-site/
 - **S3**: Event image storage
   - Public read access for images
   - CloudFront integration for CDN
+
+- **ECR**: Container registry
+  - Lambda function images
+  - Versioned deployments
 
 #### Networking
 
@@ -423,6 +521,7 @@ eventpro-site/
   - Database credentials
   - API keys
   - JWT secrets
+  - Automatic rotation via Lambda
 
 #### Messaging & Notifications
 
@@ -433,8 +532,10 @@ eventpro-site/
   - SMS delivery
   - Topic subscriptions
 - **SQS**: Message queuing
-  - Async order processing
-  - Event-driven workflows
+  - Order queue (order processing)
+  - Payment queue (payment processing)
+  - Notification queue (notifications)
+  - Dead letter queues for error handling
 
 #### CDN
 
@@ -442,13 +543,6 @@ eventpro-site/
   - Frontend static assets
   - Event images
   - Caching and performance optimization
-
-#### Serverless
-
-- **Lambda**: Serverless functions
-  - Analytics processing
-  - Scheduled tasks
-  - Secret rotation
 
 </details>
 
@@ -500,13 +594,28 @@ For local development, the following services are used:
 
 ### Build Commands
 
-**Backend:**
+**Backend Services:**
 
 ```bash
-cd backend
+cd backend/services
 ./gradlew build          # Build all modules
 ./gradlew test           # Run all tests
 ./gradlew :eventpro-api:bootRun  # Run application
+```
+
+**Lambda Functions:**
+
+```bash
+cd backend/lambdas/order-processor
+./gradlew build          # Build Lambda function
+./gradlew test           # Run tests
+```
+
+**Shared Module:**
+
+```bash
+cd backend/shared
+./gradlew build          # Build shared module
 ```
 
 **Frontend:**
@@ -522,13 +631,13 @@ npm test                 # Run tests
 **Docker:**
 
 ```bash
-# Build backend image
-cd backend
+# Build backend services image
+cd backend/services
 docker build -t eventpro-api:latest .
 
-# Build frontend image (if needed)
-cd frontend
-docker build -t eventpro-frontend:latest .
+# Build Lambda image
+cd backend/lambdas/order-processor
+docker build -t eventpro-order-processor:latest -f Dockerfile .
 ```
 
 ---
@@ -681,7 +790,10 @@ When running locally, access Swagger UI at:
 ### Documentation
 
 - **[LOCAL_DEVELOPMENT_GUIDE.md](./LOCAL_DEVELOPMENT_GUIDE.md)** - Comprehensive local development guide
-- **[backend/README.md](./backend/README.md)** - Backend application documentation
+- **[SHARED_MODULE_GUIDE.md](./SHARED_MODULE_GUIDE.md)** - Shared module architecture and usage
+- **[LAMBDA_IMPLEMENTATION_GUIDE.md](./z_docs/LAMBDA_IMPLEMENTATION_GUIDE.md)** - Lambda functions implementation guide
+- **[backend/services/README.md](./backend/services/README.md)** - Backend application documentation
+- **[backend/shared/README.md](./backend/shared/README.md)** - Shared module documentation
 - **[frontend/README.md](./frontend/README.md)** - Frontend application documentation
 - **[z_docs/modular-monolith-architecture.md](./z_docs/modular-monolith-architecture.md)** - Detailed architecture design
 - **[specs/001-eventpro-platform/data-model.md](./specs/001-eventpro-platform/data-model.md)** - Database schema documentation
@@ -689,6 +801,7 @@ When running locally, access Swagger UI at:
 ### External Resources
 
 - [Spring Boot Documentation](https://spring.io/projects/spring-boot)
+- [Quarkus Documentation](https://quarkus.io/)
 - [React Documentation](https://react.dev/)
 - [AWS Documentation](https://docs.aws.amazon.com/)
 - [Terraform Documentation](https://www.terraform.io/docs)
@@ -698,10 +811,13 @@ When running locally, access Swagger UI at:
 
 - GitLab CI/CD pipeline configuration: `.gitlab-ci.yml`
 - Automated testing, building, and deployment
+- Docker image builds for backend services and Lambda functions
+- ECR integration for Lambda container images
 
 ### Testing
 
 - **Backend**: JUnit 5, JaCoCo for coverage
+- **Lambda**: Quarkus JUnit 5, Mockito
 - **Frontend**: Vitest, React Testing Library
 - **Integration**: Docker Compose for local integration testing
 

@@ -10,10 +10,10 @@
     - echo "Test coverage report generated"
   artifacts:
     reports:
-      junit: backend/modules/*/build/test-results/test/TEST-*.xml
+      junit: backend/services/modules/*/build/test-results/test/TEST-*.xml
     paths:
-      - backend/modules/*/build/test-results/
-      - backend/modules/*/build/reports/jacoco/
-      - backend/modules/*/build/reports/tests/
-      - backend/build/reports/jacoco/root/
+      - backend/services/modules/*/build/test-results/
+      - backend/services/modules/*/build/reports/jacoco/
+      - backend/services/modules/*/build/reports/tests/
+      - backend/services/build/reports/jacoco/root/
     expire_in: 1 week
