@@ -8,14 +8,12 @@ Complete guide for setting up, running, and testing the EventPro application loc
 
 1. [Prerequisites](#prerequisites)
 2. [Quick Start](#quick-start)
-3. [Authentication Modes](#authentication-modes)
-4. [One by One Setup](#one-by-one-setup)
-5. [Detailed Setup](#detailed-setup)
-6. [Testing](#testing)
-7. [Manual Setup (Alternative)](#manual-setup-alternative)
-8. [Troubleshooting](#troubleshooting)
-9. [Clean Up](#clean-up)
-10. [Useful Commands](#useful-commands)
+3. [One by One Setup](#one-by-one-setup)
+4. [Detailed Setup](#detailed-setup)
+5. [Testing](#testing)
+6. [Troubleshooting](#troubleshooting)
+7. [Clean Up](#clean-up)
+8. [Useful Commands](#useful-commands)
 
 ---
 
@@ -26,6 +24,13 @@ Complete guide for setting up, running, and testing the EventPro application loc
 3. **Node.js 22+** (if running frontend directly)
 4. **Java 21** (if running backend directly)
 5. **AWS CLI** (optional, for testing LocalStack resources)
+6. **AWS Account with Credentials** (required for Cognito)
+   - Cognito is created in real AWS (not LocalStack)
+   - Configure AWS credentials using one of these methods:
+     - Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables, OR
+     - Run `aws configure` to set up credentials
+   - Terraform will automatically create Cognito User Pool and Client in your AWS account
+   - See [Setting Up Cognito Credentials](#setting-up-cognito-credentials) for details
 
 ---
 
@@ -40,11 +45,32 @@ Complete guide for setting up, running, and testing the EventPro application loc
 # Step 1: Provision infrastructure (LocalStack resources)
 make local-infra
 
-# Step 2: Start all services
+# Step 2: Set Cognito credentials (if not created by Terraform)
+# If using LocalStack Community Edition, you'll need to provide Cognito credentials
+# from your AWS account. See "Setting Up Cognito Credentials" section below.
+
+# Step 3: Start all services
 make local-up
 ```
 
-**That's it!** The application will be available at:
+**Important**: After `make local-infra`, check if Cognito credentials were set. If you see a warning about missing Cognito credentials:
+
+1. **Create a Cognito User Pool in your AWS account** (if you don't have one)
+2. **Edit `.env` file** and add:
+
+   ```bash
+   COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
+   COGNITO_CLIENT_ID=your-client-id
+   ```
+
+3. **Edit `frontend/.env.local`** and add:
+
+   ```bash
+   VITE_COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
+   VITE_COGNITO_CLIENT_ID=your-client-id
+   ```
+
+**Then** the application will be available at:
 
 - **Frontend**: <http://localhost:5173>
 - **Backend API**: <http://localhost:8080>
@@ -53,307 +79,6 @@ make local-up
 ### Option 2: Manual Setup
 
 See [Detailed Setup](#detailed-setup) section below.
-
-</details>
-
-## Authentication Modes
-
-<details>
-<summary>Click to expand</summary>
-
-The application supports two authentication modes for local development:
-
-### Mode 1: Mock Authentication (Default - Recommended)
-
-**No Cognito required!** Works with LocalStack Community Edition (free).
-
-- **Backend**: Uses mock JWT decoder (`LOCAL_AUTH_ENABLED=true` by default)
-- **Frontend**: Uses mock auth service (when Cognito env vars are missing)
-- **Default Test User**:
-  - Email: `dev@local.test`
-  - Password: `password123`
-  - Role: `USER`
-
-**Benefits:**
-
-- ✅ No LocalStack Pro required
-- ✅ No AWS account needed
-- ✅ Faster startup
-- ✅ Works identically to production (same JWT structure)
-
-### Mode 2: Real Cognito (Optional)
-
-Requires LocalStack Pro or real AWS account.
-
-- **Backend**: Set `LOCAL_AUTH_ENABLED=false` and provide `COGNITO_USER_POOL_ID`
-- **Frontend**: Set `VITE_LOCAL_AUTH_ENABLED=false` and provide Cognito credentials
-- **Terraform**: Set `enable_cognito=true` when provisioning
-
-**When to use:**
-
-- Testing Cognito-specific features
-- Validating Cognito integration
-- Pre-production testing
-
-</details>
-
-## One by One Setup
-
-<details>
-<summary>Click to expand</summary>
-
-This section provides step-by-step instructions for starting services individually with separate environment files for better control and clarity.
-
-### Step 1: Start LocalStack
-
-```bash
-docker-compose up -d localstack
-```
-
-**Wait**: ~10 seconds for LocalStack to be healthy
-
-**Verify:**
-
-```bash
-docker-compose ps localstack
-# Should show "healthy"
-```
-
----
-
-### Step 2: Start PostgreSQL
-
-```bash
-docker-compose up -d postgres
-```
-
-**Wait**: ~10 seconds for PostgreSQL to be healthy
-
-**Verify:**
-
-```bash
-docker-compose ps postgres
-# Should show "healthy"
-```
-
----
-
-### Step 3: Provision Infrastructure (Terraform)
-
-```bash
-cd infrastructure/environments/local
-terraform init -upgrade
-terraform apply -auto-approve
-cd ../../..
-```
-
-**What this creates:**
-
-- S3 buckets (for images)
-- SQS queues (order, payment, notification)
-- Secrets Manager secrets (database, JWT, Stripe)
-- Cognito User Pool (only if `enable_cognito=true`)
-
-**Expected output:**
-
-```txt
-Apply complete! Resources: X added, 0 changed, 0 destroyed.
-
-Outputs:
-sqs_order_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-queue"
-sqs_payment_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/payment-queue"
-sqs_notification_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/notification-queue"
-s3_images_bucket_name = "eventpro-images-local"
-```
-
----
-
-### Step 4: Create Backend Environment File
-
-Create `.env.backend` file with backend-specific environment variables:
-
-```bash
-cd infrastructure/environments/local
-cat > ../../.env.backend << EOF
-# AWS Configuration
-AWS_ENDPOINT_URL=http://localhost:4566
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=test
-AWS_SECRET_ACCESS_KEY=test
-
-# SQS Queue URLs
-ORDER_QUEUE_URL=$(terraform output -raw sqs_order_queue_url)
-PAYMENT_QUEUE_URL=$(terraform output -raw sqs_payment_queue_url)
-NOTIFICATION_QUEUE_URL=$(terraform output -raw sqs_notification_queue_url)
-
-# S3 Configuration
-S3_BUCKET_NAME=$(terraform output -raw s3_images_bucket_name)
-
-# Cognito Configuration (empty for mock auth, or set if using real Cognito)
-COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id 2>/dev/null | grep -v "^null$" || echo "")
-COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id 2>/dev/null | grep -v "^null$" || echo "")
-
-# Local Auth (set to false if using real Cognito)
-LOCAL_AUTH_ENABLED=true
-EOF
-cd ../../..
-```
-
-**Verify the file:**
-
-```bash
-cat .env.backend
-```
-
-Should contain:
-
-```txt
-AWS_ENDPOINT_URL=http://localhost:4566
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=test
-AWS_SECRET_ACCESS_KEY=test
-ORDER_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-queue
-PAYMENT_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/payment-queue
-NOTIFICATION_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/notification-queue
-S3_BUCKET_NAME=eventpro-images-local
-COGNITO_USER_POOL_ID=
-COGNITO_CLIENT_ID=
-LOCAL_AUTH_ENABLED=true
-```
-
----
-
-### Step 5: Create Frontend Environment File
-
-Create `.env.frontend` file with frontend-specific environment variables:
-
-```bash
-cd infrastructure/environments/local
-cat > ../../.env.frontend << EOF
-# API Configuration
-VITE_API_BASE_URL=http://localhost:8080
-
-# Cognito Configuration (empty for mock auth, or set if using real Cognito)
-VITE_COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id 2>/dev/null | grep -v "^null$" || echo "")
-VITE_COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id 2>/dev/null | grep -v "^null$" || echo "")
-
-# AWS Configuration
-VITE_AWS_REGION=us-east-1
-VITE_S3_BUCKET_NAME=$(terraform output -raw s3_images_bucket_name)
-
-# Local Auth (optional - frontend auto-detects when Cognito credentials are empty)
-VITE_LOCAL_AUTH_ENABLED=true
-EOF
-cd ../../..
-```
-
-**Verify the file:**
-
-```bash
-cat .env.frontend
-```
-
-Should contain:
-
-```txt
-VITE_API_BASE_URL=http://localhost:8080
-VITE_COGNITO_USER_POOL_ID=
-VITE_COGNITO_CLIENT_ID=
-VITE_AWS_REGION=us-east-1
-VITE_S3_BUCKET_NAME=eventpro-images-local
-VITE_LOCAL_AUTH_ENABLED=true
-```
-
----
-
-### Step 6: Start Backend
-
-```bash
-docker-compose --env-file .env.backend up -d backend
-```
-
-**What it does:**
-
-- Reads environment variables from `.env.backend` file
-- Starts Spring Boot backend with `SPRING_PROFILES_ACTIVE=local`
-- **Flyway migrations run automatically** during startup
-- Backend available at <http://localhost:8080>
-
-**Wait**: ~30 seconds for backend to start and migrations to complete
-
-**Verify:**
-
-```bash
-# Check health
-curl http://localhost:8080/actuator/health
-
-# Check migrations
-docker-compose logs backend | grep -i flyway
-# Should see: "Flyway migration successful"
-
-# Check environment variables are loaded
-docker-compose exec backend env | grep -E "ORDER_QUEUE_URL|PAYMENT_QUEUE_URL|NOTIFICATION_QUEUE_URL"
-# Should show the queue URLs from .env.backend file
-```
-
----
-
-### Step 7: Start Frontend
-
-```bash
-docker-compose --env-file .env.frontend up -d frontend
-```
-
-**What it does:**
-
-- Reads environment variables from `.env.frontend` file
-- Starts React dev server with hot reload
-- Frontend available at <http://localhost:5173>
-
-**Wait**: ~10 seconds for frontend to start
-
-**Verify:**
-
-```bash
-curl http://localhost:5173
-# Should return HTML
-
-# Check frontend environment variables
-docker-compose exec frontend env | grep VITE_
-# Should show frontend configuration from .env.frontend
-```
-
----
-
-### Benefits of This Approach
-
-✅ **Clear separation**: Backend and frontend configurations are in separate files  
-✅ **Explicit control**: You know exactly which file each service uses  
-✅ **Easy debugging**: Easy to verify which variables are loaded  
-✅ **Flexible**: Can easily switch between different configurations  
-
-### Command Reference
-
-```bash
-# Start infrastructure
-docker-compose up -d localstack postgres
-
-# Provision resources
-cd infrastructure/environments/local && terraform apply -auto-approve && cd ../../..
-
-# Create env files (see steps 4-5 above)
-
-# Start services
-docker-compose --env-file .env.backend up -d backend
-docker-compose --env-file .env.frontend up -d frontend
-
-# View logs
-docker-compose logs -f backend
-docker-compose logs -f frontend
-
-# Stop services
-docker-compose down
-```
 
 </details>
 
@@ -407,7 +132,10 @@ This command:
    - `COGNITO_CLIENT_ID` (if Cognito enabled)
 4. **Automatically creates `frontend/.env.local`** with frontend configuration
 
-**Option B: Manual Terraform**
+**Option B**
+
+<details>
+<summary>Without Make</summary>
 
 ```bash
 cd infrastructure/environments/local
@@ -452,11 +180,12 @@ s3_images_bucket_name = "eventpro-images-local"
 
 **Note**:
 
-- If using mock auth (default), `cognito_user_pool_id` and `cognito_user_pool_client_id` outputs will be `null`
+- Cognito requires LocalStack Pro. In LocalStack Community Edition, `cognito_user_pool_id` and `cognito_user_pool_client_id` outputs will be `null`
+- If Cognito outputs are null, you must provide Cognito credentials from your AWS account manually
 - The `.env` file is **required** - docker-compose reads from it to configure the backend
 - The `frontend/.env.local` file is also created automatically by `make local-infra`
 
----
+</details>
 
 ### Step 3: Verify Environment Files
 
@@ -495,23 +224,21 @@ VITE_S3_BUCKET_NAME=eventpro-images-local
 
 **Note**:
 
-- Empty Cognito values enable mock authentication (default)
-- Backend uses `application-local.yml` which has defaults for local development
-- Frontend will use mock auth when Cognito env vars are empty
+- Cognito credentials are **REQUIRED** for local development
+- If Terraform outputs are null (LocalStack Community Edition), you must provide Cognito credentials from your AWS account
+- Backend uses `application-local.yml` which requires `COGNITO_USER_POOL_ID` and `COGNITO_CLIENT_ID`
+- Frontend requires `VITE_COGNITO_USER_POOL_ID` and `VITE_COGNITO_CLIENT_ID` environment variables
 
-#### For Real Cognito (Optional)
+#### Setting Up Cognito Credentials
 
 <details>
 <summary>Click to expand</summary>
 
-If you want to use real Cognito (requires LocalStack Pro):
+**Option 1: Using LocalStack Pro**
 
-1. **Terraform**: Set `enable_cognito=true`:
+If you have LocalStack Pro, Cognito resources will be created automatically:
 
-   ```bash
-   cd infrastructure/environments/local
-   terraform apply -var="enable_cognito=true" -auto-approve
-   ```
+1. **Terraform**: Cognito resources are created automatically (no `enable_cognito` variable needed)
 
 2. **Get Cognito values**:
 
@@ -520,20 +247,48 @@ If you want to use real Cognito (requires LocalStack Pro):
    export COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
    ```
 
-3. **Backend**: Set `LOCAL_AUTH_ENABLED=false` and provide Cognito credentials
+3. **Update `.env` file** with the values from Terraform outputs
 
-4. **Frontend**: Update `frontend/.env.local`:
+4. **Update `frontend/.env.local`** with the same values
+
+**Option 2: Using Real AWS Cognito (Recommended - Terraform Creates It)**
+
+Terraform will automatically create Cognito resources in your real AWS account. You just need to configure AWS credentials:
+
+1. **Configure AWS Credentials** (choose one method):
+
+   **Method A: Environment Variables**
 
    ```bash
-   cat > frontend/.env.local << EOF
-   VITE_API_BASE_URL=http://localhost:8080
-   VITE_LOCAL_AUTH_ENABLED=false
-   VITE_COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
-   VITE_COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
-   VITE_AWS_REGION=us-east-1
-   VITE_S3_BUCKET_NAME=eventpro-images-local
-   EOF
+   export AWS_ACCESS_KEY_ID=your-access-key
+   export AWS_SECRET_ACCESS_KEY=your-secret-key
+   export AWS_REGION=us-east-1
    ```
+
+   **Method B: AWS CLI Configuration**
+
+   ```bash
+   aws configure
+   # Enter your Access Key ID, Secret Access Key, and Region
+   ```
+
+2. **Run `make local-infra`**:
+   - Terraform will create Cognito User Pool and Client in your AWS account
+   - Cognito credentials will be automatically added to `.env` and `frontend/.env.local`
+
+3. **Verify Cognito was created**:
+
+   ```bash
+   # Check .env file
+   cat .env | grep COGNITO
+   
+   # Or check Terraform outputs
+   cd infrastructure/environments/local
+   terraform output cognito_user_pool_id
+   terraform output cognito_user_pool_client_id
+   ```
+
+**Note**: If Terraform fails to create Cognito (e.g., missing AWS credentials), you can still create it manually in the AWS Console and add the credentials to `.env` and `frontend/.env.local`.
 
 </details>
 
@@ -624,13 +379,13 @@ docker-compose exec frontend env | grep VITE_
 <details>
 <summary>Click to expand</summary>
 
-### Test 1: Sign In (Mock Auth)
+### Test 1: Sign In
 
 1. **Open Frontend**: <http://localhost:5173>
 2. **Navigate to Login**: Click "Sign In" or go to <http://localhost:5173/login>
-3. **Enter credentials** (mock auth default user):
-   - Email: `dev@local.test`
-   - Password: `password123`
+3. **Enter credentials** (use a user from your Cognito User Pool):
+   - Email: `your-email@example.com`
+   - Password: `your-password`
 4. **Submit**: Click "Sign In"
 5. **Expected**:
    - ✅ Successfully authenticated
@@ -646,7 +401,7 @@ docker-compose exec frontend env | grep VITE_
 
 ---
 
-### Test 2: Sign Up (Mock Auth)
+### Test 2: Sign Up
 
 1. **Navigate to Sign Up**: Click "Sign up" link or go to <http://localhost:5173/signup>
 2. **Fill the form**:
@@ -660,9 +415,10 @@ docker-compose exec frontend env | grep VITE_
 4. **Expected**:
    - ✅ Success message
    - ✅ Redirect to login page
-   - ✅ User created in mock auth store
+   - ✅ User created in Cognito User Pool
+   - ✅ Email verification sent (check your email)
 
-**Note**: In mock auth mode, users are stored in-memory in the frontend. No Cognito required.
+**Note**: Users are created in your Cognito User Pool. Email verification is required before signing in.
 
 ---
 
@@ -764,60 +520,6 @@ docker-compose logs -f backend | grep -i "token\|auth\|jwt"
 
 </details>
 
-## Manual Setup (Alternative)
-
-<details>
-<summary>Click to expand</summary>
-If you prefer to run services directly (better for debugging):
-
-### Start Infrastructure Only
-
-```bash
-docker-compose up -d postgres localstack
-```
-
-### Run Backend Directly
-
-```bash
-# Set environment variables
-export SPRING_PROFILES_ACTIVE=local
-export DB_URL=jdbc:postgresql://localhost:5432/eventpro
-export DB_USERNAME=eventpro
-export DB_PASSWORD=eventpro
-export AWS_ENDPOINT_URL=http://localhost:4566
-export AWS_REGION=us-east-1
-export AWS_ACCESS_KEY_ID=test
-export AWS_SECRET_ACCESS_KEY=test
-export LOCAL_AUTH_ENABLED=true  # Enable mock auth
-
-# Get required values from Terraform
-cd infrastructure/environments/local
-export S3_BUCKET_NAME=$(terraform output -raw s3_images_bucket_name)
-export ORDER_QUEUE_URL=$(terraform output -raw sqs_order_queue_url)
-export PAYMENT_QUEUE_URL=$(terraform output -raw sqs_payment_queue_url)
-export NOTIFICATION_QUEUE_URL=$(terraform output -raw sqs_notification_queue_url)
-cd ../../..
-
-# Run backend
-cd backend
-./gradlew :eventpro-api:bootRun
-```
-
-### Run Frontend Directly
-
-```bash
-cd frontend
-
-# Install dependencies (first time only)
-npm install
-
-# Ensure .env.local exists (see Step 3 above)
-# Start dev server
-npm run dev
-```
-
-</details>
-
 ## Troubleshooting
 
 <details>
@@ -827,19 +529,7 @@ npm run dev
 
 **Symptoms**: Frontend error about missing Cognito config
 
-**Solution** (Mock Auth):
-
-```bash
-# Verify frontend/.env.local exists and has:
-cat frontend/.env.local
-# Should have: VITE_LOCAL_AUTH_ENABLED=true
-# Should NOT have: VITE_COGNITO_USER_POOL_ID
-
-# Restart frontend
-docker-compose restart frontend
-```
-
-**Solution** (Real Cognito):
+**Solution**:
 
 ```bash
 # Verify Cognito credentials are set
@@ -980,14 +670,17 @@ Could not resolve placeholder 'aws.sqs.orderQueueUrl' in value "${aws.sqs.orderQ
 
 **Symptoms**: 401 Unauthorized errors on API calls
 
-**Solution** (Mock Auth):
+**Solution**:
 
 ```bash
-# Verify LOCAL_AUTH_ENABLED is set
-docker-compose logs backend | grep -i "local.*auth"
+# Verify Cognito credentials are set
+docker-compose exec backend env | grep COGNITO
 
-# Check application-local.yml has:
-# local.auth.enabled: true
+# Check backend logs for Cognito configuration
+docker-compose logs backend | grep -i "cognito"
+
+# Verify Cognito User Pool exists and is accessible
+# Check that COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID are correct
 
 # Restart backend
 docker-compose restart backend
@@ -1060,7 +753,7 @@ terraform output
 
 # View specific output
 terraform output -raw s3_images_bucket_name
-terraform output -raw cognito_user_pool_id  # null if mock auth
+terraform output -raw cognito_user_pool_id  # null if LocalStack Community Edition
 
 # Re-apply changes
 terraform apply -auto-approve
@@ -1101,7 +794,8 @@ SELECT * FROM flyway_schema_history ORDER BY installed_rank DESC;
 After completing all tests, you should verify:
 
 ✅ **Sign In**: User authenticated, tokens stored  
-✅ **Sign Up**: User created (in mock store or Cognito)  
+✅ **Sign Up**: User created in Cognito User Pool  
+✅ **Email Verification**: Verification email sent  
 ✅ **Auto-Sync**: User synced to database automatically  
 ✅ **Profile View**: User profile loads successfully  
 ✅ **Profile Update**: Profile updates work  
@@ -1115,23 +809,17 @@ After completing all tests, you should verify:
 <details>
 <summary>Click to expand</summary>
 
-When deploying to **dev**, **staging**, or **production** environments, you need to disable mock authentication and use real Cognito.
+When deploying to **dev**, **staging**, or **production** environments, ensure Cognito credentials are properly configured.
 
 ### Backend Configuration
 
 **Important**: The `application-local.yml` file is **only used when `SPRING_PROFILES_ACTIVE=local`**.
 
-**✅ Safe Default Behavior**: If you **don't set `SPRING_PROFILES_ACTIVE`** (or set it to anything other than `local`), the application will:
-
-- Use the base `application.yml` (which doesn't have mock auth config)
-- **Automatically use real Cognito** (because `CognitoConfig` has `matchIfMissing = true`)
-- **NOT load mock auth** (because `LocalAuthConfig` has `matchIfMissing = false`)
-
-**For higher environments, you have two options:**
+**For higher environments:**
 
 #### Option 1: Don't Set SPRING_PROFILES_ACTIVE (Simplest - Recommended)
 
-**Just provide Cognito credentials** - that's it! The application will automatically use real Cognito:
+**Just provide Cognito credentials** - that's it! The application will automatically use Cognito:
 
 ```bash
 COGNITO_USER_POOL_ID=your-actual-pool-id
@@ -1140,13 +828,12 @@ AWS_REGION=us-east-1
 # Don't set SPRING_PROFILES_ACTIVE (or set it to 'prod', 'dev', etc. - anything except 'local')
 ```
 
-#### Option 2: Explicitly Disable Mock Auth
+#### Option 2: Set SPRING_PROFILES_ACTIVE
 
-If you want to be explicit, you can also set:
+If you want to use a specific profile:
 
 ```bash
 SPRING_PROFILES_ACTIVE=prod  # or dev, staging, etc. (anything except 'local')
-LOCAL_AUTH_ENABLED=false     # Optional - already defaults to false when not in 'local' profile
 COGNITO_USER_POOL_ID=your-actual-pool-id
 COGNITO_CLIENT_ID=your-actual-client-id
 AWS_REGION=us-east-1
@@ -1163,7 +850,6 @@ AWS_REGION=us-east-1
 # docker-compose.yml or kubernetes deployment
 environment:
   - SPRING_PROFILES_ACTIVE=dev  # or staging, prod
-  - LOCAL_AUTH_ENABLED=false
   - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
   - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
   - AWS_REGION=us-east-1
@@ -1174,7 +860,6 @@ environment:
 
 ```bash
 export SPRING_PROFILES_ACTIVE=prod
-export LOCAL_AUTH_ENABLED=false
 export COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
 export COGNITO_CLIENT_ID=your-client-id
 export AWS_REGION=us-east-1
@@ -1182,25 +867,18 @@ export AWS_REGION=us-east-1
 
 ### Frontend Configuration
 
-1. **Set environment variable** to disable mock auth:
+**Provide Cognito credentials**:
 
-   ```bash
-   VITE_LOCAL_AUTH_ENABLED=false
-   ```
-
-2. **Provide real Cognito credentials**:
-
-   ```bash
-   VITE_COGNITO_USER_POOL_ID=your-actual-pool-id
-   VITE_COGNITO_CLIENT_ID=your-actual-client-id
-   VITE_AWS_REGION=us-east-1
-   ```
+```bash
+VITE_COGNITO_USER_POOL_ID=your-actual-pool-id
+VITE_COGNITO_CLIENT_ID=your-actual-client-id
+VITE_AWS_REGION=us-east-1
+```
 
 **Example for build process:**
 
 ```bash
 # Build frontend with production environment variables
-VITE_LOCAL_AUTH_ENABLED=false \
 VITE_COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID} \
 VITE_COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID} \
 VITE_AWS_REGION=us-east-1 \
@@ -1211,20 +889,19 @@ npm run build
 ### How It Works
 
 - **Local Development**: `application-local.yml` is loaded when `SPRING_PROFILES_ACTIVE=local`
-  - `local.auth.enabled` defaults to `true` → Mock auth is used
-  - LocalStack endpoints are configured
+  - Cognito credentials are required (from LocalStack Pro or real AWS account)
+  - LocalStack endpoints are configured for S3, SQS, Secrets Manager
 
 - **Higher Environments**: Use `application.yml` (default) or environment-specific profiles
-  - `LOCAL_AUTH_ENABLED=false` → Real Cognito is used
+  - Cognito credentials are required
   - No LocalStack endpoints → Real AWS services are used
 
 ### Verification Checklist
 
 Before deploying to higher environments, verify:
 
-- ✅ `LOCAL_AUTH_ENABLED=false` is set (backend)
-- ✅ `VITE_LOCAL_AUTH_ENABLED=false` is set (frontend)
-- ✅ Real Cognito credentials are provided
+- ✅ Cognito credentials are provided (backend: `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`)
+- ✅ Cognito credentials are provided (frontend: `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`)
 - ✅ No LocalStack endpoints configured
 - ✅ AWS credentials/permissions are configured
 - ✅ Cognito User Pool exists and is accessible
@@ -1232,21 +909,22 @@ Before deploying to higher environments, verify:
 
 ### Troubleshooting Higher Environments
 
-**Issue**: Mock auth still being used in production
+**Issue**: Cognito authentication not working
 
 **Solution**:
 
 ```bash
-# Verify environment variable is set
-echo $LOCAL_AUTH_ENABLED
-# Should output: false
+# Verify Cognito credentials are set
+echo $COGNITO_USER_POOL_ID
+echo $COGNITO_CLIENT_ID
+# Should output: your-pool-id and your-client-id
 
 # Check Spring profile
 echo $SPRING_PROFILES_ACTIVE
-# Should NOT be "local"
+# Should NOT be "local" (or should be explicitly set to prod/dev/staging)
 
 # Check backend logs
-# Should see: "CognitoConfig" loading, NOT "LocalAuthConfig"
+# Should see: "CognitoConfig" loading
 ```
 
 **Issue**: Cognito authentication fails
@@ -1286,7 +964,7 @@ Once local testing is successful:
    ./gradlew test jacocoTestReport
    ```
 
-3. **Review authentication implementation**: See `LOCAL_DEVELOPMENT_AUTH.md` for details on mock auth system
+3. **Review authentication implementation**: Authentication uses AWS Cognito. Ensure Cognito credentials are properly configured.
 
 4. **Prepare for deployment**: Follow the "Deploying to Higher Environments" section above
 
@@ -1301,11 +979,11 @@ If you encounter issues:
 
 1. **Check service logs**: `docker-compose logs -f`
 2. **Verify environment variables**:
-   - Backend: `docker-compose exec backend env | grep -E "LOCAL_AUTH|COGNITO"`
-   - Frontend: `cat frontend/.env.local`
+   - Backend: `docker-compose exec backend env | grep -E "COGNITO"`
+   - Frontend: `cat frontend/.env.local | grep -E "COGNITO"`
 3. **Check service health**: `docker-compose ps`
 4. **Review this guide's troubleshooting section**
-5. **Check authentication mode**: Verify mock auth is enabled if Cognito is not available
+5. **Verify Cognito credentials**: Ensure `COGNITO_USER_POOL_ID` and `COGNITO_CLIENT_ID` are set correctly
 
 </details>
 
@@ -1322,10 +1000,11 @@ If you encounter issues:
 | LocalStack   | <http://localhost:4566>                 | 4566 |
 | PostgreSQL   | localhost:5432                        | 5432 |
 
-| Default Test User (Mock Auth) |
-| ----------------------------- |
-| Email: `dev@local.test`       |
-| Password: `password123`       |
+| Cognito Configuration |
+| -------------------- |
+| User Pool ID: Set in `.env` |
+| Client ID: Set in `.env` |
+| Note: Create users in your Cognito User Pool |
 | Role: `USER`                  |
 
 </details>

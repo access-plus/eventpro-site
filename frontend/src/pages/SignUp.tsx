@@ -1,8 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { signUpAsync, signInAsync, selectIsLoading, selectError, clearError } from '@/store/slices/authSlice'
-import { syncUserFromCognito } from '@/services/userService'
+import { signUpAsync, selectIsLoading, selectError, clearError } from '@/store/slices/authSlice'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -273,55 +272,14 @@ function SignUp() {
         })
       ).unwrap()
 
-      // Check if we're using local auth (auto-confirmed users)
-      const isLocalAuth = !import.meta.env.VITE_COGNITO_USER_POOL_ID || 
-                          import.meta.env.VITE_LOCAL_AUTH_ENABLED === 'true'
-      
-      if (isLocalAuth) {
-        // In local auth mode, automatically sign in the user after signup
-        // since there's no email verification needed
-        try {
-          await dispatch(
-            signInAsync({
-              email: email.trim(),
-              password,
-            })
-          ).unwrap()
-          
-          // Sync user to database after successful signup and login
-          try {
-            await syncUserFromCognito()
-            console.log('User synced to database successfully')
-          } catch (syncErr) {
-            // Log error but don't block navigation - user is still authenticated
-            console.error('Failed to sync user to database:', syncErr)
-            // The backend will auto-sync when the user accesses their profile
-          }
-          
-          // Navigate to home page after successful auto-login
-          navigate('/', { 
-            state: { 
-              message: 'Account created and signed in successfully!' 
-            } 
-          })
-        } catch (signInErr) {
-          // If auto-login fails, redirect to login page
-          console.error('Auto-login after signup failed:', signInErr)
-          navigate('/login', { 
-            state: { 
-              message: 'Account created successfully! Please sign in.' 
-            } 
-          })
-        }
-      } else {
-        // In real Cognito mode, redirect to login (user needs to verify email)
-        // User will be synced to database on first login
-        navigate('/login', { 
-          state: { 
-            message: 'Account created successfully! Please check your email to verify your account.' 
-          } 
-        })
-      }
+      // After successful signup, redirect to login page
+      // User needs to verify their email before they can sign in
+      // User will be synced to database on first login
+      navigate('/login', { 
+        state: { 
+          message: 'Account created successfully! Please check your email to verify your account.' 
+        } 
+      })
     } catch (err) {
       // Error is handled by Redux state
       console.error('Sign up failed:', err)

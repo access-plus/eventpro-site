@@ -1,0 +1,6 @@
+I'm building an event pro website for use by event organizers and users who want to buy tickets for 
+events.
+
+There are 3 different users: 
+- ADMIN (application owners)
+- ORGANIZER (event organizers who are looking to )

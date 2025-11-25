@@ -8,7 +8,6 @@ import {
   CognitoRefreshToken,
   type ICognitoUserPoolData,
 } from 'amazon-cognito-identity-js';
-import { localAuthService, shouldUseLocalAuth } from './localAuthService';
 
 /**
  * Configuration for AWS Cognito User Pool.
@@ -413,10 +412,7 @@ const signOut = async (): Promise<void> => {
 /**
  * Authentication Service for AWS Cognito.
  * 
- * Automatically switches between real Cognito and local mock authentication
- * based on environment configuration.
- * 
- * <p>Provides methods for:
+ * Provides methods for:
  * <ul>
  *   <li>User registration (signUp)</li>
  *   <li>User authentication (signIn)</li>
@@ -425,21 +421,24 @@ const signOut = async (): Promise<void> => {
  *   <li>Token management (storage and retrieval)</li>
  *   <li>Token refresh</li>
  * </ul>
+ * 
+ * <p>Requires VITE_COGNITO_USER_POOL_ID and VITE_COGNITO_CLIENT_ID environment variables.
  */
 export const authService = {
   /**
    * Gets the Cognito User Pool instance.
    * 
-   * @returns CognitoUserPool instance (or null in local mode)
+   * @returns CognitoUserPool instance
+   * @throws Error if Cognito configuration is missing
    */
-  getUserPool: shouldUseLocalAuth() ? (() => null) : getUserPool,
+  getUserPool,
 
   /**
    * Gets the current authenticated Cognito user.
    * 
    * @returns CognitoUser instance if authenticated, null otherwise
    */
-  getCurrentCognitoUser: shouldUseLocalAuth() ? (() => null) : getCurrentCognitoUser,
+  getCurrentCognitoUser,
 
   /**
    * Signs up a new user in Cognito.
@@ -448,9 +447,7 @@ export const authService = {
    * @returns Promise that resolves with the CognitoUser if successful
    * @throws Error if signup fails
    */
-  signUp: shouldUseLocalAuth() 
-    ? localAuthService.signUp 
-    : signUp,
+  signUp,
 
   /**
    * Signs in a user with email and password.
@@ -459,9 +456,7 @@ export const authService = {
    * @returns Promise that resolves with authentication tokens
    * @throws Error if sign in fails
    */
-  signIn: shouldUseLocalAuth() 
-    ? localAuthService.signIn 
-    : signIn,
+  signIn,
 
   /**
    * Gets the current authenticated user's information.
@@ -469,43 +464,33 @@ export const authService = {
    * @returns Promise that resolves with CurrentUser if authenticated, null otherwise
    * @throws Error if session retrieval fails
    */
-  getCurrentUser: shouldUseLocalAuth() 
-    ? localAuthService.getCurrentUser 
-    : getCurrentUser,
+  getCurrentUser,
 
   /**
    * Signs out the current user.
    * 
    * @returns Promise that resolves when sign out is complete
    */
-  signOut: shouldUseLocalAuth() 
-    ? localAuthService.signOut 
-    : signOut,
+  signOut,
 
   /**
    * Stores authentication tokens in localStorage.
    * 
    * @param tokens Authentication tokens to store
    */
-  storeTokens: shouldUseLocalAuth() 
-    ? localAuthService.storeTokens 
-    : storeTokens,
+  storeTokens,
 
   /**
    * Retrieves authentication tokens from localStorage.
    * 
    * @returns Authentication tokens if found, null otherwise
    */
-  getStoredTokens: shouldUseLocalAuth() 
-    ? localAuthService.getStoredTokens 
-    : getStoredTokens,
+  getStoredTokens,
 
   /**
    * Clears authentication tokens from localStorage.
    */
-  clearStoredTokens: shouldUseLocalAuth() 
-    ? localAuthService.clearStoredTokens 
-    : clearStoredTokens,
+  clearStoredTokens,
 
   /**
    * Refreshes the authentication tokens using the refresh token.
@@ -513,9 +498,7 @@ export const authService = {
    * @returns Promise that resolves with new authentication tokens
    * @throws Error if refresh fails or no refresh token is available
    */
-  refreshTokens: shouldUseLocalAuth() 
-    ? localAuthService.refreshTokens 
-    : refreshTokens,
+  refreshTokens,
 
   /**
    * Checks if the current session is valid and refreshes tokens if needed.
@@ -523,8 +506,6 @@ export const authService = {
    * @returns Promise that resolves with valid authentication tokens
    * @throws Error if session cannot be validated or refreshed
    */
-  ensureValidTokens: shouldUseLocalAuth() 
-    ? localAuthService.ensureValidTokens 
-    : ensureValidTokens,
+  ensureValidTokens,
 };
 

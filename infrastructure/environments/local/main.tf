@@ -1,26 +1,15 @@
 # Local Environment - Main Configuration
 # This file provisions AWS resources in LocalStack for local development
 
-terraform {
-  required_version = ">= 1.5.0"
 
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 6.21.0"
-    }
-  }
-
-  backend "local" {
-    path = "terraform.tfstate"
-  }
-}
 
 # Include provider settings from settings.tf
 # (settings.tf configures LocalStack endpoints)
 
-# SQS Queues
+# SQS Queues (provisioned in LocalStack)
 resource "aws_sqs_queue" "order_queue" {
+  provider = aws.localstack
+
   name                       = "order-queue"
   message_retention_seconds  = 345600 # 4 days
   visibility_timeout_seconds = 30
@@ -33,6 +22,8 @@ resource "aws_sqs_queue" "order_queue" {
 }
 
 resource "aws_sqs_queue" "payment_queue" {
+  provider = aws.localstack
+
   name                       = "payment-queue"
   message_retention_seconds  = 345600 # 4 days
   visibility_timeout_seconds = 30
@@ -45,6 +36,8 @@ resource "aws_sqs_queue" "payment_queue" {
 }
 
 resource "aws_sqs_queue" "notification_queue" {
+  provider = aws.localstack
+
   name                       = "notification-queue"
   message_retention_seconds  = 345600 # 4 days
   visibility_timeout_seconds = 30
@@ -56,8 +49,10 @@ resource "aws_sqs_queue" "notification_queue" {
   }
 }
 
-# S3 Bucket for Event Images
+# S3 Bucket for Event Images (provisioned in LocalStack)
 resource "aws_s3_bucket" "images" {
+  provider = aws.localstack
+
   bucket        = "eventpro-images-local"
   force_destroy = true
 
@@ -70,7 +65,8 @@ resource "aws_s3_bucket" "images" {
 
 # S3 Bucket CORS Configuration
 resource "aws_s3_bucket_cors_configuration" "images" {
-  bucket = aws_s3_bucket.images.id
+  provider = aws.localstack
+  bucket   = aws_s3_bucket.images.id
 
   cors_rule {
     allowed_headers = ["*"]
@@ -83,7 +79,8 @@ resource "aws_s3_bucket_cors_configuration" "images" {
 
 # S3 Bucket Public Access (for local development - allows public read)
 resource "aws_s3_bucket_public_access_block" "images" {
-  bucket = aws_s3_bucket.images.id
+  provider = aws.localstack
+  bucket   = aws_s3_bucket.images.id
 
   block_public_acls       = false
   block_public_policy     = false
@@ -93,7 +90,8 @@ resource "aws_s3_bucket_public_access_block" "images" {
 
 # S3 Bucket Policy for Public Read
 resource "aws_s3_bucket_policy" "images" {
-  bucket = aws_s3_bucket.images.id
+  provider = aws.localstack
+  bucket   = aws_s3_bucket.images.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -109,11 +107,12 @@ resource "aws_s3_bucket_policy" "images" {
   })
 }
 
-# Cognito User Pool
-# Note: Cognito requires LocalStack Pro. Set enable_cognito = true only if using Pro.
+# Cognito User Pool (provisioned in real AWS)
+# Uses real AWS credentials from environment variables or ~/.aws/credentials
+# Requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to be set, or AWS CLI configured
 resource "aws_cognito_user_pool" "main" {
-  count = var.enable_cognito ? 1 : 0
-  name  = "eventpro-local-user-pool"
+  provider = aws.aws
+  name     = "eventpro-local-user-pool"
 
   # Password Policy
   password_policy {
@@ -154,11 +153,11 @@ resource "aws_cognito_user_pool" "main" {
   }
 }
 
-# Cognito User Pool Client
+# Cognito User Pool Client (provisioned in real AWS)
 resource "aws_cognito_user_pool_client" "main" {
-  count        = var.enable_cognito ? 1 : 0
+  provider     = aws.aws
   name         = "eventpro-local-client"
-  user_pool_id = aws_cognito_user_pool.main[0].id
+  user_pool_id = aws_cognito_user_pool.main.id
 
   # OAuth Configuration
   generate_secret                      = false
@@ -183,33 +182,35 @@ resource "aws_cognito_user_pool_client" "main" {
   supported_identity_providers = ["COGNITO"]
 }
 
-# Cognito User Pool Groups
+# Cognito User Pool Groups (provisioned in real AWS)
 resource "aws_cognito_user_group" "admin" {
-  count        = var.enable_cognito ? 1 : 0
+  provider     = aws.aws
   name         = "ADMIN"
-  user_pool_id = aws_cognito_user_pool.main[0].id
+  user_pool_id = aws_cognito_user_pool.main.id
   description  = "Administrator group"
   precedence   = 1
 }
 
 resource "aws_cognito_user_group" "organizer" {
-  count        = var.enable_cognito ? 1 : 0
+  provider     = aws.aws
   name         = "ORGANIZER"
-  user_pool_id = aws_cognito_user_pool.main[0].id
+  user_pool_id = aws_cognito_user_pool.main.id
   description  = "Event organizer group"
   precedence   = 2
 }
 
 resource "aws_cognito_user_group" "user" {
-  count        = var.enable_cognito ? 1 : 0
+  provider     = aws.aws
   name         = "USER"
-  user_pool_id = aws_cognito_user_pool.main[0].id
+  user_pool_id = aws_cognito_user_pool.main.id
   description  = "Regular user group"
   precedence   = 3
 }
 
-# Secrets Manager - Database Secret
+# Secrets Manager - Database Secret (provisioned in LocalStack)
 resource "aws_secretsmanager_secret" "database" {
+  provider = aws.localstack
+
   name        = "eventpro-db-secret"
   description = "Database credentials for local development"
 
@@ -220,6 +221,7 @@ resource "aws_secretsmanager_secret" "database" {
 }
 
 resource "aws_secretsmanager_secret_version" "database" {
+  provider  = aws.localstack
   secret_id = aws_secretsmanager_secret.database.id
   secret_string = jsonencode({
     host     = "localhost"
@@ -230,8 +232,10 @@ resource "aws_secretsmanager_secret_version" "database" {
   })
 }
 
-# Secrets Manager - JWT Secret
+# Secrets Manager - JWT Secret (provisioned in LocalStack)
 resource "aws_secretsmanager_secret" "jwt" {
+  provider = aws.localstack
+
   name        = "eventpro-jwt-secret"
   description = "JWT secret key for local development"
 
@@ -242,12 +246,15 @@ resource "aws_secretsmanager_secret" "jwt" {
 }
 
 resource "aws_secretsmanager_secret_version" "jwt" {
+  provider      = aws.localstack
   secret_id     = aws_secretsmanager_secret.jwt.id
   secret_string = "Dh7fjbnd2O2iSkqpYL/lz2nM3LE/8fC36iFNPHERysc="
 }
 
-# Secrets Manager - Stripe Keys
+# Secrets Manager - Stripe Keys (provisioned in LocalStack)
 resource "aws_secretsmanager_secret" "stripe" {
+  provider = aws.localstack
+
   name        = "eventpro-stripe-keys"
   description = "Stripe API keys for local development"
 
@@ -258,6 +265,7 @@ resource "aws_secretsmanager_secret" "stripe" {
 }
 
 resource "aws_secretsmanager_secret_version" "stripe" {
+  provider  = aws.localstack
   secret_id = aws_secretsmanager_secret.stripe.id
   secret_string = jsonencode({
     secret_key      = "sk_test_local"

@@ -4,7 +4,12 @@ import java.util.Map;
 
 /**
  * Interface for Cognito Admin API operations.
- * Allows switching between real Cognito and mock implementations for local development.
+ * 
+ * <p>This interface provides abstraction for Cognito Admin API operations,
+ * allowing for easier testing and potential future extensions.
+ * 
+ * <p>The standard implementation is {@link CognitoAdminService}, which uses
+ * AWS Cognito Identity Provider Client for all operations.
  */
 public interface CognitoAdminServiceInterface {
     

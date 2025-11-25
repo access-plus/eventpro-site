@@ -457,9 +457,7 @@ const signInWithOAuth = async (provider: string): Promise<void> => {
 // Export in authService object
 export const authService = {
   // ... existing methods ...
-  signInWithOAuth: shouldUseLocalAuth() 
-    ? () => Promise.reject(new Error('OAuth not available in local auth mode'))
-    : signInWithOAuth,
+  signInWithOAuth: signInWithOAuth,
 };
 ```
 

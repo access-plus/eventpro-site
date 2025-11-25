@@ -120,7 +120,6 @@ terraform-deploy-eventpro:
     - echo "VITE_COGNITO_CLIENT_ID=$(terraform output -raw cognito_client_id)" >> deploy.env
     - echo "VITE_AWS_REGION=$(terraform output -raw aws_region)" >> deploy.env
     - echo "VITE_S3_BUCKET_NAME=$(terraform output -raw images_bucket_name)" >> deploy.env
-    - echo "VITE_LOCAL_AUTH_ENABLED=false" >> deploy.env
     - echo "Application Load Balancer URL is https://$(terraform output -raw alb_dns_name)"
   artifacts:
     reports:

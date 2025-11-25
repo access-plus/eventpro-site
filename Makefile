@@ -243,20 +243,41 @@ local-infra-only:
 
 # Step 2: Provision AWS resources (Terraform) and create .env files
 local-infra:
-	@echo "Step 2: Provisioning AWS resources (Cognito, S3, SQS)..."
+	@echo "Step 2: Provisioning AWS resources..."
+	@echo "  - LocalStack resources: S3, SQS, Secrets Manager"
+	@echo "  - Real AWS resources: Cognito (requires AWS credentials)"
 	@if ! docker ps | grep -q "localstack"; then \
 		echo "LocalStack not running. Starting it..."; \
 		$(MAKE) local-infra-only; \
 	fi
+	@if [ -z "$$AWS_ACCESS_KEY_ID" ] && [ ! -f ~/.aws/credentials ]; then \
+		echo ""; \
+		echo "⚠️  WARNING: AWS credentials not found."; \
+		echo "   Cognito will be created in real AWS and requires valid credentials."; \
+		echo "   Configure credentials using one of these methods:"; \
+		echo "   1. Set environment variables: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"; \
+		echo "   2. Run: aws configure"; \
+		echo "   Continuing anyway (Cognito creation may fail)..."; \
+		echo ""; \
+	fi
 	@cd infrastructure/environments/local && \
 		terraform init -upgrade && \
-		terraform apply -auto-approve
+		terraform apply -auto-approve || \
+		(echo ""; \
+		 echo "⚠️  Terraform apply completed with errors."; \
+		 echo "   If Cognito creation failed, check:"; \
+		 echo "   1. AWS credentials are configured (AWS_ACCESS_KEY_ID or ~/.aws/credentials)"; \
+		 echo "   2. AWS credentials have permissions to create Cognito resources"; \
+		 echo "   Other resources (S3, SQS, Secrets Manager) should still be created in LocalStack."; \
+		 echo "   You can manually create Cognito in AWS Console and add credentials to .env"; \
+		 echo ""; \
+		 true)
 	@echo "Step 3: Creating environment files..."
 	@cd infrastructure/environments/local && \
-		S3_BUCKET_NAME=$$(terraform output -raw s3_images_bucket_name) && \
-		ORDER_QUEUE_URL=$$(terraform output -raw sqs_order_queue_url) && \
-		PAYMENT_QUEUE_URL=$$(terraform output -raw sqs_payment_queue_url) && \
-		NOTIFICATION_QUEUE_URL=$$(terraform output -raw sqs_notification_queue_url) && \
+		S3_BUCKET_NAME=$$(terraform output -raw s3_images_bucket_name 2>/dev/null || echo "") && \
+		ORDER_QUEUE_URL=$$(terraform output -raw sqs_order_queue_url 2>/dev/null || echo "") && \
+		PAYMENT_QUEUE_URL=$$(terraform output -raw sqs_payment_queue_url 2>/dev/null || echo "") && \
+		NOTIFICATION_QUEUE_URL=$$(terraform output -raw sqs_notification_queue_url 2>/dev/null || echo "") && \
 		COGNITO_USER_POOL_ID=$$(terraform output -raw cognito_user_pool_id 2>/dev/null | grep -v "^null$$" || echo "") && \
 		COGNITO_CLIENT_ID=$$(terraform output -raw cognito_user_pool_client_id 2>/dev/null | grep -v "^null$$" || echo "") && \
 		cd ../../.. && \
@@ -272,6 +293,20 @@ local-infra:
 		echo "VITE_AWS_REGION=us-east-1" >> frontend/.env.local && \
 		echo "VITE_S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> frontend/.env.local
 	@echo "Environment files created"
+	@COGNITO_POOL_ID=$$(grep '^COGNITO_USER_POOL_ID=' .env 2>/dev/null | cut -d'=' -f2 | tr -d ' ' || echo ""); \
+	COGNITO_CLIENT=$$(grep '^COGNITO_CLIENT_ID=' .env 2>/dev/null | cut -d'=' -f2 | tr -d ' ' || echo ""); \
+	if [ -z "$$COGNITO_POOL_ID" ] || [ -z "$$COGNITO_CLIENT" ]; then \
+		echo ""; \
+		echo "⚠️  WARNING: Cognito credentials are not set in .env file."; \
+		echo "   Cognito requires LocalStack Pro or a real AWS account."; \
+		echo ""; \
+		echo "   To use real AWS Cognito (Option A - recommended):"; \
+		echo "   1. Create a Cognito User Pool in your AWS account"; \
+		echo "   2. Edit .env and set: COGNITO_USER_POOL_ID=your-pool-id"; \
+		echo "   3. Edit .env and set: COGNITO_CLIENT_ID=your-client-id"; \
+		echo "   4. Edit frontend/.env.local with the same values"; \
+		echo ""; \
+	fi
 
 # Step 3: Start all services (Backend + Frontend)
 # Note: Flyway migrations run automatically when backend starts
@@ -288,9 +323,12 @@ local-up:
 	@echo ""
 	@echo "All services started!"
 	@echo "   Frontend: http://localhost:5173"
-	@echo "   Backend:  http://localhost:8080/actuator/health"
+	@echo "   Backend health:  http://localhost:8080/actuator/health"
+	@echo "   Backend swagger:  http://localhost:8080/swagger-ui/index.html"
 
-
+local-down:
+	@echo "Stopping services..."
+	docker-compose down backend frontend -v
 
 local-logs-backend:
 	@docker-compose logs -f backend
@@ -324,3 +362,10 @@ localstack-start:
 postgres-start:
 	@echo "Starting PostgreSQL..."
 	docker-compose up -d postgres
+
+infra-destroy:
+	@echo "Destroying infrastructure..."
+	cd infrastructure/environments/local && terraform destroy -auto-approve || true
+	cd ../../../
+	@rm -f .env frontend/.env.local
+	@echo "Infrastructure destroyed"

@@ -388,10 +388,6 @@ module "ecs_eventpro_api" {
       value = module.sqs_notification.queue_url
     },
     {
-      name  = "LOCAL_AUTH_ENABLED"
-      value = "false"
-    },
-    {
       name  = "USE_SECRETS_MANAGER"
       value = "true"
     }

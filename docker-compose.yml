@@ -68,9 +68,11 @@ services:
       - AWS_REGION=us-east-1
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
-      - LOCAL_AUTH_ENABLED=true
-      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID:-}
-      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID:-}
+      # Cognito Configuration - REQUIRED
+      # COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID must be set in .env file
+      # Application will fail to start if these are not provided
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME:-eventpro-images-local}
       # SQS Queue URLs - loaded from .env file (created by make local-infra)
       # If not set, application-local.yml defaults will be used

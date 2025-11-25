@@ -27,26 +27,26 @@ def lambda_handler(event, context):
     print(f"Rotation step '{step}' for secret {arn} with token {token}")
 
     try:
-        metadata = secrets_client.describe_secret(SecretId=arn)
-        versions = metadata["VersionIdsToStages"]
+    metadata = secrets_client.describe_secret(SecretId=arn)
+    versions = metadata["VersionIdsToStages"]
 
-        if token not in versions:
-            raise ValueError(f"Secret version {token} not found for {arn}")
+    if token not in versions:
+        raise ValueError(f"Secret version {token} not found for {arn}")
 
-        if "AWSCURRENT" in versions[token]:
-            print(f"Version {token} already AWSCURRENT for {arn}")
+    if "AWSCURRENT" in versions[token]:
+        print(f"Version {token} already AWSCURRENT for {arn}")
             return {"statusCode": 200, "message": "Already current"}
 
-        if step == "createSecret":
-            create_secret(arn, token)
-        elif step == "setSecret":
-            set_secret(arn, token)
-        elif step == "testSecret":
-            test_secret(arn, token)
-        elif step == "finishSecret":
-            finish_secret(arn, token)
-        else:
-            raise ValueError(f"Invalid step: {step}")
+    if step == "createSecret":
+        create_secret(arn, token)
+    elif step == "setSecret":
+        set_secret(arn, token)
+    elif step == "testSecret":
+        test_secret(arn, token)
+    elif step == "finishSecret":
+        finish_secret(arn, token)
+    else:
+        raise ValueError(f"Invalid step: {step}")
 
         return {"statusCode": 200, "message": f"Step {step} completed successfully"}
 
@@ -174,21 +174,21 @@ def get_connection(secret: dict):
     dbname = secret["dbname"]
     user = secret["username"]
     password = secret["password"]
-    
+
     # SSL mode: use "require" for RDS, "prefer" for local development
     # Can be overridden via environment variable
     ssl_mode = os.getenv("DB_SSLMODE", "require")
 
     try:
-        return psycopg2.connect(
-            host=host,
-            port=port,
-            dbname=dbname,
-            user=user,
-            password=password,
+    return psycopg2.connect(
+        host=host,
+        port=port,
+        dbname=dbname,
+        user=user,
+        password=password,
             connect_timeout=10,  # Increased timeout for VPC connections
             sslmode=ssl_mode,
-        )
+    )
     except psycopg2.Error as e:
         print(f"Database connection error: {str(e)}")
         raise

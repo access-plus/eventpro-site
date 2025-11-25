@@ -1,7 +1,6 @@
 package com.accessplus.eventpro.core.config;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -14,15 +13,9 @@ import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityPr
  * Configures JWT decoder to validate access tokens from Cognito User Pool
  * and CognitoIdentityProviderClient for Admin API operations.
  * 
- * This configuration is only active when local.auth.enabled is explicitly set to "false".
- * When local.auth.enabled is "true" or not set, LocalAuthConfig will be used instead.
+ * This configuration is always active and requires Cognito credentials to be configured.
  */
 @Configuration
-@ConditionalOnProperty(
-    name = "local.auth.enabled",
-    havingValue = "false",
-    matchIfMissing = false
-)
 public class CognitoConfig {
 
     @Value("${aws.cognito.userPoolId:}")
@@ -42,8 +35,8 @@ public class CognitoConfig {
     public JwtDecoder jwtDecoder() {
         if (userPoolId == null || userPoolId.trim().isEmpty()) {
             throw new IllegalStateException(
-                "aws.cognito.userPoolId must be configured when using CognitoConfig. " +
-                "Either set COGNITO_USER_POOL_ID environment variable or set local.auth.enabled=true for local development."
+                "aws.cognito.userPoolId must be configured. " +
+                "Please set COGNITO_USER_POOL_ID environment variable."
             );
         }
         String jwkSetUri = String.format(
