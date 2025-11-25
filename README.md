@@ -137,7 +137,7 @@ EventPro uses a **Modular Monolith** architecture, which provides:
 |------------|---------|---------|
 | **Java** | 21 | Programming language |
 | **Spring Boot** | 4.0.0 | Application framework |
-| **Gradle** | 8.5+ | Build tool |
+| **Gradle** | 9.2.1 | Build tool |
 | **PostgreSQL** | 16+ | Primary database |
 | **Spring Data JPA** | - | Database access layer |
 | **Spring Security** | - | Security framework |
@@ -542,7 +542,7 @@ For comprehensive local development setup, testing, and troubleshooting instruct
 The local development guide covers:
 
 - Detailed setup instructions
-- Authentication modes (Mock vs Real Cognito)
+- Authentication using AWS Cognito (requires Cognito User Pool)
 - Step-by-step configuration
 - Testing procedures
 - Troubleshooting common issues
@@ -560,11 +560,11 @@ The local development guide covers:
 | LocalStack | <http://localhost:4566> | 4566 |
 | PostgreSQL | localhost:5432 | 5432 |
 
-| Default Test User (Mock Auth) |
-|--------------------------------|
-| Email: `dev@local.test` |
-| Password: `password123` |
-| Role: `USER` |
+| Cognito Configuration |
+|----------------------|
+| User Pool ID: Required |
+| Client ID: Required |
+| Note: Create users in your Cognito User Pool |
 
 ---
 
@@ -713,11 +713,10 @@ When running locally, access Swagger UI at:
 
 ---
 
-## Contributing
+## Engineering
 
-[Add contributing guidelines here]
-
----
+- Alhagie Bai Cham
+- Jerome Joof
 
 ## Support
 

@@ -5,7 +5,7 @@ import com.accessplus.eventpro.api.dto.UpdateUserRequest;
 import com.accessplus.eventpro.api.dto.UserResponse;
 import com.accessplus.eventpro.core.common.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
-import com.accessplus.eventpro.core.user.service.CognitoAdminService;
+import com.accessplus.eventpro.core.user.service.CognitoAdminServiceInterface;
 import com.accessplus.eventpro.core.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,7 +52,7 @@ class UserControllerTest {
     private UserService userService;
 
     @Mock
-    private CognitoAdminService cognitoAdminService;
+    private CognitoAdminServiceInterface cognitoAdminService;
 
     @InjectMocks
     private UserController userController;

@@ -13,7 +13,6 @@ interface ImportMetaEnv {
   readonly VITE_COGNITO_CLIENT_ID: string;
   readonly VITE_AWS_REGION: string;
   readonly VITE_S3_BUCKET_NAME: string;
-  readonly VITE_LOCAL_AUTH_ENABLED?: string;
 }
 
 interface ImportMeta {

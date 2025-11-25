@@ -29,9 +29,12 @@ spring:
 
 aws:
   region: ${AWS_REGION:us-east-1}
+  # Cognito Configuration - REQUIRED
+  # COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID must be set via environment variables
+  # The application will fail to start if these are not configured
   cognito:
-    userPoolId: ${COGNITO_USER_POOL_ID}
-    clientId: ${COGNITO_CLIENT_ID}
+    userPoolId: ${COGNITO_USER_POOL_ID}  # REQUIRED
+    clientId: ${COGNITO_CLIENT_ID}  # REQUIRED
   s3:
     bucketName: ${S3_BUCKET_NAME}
   sqs:

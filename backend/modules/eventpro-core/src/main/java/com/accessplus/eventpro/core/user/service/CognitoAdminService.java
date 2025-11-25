@@ -4,7 +4,6 @@ import com.accessplus.eventpro.core.common.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupRequest;
@@ -25,11 +24,6 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(
-    name = "local.auth.enabled",
-    havingValue = "false",
-    matchIfMissing = false
-)
 public class CognitoAdminService implements CognitoAdminServiceInterface {
 
     private final CognitoIdentityProviderClient cognitoClient;
@@ -54,8 +48,8 @@ public class CognitoAdminService implements CognitoAdminServiceInterface {
 
         if (userPoolId == null || userPoolId.trim().isEmpty()) {
             throw new IllegalStateException(
-                "aws.cognito.userPoolId must be configured when using CognitoAdminService. " +
-                "Either set COGNITO_USER_POOL_ID environment variable or set local.auth.enabled=true for local development."
+                "aws.cognito.userPoolId must be configured. " +
+                "Please set COGNITO_USER_POOL_ID environment variable."
             );
         }
 
@@ -88,8 +82,8 @@ public class CognitoAdminService implements CognitoAdminServiceInterface {
 
         if (userPoolId == null || userPoolId.trim().isEmpty()) {
             throw new IllegalStateException(
-                "aws.cognito.userPoolId must be configured when using CognitoAdminService. " +
-                "Either set COGNITO_USER_POOL_ID environment variable or set local.auth.enabled=true for local development."
+                "aws.cognito.userPoolId must be configured. " +
+                "Please set COGNITO_USER_POOL_ID environment variable."
             );
         }
 
