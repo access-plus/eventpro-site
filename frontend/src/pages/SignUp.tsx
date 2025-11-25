@@ -272,12 +272,13 @@ function SignUp() {
         })
       ).unwrap()
 
-      // After successful signup, redirect to login page
+      // After successful signup, redirect to verification page
       // User needs to verify their email before they can sign in
       // User will be synced to database on first login
-      navigate('/login', { 
+      navigate('/verify-email', { 
         state: { 
-          message: 'Account created successfully! Please check your email to verify your account.' 
+          email: email.trim(),
+          message: 'Account created successfully! Please check your email for the verification code.' 
         } 
       })
     } catch (err) {

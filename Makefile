@@ -1,10 +1,10 @@
 .PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build
 
 # Variables
-API_DIR := backend
+API_DIR := backend/services
 WEB_DIR := frontend
-ANALYTICS_DIR := services/lambdas/analytics-service
-SECRET_ROTATION_DIR := secret-rotation
+ANALYTICS_DIR := backend/lambdas/analytics-service
+SECRET_ROTATION_DIR := backend/lambdas/secret-rotation
 
 # Default target
 .DEFAULT_GOAL := help
@@ -205,7 +205,7 @@ web-install:
 
 docker-build:
 	@echo "Building EventPro API Docker image..."
-	cd $(API_DIR) && docker build -t backend:latest .
+	cd backend && docker build -f services/Dockerfile -t backend:latest .
 
 docker-analytics:
 	@echo "Building Analytics Service Docker image..."
@@ -328,12 +328,12 @@ local-up:
 
 local-down:
 	@echo "Stopping services..."
-	docker-compose down backend frontend -v
+	@docker-compose down backend frontend postgres -v
 
-local-logs-backend:
+backend-logs:
 	@docker-compose logs -f backend
 
-local-logs-frontend:
+frontend-logs:
 	@docker-compose logs -f frontend
 
 # Clean everything (containers + Terraform resources)
@@ -343,27 +343,31 @@ local-clean:
 	@rm -f .env frontend/.env.local
 	@echo "Everything cleaned up"
 
-pg-stack-start:
+start-pg-and-localstack:
 	@echo "Starting PostgreSQL and LocalStack..."
-	docker-compose up -d postgres localstack
+	@docker-compose up -d postgres localstack
 
-backend-start:
+start-backend:
 	@echo "Starting backend..."
-	docker-compose up -d backend
+	@docker-compose --env-file .env up -d backend
+	@echo "   Backend API: http://localhost:8080"
+	@echo "   Backend health:  http://localhost:8080/actuator/health"
+	@echo "   Backend swagger:  http://localhost:8080/swagger-ui/index.html"
 
-frontend-start:
+start-frontend:
 	@echo "Starting frontend..."
-	docker-compose up -d frontend
+	@docker-compose --env-file frontend/.env.local up -d frontend
+	@echo "   Frontend UI: http://localhost:5173"
 
-localstack-start:
+start-localstack:
 	@echo "Starting LocalStack..."
-	docker-compose up -d localstack
+	@docker-compose up -d localstack
 
-postgres-start:
+start-postgres:
 	@echo "Starting PostgreSQL..."
-	docker-compose up -d postgres
+	@docker-compose up -d postgres
 
-infra-destroy:
+destroy-infrastructure:
 	@echo "Destroying infrastructure..."
 	cd infrastructure/environments/local && terraform destroy -auto-approve || true
 	cd ../../../

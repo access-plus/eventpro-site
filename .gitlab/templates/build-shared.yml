@@ -1,0 +1,14 @@
+.build-shared:
+  image: eclipse-temurin:21-jdk-alpine
+  stage: build
+  before_script:
+    - cd shared
+  script:
+    - echo "Building shared module"
+    - ./gradlew build -x test
+    - echo "Shared module build completed"
+  artifacts:
+    paths:
+      - shared/build/libs/
+    expire_in: 1 week
+

@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect, type FormEvent } from 'react'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { signInAsync, selectIsLoading, selectError, clearError } from '@/store/slices/authSlice'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
  */
 function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const dispatch = useAppDispatch()
   const isLoading = useAppSelector(selectIsLoading)
   const error = useAppSelector(selectError)
@@ -28,6 +29,16 @@ function Login() {
   const [password, setPassword] = useState('')
   const [emailError, setEmailError] = useState('')
   const [passwordError, setPasswordError] = useState('')
+
+  // Show message from location state (e.g., after signup or verification)
+  useEffect(() => {
+    const locationState = location.state as { message?: string } | null
+    if (locationState?.message) {
+      // You could show this as a toast notification or alert
+      // For now, we'll just log it - you can enhance this with a toast library
+      console.log(locationState.message)
+    }
+  }, [location.state])
 
   // Redirect if already authenticated
   if (isAuthenticated) {
@@ -95,13 +106,29 @@ function Login() {
         })
       ).unwrap()
 
-      // Navigate to home page on successful login
+      // Navigate to profile page on successful login
       if (result) {
-        navigate('/')
+        navigate('/profile')
       }
     } catch (err) {
       // Error is handled by Redux state
       console.error('Login failed:', err)
+      
+      // Check if error is related to unverified email
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      if (
+        errorMessage.includes('UserNotConfirmedException') ||
+        errorMessage.includes('not confirmed') ||
+        errorMessage.includes('verification')
+      ) {
+        // Redirect to verification page with email pre-filled
+        navigate('/verify-email', {
+          state: {
+            email: email.trim(),
+            message: 'Please verify your email address before signing in.',
+          },
+        })
+      }
     }
   }
 

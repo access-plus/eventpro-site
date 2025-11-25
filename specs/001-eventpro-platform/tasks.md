@@ -699,30 +699,30 @@
 
 ### Lambda: Order Processor Setup
 
-- [ ] T427 [US-CART-004] Configure Quarkus Lambda handler in `lambdas/order-processor/src/main/resources/application.properties`
-- [ ] T428 [US-CART-004] Add AWS SQS SDK dependency to `lambdas/order-processor/build.gradle`
-- [ ] T429 [US-CART-004] Add PostgreSQL/Hibernate dependencies for database access
-- [ ] T430 [US-CART-004] Create Lambda handler class in `lambdas/order-processor/src/main/java/com/accessplus/eventpro/order/handler/OrderProcessorHandler.java`
-- [ ] T431 [US-CART-004] Implement `RequestHandler` interface for SQS event processing
+- [X] T427 [US-CART-004] Configure Quarkus Lambda handler in `lambdas/order-processor/src/main/resources/application.properties`
+- [X] T428 [US-CART-004] Add AWS SQS SDK dependency to `lambdas/order-processor/build.gradle`
+- [X] T429 [US-CART-004] Add PostgreSQL/Hibernate dependencies for database access
+- [X] T430 [US-CART-004] Create Lambda handler class in `lambdas/order-processor/src/main/java/com/accessplus/eventpro/order/handler/OrderProcessorHandler.java`
+- [X] T431 [US-CART-004] Implement `RequestHandler` interface for SQS event processing
 
 ### Lambda: Order Processing Logic
 
-- [ ] T432 [US-CART-004] Create `OrderProcessorService` in `lambdas/order-processor/src/main/java/com/accessplus/eventpro/order/service/OrderProcessorService.java`
-- [ ] T433 [US-CART-004] Implement `processOrder` method (validates order, reserves tickets)
-- [ ] T434 [US-CART-004] Implement ticket availability check logic
-- [ ] T435 [US-CART-004] Implement ticket reservation (update status to RESERVED)
-- [ ] T436 [US-CART-004] Implement order status update (PENDING)
-- [ ] T437 [US-CART-004] Implement publish to payment-queue (if validation successful)
-- [ ] T438 [US-CART-004] Implement error handling (send to DLQ if validation fails)
-- [ ] T439 [US-CART-004] Add logging for important operations
-- [ ] T440 [US-CART-004] Write unit tests for `OrderProcessorService`
+- [X] T432 [US-CART-004] Create `OrderProcessorService` in `lambdas/order-processor/src/main/java/com/accessplus/eventpro/order/service/OrderProcessorService.java`
+- [X] T433 [US-CART-004] Implement `processOrder` method (validates order, reserves tickets)
+- [X] T434 [US-CART-004] Implement ticket availability check logic
+- [X] T435 [US-CART-004] Implement ticket reservation (update status to RESERVED)
+- [X] T436 [US-CART-004] Implement order status update (PENDING)
+- [X] T437 [US-CART-004] Implement publish to payment-queue (if validation successful)
+- [X] T438 [US-CART-004] Implement error handling (send to DLQ if validation fails)
+- [X] T439 [US-CART-004] Add logging for important operations
+- [X] T440 [US-CART-004] Write unit tests for `OrderProcessorService`
 
 ### Lambda: Configuration and Deployment
 
-- [ ] T441 [US-CART-004] Configure environment variables (database URL, SQS queue URLs)
-- [ ] T442 [US-CART-004] Create `infrastructure/modules/lambda/order-processor.tf` for Lambda function
-- [ ] T443 [US-CART-004] Configure SQS event source mapping in Terraform
-- [ ] T444 [US-CART-004] Configure IAM roles and policies for Lambda
+- [X] T441 [US-CART-004] Configure environment variables (database URL, SQS queue URLs)
+- [X] T442 [US-CART-004] Create `infrastructure/modules/lambda/order-processor.tf` for Lambda function
+- [X] T443 [US-CART-004] Configure SQS event source mapping in Terraform
+- [X] T444 [US-CART-004] Configure IAM roles and policies for Lambda
 - [ ] T445 [US-CART-004] Test Lambda locally with SQS event
 
 **Checkpoint**: Order processing Lambda functional. Orders are validated and tickets reserved asynchronously.

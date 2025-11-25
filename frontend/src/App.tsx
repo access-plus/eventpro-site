@@ -5,6 +5,7 @@ import ComponentsDemo from './pages/ComponentsDemo'
 import ReduxDemo from './pages/ReduxDemo'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
+import VerifyEmail from './pages/VerifyEmail'
 import Profile from './pages/Profile'
 import Events from './pages/Events'
 import Tickets from './pages/Tickets'
@@ -57,6 +58,10 @@ const router = createBrowserRouter([
       {
         path: 'signup',
         element: <SignUp />,
+      },
+      {
+        path: 'verify-email',
+        element: <VerifyEmail />,
       },
       {
         path: 'events',

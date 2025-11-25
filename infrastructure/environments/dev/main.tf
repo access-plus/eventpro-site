@@ -246,6 +246,44 @@ module "lambda_secret_rotation" {
   depends_on = [module.secrets_manager]
 }
 
+# Lambda Order Processor Module (if image is provided)
+module "lambda_order_processor" {
+  count  = var.order_processor_lambda_image != "" ? 1 : 0
+  source = "../../modules/lambda/order-processor"
+
+  name_prefix = var.name_prefix
+  lambda_image_uri = var.order_processor_lambda_image
+
+  order_queue_arn  = module.sqs_order.queue_arn
+  order_queue_url  = module.sqs_order.queue_url
+  payment_queue_arn = module.sqs_payment.queue_arn
+  payment_queue_url = module.sqs_payment.queue_url
+
+  database_url      = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${module.rds.db_instance_name}"
+  database_username = module.rds.db_instance_username
+  database_password = module.rds.db_password
+
+  aws_region = var.aws_region
+
+  vpc_config = {
+    subnet_ids         = module.vpc.private_subnet_ids
+    security_group_ids = [module.vpc.rds_security_group_id]
+  }
+
+  timeout_seconds = 60
+  memory_size_mb  = 512
+  log_level       = "INFO"
+
+  tags = var.tags
+
+  depends_on = [
+    module.sqs_order,
+    module.sqs_payment,
+    module.rds,
+    module.vpc
+  ]
+}
+
 # Secrets Manager Module
 module "secrets_manager" {
   source = "../../modules/secrets-manager"

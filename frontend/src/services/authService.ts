@@ -139,6 +139,15 @@ export interface SignInParams {
   password: string;
 }
 
+export interface VerifyEmailParams {
+  email: string;
+  code: string;
+}
+
+export interface ResendVerificationCodeParams {
+  email: string;
+}
+
 export interface AuthTokens {
   accessToken: string;
   idToken: string;
@@ -239,6 +248,68 @@ const signIn = async (params: SignInParams): Promise<AuthTokens> => {
         // User needs to set a new password (first time login or password reset)
         reject(new Error('New password required. Please use the password change flow.'));
       },
+    });
+  });
+};
+
+/**
+ * Verifies a user's email address with a confirmation code.
+ * 
+ * @param params Verification parameters (email and code)
+ * @returns Promise that resolves when verification is successful
+ * @throws Error if verification fails
+ */
+const verifyEmail = async (params: VerifyEmailParams): Promise<void> => {
+  const pool = getUserPool();
+  const cognitoUser = new CognitoUser({
+    Username: params.email,
+    Pool: pool,
+  });
+
+  return new Promise((resolve, reject) => {
+    cognitoUser.confirmRegistration(params.code, true, (err, result) => {
+      if (err) {
+        reject(new Error(err.message || 'Email verification failed'));
+        return;
+      }
+
+      if (!result) {
+        reject(new Error('Email verification failed: No result returned'));
+        return;
+      }
+
+      resolve();
+    });
+  });
+};
+
+/**
+ * Resends the verification code to the user's email address.
+ * 
+ * @param params Resend parameters (email)
+ * @returns Promise that resolves when code is resent
+ * @throws Error if resend fails
+ */
+const resendVerificationCode = async (params: ResendVerificationCodeParams): Promise<void> => {
+  const pool = getUserPool();
+  const cognitoUser = new CognitoUser({
+    Username: params.email,
+    Pool: pool,
+  });
+
+  return new Promise((resolve, reject) => {
+    cognitoUser.resendConfirmationCode((err, result) => {
+      if (err) {
+        reject(new Error(err.message || 'Failed to resend verification code'));
+        return;
+      }
+
+      if (!result) {
+        reject(new Error('Failed to resend verification code: No result returned'));
+        return;
+      }
+
+      resolve();
     });
   });
 };
@@ -457,6 +528,24 @@ export const authService = {
    * @throws Error if sign in fails
    */
   signIn,
+
+  /**
+   * Verifies a user's email address with a confirmation code.
+   * 
+   * @param params Verification parameters (email and code)
+   * @returns Promise that resolves when verification is successful
+   * @throws Error if verification fails
+   */
+  verifyEmail,
+
+  /**
+   * Resends the verification code to the user's email address.
+   * 
+   * @param params Resend parameters (email)
+   * @returns Promise that resolves when code is resent
+   * @throws Error if resend fails
+   */
+  resendVerificationCode,
 
   /**
    * Gets the current authenticated user's information.

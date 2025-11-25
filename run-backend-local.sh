@@ -16,7 +16,7 @@ if [ -z "$COGNITO_CLIENT_ID" ]; then
     exit 1
 fi
 
-cd backend
+cd backend/services
 
 export SPRING_PROFILES_ACTIVE=local
 export DB_URL=jdbc:postgresql://localhost:5432/eventpro
