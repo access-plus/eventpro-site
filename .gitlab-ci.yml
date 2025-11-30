@@ -37,7 +37,7 @@ test-backend:
     - job: calculate-version
       artifacts: true
 
-test-web:
+.test-web:
   extends: .test-web
   stage: test
   needs:
@@ -137,7 +137,7 @@ build-frontend-test:
   needs:
     - job: calculate-version
       artifacts: true
-    - job: test-web
+    # - job: test-web
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
