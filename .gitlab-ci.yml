@@ -37,7 +37,7 @@ test-backend:
     - job: calculate-version
       artifacts: true
 
-.test-web:
+.test-frontend:
   extends: .test-web
   stage: test
   needs:
