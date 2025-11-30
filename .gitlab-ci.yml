@@ -29,14 +29,6 @@ calculate-version:
   stage: .pre
   extends: .calculate-version
 
-# Build shared module first (required by services and lambdas)
-build-shared:
-  extends: .build-shared
-  stage: shared
-  needs:
-    - job: calculate-version
-      artifacts: true
-
 # Test jobs
 test-backend:
   extends: .test-service
@@ -44,12 +36,18 @@ test-backend:
   needs:
     - job: calculate-version
       artifacts: true
-    - job: build-shared
-      artifacts: true
 
 test-web:
   extends: .test-web
   stage: test
+  needs:
+    - job: calculate-version
+      artifacts: true
+
+# Build shared module first (required by services and lambdas)
+build-shared:
+  extends: .build-shared
+  stage: build
   needs:
     - job: calculate-version
       artifacts: true
