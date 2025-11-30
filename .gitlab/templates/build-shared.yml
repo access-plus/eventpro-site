@@ -1,6 +1,5 @@
 .build-shared:
   image: eclipse-temurin:21-jdk-alpine
-  stage: build
   before_script:
     - cd backend/shared
   script:

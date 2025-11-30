@@ -15,6 +15,7 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 stages:
+  - shared
   - test
   - build
   - docker
@@ -31,6 +32,7 @@ calculate-version:
 # Build shared module first (required by services and lambdas)
 build-shared:
   extends: .build-shared
+  stage: shared
   needs:
     - job: calculate-version
       artifacts: true
