@@ -2,13 +2,13 @@
   image: eclipse-temurin:21-jdk-alpine
   stage: build
   before_script:
-    - cd shared
+    - cd backend/shared
   script:
     - echo "Building shared module"
-    - ./gradlew build -x test
+    - ./gradlew build -x test publishToMavenLocal
     - echo "Shared module build completed"
   artifacts:
     paths:
-      - shared/build/libs/
+      - backend/shared/build/libs/
     expire_in: 1 week
 

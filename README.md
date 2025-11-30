@@ -46,6 +46,551 @@ EventPro is a modern event ticketing platform designed to handle the complete li
 
 ## Architecture
 
+### Comprehensive Architecture Diagram
+
+<details>
+<summary>Click to expand - Complete Service-to-Service Communication</summary>
+
+```txt
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           USER (Browser)                                    │
+│                    React Frontend (Port 5173)                               │
+│                    - Authentication (Cognito JS SDK)                        │
+│                    - API Calls (Axios with JWT)                             │
+│                    - State Management (Redux Toolkit)                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    │               │               │
+                    ▼               ▼               ▼
+        ┌───────────────────┐  ┌───────────────┐  ┌───────────────┐
+        │  AWS Cognito      │  │  Backend API  │  │  AWS S3       │
+        │  (Real AWS)       │  │  (Spring Boot)│  │  (LocalStack) │
+        │                   │  │  Port 8080    │  │               │
+        │ - Sign Up/In      │  │               │  │ - Images      │
+        │ - JWT Tokens      │  │ Controllers:  │  │ - PDFs        │
+        │ - Password Reset  │  │ - Auth        │  │               │
+        │ - User Groups     │  │ - Users       │  │               │
+        │   (ADMIN/ORG/USER)│  │ - Events      │  │               │
+        └───────────────────┘  │ - Tickets     │  └───────────────┘
+                               │ - Cart        │         ▲
+                               │ - Orders      │         │
+                               │ - Payments    │         │
+                               │ - Admin       │         │
+                               │ - Organizer   │         │
+                               └───────────────┘         │
+                                    │                    │
+                    ┌───────────────┼────────────────────┘
+                    │               │
+                    ▼               ▼
+        ┌───────────────────┐  ┌───────────────┐
+        │  PostgreSQL       │  │  AWS SQS      │
+        │  (RDS/Docker)     │  │  (LocalStack) │
+        │                   │  │               │
+        │ - Users           │  │ - order-queue │
+        │ - Events          │  │ - payment-q   │
+        │ - Tickets         │  │ - notify-q    │
+        │ - Orders          │  │ - DLQs        │
+        │ - Cart            │  │               │
+        │ - Notifications   │  └───────────────┘
+        └───────────────────┘         │
+                                      │
+                    ┌─────────────────┼─────────────────┐
+                    │                 │                 │
+                    ▼                 ▼                 ▼
+        ┌───────────────────┐  ┌───────────────┐  ┌───────────────┐
+        │ Order Processor   │  │ Payment Proc. │  │ Notification  │
+        │ Lambda (Quarkus)  │  │ Lambda        │  │ Sender Lambda │
+        │                   │  │ (Quarkus)     │  │ (Quarkus)     │
+        │ - Validates       │  │               │  │               │
+        │ - Reserves tickets│  │ - Stripe API  │  │ - Email (SES) │
+        │ - Publishes to    │  │ - Updates DB  │  │ - SMS (SNS)   │
+        │   payment-queue   │  │ - Publishes   │  │ - In-App      │
+        └───────────────────┘  │   to notify-q │  └───────────────┘
+                               └───────────────┘         │
+                                      │                  │
+                                      │                  │
+                    ┌─────────────────┴──────────────────┘
+                    │
+                    ▼
+        ┌───────────────────┐  ┌───────────────┐
+        │  AWS SES          │  │  AWS SNS      │
+        │  (LocalStack)     │  │  (LocalStack) │
+        │                   │  │               │
+        │ - Email Delivery  │  │ - SMS Delivery│
+        └───────────────────┘  └───────────────┘
+                    │
+                    ▼
+        ┌───────────────────┐
+        │  Stripe API       │
+        │  (External)       │
+        │                   │
+        │ - Payment Intents │
+        │ - Confirmations   │
+        │ - Refunds         │
+        └───────────────────┘
+```
+
+</details>
+
+### Complete User Flow: Order Processing
+
+<details>
+<summary>Click to expand - Step-by-Step Order Processing Flow</summary>
+
+```txt
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    COMPLETE ORDER PROCESSING FLOW                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. USER ADDS ITEMS TO CART
+   ┌─────────────┐
+   │   Frontend  │ POST /api/v1/cart/items
+   └──────┬──────┘
+          │ JWT Token
+          ▼
+   ┌─────────────┐
+   │  Backend    │ → CartController.addItemsToCart()
+   │  API        │ → CartService.addItemToCart()
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ PostgreSQL  │ INSERT INTO cart_items
+   └─────────────┘
+          │
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ ← 200 OK (Cart updated)
+   └─────────────┘
+
+2. USER INITIATES CHECKOUT
+   ┌─────────────┐
+   │   Frontend  │ POST /api/v1/payments/create-intent
+   └──────┬──────┘
+          │ { amount: 150.00 }
+          ▼
+   ┌─────────────┐
+   │  Backend    │ → PaymentController.createPaymentIntent()
+   │  API        │ → PaymentService.createPaymentIntent()
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ Stripe API  │ Create PaymentIntent
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ ← { clientSecret: "pi_xxx_secret_yyy" }
+   └─────────────┘
+          │
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ Stripe.js confirms payment
+   │  (Stripe.js)│
+   └──────┬──────┘
+          │ paymentIntentId
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ POST /api/v1/payments/confirm
+   └──────┬──────┘
+          │ { paymentIntentId: "pi_xxx" }
+          ▼
+   ┌─────────────┐
+   │  Backend    │ → PaymentController.confirmPayment()
+   │  API        │ → PaymentService.processPayment()
+   └──────┬──────┘
+          │
+          ├─────────────────┐
+          │                 │
+          ▼                 ▼
+   ┌─────────────┐  ┌─────────────┐
+   │ Stripe API  │  │ OrderService│
+   │ Confirm     │  │ createOrder │
+   └──────┬──────┘  └──────┬──────┘
+          │                 │
+          │                 ▼
+          │         ┌─────────────┐
+          │         │ PostgreSQL  │ INSERT INTO orders (status: PENDING)
+          │         └──────┬──────┘
+          │                │
+          │                ▼
+          │         ┌─────────────┐
+          │         │  Backend    │ → SQSMessagePublisher.publishOrderMessage()
+          │         │  API        │
+          │         └──────┬──────┘
+          │                │
+          │                ▼
+          │         ┌─────────────┐
+          │         │  AWS SQS    │ OrderMessage published
+          │         │ order-queue │
+          │         └─────────────┘
+          │
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ ← 200 OK { order: { id, status: "PENDING" } }
+   └─────────────┘
+
+3. ASYNC ORDER PROCESSING (Background)
+   ┌─────────────┐
+   │  AWS SQS    │ SQS Event triggers Lambda
+   │ order-queue │
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ Order Proc. │ → OrderProcessorHandler.handleRequest()
+   │ Lambda      │ → OrderProcessorService.processOrder()
+   └──────┬──────┘
+          │
+          ├─────────────────┐
+          │                 │
+          ▼                 ▼
+   ┌─────────────┐  ┌─────────────┐
+   │ PostgreSQL  │  │ Validate    │
+   │ Load Order  │  │ & Reserve   │
+   └──────┬──────┘  │ Tickets     │
+          │         └──────┬──────┘
+          │                │
+          │                ▼
+          │         ┌─────────────┐
+          │         │ PostgreSQL  │ UPDATE tickets (status: RESERVED)
+          │         │             │ UPDATE orders (status: PENDING)
+          │         └──────┬──────┘
+          │                │
+          │                ▼
+          │         ┌─────────────┐
+          │         │ Order Proc. │ → SQSPublisher.publishPaymentMessage()
+          │         │ Lambda      │
+          │         └──────┬──────┘
+          │                │
+          │                ▼
+          │         ┌─────────────┐
+          │         │  AWS SQS    │ PaymentMessage published
+          │         │ payment-q   │
+          │         └─────────────┘
+
+4. ASYNC PAYMENT PROCESSING (Background)
+   ┌─────────────┐
+   │  AWS SQS    │ SQS Event triggers Lambda
+   │ payment-q   │
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ Payment     │ → PaymentProcessorHandler.handleRequest()
+   │ Proc. Lambda│ → PaymentProcessorService.processPayment()
+   └──────┬──────┘
+          │
+          ├─────────────────┐
+          │                 │
+          ▼                 ▼
+   ┌─────────────┐  ┌─────────────┐
+   │ PostgreSQL  │  │ Stripe API  │ Confirm payment
+   │ Load Order  │  │             │
+   └──────┬──────┘  └──────┬──────┘
+          │                │
+          │                ▼
+          │         ┌─────────────┐
+          │         │ Payment     │ → StripeService.confirmPaymentIntent()
+          │         │ Proc. Lambda│
+          │         └──────┬──────┘
+          │                │
+          │                ▼
+          │         ┌─────────────┐
+          │         │ PostgreSQL  │ UPDATE orders (status: PAID)
+          │         │             │ UPDATE tickets (status: SOLD, purchaser_id)
+          │         └──────┬──────┘
+          │                │
+          │                ▼
+          │         ┌─────────────┐
+          │         │ Payment     │ → SQSPublisher.publishNotificationMessage()
+          │         │ Proc. Lambda│
+          │         └──────┬──────┘
+          │                │
+          │                ▼
+          │         ┌─────────────┐
+          │         │  AWS SQS    │ NotificationMessage published
+          │         │ notify-q    │
+          │         └─────────────┘
+
+5. ASYNC NOTIFICATION SENDING (Background)
+   ┌─────────────┐
+   │  AWS SQS    │ SQS Event triggers Lambda
+   │ notify-q    │
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ Notification│ → NotificationSenderHandler.handleRequest()
+   │ Sender      │ → NotificationSenderService.sendNotification()
+   │ Lambda      │
+   └──────┬──────┘
+          │
+          ├─────────────────┬─────────────────┐
+          │                 │                 │
+          ▼                 ▼                 ▼
+   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+   │  AWS SES    │  │  AWS SNS    │  │ PostgreSQL  │
+   │ Send Email  │  │ Send SMS    │  │ Store In-App│
+   └──────┬──────┘  └──────┬──────┘  └─────────────┘
+          │                │
+          ▼                ▼
+   ┌─────────────┐  ┌─────────────┐
+   │ User Email  │  │ User Phone  │
+   └─────────────┘  └─────────────┘
+
+6. USER CHECKS ORDER STATUS (Polling)
+   ┌─────────────┐
+   │   Frontend  │ GET /api/v1/orders/{id}
+   └──────┬──────┘
+          │ JWT Token
+          ▼
+   ┌─────────────┐
+   │  Backend    │ → OrderController.getOrderById()
+   │  API        │ → OrderService.getOrderById()
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ PostgreSQL  │ SELECT * FROM orders WHERE id = ?
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ ← { order: { id, status: "PAID", ... } }
+   └─────────────┘
+          │
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ Display: "Order Confirmed! Check your email."
+   └─────────────┘
+```
+
+</details>
+
+### Authentication Flow
+
+<details>
+<summary>Click to expand - Complete Authentication Flow</summary>
+
+```txt
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        AUTHENTICATION FLOW                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. USER SIGN UP
+   ┌─────────────┐
+   │   Frontend  │ cognitoService.signUp({ email, password, role })
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ AWS Cognito │ Create user (status: UNCONFIRMED)
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ AWS Cognito │ Send verification code via email
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ Display: "Check email for verification code"
+   └─────────────┘
+
+2. USER VERIFIES EMAIL
+   ┌─────────────┐
+   │   Frontend  │ cognitoService.verifyEmail({ code })
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ AWS Cognito │ Confirm user (status: CONFIRMED)
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ Redirect to login
+   └─────────────┘
+
+3. USER LOGIN
+   ┌─────────────┐
+   │   Frontend  │ cognitoService.login({ email, password })
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │ AWS Cognito │ Authenticate → Return JWT tokens
+   │             │ - Access Token
+   │             │ - ID Token
+   │             │ - Refresh Token
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ Store tokens in localStorage
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ POST /api/v1/users/sync
+   └──────┬──────┘
+          │ JWT Token
+          ▼
+   ┌─────────────┐
+   │  Backend    │ → UserController.syncUser()
+   │  API        │ → CognitoAdminService.getUserAttributes()
+   └──────┬──────┘
+          │
+          ├─────────────────┐
+          │                 │
+          ▼                 ▼
+   ┌─────────────┐  ┌─────────────┐
+   │ AWS Cognito │  │ UserService │
+   │ Get User    │  │ createUser  │
+   └─────────────┘  └──────┬──────┘
+                           │
+                           ▼
+                   ┌─────────────┐
+                   │ PostgreSQL  │ INSERT INTO users
+                   └──────┬──────┘
+                          │
+                          ▼
+                   ┌─────────────┐
+                   │   Frontend  │ ← { user: { id, email, role, ... } }
+                   └─────────────┘
+
+4. SUBSEQUENT API CALLS
+   ┌─────────────┐
+   │   Frontend  │ GET /api/v1/events
+   └──────┬──────┘
+          │ Authorization: Bearer <accessToken>
+          ▼
+   ┌─────────────┐
+   │  Backend    │ → JwtAuthenticationFilter
+   │  API        │ → Validate JWT with Cognito
+   └──────┬──────┘
+          │
+          ├─────────────────┐
+          │                 │
+          ▼                 ▼
+   ┌─────────────┐  ┌─────────────┐
+   │ AWS Cognito │  │ If valid:   │
+   │ Validate    │  │ Process     │
+   │ JWT Token   │  │ Request     │
+   └─────────────┘  └─────────────┘
+```
+
+</details>
+
+### Image Upload Flow
+
+<details>
+<summary>Click to expand - Image Upload Flow</summary>
+
+```txt
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          IMAGE UPLOAD FLOW                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. USER UPLOADS PROFILE PICTURE
+   ┌─────────────┐
+   │   Frontend  │ POST /api/v1/users/upload-profile-picture
+   └──────┬──────┘
+          │ FormData { image: File }
+          │ JWT Token
+          ▼
+   ┌─────────────┐
+   │  Backend    │ → UserController.uploadProfilePicture()
+   │  API        │ → AWSS3ImageService.uploadImage()
+   └──────┬──────┘
+          │
+          ├─────────────────┐
+          │                 │
+          ▼                 ▼
+   ┌─────────────┐  ┌─────────────┐
+   │ Validate    │  │ Generate    │
+   │ Image File  │  │ S3 Key      │
+   └─────────────┘  └──────┬──────┘
+                           │
+                           ▼
+                   ┌─────────────┐
+                   │  AWS S3     │ PUT Object
+                   │ (LocalStack)│ profile-pictures/{userId}/{filename}
+                   └──────┬──────┘
+                          │
+                          ▼
+                   ┌─────────────┐
+                   │  AWS S3     │ Return URL
+                   │             │ http://localhost:4566/eventpro-images-local/...
+                   └──────┬──────┘
+                          │
+                          ▼
+                   ┌─────────────┐
+                   │ UserService │ UPDATE users SET profile_picture_url = ?
+                   └──────┬──────┘
+                          │
+                          ▼
+                   ┌─────────────┐
+                   │ PostgreSQL  │ UPDATE users
+                   └──────┬──────┘
+                          │
+                          ▼
+                   ┌─────────────┐
+                   │   Frontend  │ ← { url: "http://..." }
+                   └─────────────┘
+                          │
+                          ▼
+                   ┌─────────────┐
+                   │   Frontend  │ Display image from S3 URL
+                   └─────────────┘
+
+2. ORGANIZER UPLOADS EVENT IMAGE
+   ┌─────────────┐
+   │   Frontend  │ POST /api/v1/events (multipart/form-data)
+   └──────┬──────┘
+          │ { request: JSON, imageFile: File }
+          │ JWT Token
+          ▼
+   ┌─────────────┐
+   │  Backend    │ → EventController.createEvent()
+   │  API        │ → EventService.createEvent()
+   └──────┬──────┘
+          │
+          ├─────────────────┐
+          │                 │
+          ▼                 ▼
+   ┌─────────────┐  ┌─────────────┐
+   │ Validate    │  │ Generate    │
+   │ Image File  │  │ S3 Key      │
+   └─────────────┘  └──────┬──────┘
+                           │
+                           ▼
+                   ┌─────────────┐
+                   │  AWS S3     │ PUT Object
+                   │             │ event-images/{eventId}/{filename}
+                   └──────┬──────┘
+                          │
+                          ▼
+                   ┌─────────────┐
+                   │ EventService│ UPDATE events SET image_url = ?
+                   └──────┬──────┘
+                          │
+                          ▼
+                   ┌─────────────┐
+                   │ PostgreSQL  │ INSERT INTO events
+                   └──────┬──────┘
+                          │
+                          ▼
+                   ┌─────────────┐
+                   │   Frontend  │ ← { event: { id, imageUrl: "http://..." } }
+                   └─────────────┘
+```
+
+</details>
+
 ### High-Level Architecture
 
 <details>
@@ -120,6 +665,7 @@ EventPro is a modern event ticketing platform designed to handle the complete li
 EventPro uses a **Modular Monolith** architecture for the main API service, combined with **Serverless Lambda Functions** for async processing:
 
 **Main API Service (Spring Boot):**
+
 - ✅ **Single Build System**: No Spring Boot + Quarkus conflicts
 - ✅ **Simplified Deployment**: One Docker image, one ECS service
 - ✅ **Easier Development**: Single application to run locally
@@ -127,12 +673,14 @@ EventPro uses a **Modular Monolith** architecture for the main API service, comb
 - ✅ **Future-Proof**: Can extract modules to microservices when needed
 
 **Lambda Functions (Quarkus):**
+
 - ✅ **Fast Cold Starts**: 50-200ms with native compilation
 - ✅ **Cost-Effective**: Pay per invocation
 - ✅ **Auto-Scaling**: Handles traffic spikes automatically
 - ✅ **Event-Driven**: SQS-triggered async processing
 
 **Shared Module:**
+
 - ✅ **Single Source of Truth**: Entities, enums, DTOs defined once
 - ✅ **Framework-Agnostic**: Works with both Spring Boot and Quarkus
 - ✅ **Type Safety**: Same types across backend and Lambda
@@ -837,3 +1385,14 @@ When running locally, access Swagger UI at:
 ## Support
 
 For issues, questions, or contributions, please refer to the project documentation or contact the development team.
+
+## Improvements
+
+- VITE_STRIPE_PUBLISHABLE_KEY=
+- /api/v1/users/upload-profile-picture endpoint uses this key to upload profile pictures to S3
+
+## password reset
+
+Sign up at https://resend.com if you don't have an account
+Verify your email domain at https://resend.com/domains
+Create an API key at https://resend.com/api-keys

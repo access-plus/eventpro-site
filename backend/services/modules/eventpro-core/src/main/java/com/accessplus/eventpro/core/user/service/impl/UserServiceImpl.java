@@ -105,7 +105,7 @@ public class UserServiceImpl implements UserService {
                     return new ResourceNotFoundException("User", userId.toString());
                 });
 
-        return updateUserFields(user, firstName, lastName, phoneNumber);
+        return updateUserFields(user, firstName, lastName, phoneNumber, null, null, null);
     }
 
     @Override
@@ -113,7 +113,16 @@ public class UserServiceImpl implements UserService {
         log.debug("Updating user profile: cognitoUserId={}", cognitoUserId);
 
         UserEntity user = getUserByCognitoId(cognitoUserId);
-        return updateUserFields(user, firstName, lastName, phoneNumber);
+        return updateUserFields(user, firstName, lastName, phoneNumber, null, null, null);
+    }
+
+    @Override
+    public UserEntity updateUserProfile(String cognitoUserId, String firstName, String lastName, String phoneNumber,
+                                       String bio, String location, String profilePictureUrl) {
+        log.debug("Updating user profile with extended fields: cognitoUserId={}", cognitoUserId);
+
+        UserEntity user = getUserByCognitoId(cognitoUserId);
+        return updateUserFields(user, firstName, lastName, phoneNumber, bio, location, profilePictureUrl);
     }
 
     /**
@@ -123,9 +132,13 @@ public class UserServiceImpl implements UserService {
      * @param firstName New first name (optional, null to skip)
      * @param lastName New last name (optional, null to skip)
      * @param phoneNumber New phone number (optional, null to skip)
+     * @param bio New bio (optional, null to skip)
+     * @param location New location (optional, null to skip)
+     * @param profilePictureUrl New profile picture URL (optional, null to skip)
      * @return Updated UserEntity
      */
-    private UserEntity updateUserFields(UserEntity user, String firstName, String lastName, String phoneNumber) {
+    private UserEntity updateUserFields(UserEntity user, String firstName, String lastName, String phoneNumber,
+                                       String bio, String location, String profilePictureUrl) {
         boolean updated = false;
 
         if (firstName != null && !firstName.equals(user.getFirstName())) {
@@ -146,6 +159,24 @@ public class UserServiceImpl implements UserService {
             log.debug("Updated phoneNumber for user: {}", user.getId());
         }
 
+        if (bio != null && !bio.equals(user.getBio())) {
+            user.setBio(bio);
+            updated = true;
+            log.debug("Updated bio for user: {}", user.getId());
+        }
+
+        if (location != null && !location.equals(user.getLocation())) {
+            user.setLocation(location);
+            updated = true;
+            log.debug("Updated location for user: {}", user.getId());
+        }
+
+        if (profilePictureUrl != null && !profilePictureUrl.equals(user.getProfilePictureUrl())) {
+            user.setProfilePictureUrl(profilePictureUrl);
+            updated = true;
+            log.debug("Updated profilePictureUrl for user: {}", user.getId());
+        }
+
         if (updated) {
             UserEntity savedUser = userRepository.save(user);
             log.info("Updated user profile: id={}, email={}", savedUser.getId(), savedUser.getEmail());
@@ -154,6 +185,34 @@ public class UserServiceImpl implements UserService {
             log.debug("No changes to update for user: {}", user.getId());
             return user;
         }
+    }
+
+    @Override
+    public UserEntity updateUserStatus(UUID userId, String status) {
+        log.debug("Updating user status: userId={}, status={}", userId, status);
+
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+
+        user.setStatus(status);
+        UserEntity savedUser = userRepository.save(user);
+        log.info("Updated user status: id={}, status={}", savedUser.getId(), savedUser.getStatus());
+
+        return savedUser;
+    }
+
+    @Override
+    public UserEntity updateUserRole(UUID userId, String role) {
+        log.debug("Updating user role: userId={}, role={}", userId, role);
+
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+
+        user.setRole(role);
+        UserEntity savedUser = userRepository.save(user);
+        log.info("Updated user role: id={}, role={}", savedUser.getId(), savedUser.getRole());
+
+        return savedUser;
     }
 }
 

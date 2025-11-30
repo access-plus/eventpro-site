@@ -55,6 +55,11 @@ CREATE TABLE users (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     cognito_user_id VARCHAR(255) NOT NULL,
+    bio TEXT,
+    location VARCHAR(255),
+    profile_picture_url VARCHAR(500),
+    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+    role VARCHAR(50) NOT NULL DEFAULT 'USER',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -209,7 +214,9 @@ ALTER TABLE users ADD CONSTRAINT uk_user_email UNIQUE (email);
 ALTER TABLE users ADD CONSTRAINT uk_user_cognito_id UNIQUE (cognito_user_id);
 ALTER TABLE category ADD CONSTRAINT uk_category_name UNIQUE (name);
 ALTER TABLE "order" ADD CONSTRAINT uk_order_number UNIQUE (order_number);
-ALTER TABLE payment ADD CONSTRAINT uk_payment_transaction_id UNIQUE (transaction_id);
+-- Partial unique index: transaction_id must be unique when provided (NOT NULL)
+-- PostgreSQL allows multiple NULLs in unique constraints, but partial index is more explicit
+CREATE UNIQUE INDEX uk_payment_transaction_id ON payment(transaction_id) WHERE transaction_id IS NOT NULL;
 ALTER TABLE cart ADD CONSTRAINT uk_cart_user_ticket UNIQUE (user_id, ticket_id);
 ALTER TABLE notification_preference ADD CONSTRAINT uk_notification_preference_user UNIQUE (user_id);
 
@@ -252,6 +259,8 @@ ALTER TABLE user_notification ADD CONSTRAINT chk_user_notification_read_at
 -- User indexes
 CREATE INDEX idx_user_email ON users(email);
 CREATE INDEX idx_user_cognito_id ON users(cognito_user_id);
+CREATE INDEX idx_user_status ON users(status);
+CREATE INDEX idx_user_role ON users(role);
 
 -- Category indexes
 CREATE INDEX idx_category_name ON category(name);

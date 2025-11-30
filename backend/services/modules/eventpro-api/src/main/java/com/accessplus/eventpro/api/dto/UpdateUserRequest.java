@@ -27,5 +27,11 @@ public class UpdateUserRequest {
     // Note: phoneNumber validation can be added if needed
     // @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Invalid phone number format")
     private String phoneNumber;
+    
+    @Size(max = 1000, message = "Bio must not exceed 1000 characters")
+    private String bio;
+    
+    @Size(max = 255, message = "Location must not exceed 255 characters")
+    private String location;
 }
 

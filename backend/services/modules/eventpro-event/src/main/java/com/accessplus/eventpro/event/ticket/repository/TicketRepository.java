@@ -71,5 +71,13 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID> {
      */
     @Query("SELECT COUNT(t) FROM TicketEntity t WHERE t.eventId = :eventId AND t.ticketStatus = :status")
     long countByEventIdAndStatus(@Param("eventId") UUID eventId, @Param("status") TicketStatus status);
+
+    /**
+     * Counts tickets by status.
+     * 
+     * @param status the ticket status
+     * @return count of tickets with the status
+     */
+    long countByTicketStatus(TicketStatus status);
 }
 

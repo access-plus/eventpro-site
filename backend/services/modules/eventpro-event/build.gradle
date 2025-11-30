@@ -16,6 +16,9 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.3'
     implementation 'com.google.zxing:javase:3.5.3'
     
+    // PDF Generation
+    implementation 'org.apache.pdfbox:pdfbox:2.0.29'
+    
     // Database
     runtimeOnly "org.postgresql:postgresql:${project.ext.postgresqlVersion}"
     

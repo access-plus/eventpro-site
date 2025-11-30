@@ -60,9 +60,21 @@ variable "kms_data_key_reuse_period_seconds" {
 }
 
 variable "dead_letter_queue_arn" {
-  description = "ARN of the dead-letter queue (optional)"
+  description = "ARN of the dead-letter queue (optional, overrides enable_dlq)"
   type        = string
   default     = null
+}
+
+variable "enable_dlq" {
+  description = "Enable automatic creation of a dead-letter queue"
+  type        = bool
+  default     = true
+}
+
+variable "dlq_message_retention_seconds" {
+  description = "Message retention for DLQ in seconds (default: 14 days)"
+  type        = number
+  default     = 1209600
 }
 
 variable "max_receive_count" {

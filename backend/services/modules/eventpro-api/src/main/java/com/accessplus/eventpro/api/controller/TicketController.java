@@ -15,6 +15,7 @@ import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.TicketType;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
+import com.accessplus.eventpro.event.ticket.service.TicketPdfService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,11 +25,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +47,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>POST /api/v1/tickets - Create tickets in bulk (admin/organizer only)</li>
  *   <li>GET /api/v1/tickets/{id} - Get ticket by ID (public)</li>
+     *   <li>GET /api/v1/tickets/{id}/download - Download ticket as PDF (authenticated users, own tickets)</li>
  *   <li>GET /api/v1/tickets/event/{eventId} - Get tickets for event (public)</li>
  *   <li>GET /api/v1/tickets/groupTickets/{eventId} - Get tickets grouped by type (public)</li>
  *   <li>GET /api/v1/tickets/group/{eventId} - Get ticket summary (public)</li>
@@ -60,6 +65,7 @@ public class TicketController extends BaseController {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private final TicketService ticketService;
+    private final TicketPdfService ticketPdfService;
     private final EventRepository eventRepository;
     private final UserService userService;
 
@@ -138,6 +144,70 @@ public class TicketController extends BaseController {
 
         // Return as list per README.md specification
         return ResponseEntity.ok(ApiResponse.success(List.of(response)));
+    }
+
+    /**
+     * Downloads a ticket as PDF.
+     * Users can only download their own tickets.
+     * 
+     * @param id ticket UUID
+     * @return PDF file as binary response
+     */
+    @GetMapping("/{id}/download")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
+    @Operation(summary = "Download ticket as PDF", description = "Downloads a ticket as PDF with QR code. " +
+            "Users can only download their own tickets. Admins can download any ticket. " +
+            "Requires USER, ADMIN, or ORGANIZER role.")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<byte[]> downloadTicket(@PathVariable UUID id) {
+        log.debug("Downloading ticket as PDF: ticketId={}", id);
+
+        // Get ticket
+        TicketEntity ticket = ticketService.getTicketById(id);
+
+        // Check authorization: user can only download their own tickets, admin can download any
+        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
+        UUID currentUserId = userService.getUserByCognitoId(cognitoUserId).getId();
+        boolean isAdmin = hasAdminRole();
+
+        if (!isAdmin && (ticket.getPurchaserId() == null || !ticket.getPurchaserId().equals(currentUserId))) {
+            throw new com.accessplus.eventpro.shared.exception.ResourceNotFoundException("Ticket", id.toString());
+        }
+
+        try {
+            // Generate PDF
+            byte[] pdfBytes = ticketPdfService.generateTicketPdf(ticket);
+
+            // Set response headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "ticket-" + id + ".pdf");
+            headers.setContentLength(pdfBytes.length);
+
+            log.info("Ticket PDF generated successfully: ticketId={}, size={} bytes", id, pdfBytes.length);
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(pdfBytes);
+
+        } catch (IOException e) {
+            log.error("Failed to generate PDF ticket: ticketId={}, error={}", id, e.getMessage(), e);
+            throw new com.accessplus.eventpro.shared.exception.ValidationException("Failed to generate PDF: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Checks if the current authenticated user has the ADMIN role.
+     */
+    private boolean hasAdminRole() {
+        org.springframework.security.core.Authentication authentication = 
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            return false;
+        }
+        
+        return authentication.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .anyMatch(authority -> authority.equals("ROLE_ADMIN"));
     }
 
     /**

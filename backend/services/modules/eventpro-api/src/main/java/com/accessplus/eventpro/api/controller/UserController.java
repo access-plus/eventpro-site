@@ -21,7 +21,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import com.accessplus.eventpro.event.service.AWSS3ImageService;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -31,6 +36,7 @@ import java.util.UUID;
  * <ul>
  *   <li>GET /api/v1/users/me - Get current user profile</li>
  *   <li>PUT /api/v1/users/me - Update current user profile</li>
+     *   <li>POST /api/v1/users/upload-profile-picture - Upload profile picture</li>
  *   <li>GET /api/v1/users/{id} - Get user by ID (admin only)</li>
  *   <li>GET /api/v1/users - Get all users with pagination (admin only)</li>
  *   <li>POST /api/v1/admin/users/{userId}/promote - Promote user to ORGANIZER (admin only)</li>
@@ -46,6 +52,7 @@ public class UserController extends BaseController {
 
     private final UserService userService;
     private final com.accessplus.eventpro.core.user.service.CognitoAdminServiceInterface cognitoAdminService;
+    private final AWSS3ImageService imageService;
 
     @GetMapping("/me")
     @Operation(summary = "Get current user profile", description = "Returns the profile of the currently authenticated user. " +
@@ -62,21 +69,24 @@ public class UserController extends BaseController {
             // User doesn't exist in database, sync from Cognito
             log.info("User not found in database, syncing from Cognito: cognitoUserId={}", cognitoUserId);
             
-            // Extract user attributes from JWT token
-            String email = JwtUtils.getClaim("email");
-            String firstName = JwtUtils.getClaim("given_name");
-            String lastName = JwtUtils.getClaim("family_name");
-            String phoneNumber = JwtUtils.getClaim("phone_number");
+            // Fetch user attributes from Cognito using Admin API
+            // Access tokens don't contain user attributes, so we need to fetch them from Cognito
+            Map<String, String> attributes = cognitoAdminService.getUserAttributes(cognitoUserId);
+            
+            String email = attributes.get("email");
+            String firstName = attributes.get("given_name");
+            String lastName = attributes.get("family_name");
+            String phoneNumber = attributes.get("phone_number");
 
             // Validate required fields
             if (email == null || email.isEmpty()) {
-                throw new ValidationException("Email is required but not found in token");
+                throw new ValidationException("Email is required but not found in Cognito user attributes");
             }
             if (firstName == null || firstName.isEmpty()) {
-                throw new ValidationException("First name is required but not found in token");
+                throw new ValidationException("First name is required but not found in Cognito user attributes");
             }
             if (lastName == null || lastName.isEmpty()) {
-                throw new ValidationException("Last name is required but not found in token");
+                throw new ValidationException("Last name is required but not found in Cognito user attributes");
             }
 
             // Create user in database
@@ -107,11 +117,55 @@ public class UserController extends BaseController {
                 cognitoUserId,
                 request.getFirstName(),
                 request.getLastName(),
-                request.getPhoneNumber()
+                request.getPhoneNumber(),
+                request.getBio(),
+                request.getLocation(),
+                null // profilePictureUrl is updated via separate endpoint
         );
         UserResponse response = UserResponse.fromEntity(updatedUser);
 
         return ResponseEntity.ok(ApiResponse.success(response, "Profile updated successfully"));
+    }
+
+    @PostMapping("/upload-profile-picture")
+    @Operation(summary = "Upload profile picture", description = "Uploads a profile picture for the current user")
+    public ResponseEntity<ApiResponse<Map<String, String>>> uploadProfilePicture(
+            @RequestParam("image") MultipartFile imageFile) {
+        log.debug("Uploading profile picture");
+
+        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
+        UserEntity user = userService.getUserByCognitoId(cognitoUserId);
+
+        try {
+            // Validate image
+            imageService.validateImage(imageFile);
+
+            // Generate S3 key: profile-pictures/{userId}/{filename}
+            String imageKey = String.format("profile-pictures/%s/%s",
+                    user.getId(),
+                    imageFile.getOriginalFilename() != null ?
+                            imageFile.getOriginalFilename() : "profile.jpg");
+
+            // Upload image to S3
+            String imageUrl = imageService.uploadImage(imageFile, imageKey);
+
+            // Update user's profile picture URL
+            userService.updateUserProfile(
+                    cognitoUserId,
+                    null, null, null, // firstName, lastName, phoneNumber
+                    null, null, imageUrl // bio, location, profilePictureUrl
+            );
+
+            Map<String, String> response = new HashMap<>();
+            response.put("url", imageUrl);
+
+            log.info("Profile picture uploaded successfully: userId={}, url={}", user.getId(), imageUrl);
+            return ResponseEntity.ok(ApiResponse.success(response, "Profile picture uploaded successfully"));
+
+        } catch (IOException e) {
+            log.error("Failed to upload profile picture: {}", e.getMessage(), e);
+            throw new ValidationException("Failed to upload profile picture: " + e.getMessage());
+        }
     }
 
     @GetMapping("/{id}")
@@ -173,21 +227,24 @@ public class UserController extends BaseController {
                 log.debug("User not found in database, syncing from Cognito: cognitoUserId={}", cognitoUserId);
             }
 
-            // Extract user attributes from JWT token
-            String email = JwtUtils.getClaim("email");
-            String firstName = JwtUtils.getClaim("given_name");
-            String lastName = JwtUtils.getClaim("family_name");
-            String phoneNumber = JwtUtils.getClaim("phone_number");
+            // Fetch user attributes from Cognito using Admin API
+            // Access tokens don't contain user attributes, so we need to fetch them from Cognito
+            Map<String, String> attributes = cognitoAdminService.getUserAttributes(cognitoUserId);
+            
+            String email = attributes.get("email");
+            String firstName = attributes.get("given_name");
+            String lastName = attributes.get("family_name");
+            String phoneNumber = attributes.get("phone_number");
 
             // Validate required fields
             if (email == null || email.isEmpty()) {
-                throw new ValidationException("Email is required but not found in token");
+                throw new ValidationException("Email is required but not found in Cognito user attributes");
             }
             if (firstName == null || firstName.isEmpty()) {
-                throw new ValidationException("First name is required but not found in token");
+                throw new ValidationException("First name is required but not found in Cognito user attributes");
             }
             if (lastName == null || lastName.isEmpty()) {
-                throw new ValidationException("Last name is required but not found in token");
+                throw new ValidationException("Last name is required but not found in Cognito user attributes");
             }
 
             // Create user in database

@@ -50,9 +50,9 @@ curl http://localhost:4566/_localstack/health
 This configuration creates the following resources in LocalStack:
 
 ### SQS Queues
-- `order-queue` - Order processing queue
-- `payment-queue` - Payment processing queue
-- `notification-queue` - Notification sending queue
+- `order-queue` - Order processing queue (with DLQ: `order-queue-dlq`)
+- `payment-queue` - Payment processing queue (with DLQ: `payment-queue-dlq`)
+- `notification-queue` - Notification sending queue (with DLQ: `notification-queue-dlq`)
 
 ### S3 Buckets
 - `eventpro-images-local` - Event images storage (with CORS enabled for localhost)

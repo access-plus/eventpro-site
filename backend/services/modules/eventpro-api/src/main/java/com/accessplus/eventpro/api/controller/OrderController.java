@@ -6,6 +6,7 @@ import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
+import com.accessplus.eventpro.shared.enums.OrderStatus;
 import com.accessplus.eventpro.order.order.service.OrderService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -29,13 +30,15 @@ import java.util.UUID;
 /**
  * REST controller for order management operations.
  * 
- * <p>Endpoints:
- * <ul>
- *   <li>POST /api/v1/orders - Create order from cart (authenticated users only)</li>
- *   <li>GET /api/v1/orders/{id} - Get order by ID (own order or admin)</li>
- *   <li>GET /api/v1/orders - Get user's orders or all orders if admin (paginated)</li>
- *   <li>GET /api/v1/orders/users/{userId} - Get user's orders (paginated, admin or own orders)</li>
- * </ul>
+     * <p>Endpoints:
+     * <ul>
+     *   <li>POST /api/v1/orders - Create order from cart (authenticated users only)</li>
+     *   <li>GET /api/v1/orders/{id} - Get order by ID (own order or admin)</li>
+     *   <li>GET /api/v1/orders - Get user's orders or all orders if admin (paginated)</li>
+     *   <li>GET /api/v1/orders/my-orders - Get user's orders (paginated, alias)</li>
+     *   <li>GET /api/v1/orders/users/{userId} - Get user's orders (paginated, admin or own orders)</li>
+     *   <li>POST /api/v1/orders/{id}/refund - Request refund for order</li>
+     * </ul>
  */
 @Slf4j
 @RestController
@@ -216,6 +219,87 @@ public class OrderController extends BaseController {
         Page<OrderResponse> responsePage = orderPage.map(OrderResponse::fromEntity);
 
         return ResponseEntity.ok(ApiResponse.success(responsePage));
+    }
+
+    /**
+     * Retrieves orders for the authenticated user (alias endpoint).
+     * 
+     * <p>This is an alias for GET /api/v1/orders that returns user's orders in the expected format.
+     * 
+     * @param page page number (1-based, default: 1)
+     * @param size page size (default: 5)
+     * @param sortBy sort field (default: "orderDate")
+     * @param dir sort direction (default: "asc")
+     * @return Page of OrderResponse wrapped in content structure
+     */
+    @GetMapping("/my-orders")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
+    @Operation(summary = "Get my orders", description = "Retrieves orders for the authenticated user. " +
+            "Requires USER, ADMIN, or ORGANIZER role. Supports pagination.")
+    public ResponseEntity<ApiResponse<Page<OrderResponse>>> getMyOrders(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(defaultValue = "orderDate") String sortBy,
+            @RequestParam(defaultValue = "asc") String dir) {
+        log.debug("Received request to get my orders: page={}, size={}, sortBy={}, dir={}", 
+                page, size, sortBy, dir);
+
+        // Get current user's UUID from JWT
+        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
+        UUID currentUserId = userService.getUserByCognitoId(cognitoUserId).getId();
+
+        // Convert page from 1-based to 0-based
+        int pageIndex = page > 0 ? page - 1 : 0;
+        
+        // Validate sort direction
+        Sort.Direction direction = "desc".equalsIgnoreCase(dir) 
+                ? Sort.Direction.DESC 
+                : Sort.Direction.ASC;
+        
+        // Create pageable with sorting
+        Pageable pageable = PageRequest.of(pageIndex, size, Sort.by(direction, sortBy));
+
+        // Get user's orders
+        Page<OrderEntity> orderPage = orderService.getUserOrders(currentUserId, pageable);
+        Page<OrderResponse> responsePage = orderPage.map(OrderResponse::fromEntity);
+
+        return ResponseEntity.ok(ApiResponse.success(responsePage));
+    }
+
+    /**
+     * Requests a refund for an order.
+     * Users can only refund their own orders.
+     * 
+     * @param id order UUID
+     * @return OrderResponse with updated order
+     */
+    @PostMapping("/{id}/refund")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
+    @Operation(summary = "Request refund for order", description = "Requests a refund for an order. " +
+            "Users can only refund their own orders. Admins can refund any order. " +
+            "Requires USER, ADMIN, or ORGANIZER role.")
+    public ResponseEntity<ApiResponse<OrderResponse>> requestRefund(@PathVariable UUID id) {
+        log.debug("Received request to refund order: {}", id);
+
+        // Get current user's UUID from JWT
+        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
+        UUID currentUserId = userService.getUserByCognitoId(cognitoUserId).getId();
+        boolean isAdmin = hasAdminRole();
+
+        // Get order
+        OrderEntity order = orderService.getOrderById(id);
+
+        // Check authorization: user can only refund their own orders, admin can refund any
+        if (!isAdmin && !order.getUserId().equals(currentUserId)) {
+            throw new ResourceNotFoundException("Order", id.toString());
+        }
+
+        // Update order status to REFUNDED
+        OrderEntity refundedOrder = orderService.updateOrderStatus(id, OrderStatus.REFUNDED);
+        OrderResponse response = OrderResponse.fromEntity(refundedOrder);
+
+        log.info("Order refunded successfully: orderId={}, userId={}", id, currentUserId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Refund requested successfully"));
     }
 
     /**

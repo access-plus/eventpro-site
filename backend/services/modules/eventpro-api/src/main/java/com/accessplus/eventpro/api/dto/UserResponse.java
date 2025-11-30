@@ -28,6 +28,11 @@ public class UserResponse {
     private String lastName;
     private String email;
     private String phoneNumber;
+    private String bio;
+    private String location;
+    private String profilePictureUrl;
+    private String status;
+    private String role;
     
     // Account flags (managed by Cognito, default to true)
     @Builder.Default
@@ -61,6 +66,11 @@ public class UserResponse {
                 .lastName(entity.getLastName())
                 .email(entity.getEmail())
                 .phoneNumber(entity.getPhoneNumber())
+                .bio(entity.getBio())
+                .location(entity.getLocation())
+                .profilePictureUrl(entity.getProfilePictureUrl())
+                .status(entity.getStatus())
+                .role(entity.getRole())
                 .accountNonExpired(true)
                 .accountNonLocked(true)
                 .credentialsNonExpired(true)

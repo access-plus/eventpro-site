@@ -104,5 +104,14 @@ public interface EventService {
      * @return Page of EventEntity with marketing enabled
      */
     Page<EventEntity> getMarketingEnabledEvents(Pageable pageable);
+
+    /**
+     * Retrieves events where a user has purchased tickets.
+     * 
+     * @param userId the UUID of the user
+     * @param pageable pagination and sorting parameters
+     * @return Page of EventEntity where user has purchased tickets
+     */
+    Page<EventEntity> getEventsByUserPurchases(UUID userId, Pageable pageable);
 }
 

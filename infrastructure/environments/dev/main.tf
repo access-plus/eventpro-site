@@ -284,6 +284,82 @@ module "lambda_order_processor" {
   ]
 }
 
+# Lambda Payment Processor Module (if image is provided)
+module "lambda_payment_processor" {
+  count  = var.payment_processor_lambda_image != "" ? 1 : 0
+  source = "../../modules/lambda/payment-processor"
+
+  name_prefix = var.name_prefix
+  lambda_image_uri = var.payment_processor_lambda_image
+
+  payment_queue_arn = module.sqs_payment.queue_arn
+  notification_queue_arn = module.sqs_notification.queue_arn
+  notification_queue_url = module.sqs_notification.queue_url
+
+  database_url      = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${module.rds.db_instance_name}"
+  database_username = module.rds.db_instance_username
+  database_password = module.rds.db_password
+
+  stripe_secret_key_arn = try(module.secrets_manager.secret_arns["stripe"], null)
+
+  aws_region = var.aws_region
+
+  vpc_config = {
+    subnet_ids         = module.vpc.private_subnet_ids
+    security_group_ids = [module.vpc.rds_security_group_id]
+  }
+
+  timeout_seconds = 900 # 15 minutes for Stripe API calls
+  memory_size_mb  = 1024
+  log_level       = "INFO"
+
+  tags = var.tags
+
+  depends_on = [
+    module.sqs_payment,
+    module.sqs_notification,
+    module.rds,
+    module.vpc,
+    module.secrets_manager
+  ]
+}
+
+# Lambda Notification Sender Module (if image is provided)
+module "lambda_notification_sender" {
+  count  = var.notification_sender_lambda_image != "" ? 1 : 0
+  source = "../../modules/lambda/notification-sender"
+
+  name_prefix = var.name_prefix
+  lambda_image_uri = var.notification_sender_lambda_image
+
+  notification_queue_arn = module.sqs_notification.queue_arn
+
+  database_url      = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${module.rds.db_instance_name}"
+  database_username = module.rds.db_instance_username
+  database_password = module.rds.db_password
+
+  ses_sender_email = var.ses_sender_email
+
+  aws_region = var.aws_region
+
+  vpc_config = {
+    subnet_ids         = module.vpc.private_subnet_ids
+    security_group_ids = [module.vpc.rds_security_group_id]
+  }
+
+  timeout_seconds = 60
+  memory_size_mb  = 512
+  log_level       = "INFO"
+
+  tags = var.tags
+
+  depends_on = [
+    module.sqs_notification,
+    module.rds,
+    module.vpc
+  ]
+}
+
 # Secrets Manager Module
 module "secrets_manager" {
   source = "../../modules/secrets-manager"

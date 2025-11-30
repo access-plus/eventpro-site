@@ -1,8 +1,10 @@
 -- Flyway Migration: V2__seed_categories.sql
 -- Description: Seeds predefined event categories
 -- Database: PostgreSQL 15+
+-- Note: This migration is idempotent - safe to run multiple times
 
 -- Insert predefined categories
+-- Using ON CONFLICT to ensure idempotency for first-time and subsequent runs
 INSERT INTO category (id, name, description, created_at, updated_at) VALUES
     (gen_random_uuid(), 'Music', 'Concerts, festivals, and live music events', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     (gen_random_uuid(), 'Sports', 'Sports games, tournaments, and athletic events', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

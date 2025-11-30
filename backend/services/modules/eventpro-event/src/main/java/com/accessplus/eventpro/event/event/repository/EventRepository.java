@@ -105,5 +105,20 @@ public interface EventRepository extends JpaRepository<EventEntity, UUID> {
      */
     @Query("SELECT e FROM EventEntity e WHERE LOWER(e.name) LIKE LOWER(CONCAT('%', :name, '%'))")
     Page<EventEntity> findByNameContainingIgnoreCase(@Param("name") String name, Pageable pageable);
+
+    /**
+     * Finds events where a user has purchased tickets.
+     * Joins through Order -> OrderItem -> Ticket -> Event.
+     * 
+     * @param userId the user UUID
+     * @param pageable pagination information
+     * @return page of events where user has purchased tickets
+     */
+    @Query("SELECT DISTINCT e FROM EventEntity e " +
+           "JOIN TicketEntity t ON t.eventId = e.id " +
+           "JOIN OrderItemEntity oi ON oi.ticket.id = t.id " +
+           "JOIN OrderEntity o ON o.id = oi.order.id " +
+           "WHERE o.userId = :userId")
+    Page<EventEntity> findEventsByUserPurchases(@Param("userId") UUID userId, Pageable pageable);
 }
 
