@@ -228,3 +228,24 @@ variable "order_processor_lambda_image" {
   type        = string
   default     = ""
 }
+
+# Payment Processor Lambda
+variable "payment_processor_lambda_image" {
+  description = "Docker image URI for payment processor Lambda function"
+  type        = string
+  default     = ""
+}
+
+# Notification Sender Lambda
+variable "notification_sender_lambda_image" {
+  description = "Docker image URI for notification sender Lambda function"
+  type        = string
+  default     = ""
+}
+
+# SES Configuration
+variable "ses_sender_email" {
+  description = "SES sender email address for notifications"
+  type        = string
+  default     = "noreply@eventpro.com"
+}

@@ -57,6 +57,21 @@ public class UserEntity extends BaseEntity {
     @Column(name = "cognito_user_id", nullable = false, unique = true, length = 255)
     private String cognitoUserId;
 
+    @Column(name = "bio", columnDefinition = "TEXT")
+    private String bio;
+
+    @Column(name = "location", length = 255)
+    private String location;
+
+    @Column(name = "profile_picture_url", length = 500)
+    private String profilePictureUrl;
+
+    @Column(name = "status", length = 50)
+    private String status;
+
+    @Column(name = "role", length = 50)
+    private String role;
+
     // Relationships will be added in future phases when related entities are created
     // For now, we'll use lazy initialization to avoid circular dependencies
     

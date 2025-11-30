@@ -1,3 +1,29 @@
+# EventPro Local Development Environment
+#
+# This docker-compose.yml provides a complete local development setup including:
+# - Infrastructure: PostgreSQL, LocalStack (AWS services emulation)
+# - Application Services: Backend API (Spring Boot), Frontend (React)
+# - Lambda Functions: Order Processor, Payment Processor, Notification Sender
+#
+# Quick Start:
+#   1. Run: make local-infra (provisions resources and creates .env files)
+#   2. Run: make local-up (starts all services)
+#
+# Services:
+#   - Frontend: http://localhost:5173
+#   - Backend API: http://localhost:8080
+#   - Backend Health: http://localhost:8080/actuator/health
+#   - LocalStack: http://localhost:4566
+#   - PostgreSQL: localhost:5432
+#
+# Lambda Functions:
+#   - Order Processor: Managed by LocalStack (automatically triggered by SQS)
+#   - Payment Processor: Managed by LocalStack (automatically triggered by SQS)
+#   - Notification Sender: Managed by LocalStack (automatically triggered by SQS)
+#
+# Lambda functions are registered in LocalStack via Terraform and automatically
+# triggered when messages arrive in SQS queues. See infrastructure/environments/local/main.tf
+
 services:
   # Database - PostgreSQL for local development
   postgres:
@@ -26,11 +52,13 @@ services:
     image: localstack/localstack:4.10.0
     container_name: localstack
     environment:
-      - SERVICES=sqs,s3,secretsmanager,cognito-idp,sns,ses
+      - SERVICES=sqs,s3,secretsmanager,cognito-idp,sns,ses,lambda,logs,iam
       - DEBUG=1
       - DATA_DIR=/tmp/localstack/data
       - DOCKER_HOST=unix:///var/run/docker.sock
       - PERSISTENCE=1
+      - LAMBDA_EXECUTOR=docker
+      - LAMBDA_REMOTE_DOCKER=false
     ports:
       - "4566:4566"
       - "4510-4559:4510-4559"
@@ -116,6 +144,8 @@ services:
       - VITE_COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID:-}
       - VITE_AWS_REGION=us-east-1
       - VITE_S3_BUCKET_NAME=${S3_BUCKET_NAME:-eventpro-images-local}
+      # Stripe Configuration (optional - for payment features)
+      - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY:-}
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     depends_on:
       - backend
@@ -123,6 +153,11 @@ services:
       - eventpro
     stdin_open: true
     tty: true
+
+  # Note: Lambda functions (order-processor, payment-processor, notification-sender)
+  # are now managed by LocalStack via Terraform. They are automatically triggered
+  # by SQS event source mappings when messages arrive in queues.
+  # See infrastructure/environments/local/main.tf for Lambda configuration.
 
 volumes:
   postgres_data:

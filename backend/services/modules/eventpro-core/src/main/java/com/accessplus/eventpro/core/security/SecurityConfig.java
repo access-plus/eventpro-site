@@ -3,6 +3,7 @@ package com.accessplus.eventpro.core.security;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -55,6 +56,11 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 // Swagger/OpenAPI documentation endpoints - public access
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/api-docs/**").permitAll()
+                // Public Events endpoints - no authentication required (GET only)
+                .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/events/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/events/*/ticket-types").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/events/category/**").permitAll()
                 .anyRequest().authenticated())
             .oauth2ResourceServer(oauth2 -> oauth2
                 .bearerTokenResolver(publicEndpointBearerTokenResolver())
@@ -85,7 +91,8 @@ public class SecurityConfig {
                 if (path.startsWith("/swagger-ui") || 
                     path.startsWith("/v3/api-docs") || 
                     path.startsWith("/api-docs") ||
-                    path.equals("/actuator/health")) {
+                    path.equals("/actuator/health") ||
+                    (path.startsWith("/api/v1/events") && "GET".equals(request.getMethod()))) {
                     return null;
                 }
                 

@@ -304,6 +304,21 @@ public class EventServiceImpl implements EventService {
     }
 
     /**
+     * Retrieves events where a user has purchased tickets.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EventEntity> getEventsByUserPurchases(UUID userId, Pageable pageable) {
+        log.debug("Retrieving events for user purchases: userId={}", userId);
+        
+        // Validate user exists
+        userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+        
+        return eventRepository.findEventsByUserPurchases(userId, pageable);
+    }
+
+    /**
      * Validates event data before save.
      * 
      * @param event the event to validate

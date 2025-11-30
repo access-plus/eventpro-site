@@ -1,667 +1,248 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAppSelector } from '@/store/hooks'
-import { selectIsAuthenticated, selectUser } from '@/store/slices/authSlice'
-import ProtectedRoute from '@/components/common/ProtectedRoute'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
-import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from '@/components/ui/card'
-import {
-  userService,
-  type UserProfile,
-  type UpdateUserProfileRequest,
-} from '@/services/userService'
-import { Mail, User, Phone, Shield, Edit2, Save, X, CheckCircle2 } from 'lucide-react'
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { RecentlyViewedEvents } from "@/components/RecentlyViewedEvents";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiService } from "@/lib/api";
+import type { Event, Order } from "@/types/api";
+import { Calendar, Ticket, User as UserIcon, Mail, Phone, Shield, Edit } from "lucide-react";
+import { format } from "date-fns";
 
-/**
- * Profile page component.
- *
- * Displays and allows editing of the current user's profile information.
- * Features:
- * - Elegant profile header with avatar
- * - Read-only view of user information with icons
- * - Edit form for firstName, lastName, phoneNumber
- * - Form validation
- * - Loading states with skeleton
- * - Success/error messages
- * - Responsive design
- * - Accessibility (WCAG 2.1 AA)
- */
-function Profile() {
-  const navigate = useNavigate()
-  const isAuthenticated = useAppSelector(selectIsAuthenticated)
-  const cognitoUser = useAppSelector(selectUser)
+const Profile = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [events, setEvents] = useState<Event[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-
-  // Form state
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [phoneNumber, setPhoneNumber] = useState('')
-
-  // Validation errors
-  const [firstNameError, setFirstNameError] = useState('')
-  const [lastNameError, setLastNameError] = useState('')
-  const [phoneNumberError, setPhoneNumberError] = useState('')
-
-  // Redirect if not authenticated
-  if (!isAuthenticated) {
-    navigate('/login')
-    return null
-  }
-
-  /**
-   * Gets user initials for avatar.
-   */
-  const getUserInitials = (): string => {
-    if (profile?.firstName && profile?.lastName && profile.firstName.length > 0 && profile.lastName.length > 0) {
-      return `${profile.firstName[0]}${profile.lastName[0]}`.toUpperCase()
-    }
-    if (profile?.email && profile.email.length > 0) {
-      const firstChar = profile.email[0]
-      return firstChar ? firstChar.toUpperCase() : 'U'
-    }
-    return 'U'
-  }
-
-  /**
-   * Gets full name or email.
-   */
-  const getDisplayName = (): string => {
-    if (profile?.firstName && profile?.lastName) {
-      return `${profile.firstName} ${profile.lastName}`
-    }
-    if (profile?.firstName) {
-      return profile.firstName
-    }
-    return profile?.email || 'User'
-  }
-
-  /**
-   * Loads the user profile from the API.
-   */
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        const userProfile = await userService.getCurrentUserProfile()
-        setProfile(userProfile)
-        // Initialize form fields with current values
-        setFirstName(userProfile.firstName || '')
-        setLastName(userProfile.lastName || '')
-        setPhoneNumber(userProfile.phoneNumber || '')
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to load user profile'
-        )
-      } finally {
-        setIsLoading(false)
-      }
-    }
+    loadProfileData();
+  }, [user]);
 
-    loadProfile()
-  }, [])
-
-  /**
-   * Validates first name.
-   */
-  const validateFirstName = (value: string): boolean => {
-    if (!value.trim()) {
-      setFirstNameError('First name is required')
-      return false
-    }
-    if (value.trim().length < 2) {
-      setFirstNameError('First name must be at least 2 characters')
-      return false
-    }
-    if (value.trim().length > 100) {
-      setFirstNameError('First name must not exceed 100 characters')
-      return false
-    }
-    setFirstNameError('')
-    return true
-  }
-
-  /**
-   * Validates last name.
-   */
-  const validateLastName = (value: string): boolean => {
-    if (!value.trim()) {
-      setLastNameError('Last name is required')
-      return false
-    }
-    if (value.trim().length < 2) {
-      setLastNameError('Last name must be at least 2 characters')
-      return false
-    }
-    if (value.trim().length > 100) {
-      setLastNameError('Last name must not exceed 100 characters')
-      return false
-    }
-    setLastNameError('')
-    return true
-  }
-
-  /**
-   * Validates phone number (optional).
-   */
-  const validatePhoneNumber = (value: string): boolean => {
-    if (!value.trim()) {
-      setPhoneNumberError('')
-      return true // Phone number is optional
-    }
-    // Basic phone number validation (allows various formats)
-    const phoneRegex = /^[\d\s\-\+\(\)]+$/
-    if (!phoneRegex.test(value) || value.replace(/\D/g, '').length < 10) {
-      setPhoneNumberError('Please enter a valid phone number')
-      return false
-    }
-    setPhoneNumberError('')
-    return true
-  }
-
-  /**
-   * Handles edit button click.
-   */
-  const handleEdit = () => {
-    setIsEditing(true)
-    setError(null)
-    setSuccessMessage(null)
-  }
-
-  /**
-   * Handles cancel button click.
-   */
-  const handleCancel = () => {
-    setIsEditing(false)
-    setError(null)
-    setSuccessMessage(null)
-    // Reset form to original values
-    if (profile) {
-      setFirstName(profile.firstName || '')
-      setLastName(profile.lastName || '')
-      setPhoneNumber(profile.phoneNumber || '')
-    }
-    // Clear validation errors
-    setFirstNameError('')
-    setLastNameError('')
-    setPhoneNumberError('')
-  }
-
-  /**
-   * Handles form submission.
-   */
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-
-    // Clear previous messages
-    setError(null)
-    setSuccessMessage(null)
-
-    // Validate form fields
-    const isFirstNameValid = validateFirstName(firstName)
-    const isLastNameValid = validateLastName(lastName)
-    const isPhoneNumberValid = validatePhoneNumber(phoneNumber)
-
-    if (!isFirstNameValid || !isLastNameValid || !isPhoneNumberValid) {
-      return
-    }
+  const loadProfileData = async () => {
+    if (!user) return;
 
     try {
-      setIsSaving(true)
-
-      const updateRequest: UpdateUserProfileRequest = {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phoneNumber: phoneNumber.trim() || null,
+      if (user.role === "ORGANIZER" || user.role === "ADMIN") {
+        const eventsData = await apiService.getUserEvents();
+        setEvents(eventsData);
       }
-
-      const updatedProfile = await userService.updateUserProfile(updateRequest)
-      setProfile(updatedProfile)
-      setIsEditing(false)
-      setSuccessMessage('Profile updated successfully!')
       
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccessMessage(null), 5000)
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to update profile'
-      )
+      if (user.role === "USER" || user.role === "ADMIN") {
+        const ordersData = await apiService.getUserOrders();
+        setOrders(ordersData);
+      }
+    } catch (error) {
+      console.error("Failed to load profile data:", error);
     } finally {
-      setIsSaving(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background p-4 py-8">
-        <div className="container mx-auto max-w-4xl">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-8 w-48 mb-2" />
-              <Skeleton className="h-4 w-64" />
-            </CardHeader>
-            <CardContent className="space-y-6">
+  if (!user) return null;
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case "ADMIN":
+        return "bg-destructive";
+      case "ORGANIZER":
+        return "bg-primary";
+      default:
+        return "bg-accent";
+    }
+  };
+
+  const getInitials = () => {
+    const first = user.firstName?.[0] || "";
+    const last = user.lastName?.[0] || "";
+    return (first + last).toUpperCase() || "U";
+  };
+
+  return (
+    <div className="min-h-screen py-8">
+      <div className="container mx-auto px-4">
+        {/* Profile Header */}
+        <Card className="mb-8 bg-gradient-card">
+          <CardHeader>
+            <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <Skeleton className="h-20 w-20 rounded-full" />
-                <div className="space-y-2">
-                  <Skeleton className="h-6 w-48" />
-                  <Skeleton className="h-4 w-64" />
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={user.profilePictureUrl} alt={`${user.firstName} ${user.lastName}`} />
+                  <AvatarFallback className="text-2xl bg-gradient-primary text-primary-foreground">
+                    {getInitials()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <CardTitle className="text-3xl mb-2">
+                    {user.firstName} {user.lastName}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Badge className={getRoleBadgeColor(user.role)}>
+                      {user.role}
+                    </Badge>
+                  </div>
                 </div>
               </div>
-              <Separator />
-              <div className="space-y-4">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-10 w-full" />
+              <Button
+                variant="outline"
+                onClick={() => navigate("/profile/edit")}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Profile
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Mail className="h-4 w-4" />
+              <span>{user.email}</span>
+            </div>
+            {user.phoneNumber && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Phone className="h-4 w-4" />
+                <span>{user.phoneNumber}</span>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
-  }
-
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-2xl">
-          <CardContent className="pt-6">
-            <div className="text-center text-destructive">
-              {error || 'Failed to load profile'}
+            )}
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Shield className="h-4 w-4" />
+              <span>Member since {format(new Date(user.createdAt), "PPP")}</span>
             </div>
           </CardContent>
         </Card>
-      </div>
-    )
-  }
 
-  return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-background p-4 py-8">
-        <div className="container mx-auto max-w-4xl">
-          <Card className="overflow-hidden">
-            {/* Profile Header with Avatar */}
-            <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-8">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                {/* Avatar */}
-                <div className="relative">
-                  <div className="h-24 w-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                    {getUserInitials()}
-                  </div>
-                  {!isEditing && (
-                    <div className="absolute bottom-0 right-0 h-6 w-6 rounded-full bg-green-500 border-4 border-background"></div>
-                  )}
-                </div>
-                
-                {/* User Info */}
-                <div className="flex-1">
-                  <h1 className="text-3xl font-bold mb-2">{getDisplayName()}</h1>
-                  <p className="text-muted-foreground flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    {profile.email}
-                  </p>
-                  {cognitoUser?.groups && cognitoUser.groups.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {cognitoUser.groups.map((group) => (
-                        <span
-                          key={group}
-                          className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-                        >
-                          <Shield className="h-3 w-3" />
-                          {group}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+        {/* Recently Viewed Section */}
+        <RecentlyViewedEvents showClearAll={true} />
 
-                {/* Edit Button */}
-                {!isEditing && (
-                  <Button onClick={handleEdit} type="button" className="gap-2">
-                    <Edit2 className="h-4 w-4" />
-                    Edit Profile
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <CardContent className="p-8">
-              {/* Success Message */}
-              {successMessage && (
-                <div
-                  className="rounded-lg bg-green-500/10 border border-green-500/20 p-4 mb-6 flex items-center gap-2 text-green-700 dark:text-green-400"
-                  role="alert"
-                  aria-live="polite"
-                >
-                  <CheckCircle2 className="h-5 w-5" />
-                  <span className="font-medium">{successMessage}</span>
-                </div>
-              )}
-
-              {/* Error Message */}
-              {error && (
-                <div
-                  className="rounded-lg bg-destructive/10 border border-destructive/20 p-4 mb-6 text-destructive"
-                  role="alert"
-                  aria-live="assertive"
-                >
-                  {error}
-                </div>
-              )}
-
-              {!isEditing ? (
-                // Read-only view
-                <div className="space-y-6">
-                  <div className="grid gap-6">
-                    {/* Email */}
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1 p-2 rounded-lg bg-muted">
-                        <Mail className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-sm font-medium text-muted-foreground mb-1 block">
-                          Email Address
-                        </label>
-                        <div className="text-base font-medium">{profile.email}</div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Your email address cannot be changed
-                        </p>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* First Name */}
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1 p-2 rounded-lg bg-muted">
-                        <User className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-sm font-medium text-muted-foreground mb-1 block">
-                          First Name
-                        </label>
-                        <div className="text-base font-medium">
-                          {profile.firstName || (
-                            <span className="text-muted-foreground italic">Not set</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Last Name */}
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1 p-2 rounded-lg bg-muted">
-                        <User className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-sm font-medium text-muted-foreground mb-1 block">
-                          Last Name
-                        </label>
-                        <div className="text-base font-medium">
-                          {profile.lastName || (
-                            <span className="text-muted-foreground italic">Not set</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Phone Number */}
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1 p-2 rounded-lg bg-muted">
-                        <Phone className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-sm font-medium text-muted-foreground mb-1 block">
-                          Phone Number
-                        </label>
-                        <div className="text-base font-medium">
-                          {profile.phoneNumber || (
-                            <span className="text-muted-foreground italic">Not set</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                // Edit form
-                <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-                  {/* Email (read-only) */}
-                  <div className="flex items-start gap-4">
-                    <div className="mt-1 p-2 rounded-lg bg-muted">
-                      <Mail className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <label
-                        htmlFor="email"
-                        className="text-sm font-medium leading-none"
-                      >
-                        Email Address
-                      </label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={profile.email}
-                        disabled
-                        className="bg-muted"
-                        aria-label="Email (read-only)"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Email cannot be changed
-                      </p>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* First Name */}
-                  <div className="flex items-start gap-4">
-                    <div className="mt-1 p-2 rounded-lg bg-muted">
-                      <User className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <label
-                        htmlFor="firstName"
-                        className="text-sm font-medium leading-none"
-                      >
-                        First Name
-                      </label>
-                      <Input
-                        id="firstName"
-                        type="text"
-                        placeholder="John"
-                        value={firstName}
-                        onChange={(e) => {
-                          setFirstName(e.target.value)
-                          if (firstNameError) {
-                            validateFirstName(e.target.value)
-                          }
-                        }}
-                        onBlur={() => validateFirstName(firstName)}
-                        disabled={isSaving}
-                        required
-                        aria-required="true"
-                        aria-invalid={!!firstNameError}
-                        aria-describedby={firstNameError ? 'firstName-error' : undefined}
-                        autoComplete="given-name"
-                        className={firstNameError ? 'border-destructive' : ''}
-                      />
-                      {firstNameError && (
-                        <p
-                          id="firstName-error"
-                          className="text-sm text-destructive"
-                          role="alert"
-                          aria-live="polite"
-                        >
-                          {firstNameError}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Last Name */}
-                  <div className="flex items-start gap-4">
-                    <div className="mt-1 p-2 rounded-lg bg-muted">
-                      <User className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <label
-                        htmlFor="lastName"
-                        className="text-sm font-medium leading-none"
-                      >
-                        Last Name
-                      </label>
-                      <Input
-                        id="lastName"
-                        type="text"
-                        placeholder="Doe"
-                        value={lastName}
-                        onChange={(e) => {
-                          setLastName(e.target.value)
-                          if (lastNameError) {
-                            validateLastName(e.target.value)
-                          }
-                        }}
-                        onBlur={() => validateLastName(lastName)}
-                        disabled={isSaving}
-                        required
-                        aria-required="true"
-                        aria-invalid={!!lastNameError}
-                        aria-describedby={lastNameError ? 'lastName-error' : undefined}
-                        autoComplete="family-name"
-                        className={lastNameError ? 'border-destructive' : ''}
-                      />
-                      {lastNameError && (
-                        <p
-                          id="lastName-error"
-                          className="text-sm text-destructive"
-                          role="alert"
-                          aria-live="polite"
-                        >
-                          {lastNameError}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Phone Number */}
-                  <div className="flex items-start gap-4">
-                    <div className="mt-1 p-2 rounded-lg bg-muted">
-                      <Phone className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <label
-                        htmlFor="phoneNumber"
-                        className="text-sm font-medium leading-none"
-                      >
-                        Phone Number{' '}
-                        <span className="text-muted-foreground font-normal">(optional)</span>
-                      </label>
-                      <Input
-                        id="phoneNumber"
-                        type="tel"
-                        placeholder="+1 (555) 123-4567"
-                        value={phoneNumber}
-                        onChange={(e) => {
-                          setPhoneNumber(e.target.value)
-                          if (phoneNumberError) {
-                            validatePhoneNumber(e.target.value)
-                          }
-                        }}
-                        onBlur={() => validatePhoneNumber(phoneNumber)}
-                        disabled={isSaving}
-                        aria-invalid={!!phoneNumberError}
-                        aria-describedby={
-                          phoneNumberError ? 'phoneNumber-error' : undefined
-                        }
-                        autoComplete="tel"
-                        className={phoneNumberError ? 'border-destructive' : ''}
-                      />
-                      {phoneNumberError && (
-                        <p
-                          id="phoneNumber-error"
-                          className="text-sm text-destructive"
-                          role="alert"
-                          aria-live="polite"
-                        >
-                          {phoneNumberError}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </form>
-              )}
-            </CardContent>
-
-            {/* Footer with Action Buttons */}
-            {isEditing && (
-              <CardFooter className="flex justify-end gap-3 p-6 bg-muted/30 border-t">
-                <Button
-                  onClick={handleCancel}
-                  type="button"
-                  variant="outline"
-                  disabled={isSaving}
-                  className="gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Cancel
-                </Button>
-                <Button
-                  onClick={(e) => {
-                    const form = e.currentTarget.closest('form')
-                    if (form) {
-                      form.requestSubmit()
-                    }
-                  }}
-                  type="submit"
-                  disabled={isSaving}
-                  aria-busy={isSaving}
-                  className="gap-2"
-                >
-                  {isSaving ? (
-                    <>
-                      <span className="animate-spin">⏳</span>
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      Save Changes
-                    </>
-                  )}
-                </Button>
-              </CardFooter>
+        {/* Content Tabs */}
+        <Tabs defaultValue={user.role === "USER" ? "tickets" : "events"} className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            {(user.role === "ORGANIZER" || user.role === "ADMIN") && (
+              <TabsTrigger value="events">My Events</TabsTrigger>
             )}
-          </Card>
-        </div>
-      </div>
-    </ProtectedRoute>
-  )
-}
+            {(user.role === "USER" || user.role === "ADMIN") && (
+              <TabsTrigger value="tickets">My Tickets</TabsTrigger>
+            )}
+          </TabsList>
 
-export default Profile
+          {/* Events Tab (for Organizers & Admins) */}
+          {(user.role === "ORGANIZER" || user.role === "ADMIN") && (
+            <TabsContent value="events">
+              {isLoading ? (
+                <div className="flex justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                </div>
+              ) : events.length === 0 ? (
+                <Card className="p-12 text-center">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-xl font-semibold mb-2">No events yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Start creating events to manage them here
+                  </p>
+                  <Button 
+                    className="bg-gradient-primary"
+                    onClick={() => navigate("/events")}
+                  >
+                    Create Event
+                  </Button>
+                </Card>
+              ) : (
+                <div className="grid gap-4">
+                  {events.map((event) => (
+                    <Card key={event.id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle>{event.name}</CardTitle>
+                            {event.description && (
+                              <CardDescription>{event.description}</CardDescription>
+                            )}
+                          </div>
+                          <Badge>{event.status}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            {format(new Date(event.startDateTime), "PPP")}
+                          </div>
+                          {event.venue && (
+                            <div className="flex items-center gap-1">
+                              <span>📍</span>
+                              {event.venue}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          )}
+
+          {/* Tickets Tab (for Users & Admins) */}
+          {(user.role === "USER" || user.role === "ADMIN") && (
+            <TabsContent value="tickets">
+              {isLoading ? (
+                <div className="flex justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                </div>
+              ) : orders.length === 0 ? (
+                <Card className="p-12 text-center">
+                  <Ticket className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-xl font-semibold mb-2">No tickets yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Start exploring events and book your first ticket
+                  </p>
+                  <Button 
+                    className="bg-gradient-primary"
+                    onClick={() => navigate("/events")}
+                  >
+                    Browse Events
+                  </Button>
+                </Card>
+              ) : (
+                <div className="grid gap-4">
+                  {orders.map((order) => (
+                    <Card key={order.id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle>Order #{order.id.slice(0, 8)}</CardTitle>
+                            <CardDescription>
+                              {format(new Date(order.createdAt), "PPP")}
+                            </CardDescription>
+                          </div>
+                          <Badge>{order.status}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Total Amount</span>
+                            <span className="font-semibold">${order.totalAmount}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Tickets</span>
+                            <span className="font-semibold">{order.tickets.length}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          )}
+        </Tabs>
+      </div>
+    </div>
+  );
+};
+
+export default Profile;

@@ -42,14 +42,41 @@ public class OrderProcessorService {
     /**
      * Processes an order message from SQS.
      * 
-     * @param messageBody JSON string containing OrderMessage
+     * <p>The message format from backend is wrapped:
+     * <pre>
+     * {
+     *   "messageId": "...",
+     *   "messageType": "ORDER_CREATED",
+     *   "timestamp": "...",
+     *   "source": "core-api",
+     *   "payload": {
+     *     "orderId": "...",
+     *     "orderNumber": "...",
+     *     "userId": "...",
+     *     "totalAmount": 150.00
+     *   }
+     * }
+     * </pre>
+     * 
+     * @param messageBody JSON string containing wrapped OrderMessage
      * @throws OrderProcessingException if order validation or processing fails
      */
     @Transactional
     public void processOrder(String messageBody) throws OrderProcessingException {
         try {
-            // Parse order message
-            OrderMessage orderMessage = objectMapper.readValue(messageBody, OrderMessage.class);
+            // Parse wrapped message structure from backend
+            com.fasterxml.jackson.databind.JsonNode rootNode = objectMapper.readTree(messageBody);
+            
+            // Extract payload from wrapped message
+            com.fasterxml.jackson.databind.JsonNode payloadNode = rootNode.get("payload");
+            if (payloadNode == null) {
+                // Fallback: try to parse as direct OrderMessage (for backward compatibility)
+                LOG.debug("No 'payload' field found, attempting direct OrderMessage parsing");
+                payloadNode = rootNode;
+            }
+            
+            // Parse OrderMessage from payload
+            OrderMessage orderMessage = objectMapper.treeToValue(payloadNode, OrderMessage.class);
             LOG.infof("Processing order: %s (Order ID: %s)", orderMessage.getOrderNumber(), orderMessage.getOrderId());
 
             // Load order with items

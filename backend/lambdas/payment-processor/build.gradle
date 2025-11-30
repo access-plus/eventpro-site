@@ -1,0 +1,80 @@
+plugins {
+    id 'java'
+    id 'io.quarkus' version '3.27.0'
+}
+
+group = 'com.accessplus.eventpro'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+    gradlePluginPortal()
+    mavenLocal() // For shared module
+}
+
+dependencies {
+    // Quarkus Platform BOM
+    implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
+    implementation enforcedPlatform("software.amazon.awssdk:bom:${awsSdkVersion}")
+
+    // Quarkus AWS Lambda
+    implementation 'io.quarkus:quarkus-amazon-lambda'
+    implementation 'io.quarkus:quarkus-arc'
+    implementation 'io.quarkus:quarkus-rest-jackson'
+
+    // Database (Quarkus Panache)
+    implementation 'io.quarkus:quarkus-hibernate-orm-panache'
+    implementation 'io.quarkus:quarkus-jdbc-postgresql'
+
+    // AWS SDK
+    implementation 'software.amazon.awssdk:sqs'
+    implementation 'software.amazon.awssdk:secretsmanager'
+    implementation 'software.amazon.awssdk:secretsmanager'
+
+    // Stripe Java SDK
+    implementation 'com.stripe:stripe-java:24.16.0'
+
+    // Logging
+    implementation 'io.quarkus:quarkus-logging-json'
+
+    // Lombok
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    // Shared module (framework-agnostic entities, enums, DTOs)
+    implementation 'com.accessplus.eventpro:eventpro-shared:1.0.0'
+
+    // Testing
+    testImplementation 'io.quarkus:quarkus-junit5'
+    testImplementation 'io.quarkus:quarkus-junit5-mockito'
+    testImplementation 'org.mockito:mockito-core'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-parameters'
+    options.compilerArgs += [
+        '-Ajackson.annotation.processing.disabled=true'
+    ]
+}
+
+compileTestJava {
+    options.encoding = 'UTF-8'
+}
+
+test {
+    systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
+    useJUnitPlatform()
+}
+

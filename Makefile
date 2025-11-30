@@ -48,6 +48,9 @@ help:
 	@echo "  make docker-build   - Build EventPro API Docker image"
 	@echo "  make docker-analytics - Build Analytics Service Docker image"
 	@echo "  make docker-secret-rotation - Build Secret Rotation Lambda image"
+	@echo "  make lambda-build   - Build all Lambda Docker images"
+	@echo "  make lambda-build-payment - Build payment-processor Lambda image"
+	@echo "  make lambda-build-notification - Build notification-sender Lambda image"
 	@echo ""
 	@echo "Local Development:"
 	@echo "  make local-setup    - Complete first-time setup (all steps)"
@@ -219,6 +222,23 @@ docker-secret-rotation:
 	@echo "Building Secret Rotation Lambda Docker image..."
 	cd $(SECRET_ROTATION_DIR) && docker build -f Dockerfile -t secret-rotation:latest .
 
+# Lambda Docker Images
+lambda-build:
+	@echo "Building all Lambda Docker images..."
+	@./scripts/build-lambda-images.sh all latest
+
+lambda-build-payment:
+	@echo "Building payment-processor Lambda Docker image..."
+	@./scripts/build-lambda-images.sh payment-processor latest
+
+lambda-build-notification:
+	@echo "Building notification-sender Lambda Docker image..."
+	@./scripts/build-lambda-images.sh notification-sender latest
+
+lambda-build-order:
+	@echo "Building order-processor Lambda Docker image..."
+	@./scripts/build-lambda-images.sh order-processor latest
+
 # ============================================================================
 # Local Development (Docker Compose + LocalStack)
 # ============================================================================
@@ -243,8 +263,14 @@ local-infra-only:
 
 # Step 2: Provision AWS resources (Terraform) and create .env files
 local-infra:
-	@echo "Step 2: Provisioning AWS resources..."
-	@echo "  - LocalStack resources: S3, SQS, Secrets Manager"
+	@echo "Step 2: Building Lambda images..."
+	@$(MAKE) lambda-build || (echo "⚠️  Lambda build failed. Continuing anyway..."; true)
+	@echo "Tagging Lambda images for LocalStack..."
+	@docker tag eventpro-order-processor:latest eventpro-order-processor:local 2>/dev/null || true
+	@docker tag eventpro-payment-processor:latest eventpro-payment-processor:local 2>/dev/null || true
+	@docker tag eventpro-notification-sender:latest eventpro-notification-sender:local 2>/dev/null || true
+	@echo "Step 3: Provisioning AWS resources..."
+	@echo "  - LocalStack resources: S3, SQS, Secrets Manager, Lambda Functions"
 	@echo "  - Real AWS resources: Cognito (requires AWS credentials)"
 	@if ! docker ps | grep -q "localstack"; then \
 		echo "LocalStack not running. Starting it..."; \
@@ -268,11 +294,11 @@ local-infra:
 		 echo "   If Cognito creation failed, check:"; \
 		 echo "   1. AWS credentials are configured (AWS_ACCESS_KEY_ID or ~/.aws/credentials)"; \
 		 echo "   2. AWS credentials have permissions to create Cognito resources"; \
-		 echo "   Other resources (S3, SQS, Secrets Manager) should still be created in LocalStack."; \
+		 echo "   Other resources (S3, SQS, Secrets Manager, Lambda) should still be created in LocalStack."; \
 		 echo "   You can manually create Cognito in AWS Console and add credentials to .env"; \
 		 echo ""; \
 		 true)
-	@echo "Step 3: Creating environment files..."
+	@echo "Step 4: Creating environment files..."
 	@cd infrastructure/environments/local && \
 		S3_BUCKET_NAME=$$(terraform output -raw s3_images_bucket_name 2>/dev/null || echo "") && \
 		ORDER_QUEUE_URL=$$(terraform output -raw sqs_order_queue_url 2>/dev/null || echo "") && \
@@ -309,9 +335,10 @@ local-infra:
 	fi
 
 # Step 3: Start all services (Backend + Frontend)
+# Note: Lambda functions are managed by LocalStack via Terraform
 # Note: Flyway migrations run automatically when backend starts
 local-up:
-	@echo "Step 4: Starting application services..."
+	@echo "Step 5: Starting application services..."
 	@if [ ! -f .env ]; then \
 		echo ".env file not found. Run 'make local-infra' first."; \
 		exit 1; \
@@ -325,9 +352,16 @@ local-up:
 	@echo "   Frontend: http://localhost:5173"
 	@echo "   Backend health:  http://localhost:8080/actuator/health"
 	@echo "   Backend swagger:  http://localhost:8080/swagger-ui/index.html"
+	@echo "   Lambda functions: Managed by LocalStack (automatically triggered by SQS)"
+	@echo ""
+	@echo "To verify Lambda functions:"
+	@echo "   make local-lambda-status"
 
 local-down:
 	@echo "Stopping services..."
+	@cd infrastructure/environments/local && terraform destroy -auto-approve || true
+	cd ../../../
+	@rm -f .env frontend/.env.local
 	@docker-compose down backend frontend postgres -v
 
 backend-logs:
@@ -373,3 +407,24 @@ destroy-infrastructure:
 	cd ../../../
 	@rm -f .env frontend/.env.local
 	@echo "Infrastructure destroyed"
+
+# Lambda verification targets
+local-lambda-status:
+	@echo "Lambda Functions in LocalStack:"
+	@aws --endpoint-url=http://localhost:4566 lambda list-functions --query 'Functions[*].[FunctionName,State,LastModified]' --output table 2>/dev/null || \
+		(echo "⚠️  Could not list Lambda functions. Is LocalStack running?"; exit 1)
+
+local-lambda-logs:
+	@if [ -z "$(FUNCTION)" ]; then \
+		echo "Usage: make local-lambda-logs FUNCTION=<function-name>"; \
+		echo "Example: make local-lambda-logs FUNCTION=local-order-processor"; \
+		exit 1; \
+	fi
+	@echo "Fetching logs for $(FUNCTION)..."
+	@aws --endpoint-url=http://localhost:4566 logs tail "/aws/lambda/$(FUNCTION)" --follow 2>/dev/null || \
+		(echo "⚠️  Could not fetch logs. Check function name and LocalStack status."; exit 1)
+
+local-event-mappings:
+	@echo "Event Source Mappings in LocalStack:"
+	@aws --endpoint-url=http://localhost:4566 lambda list-event-source-mappings --query 'EventSourceMappings[*].[EventSourceArn,FunctionArn,State,LastModified]' --output table 2>/dev/null || \
+		(echo "⚠️  Could not list event source mappings. Is LocalStack running?"; exit 1)

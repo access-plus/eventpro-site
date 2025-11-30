@@ -3,6 +3,7 @@ package com.accessplus.eventpro.api.controller;
 import com.accessplus.eventpro.api.dto.ApiResponse;
 import com.accessplus.eventpro.api.dto.CreateEventRequest;
 import com.accessplus.eventpro.api.dto.EventResponse;
+import com.accessplus.eventpro.api.dto.TicketTypeResponse;
 import com.accessplus.eventpro.api.dto.UpdateEventRequest;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
@@ -13,6 +14,10 @@ import com.accessplus.eventpro.event.category.repository.CategoryRepository;
 import com.accessplus.eventpro.event.event.entity.EventEntity;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.event.service.EventService;
+import com.accessplus.eventpro.event.ticket.service.TicketService;
+import com.accessplus.eventpro.shared.entity.TicketEntity;
+import com.accessplus.eventpro.shared.enums.TicketStatus;
+import com.accessplus.eventpro.shared.enums.TicketType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -30,22 +35,28 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
  * REST controller for event management operations.
  * 
- * <p>Endpoints:
- * <ul>
- *   <li>POST /api/v1/events - Create event (admin/organizer only, multipart/form-data)</li>
- *   <li>GET /api/v1/events/{id} - Get event by ID (public)</li>
- *   <li>GET /api/v1/events - Get all events (public, paginated, searchable)</li>
- *   <li>GET /api/v1/events/category/{categoryName} - Get events by category (public)</li>
- *   <li>PATCH /api/v1/events/{id} - Update event (admin/organizer only)</li>
- *   <li>DELETE /api/v1/events/{id} - Delete event (admin/organizer only)</li>
- * </ul>
+     * <p>Endpoints:
+     * <ul>
+     *   <li>POST /api/v1/events - Create event (admin/organizer only, multipart/form-data)</li>
+     *   <li>GET /api/v1/events/{id} - Get event by ID (public)</li>
+     *   <li>GET /api/v1/events - Get all events (public, paginated, searchable)</li>
+     *   <li>GET /api/v1/events/{id}/ticket-types - Get ticket types for event (public)</li>
+     *   <li>GET /api/v1/events/my-events - Get events user has purchased tickets for (authenticated)</li>
+     *   <li>GET /api/v1/events/category/{categoryName} - Get events by category (public)</li>
+     *   <li>PATCH /api/v1/events/{id} - Update event (admin/organizer only)</li>
+     *   <li>DELETE /api/v1/events/{id} - Delete event (admin/organizer only)</li>
+     * </ul>
  */
 @Slf4j
 @RestController
@@ -58,6 +69,7 @@ public class EventController extends BaseController {
     private final UserService userService;
     private final CategoryRepository categoryRepository;
     private final EventRepository eventRepository;
+    private final TicketService ticketService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -200,6 +212,101 @@ public class EventController extends BaseController {
         Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
         Page<EventEntity> eventPage = eventService.getEventsByCategory(category.getId(), pageable);
         
+        List<EventResponse> responses = eventPage.getContent().stream()
+                .map(EventResponse::fromEntity)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    /**
+     * Retrieves ticket types for an event.
+     * 
+     * @param id event UUID
+     * @return List of TicketTypeResponse
+     */
+    @GetMapping("/{id}/ticket-types")
+    @Operation(summary = "Get ticket types for event", description = "Returns ticket types with availability information for an event. Public endpoint.")
+    public ResponseEntity<ApiResponse<List<TicketTypeResponse>>> getTicketTypes(@PathVariable UUID id) {
+        log.debug("Getting ticket types for event: eventId={}", id);
+
+        // Validate event exists
+        EventEntity event = eventRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
+
+        // Get grouped tickets and availability
+        Map<TicketType, List<TicketEntity>> groupedTickets = ticketService.groupTicketsByType(id);
+        Map<TicketType, Long> availability = ticketService.checkTicketAvailability(id);
+
+        // Build TicketTypeResponse list
+        List<TicketTypeResponse> ticketTypes = new ArrayList<>();
+        for (Map.Entry<TicketType, List<TicketEntity>> entry : groupedTickets.entrySet()) {
+            TicketType type = entry.getKey();
+            List<TicketEntity> tickets = entry.getValue();
+
+            if (!tickets.isEmpty()) {
+                // Get price from first ticket (assuming all tickets of same type have same price)
+                BigDecimal price = tickets.get(0).getPrice();
+                
+                // Get sale start/end times from first ticket
+                LocalDateTime saleStartDate = tickets.get(0).getStartTime();
+                LocalDateTime saleEndDate = tickets.get(0).getEndTime();
+                
+                // Calculate quantities
+                int totalQuantity = tickets.size();
+                long availableCount = availability.getOrDefault(type, 0L);
+                
+                // Determine status
+                String status;
+                if (availableCount == 0) {
+                    status = "SOLD_OUT";
+                } else if (availableCount < totalQuantity) {
+                    status = "ACTIVE";
+                } else {
+                    status = "ACTIVE";
+                }
+
+                TicketTypeResponse ticketType = TicketTypeResponse.builder()
+                        .id(type.name()) // Use enum name as ID
+                        .eventId(id)
+                        .name(type.name())
+                        .description(null) // Can be enhanced later
+                        .price(price)
+                        .totalQuantity(totalQuantity)
+                        .availableQuantity((int) availableCount)
+                        .saleStartDate(saleStartDate)
+                        .saleEndDate(saleEndDate)
+                        .status(status)
+                        .build();
+
+                ticketTypes.add(ticketType);
+            }
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(ticketTypes));
+    }
+
+    /**
+     * Retrieves events where the authenticated user has purchased tickets.
+     * 
+     * @return List of EventResponse
+     */
+    @GetMapping("/my-events")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
+    @Operation(summary = "Get my events", description = "Returns events where the authenticated user has purchased tickets. " +
+            "Requires USER, ADMIN, or ORGANIZER role.")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<List<EventResponse>>> getMyEvents() {
+        log.debug("Getting events for current user");
+
+        // Get current user's UUID from JWT
+        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
+        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+
+        // Get events where user has purchased tickets (no pagination for this endpoint)
+        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
+        Page<EventEntity> eventPage = eventService.getEventsByUserPurchases(userId, pageable);
+
         List<EventResponse> responses = eventPage.getContent().stream()
                 .map(EventResponse::fromEntity)
                 .collect(Collectors.toList());

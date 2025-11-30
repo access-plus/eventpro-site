@@ -2,6 +2,7 @@ package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.AddToCartRequest;
 import com.accessplus.eventpro.api.dto.ApiResponse;
+import com.accessplus.eventpro.api.dto.CartItemRequest;
 import com.accessplus.eventpro.api.dto.CartResponse;
 import com.accessplus.eventpro.api.dto.UpdateCartRequest;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
@@ -34,14 +35,15 @@ import java.util.UUID;
 /**
  * REST controller for shopping cart operations.
  * 
- * <p>Endpoints:
- * <ul>
- *   <li>POST /api/v1/cart/add - Add item to cart (authenticated users only)</li>
- *   <li>GET /api/v1/cart - Get user's cart (authenticated users only)</li>
- *   <li>PATCH /api/v1/cart/update/{ticketId} - Update cart item quantity (authenticated users only)</li>
- *   <li>DELETE /api/v1/cart/delete/{ticketId} - Remove item from cart (authenticated users only)</li>
- *   <li>DELETE /api/v1/cart/clear - Clear cart (authenticated users only)</li>
- * </ul>
+     * <p>Endpoints:
+     * <ul>
+     *   <li>POST /api/v1/cart/add - Add item to cart (authenticated users only)</li>
+     *   <li>POST /api/v1/cart/items - Add multiple items to cart (batch operation)</li>
+     *   <li>GET /api/v1/cart - Get user's cart (authenticated users only)</li>
+     *   <li>PATCH /api/v1/cart/update/{ticketId} - Update cart item quantity (authenticated users only)</li>
+     *   <li>DELETE /api/v1/cart/delete/{ticketId} - Remove item from cart (authenticated users only)</li>
+     *   <li>DELETE /api/v1/cart/clear - Clear cart (authenticated users only)</li>
+     * </ul>
  * 
  * <p>All endpoints use authenticated user context from JWT token.
  */
@@ -110,6 +112,50 @@ public class CartController extends BaseController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Item added to cart successfully"));
+    }
+
+    /**
+     * Adds multiple items to the user's cart in batch.
+     * 
+     * @param items List of CartItemRequest with ticket information and quantities
+     * @return 200 OK
+     */
+    @PostMapping("/items")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
+    @Operation(summary = "Add items to cart (batch)", description = "Adds multiple tickets to the authenticated user's cart in batch. " +
+            "Requires USER, ADMIN, or ORGANIZER role. Each item should specify ticketTypeId (ticket UUID or event UUID) and quantity.")
+    public ResponseEntity<ApiResponse<Void>> addItemsToCart(
+            @Valid @RequestBody List<CartItemRequest> items) {
+        log.debug("Received request to add {} items to cart", items.size());
+
+        // Get current user's UUID from JWT
+            String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
+            UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+
+        // Process each item
+        for (CartItemRequest item : items) {
+            try {
+                // Try to parse as UUID (could be ticket ID or event ID)
+                UUID id = UUID.fromString(item.getTicketTypeId());
+                
+                // Check if it's a valid ticket ID
+                if (ticketRepository.existsById(id)) {
+                    // It's a ticket ID, add directly
+                    cartService.addItemToCart(userId, id, item.getQuantity());
+                } else {
+                    // Assume it's an event ID - need to find available ticket
+                    // For batch operations, we'll use the first available ticket of any type
+                    // This is a simplified approach - in production, you might want to specify ticket type
+                    throw new ValidationException("Event ID specified but ticket type not provided. " +
+                            "For batch operations with event IDs, please use /api/v1/cart/add endpoint.");
+                }
+            } catch (IllegalArgumentException e) {
+                throw new ValidationException("Invalid ticket type ID format: " + item.getTicketTypeId());
+            }
+        }
+
+        log.info("Successfully added {} items to cart for user: {}", items.size(), userId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Items added to cart successfully"));
     }
 
     /**

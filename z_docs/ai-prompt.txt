@@ -1,0 +1,43 @@
+I'm building an event pro website for use by event organizers and users who want to buy tickets for 
+events.
+
+There are 3 different users: 
+- ADMIN (application owners)
+- ORGANIZER (event organizers who are looking to )
+- USER (can create create accounts, login, buy tickets, search for events, and see profile
+    information)
+- Authentication and authorization
+  - Sign up from UI goes to Cognito
+  - then OTP verification via email
+  - then login
+  - user is sync to backend to save to database via /api/v1/users/sync endpoint
+  -
+- Events Page
+- Profile Page
+  - should show tickets bought by user if user
+  - should show all events created if organizer
+  - should show all admin related functionality
+  - organizers and their events, users and their tickets etc
+- Home Page
+- Sign Up Page
+  - should have a link to Login
+- Verification Page
+- Login Page
+  - should have a link to Login
+- Beautiful Navigation
+- Reponsive Design
+  - hamburger menu to open/close seamlessly
+- ADMIN protected routes
+  - only what admin should see
+- ORGANIZER protected routes
+  - only what organizer should see
+- Open and non protected routes
+
+When user logins successfully, I want them to be redirected to their profile page.
+Profile page should also be built
+
+The frontend works with 3 values set in environment variables
+VITE_API_BASE_URL=
+VITE_COGNITO_USER_POOL_ID=
+VITE_COGNITO_CLIENT_ID=
+I will configure these values myself after you create the app

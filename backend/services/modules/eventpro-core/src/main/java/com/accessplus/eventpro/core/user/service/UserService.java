@@ -91,5 +91,44 @@ public interface UserService {
      * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if user not found
      */
     UserEntity updateUserProfile(String cognitoUserId, String firstName, String lastName, String phoneNumber);
+
+    /**
+     * Updates user profile information by Cognito user ID with extended fields.
+     * 
+     * <p>Only updates provided fields (non-null values).
+     * Email cannot be updated via this method (managed by Cognito).
+     * 
+     * @param cognitoUserId AWS Cognito user ID
+     * @param firstName New first name (optional, null to skip)
+     * @param lastName New last name (optional, null to skip)
+     * @param phoneNumber New phone number (optional, null to skip)
+     * @param bio New bio (optional, null to skip)
+     * @param location New location (optional, null to skip)
+     * @param profilePictureUrl New profile picture URL (optional, null to skip)
+     * @return Updated UserEntity
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if user not found
+     */
+    UserEntity updateUserProfile(String cognitoUserId, String firstName, String lastName, String phoneNumber,
+                                 String bio, String location, String profilePictureUrl);
+
+    /**
+     * Updates user status.
+     * 
+     * @param userId User ID (UUID)
+     * @param status New status (ACTIVE, SUSPENDED, PENDING_VERIFICATION)
+     * @return Updated UserEntity
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if user not found
+     */
+    UserEntity updateUserStatus(UUID userId, String status);
+
+    /**
+     * Updates user role.
+     * 
+     * @param userId User ID (UUID)
+     * @param role New role (USER, ORGANIZER, ADMIN)
+     * @return Updated UserEntity
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if user not found
+     */
+    UserEntity updateUserRole(UUID userId, String role);
 }
 

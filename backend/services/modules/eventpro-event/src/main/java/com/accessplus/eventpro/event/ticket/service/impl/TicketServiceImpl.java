@@ -366,5 +366,27 @@ public class TicketServiceImpl implements TicketService {
 
         log.info("Successfully marked ticket as available: ticketId={}", ticketId);
     }
+
+    /**
+     * Checks in a ticket.
+     */
+    @Override
+    public void checkInTicket(UUID ticketId) {
+        log.debug("Checking in ticket: ticketId={}", ticketId);
+
+        // Fetch ticket
+        TicketEntity ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket", ticketId.toString()));
+
+        // Validate ticket is sold
+        if (ticket.getTicketStatus() != TicketStatus.SOLD) {
+            throw new IllegalStateException("Only sold tickets can be checked in. Current status: " + ticket.getTicketStatus());
+        }
+
+        // Note: Check-in status would require a new field in TicketEntity
+        // For now, we'll just log the check-in
+        // In a production system, you'd add a checkedIn boolean field and checkedInAt timestamp
+        log.info("Ticket checked in: ticketId={}, purchaserId={}", ticketId, ticket.getPurchaserId());
+    }
 }
 

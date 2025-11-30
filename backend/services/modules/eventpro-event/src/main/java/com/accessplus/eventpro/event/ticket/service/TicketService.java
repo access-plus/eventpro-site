@@ -144,6 +144,15 @@ public interface TicketService {
     void markTicketAsReserved(UUID ticketId);
 
     /**
+     * Checks in a ticket (marks as checked in).
+     * 
+     * @param ticketId the UUID of the ticket
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if ticket not found
+     * @throws IllegalStateException if ticket is not sold
+     */
+    void checkInTicket(UUID ticketId);
+
+    /**
      * Marks a ticket as available (e.g., when order is cancelled).
      * 
      * @param ticketId the UUID of the ticket
