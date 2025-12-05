@@ -30,11 +30,12 @@ public interface UserService {
      * @param firstName User's first name
      * @param lastName User's last name
      * @param phoneNumber User's phone number (optional, can be null)
+     * @param role User role (USER, ORGANIZER, ADMIN) - retrieved from Cognito custom:role attribute, defaults to USER if not found
      * @return Created UserEntity
      * @throws com.accessplus.eventpro.core.common.exception.ConflictException if user with same email or Cognito ID already exists
      */
     UserEntity createUserFromCognito(String cognitoUserId, String email, String firstName, 
-                                    String lastName, String phoneNumber);
+                                    String lastName, String phoneNumber, String role);
 
     /**
      * Retrieves a user by their AWS Cognito user ID.

@@ -1,11 +1,6 @@
 # RDS Module - Main Configuration
 # This module creates an RDS PostgreSQL 16+ instance with Multi-AZ, backups, and encryption
-
-# Random Password for RDS
-resource "random_password" "db_password" {
-  length  = 16
-  special = false
-}
+# RDS manages master user password automatically via Secrets Manager
 
 # DB Subnet Group
 resource "aws_db_subnet_group" "main" {
@@ -66,7 +61,8 @@ resource "aws_db_instance" "main" {
   # Database Configuration
   db_name  = var.db_name
   username = "accessplus"
-  password = random_password.db_password.result
+  # RDS manages master user password automatically via Secrets Manager
+  manage_master_user_password = true
   port     = 5432
 
   # Storage Configuration
@@ -121,6 +117,7 @@ resource "aws_db_instance" "main" {
     ignore_changes = [
       password,
       final_snapshot_identifier,
+      master_user_secret, # RDS manages this automatically
     ]
   }
 }

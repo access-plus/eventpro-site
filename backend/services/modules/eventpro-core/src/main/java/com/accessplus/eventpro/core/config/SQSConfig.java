@@ -9,10 +9,6 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 
 import java.net.URI;
 
-/**
- * Configuration for AWS SQS client and queue URLs.
- * Configures SqsClient bean and provides queue URL properties for message publishing.
- */
 @Configuration
 public class SQSConfig {
 
@@ -51,29 +47,14 @@ public class SQSConfig {
         return builder.build();
     }
 
-    /**
-     * Gets the order queue URL.
-     *
-     * @return order queue URL
-     */
     public String getOrderQueueUrl() {
         return orderQueueUrl;
     }
 
-    /**
-     * Gets the payment queue URL.
-     *
-     * @return payment queue URL
-     */
     public String getPaymentQueueUrl() {
         return paymentQueueUrl;
     }
 
-    /**
-     * Gets the notification queue URL.
-     *
-     * @return notification queue URL
-     */
     public String getNotificationQueueUrl() {
         return notificationQueueUrl;
     }

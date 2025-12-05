@@ -17,47 +17,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Event entity representing events that users can attend.
- * 
- * <p>Fields match the database schema from V1__create_base_tables.sql:
- * <ul>
- *   <li>id (UUID, PK) - From BaseEntity</li>
- *   <li>name (String, not null) - Event name</li>
- *   <li>description (String, nullable) - Event description</li>
- *   <li>startTime (LocalDateTime, not null) - Event start date/time</li>
- *   <li>endTime (LocalDateTime, not null) - Event end date/time</li>
- *   <li>imageUrl (String, nullable) - S3 URL for event image</li>
- *   <li>marketingEnabled (Boolean, default false) - Whether event is promoted</li>
- *   <li>createdAt (LocalDateTime) - From BaseEntity</li>
- *   <li>updatedAt (LocalDateTime) - From BaseEntity</li>
- * </ul>
- * 
- * <p>Relationships:
- * <ul>
- *   <li>Many-to-One: organizer (UserEntity) - User who created the event</li>
- *   <li>Many-to-One: category (CategoryEntity)</li>
- *   <li>One-to-One: address (AddressEntity)</li>
- *   <li>One-to-Many: tickets (List&lt;TicketEntity&gt;) - Tickets for this event</li>
- * </ul>
- * 
- * <p>Validation Rules:
- * <ul>
- *   <li>Name cannot be null or empty</li>
- *   <li>End time must be after start time (enforced by database constraint)</li>
- *   <li>Image URL must be valid S3 URL format (if provided)</li>
- * </ul>
- * 
- * <p>Indexes (from V1__create_base_tables.sql):
- * <ul>
- *   <li>idx_event_organizer on organizer_id</li>
- *   <li>idx_event_category on category_id</li>
- *   <li>idx_event_start_time on start_time</li>
- *   <li>idx_event_marketing on marketing_enabled</li>
- * </ul>
- */
 @Entity
-@Table(name = "event", indexes = {
+@Table(name = "events", indexes = {
     @Index(name = "idx_event_organizer", columnList = "organizer_id"),
     @Index(name = "idx_event_category", columnList = "category_id"),
     @Index(name = "idx_event_start_time", columnList = "start_time"),

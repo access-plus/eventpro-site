@@ -15,22 +15,24 @@ variable "notification_queue_arn" {
   type        = string
 }
 
-variable "database_url" {
-  description = "JDBC URL for the PostgreSQL database"
+variable "database_secret_arn" {
+  description = "ARN of the RDS-managed Secrets Manager secret for database credentials"
   type        = string
-  sensitive   = true
 }
 
-variable "database_username" {
-  description = "Database username"
+variable "database_host" {
+  description = "Database hostname (from RDS module)"
   type        = string
-  sensitive   = true
 }
 
-variable "database_password" {
-  description = "Database password"
+variable "database_port" {
+  description = "Database port (from RDS module)"
+  type        = number
+}
+
+variable "database_name" {
+  description = "Database name (from RDS module)"
   type        = string
-  sensitive   = true
 }
 
 variable "ses_sender_email" {

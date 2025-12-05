@@ -116,6 +116,26 @@ resource "aws_iam_role_policy" "cloudwatch_logs" {
   })
 }
 
+# IAM Policy for Secrets Manager (for RDS-managed database secret)
+resource "aws_iam_role_policy" "secrets_manager" {
+  name = "${var.name_prefix}-order-processor-secrets-policy"
+  role = aws_iam_role.lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = var.database_secret_arn
+      }
+    ]
+  })
+}
+
 # Lambda Function
 resource "aws_lambda_function" "order_processor" {
   function_name = "${var.name_prefix}-order-processor"
@@ -133,9 +153,10 @@ resource "aws_lambda_function" "order_processor" {
   # Environment variables
   environment {
     variables = {
-      DB_URL                = var.database_url
-      DB_USERNAME            = var.database_username
-      DB_PASSWORD            = var.database_password
+      DB_HOST                = var.database_host
+      DB_PORT                = tostring(var.database_port)
+      DB_NAME                = var.database_name
+      DB_SECRET_ARN          = var.database_secret_arn
       SQS_PAYMENT_QUEUE_URL  = var.payment_queue_url
       AWS_REGION             = var.aws_region
       QUARKUS_LOG_LEVEL      = var.log_level

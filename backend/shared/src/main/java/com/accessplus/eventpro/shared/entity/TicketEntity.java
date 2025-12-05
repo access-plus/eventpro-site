@@ -26,7 +26,7 @@ import java.util.UUID;
  * via @ManyToOne if needed for their specific use cases.
  */
 @Entity
-@Table(name = "ticket", indexes = {
+@Table(name = "tickets", indexes = {
     @Index(name = "idx_ticket_event", columnList = "event_id"),
     @Index(name = "idx_ticket_status", columnList = "ticket_status"),
     @Index(name = "idx_ticket_type", columnList = "ticket_type"),

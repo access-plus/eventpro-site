@@ -107,10 +107,12 @@ const Profile = () => {
                 <span>{user.phoneNumber}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Shield className="h-4 w-4" />
-              <span>Member since {format(new Date(user.createdAt), "PPP")}</span>
-            </div>
+            {user.createdAt && !isNaN(new Date(user.createdAt).getTime()) && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Shield className="h-4 w-4" />
+                <span>Member since {format(new Date(user.createdAt), "PPP")}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 

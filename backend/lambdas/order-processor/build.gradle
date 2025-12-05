@@ -27,6 +27,7 @@ dependencies {
 
     // AWS SDK
     implementation 'software.amazon.awssdk:sqs'
+    implementation 'software.amazon.awssdk:secretsmanager'
 
     // Logging
     implementation 'io.quarkus:quarkus-logging-json'

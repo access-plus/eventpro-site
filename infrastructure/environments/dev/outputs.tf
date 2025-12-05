@@ -93,18 +93,9 @@ output "cognito_domain_name" {
   value       = module.cognito.user_pool_domain_name
 }
 
-# Secrets Manager Outputs
-output "database_secret_arn" {
-  description = "ARN of the database credentials secret"
-  value       = module.secrets_manager.secret_arns["database"]
-  sensitive   = true
-}
-
-output "stripe_secret_arn" {
-  description = "ARN of the Stripe API keys secret"
-  value       = module.secrets_manager.secret_arns["stripe"]
-  sensitive   = true
-}
+# Secrets Manager Outputs removed
+# Database secret ARN is available via module.rds.db_master_user_secret_arn (RDS-managed)
+# Stripe secrets are passed as environment variables, not via Secrets Manager
 
 # Route53 Outputs
 output "frontend_fqdn" {

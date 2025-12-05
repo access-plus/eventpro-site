@@ -5,7 +5,7 @@
 
 -- Insert predefined categories
 -- Using ON CONFLICT to ensure idempotency for first-time and subsequent runs
-INSERT INTO category (id, name, description, created_at, updated_at) VALUES
+INSERT INTO categories (id, name, description, created_at, updated_at) VALUES
     (gen_random_uuid(), 'Music', 'Concerts, festivals, and live music events', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     (gen_random_uuid(), 'Sports', 'Sports games, tournaments, and athletic events', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     (gen_random_uuid(), 'Arts & Crafts', 'Art exhibitions, craft workshops, and creative events', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

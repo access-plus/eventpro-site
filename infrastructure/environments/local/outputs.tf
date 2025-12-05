@@ -76,21 +76,6 @@ output "cognito_user_pool_domain" {
   value       = try(aws_cognito_user_pool.main.domain, null)
 }
 
-output "secrets_manager_database_secret_arn" {
-  description = "Database Secret ARN"
-  value       = aws_secretsmanager_secret.database.arn
-}
-
-output "secrets_manager_jwt_secret_arn" {
-  description = "JWT Secret ARN"
-  value       = aws_secretsmanager_secret.jwt.arn
-}
-
-output "secrets_manager_stripe_secret_arn" {
-  description = "Stripe Secret ARN"
-  value       = aws_secretsmanager_secret.stripe.arn
-}
-
 # Lambda Function Outputs
 output "lambda_order_processor_arn" {
   description = "Order Processor Lambda Function ARN"
@@ -151,8 +136,6 @@ output "environment_variables" {
     S3_BUCKET_NAME         = aws_s3_bucket.images.id
     COGNITO_USER_POOL_ID   = try(aws_cognito_user_pool.main.id, null)
     COGNITO_CLIENT_ID      = try(aws_cognito_user_pool_client.main.id, null)
-    DB_SECRET_ARN          = aws_secretsmanager_secret.database.arn
-    STRIPE_SECRET_ARN      = aws_secretsmanager_secret.stripe.arn
   }
 }
 

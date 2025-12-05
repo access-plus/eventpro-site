@@ -11,6 +11,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 public class JwtUtils {
     
     private static final String SUB_CLAIM = "sub";
+    private static final String USERNAME_CLAIM = "username";
     
     /**
      * Extracts the Cognito user ID (sub claim) from the current JWT token.
@@ -57,6 +58,37 @@ public class JwtUtils {
         
         JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
         return jwtAuth.getToken();
+    }
+    
+    /**
+     * Extracts the username from the current JWT token.
+     * 
+     * <p>Cognito access tokens may include a 'username' claim that contains the actual username
+     * (email when users sign up with email as username). This is needed for AdminGetUser API calls.
+     * 
+     * <p>If the 'username' claim is not present, this method attempts to extract the email
+     * from the 'email' claim as a fallback, since email is often used as the username.
+     * 
+     * @return Username from the JWT token (from 'username' or 'email' claim), or null if not present
+     * @throws IllegalStateException if no authentication is present or token is invalid
+     */
+    public static String getCurrentUserUsername() {
+        Jwt jwt = getCurrentJwt();
+        
+        // Try username claim first (most reliable)
+        String username = jwt.getClaimAsString(USERNAME_CLAIM);
+        if (username != null && !username.trim().isEmpty()) {
+            return username;
+        }
+        
+        // Fallback to email claim (when email is used as username)
+        String email = jwt.getClaimAsString("email");
+        if (email != null && !email.trim().isEmpty()) {
+            return email;
+        }
+        
+        // Neither username nor email found
+        return null;
     }
     
     /**

@@ -798,8 +798,7 @@ eventpro-site/
 │   │   │   ├── Dockerfile.native# Native build
 │   │   │   └── settings.gradle
 │   │   ├── payment-processor/   # Payment processing Lambda
-│   │   ├── notification-sender/ # Notification Lambda
-│   │   └── secret-rotation/    # Secret rotation Lambda (Python)
+│   │   └── notification-sender/ # Notification Lambda
 │   │
 │   └── shared/                   # Shared Module (Framework-agnostic)
 │       ├── src/main/java/com/accessplus/eventpro/shared/
@@ -932,11 +931,6 @@ eventpro-site/
    - Email (SES) and SMS (SNS) delivery
    - Notification preferences handling
 
-4. **secret-rotation** (Python)
-   - Rotates database credentials
-   - Secrets Manager integration
-   - Scheduled execution
-
 #### Shared Module
 
 - **Entities**: BaseEntity, OrderEntity, OrderItemEntity, TicketEntity
@@ -1026,7 +1020,6 @@ eventpro-site/
   - Order Processor (Quarkus)
   - Payment Processor (Quarkus)
   - Notification Sender (Quarkus)
-  - Secret Rotation (Python)
   - Container images deployed via ECR
 
 #### Database
@@ -1113,7 +1106,9 @@ For local development, the following services are used:
 - **Node.js 22+** and **npm** - [Download](https://nodejs.org/)
 - **Docker** and **Docker Compose** - [Download](https://www.docker.com/get-started)
 - **Terraform 1.5+** - [Download](https://www.terraform.io/downloads)
+- **Make** - Usually pre-installed on macOS/Linux
 - **AWS CLI** - [Download](https://aws.amazon.com/cli/) (optional, for testing LocalStack)
+- **AWS Account with Credentials** - Required for Cognito (can use real AWS or LocalStack Pro)
 
 ### Quick Start
 
@@ -1386,13 +1381,23 @@ When running locally, access Swagger UI at:
 
 For issues, questions, or contributions, please refer to the project documentation or contact the development team.
 
-## Improvements
+## 🔧 Configuration Notes
 
-- VITE_STRIPE_PUBLISHABLE_KEY=
-- /api/v1/users/upload-profile-picture endpoint uses this key to upload profile pictures to S3
+### Stripe Integration
 
-## password reset
+For payment processing, configure the Stripe publishable key:
 
-Sign up at https://resend.com if you don't have an account
-Verify your email domain at https://resend.com/domains
-Create an API key at https://resend.com/api-keys
+```env
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
+```
+
+Add this to your `.env` file (for local development) or set it in your deployment environment. Get your test key from: https://dashboard.stripe.com/test/apikeys
+
+### Email Notifications (Resend)
+
+For email notifications via Resend:
+
+1. Sign up at https://resend.com
+2. Verify your email domain at https://resend.com/domains
+3. Create an API key at https://resend.com/api-keys
+4. Configure the API key in your environment (optional for local development)

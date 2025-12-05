@@ -31,11 +31,13 @@
 The EventPro platform currently uses PostgreSQL `LIKE` queries for search functionality:
 
 **Current Implementation:**
+
 - Event search: `findByNameContainingIgnoreCase()` - simple case-insensitive name matching
 - Admin search: Client-side filtering in React components
 - User search: No backend search implementation
 
 **Limitations:**
+
 - ❌ No full-text search across multiple fields (name, description, category, location)
 - ❌ No relevance ranking - results are not sorted by relevance
 - ❌ No fuzzy matching - typos in search queries return no results
@@ -59,6 +61,7 @@ Amazon OpenSearch Service is a managed search and analytics engine based on Open
 ### Benefits for EventPro Platform
 
 **For Users:**
+
 - ✅ Fast, relevant event search results
 - ✅ Search across event name, description, category, and location
 - ✅ Typo-tolerant search (fuzzy matching)
@@ -66,12 +69,14 @@ Amazon OpenSearch Service is a managed search and analytics engine based on Open
 - ✅ Better discovery of events
 
 **For Administrators:**
+
 - ✅ Powerful search across users, events, and orders
 - ✅ Analytics and insights
 - ✅ Complex queries for reporting
 - ✅ Better user management tools
 
 **For Platform:**
+
 - ✅ Scalable search infrastructure
 - ✅ Reduced load on PostgreSQL
 - ✅ Better user experience
@@ -85,61 +90,61 @@ Amazon OpenSearch Service is a managed search and analytics engine based on Open
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    User/Admin Search Request                 │
-│                    (Frontend - React)                        │
+│                    User/Admin Search Request                │
+│                    (Frontend - React)                       │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              EventPro API (Spring Boot)                      │
-│              Port 8080                                        │
+│              EventPro API (Spring Boot)                     │
+│              Port 8080                                      │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  EventSearchController / AdminSearchController      │   │
+│  │  EventSearchController / AdminSearchController       │   │
 │  │  - Receives search requests                          │   │
 │  │  - Validates parameters                              │   │
 │  └───────────────────────┬──────────────────────────────┘   │
-│                          │                                    │
+│                          │                                  │
 │  ┌───────────────────────▼──────────────────────────────┐   │
-│  │  OpenSearchService / AdminSearchService               │   │
-│  │  - Builds OpenSearch queries                          │   │
-│  │  - Executes searches                                  │   │
-│  │  - Transforms results                                 │   │
+│  │  OpenSearchService / AdminSearchService              │   │
+│  │  - Builds OpenSearch queries                         │   │
+│  │  - Executes searches                                 │   │
+│  │  - Transforms results                                │   │
 │  └───────────────────────┬──────────────────────────────┘   │
-└───────────────────────────┼──────────────────────────────────┘
-                            │
-                            ▼
+└──────────────────────────┼──────────────────────────────────┘
+                           │
+                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│         Amazon OpenSearch Service (Managed)                  │
-│         VPC Endpoint (Private)                               │
+│         Amazon OpenSearch Service (Managed)                 │
+│         VPC Endpoint (Private)                              │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  Index: events                                         │   │
-│  │  - Event documents with full metadata                 │   │
-│  │  - Analyzed fields for full-text search               │   │
-│  │                                                        │   │
-│  │  Index: users                                         │   │
-│  │  - User documents (admin search)                      │   │
-│  │  - Email, name, role, status                          │   │
-│  │                                                        │   │
-│  │  Index: orders (optional, for analytics)              │   │
-│  │  - Order documents for admin analytics                │   │
+│  │  Index: events                                       │   │
+│  │  - Event documents with full metadata                │   │
+│  │  - Analyzed fields for full-text search              │   │
+│  │                                                      │   │
+│  │  Index: users                                        │   │
+│  │  - User documents (admin search)                     │   │
+│  │  - Email, name, role, status                         │   │
+│  │                                                      │   │
+│  │  Index: orders (optional, for analytics)             │   │
+│  │  - Order documents for admin analytics               │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
                             ▲
                             │
-┌───────────────────────────┴──────────────────────────────────┘
+┌───────────────────────────┴─────────────────────────────────┐
 │         Data Synchronization (Event-Driven)                 │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  Option 1: Spring Events → OpenSearchService         │   │
 │  │  - EventCreatedEvent → indexEvent()                  │   │
 │  │  - EventUpdatedEvent → indexEvent()                  │   │
 │  │  - EventDeletedEvent → deleteEvent()                 │   │
-│  │                                                        │   │
+│  │                                                      │   │
 │  │  Option 2: Database Change Streams → Lambda          │   │
 │  │  - PostgreSQL logical replication                    │   │
 │  │  - Lambda processes changes                          │   │
-│  │  - Updates OpenSearch index                           │   │
-│  │                                                        │   │
-│  │  Option 3: Direct sync in service layer             │   │
+│  │  - Updates OpenSearch index                          │   │
+│  │                                                      │   │
+│  │  Option 3: Direct sync in service layer              │   │
 │  │  - After save/update operations                      │   │
 │  │  - Synchronous indexing                              │   │
 │  └──────────────────────────────────────────────────────┘   │
@@ -149,6 +154,7 @@ Amazon OpenSearch Service is a managed search and analytics engine based on Open
 ### Component Interactions
 
 **Search Flow:**
+
 1. User/admin submits search query via frontend
 2. Frontend calls API endpoint (`/api/v1/events/search`)
 3. Controller validates and forwards to OpenSearchService
@@ -157,6 +163,7 @@ Amazon OpenSearch Service is a managed search and analytics engine based on Open
 6. Frontend displays results with relevance ranking
 
 **Indexing Flow:**
+
 1. Event is created/updated via EventService
 2. Spring Event is published (EventCreatedEvent/EventUpdatedEvent)
 3. Event listener calls OpenSearchService.indexEvent()
@@ -165,16 +172,16 @@ Amazon OpenSearch Service is a managed search and analytics engine based on Open
 
 ### Data Flow Diagram
 
-```
-┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
-│PostgreSQL│────▶│EventService│────▶│Spring Event│────▶│OpenSearch│
-│  (RDS)   │     │           │     │  Publisher │     │  Service  │
-└──────────┘     └──────────┘     └──────────┘     └──────────┘
-     │                 │                  │                 │
-     │                 │                  │                 │
-     ▼                 ▼                  ▼                 ▼
-  Event Entity    Save Event        Publish Event      Index Document
-  Created/Updated                    EventCreated       (async)
+```txt
+┌──────────┐     ┌─────────────┐     ┌─────────────┐     ┌──────────┐
+│PostgreSQL│────▶│EventService │────▶│Spring Event │────▶│OpenSearch│
+│  (RDS)   │     │             │     │  Publisher  │     │  Service │
+└──────────┘     └─────────────┘     └─────────────┘     └──────────┘
+     │                 │                  │                   │
+     │                 │                  │                   │
+     ▼                 ▼                  ▼                   ▼
+  Event Entity    Save Event        Publish Event       Index Document
+  Created/Updated                    EventCreated        (async)
                                      EventUpdated
 ```
 
@@ -187,7 +194,8 @@ Amazon OpenSearch Service is a managed search and analytics engine based on Open
 Create a new Terraform module for OpenSearch:
 
 **File Structure:**
-```
+
+```txt
 infrastructure/modules/opensearch/
 ├── main.tf          # OpenSearch domain configuration
 ├── variables.tf     # Input variables
@@ -199,7 +207,7 @@ infrastructure/modules/opensearch/
 
 **File: `infrastructure/modules/opensearch/main.tf`**
 
-```terraform
+```h
 variable "domain_name" {
   description = "Name of the OpenSearch domain"
   type        = string
@@ -1431,31 +1439,37 @@ public class AdminSearchService {
 ### User Event Search Scenarios
 
 #### 1. Basic Text Search
+
 **Query**: "jazz concert"
 **Expected**: Events with "jazz" or "concert" in name, description, or category
 **Features Used**: Multi-match query, fuzzy matching
 
 #### 2. Category Filter
+
 **Query**: "music" + category: "Music"
 **Expected**: Music events only
 **Features Used**: Term filter
 
 #### 3. Location-Based Search
+
 **Query**: "festival" + city: "New York"
 **Expected**: Festivals in New York
 **Features Used**: Multi-match + term filter
 
 #### 4. Date Range Search
+
 **Query**: "conference" + startDate: "2025-06-01" + endDate: "2025-06-30"
 **Expected**: Conferences in June 2025
 **Features Used**: Range filter
 
 #### 5. Typo-Tolerant Search
+
 **Query**: "jass concert" (typo: "jass" instead of "jazz")
 **Expected**: Still finds jazz concerts
 **Features Used**: Fuzzy matching (fuzziness: AUTO)
 
 #### 6. Combined Search
+
 **Query**: "workshop" + category: "Arts & Crafts" + city: "Boston" + startDate: "2025-03-01"
 **Expected**: Arts & Crafts workshops in Boston starting March 2025
 **Features Used**: Multi-match + multiple filters
@@ -1463,26 +1477,31 @@ public class AdminSearchService {
 ### Admin Search Scenarios
 
 #### 1. User Search
-**Query**: "john@example.com"
+
+**Query**: "<john@example.com>"
 **Expected**: User with matching email
 **Features Used**: Exact match on email field
 
 #### 2. User by Name
+
 **Query**: "John Smith"
 **Expected**: Users with "John" in firstName or "Smith" in lastName
 **Features Used**: Multi-match query
 
 #### 3. Users by Role
+
 **Query**: role: "ORGANIZER"
 **Expected**: All organizers
 **Features Used**: Term filter
 
 #### 4. Events by Organizer
-**Query**: organizer.email: "organizer@example.com"
+
+**Query**: organizer.email: "<organizer@example.com>"
 **Expected**: All events by that organizer
 **Features Used**: Nested query
 
 #### 5. Analytics Queries
+
 **Query**: Aggregations for event counts by category, revenue by month
 **Expected**: Aggregated statistics
 **Features Used**: Aggregations API
@@ -1490,6 +1509,7 @@ public class AdminSearchService {
 ### Advanced Filtering Examples
 
 #### Example 1: Price Range Filter
+
 ```java
 // Add to EventSearchDocument
 private BigDecimal minPrice;
@@ -1507,6 +1527,7 @@ if (minPrice != null) {
 ```
 
 #### Example 2: Distance-Based Search
+
 ```java
 // Geo-distance query for location-based search
 Query geoQuery = Query.of(q -> q
@@ -1530,6 +1551,7 @@ Query geoQuery = Query.of(q -> q
 ### Event-Driven Sync (Recommended)
 
 **Advantages:**
+
 - Real-time updates
 - Decoupled from main transaction
 - Can be async
@@ -1543,6 +1565,7 @@ Query geoQuery = Query.of(q -> q
 ### Bulk Sync Strategy
 
 **Use Cases:**
+
 - Initial data migration
 - Re-indexing after mapping changes
 - Recovery from index corruption
@@ -1711,6 +1734,7 @@ echo "Sync completed"
 ### Monitoring and Alerting
 
 **CloudWatch Metrics to Monitor:**
+
 - Search latency
 - Indexing success rate
 - Query error rate
@@ -1718,6 +1742,7 @@ echo "Sync completed"
 - Storage usage
 
 **Alerts to Configure:**
+
 - OpenSearch cluster health is red
 - Search latency > 1 second
 - Indexing failure rate > 5%
@@ -1829,6 +1854,7 @@ class EventSearchControllerIntegrationTest {
 ### Performance Testing
 
 **Test Scenarios:**
+
 1. Search latency < 200ms for simple queries
 2. Search latency < 500ms for complex queries
 3. Indexing throughput > 1000 events/second
@@ -1837,6 +1863,7 @@ class EventSearchControllerIntegrationTest {
 ### Search Quality Validation
 
 **Test Cases:**
+
 1. Typo tolerance: "jass" finds "jazz"
 2. Relevance ranking: More relevant results first
 3. Filter accuracy: Filters work correctly
@@ -1855,7 +1882,7 @@ class EventSearchControllerIntegrationTest {
 - [ ] Store credentials in Secrets Manager
 - [ ] Test connectivity from ECS tasks
 
-### Application Configuration
+### App Configuration
 
 - [ ] Add OpenSearch dependencies to build.gradle
 - [ ] Configure OpenSearch client beans
@@ -1903,39 +1930,49 @@ class EventSearchControllerIntegrationTest {
 ### Common Issues and Solutions
 
 #### Issue 1: Connection Timeout
+
 **Symptoms:** Cannot connect to OpenSearch domain
 **Solutions:**
+
 - Verify security group allows traffic from ECS
 - Check VPC endpoint configuration
 - Verify credentials are correct
 - Check network connectivity
 
 #### Issue 2: Index Not Found
+
 **Symptoms:** `index_not_found_exception`
 **Solutions:**
+
 - Run `ensureIndexExists()` on startup
 - Create index manually via API
 - Check index name configuration
 
 #### Issue 3: Slow Search Performance
+
 **Symptoms:** Search queries take > 1 second
 **Solutions:**
+
 - Check cluster health and resource usage
 - Optimize queries (use filters instead of queries)
 - Increase instance size if needed
 - Review index mappings
 
 #### Issue 4: Documents Not Appearing in Search
+
 **Symptoms:** Recently created events don't appear
 **Solutions:**
+
 - Check if indexing succeeded (review logs)
 - Verify event listener is working
 - Check OpenSearch refresh interval
 - Manually refresh index if needed
 
 #### Issue 5: High Memory Usage
+
 **Symptoms:** OpenSearch cluster memory usage > 80%
 **Solutions:**
+
 - Increase instance size
 - Optimize queries to reduce memory usage
 - Review field mappings (remove unnecessary fields)
@@ -1968,11 +2005,13 @@ log.debug("OpenSearch query: {}", queryBuilder.build().toString());
 ```
 
 **Use OpenSearch Dashboards:**
+
 - Dev Tools console for testing queries
 - Index management for viewing documents
 - Search profiler for analyzing slow queries
 
 **Example Debug Query:**
+
 ```json
 GET /events/_search
 {
@@ -1993,6 +2032,7 @@ GET /events/_search
 ### Analytics and Dashboards
 
 **OpenSearch Dashboards Integration:**
+
 - Create dashboards for event analytics
 - User search behavior analysis
 - Popular events and categories
@@ -2001,12 +2041,14 @@ GET /events/_search
 ### Auto-Complete/Suggestions
 
 **Implementation:**
+
 - Use OpenSearch completion suggester
 - Real-time search suggestions as user types
 - Popular search terms
 - Category suggestions
 
 **Example:**
+
 ```java
 SuggestionRequest suggestionRequest = SuggestionRequest.of(s -> s
     .suggesters("event-suggest", su -> su
@@ -2021,6 +2063,7 @@ SuggestionRequest suggestionRequest = SuggestionRequest.of(s -> s
 ### Personalization
 
 **Features:**
+
 - User search history
 - Personalized recommendations
 - Trending events based on user preferences
@@ -2029,6 +2072,7 @@ SuggestionRequest suggestionRequest = SuggestionRequest.of(s -> s
 ### Multi-Language Support
 
 **Implementation:**
+
 - Language-specific analyzers
 - Multi-language field mappings
 - Language detection
@@ -2056,15 +2100,18 @@ SuggestionRequest suggestionRequest = SuggestionRequest.of(s -> s
 ## Reference Links
 
 ### AWS Documentation
+
 - [Amazon OpenSearch Service Developer Guide](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/)
 - [OpenSearch Java Client Documentation](https://opensearch.org/docs/latest/clients/java/)
 - [OpenSearch Query DSL](https://opensearch.org/docs/latest/query-dsl/)
 
 ### Best Practices
+
 - [OpenSearch Best Practices](https://opensearch.org/docs/latest/install-and-configure/)
 - [AWS Well-Architected Framework - Analytics](https://docs.aws.amazon.com/wellarchitected/latest/analytics-pillar/)
 
 ### Related Internal Documentation
+
 - [Modular Monolith Architecture](./modular-monolith-architecture.md)
 - [Lambda Implementation Guide](./LAMBDA_IMPLEMENTATION_GUIDE.md)
 - [Project Structure](./project-structure.md)
@@ -2131,6 +2178,7 @@ SuggestionRequest suggestionRequest = SuggestionRequest.of(s -> s
 ### Query Examples
 
 **Example 1: Simple Text Search**
+
 ```json
 {
   "query": {
@@ -2143,6 +2191,7 @@ SuggestionRequest suggestionRequest = SuggestionRequest.of(s -> s
 ```
 
 **Example 2: Filtered Search**
+
 ```json
 {
   "query": {
@@ -2164,6 +2213,7 @@ SuggestionRequest suggestionRequest = SuggestionRequest.of(s -> s
 ```
 
 **Example 3: Geo-Distance Search**
+
 ```json
 {
   "query": {
@@ -2191,4 +2241,3 @@ SuggestionRequest suggestionRequest = SuggestionRequest.of(s -> s
 **Last Updated**: 2025-01-26  
 **Status**: Implementation Guide  
 **Maintained By**: Development Team
-

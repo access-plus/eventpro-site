@@ -16,7 +16,7 @@ public class TicketRepository implements PanacheRepository<TicketEntity> {
 
     /**
      * Finds tickets by order ID (through order items).
-     * Note: This requires joining with order_item table.
+     * Note: This requires joining with order_items table.
      */
     public List<TicketEntity> findByOrderId(UUID orderId) {
         return find("SELECT t FROM TicketEntity t INNER JOIN OrderItemEntity oi ON t.id = oi.ticketId WHERE oi.orderId = ?1", orderId)

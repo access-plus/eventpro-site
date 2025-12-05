@@ -34,8 +34,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserEntity createUserFromCognito(String cognitoUserId, String email, String firstName, 
-                                           String lastName, String phoneNumber) {
-        log.debug("Creating user from Cognito: cognitoUserId={}, email={}", cognitoUserId, email);
+                                           String lastName, String phoneNumber, String role) {
+        log.debug("Creating user from Cognito: cognitoUserId={}, email={}, role={}", cognitoUserId, email, role);
 
         // Check if user already exists by Cognito ID
         if (userRepository.findByCognitoUserId(cognitoUserId).isPresent()) {
@@ -56,10 +56,13 @@ public class UserServiceImpl implements UserService {
         user.setFirstName(firstName);
         user.setLastName(lastName);
         user.setPhoneNumber(phoneNumber);
+        user.setStatus("ACTIVE"); // Set default status (database has NOT NULL constraint with DEFAULT 'ACTIVE')
+        // Set role from Cognito custom:role attribute, default to USER if not provided
+        user.setRole(role != null && !role.isEmpty() ? role : "USER");
 
         UserEntity savedUser = userRepository.save(user);
-        log.info("Created user from Cognito: id={}, email={}, cognitoUserId={}", 
-                savedUser.getId(), savedUser.getEmail(), savedUser.getCognitoUserId());
+        log.info("Created user from Cognito: id={}, email={}, cognitoUserId={}, role={}", 
+                savedUser.getId(), savedUser.getEmail(), savedUser.getCognitoUserId(), savedUser.getRole());
 
         return savedUser;
     }

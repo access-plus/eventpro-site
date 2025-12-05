@@ -4,7 +4,7 @@
 API_DIR := backend/services
 WEB_DIR := frontend
 ANALYTICS_DIR := backend/lambdas/analytics-service
-SECRET_ROTATION_DIR := backend/lambdas/secret-rotation
+# SECRET_ROTATION_DIR := backend/lambdas/secret-rotation  # Removed - RDS manages credential rotation natively
 
 # Default target
 .DEFAULT_GOAL := help
@@ -47,7 +47,6 @@ help:
 	@echo "Docker Images:"
 	@echo "  make docker-build   - Build EventPro API Docker image"
 	@echo "  make docker-analytics - Build Analytics Service Docker image"
-	@echo "  make docker-secret-rotation - Build Secret Rotation Lambda image"
 	@echo "  make lambda-build   - Build all Lambda Docker images"
 	@echo "  make lambda-build-payment - Build payment-processor Lambda image"
 	@echo "  make lambda-build-notification - Build notification-sender Lambda image"
@@ -58,6 +57,7 @@ help:
 	@echo "  make local-infra    - Step 2: Provision resources + create .env"
 	@echo "  make local-up       - Step 3: Start Backend + Frontend"
 	@echo "  make local-down     - Stop all services"
+	@echo "  make local-restart  - Restart Backend + Frontend"
 	@echo "  make local-reset    - Reset containers (fixes conflicts)"
 	@echo "  make local-clean    - Clean everything (containers + Terraform)"
 	@echo "  make local-logs    - View all logs"
@@ -218,9 +218,10 @@ docker-analytics:
 		echo "Analytics Service directory not found: $(ANALYTICS_DIR)"; \
 	fi
 
-docker-secret-rotation:
-	@echo "Building Secret Rotation Lambda Docker image..."
-	cd $(SECRET_ROTATION_DIR) && docker build -f Dockerfile -t secret-rotation:latest .
+# docker-secret-rotation: Removed - RDS now manages credential rotation natively
+# docker-secret-rotation:
+# 	@echo "Building Secret Rotation Lambda Docker image..."
+# 	cd $(SECRET_ROTATION_DIR) && docker build -f Dockerfile -t secret-rotation:latest .
 
 # Lambda Docker Images
 lambda-build:
@@ -313,11 +314,15 @@ local-infra:
 		echo "ORDER_QUEUE_URL=$$ORDER_QUEUE_URL" >> .env && \
 		echo "PAYMENT_QUEUE_URL=$$PAYMENT_QUEUE_URL" >> .env && \
 		echo "NOTIFICATION_QUEUE_URL=$$NOTIFICATION_QUEUE_URL" >> .env && \
+		VITE_STRIPE_PUBLISHABLE_KEY=$$(grep '^VITE_STRIPE_PUBLISHABLE_KEY=' .env 2>/dev/null | cut -d'=' -f2- | tr -d ' ' || echo "") && \
 		echo "VITE_API_BASE_URL=http://localhost:8080" > frontend/.env.local && \
 		echo "VITE_COGNITO_USER_POOL_ID=$$COGNITO_USER_POOL_ID" >> frontend/.env.local && \
 		echo "VITE_COGNITO_CLIENT_ID=$$COGNITO_CLIENT_ID" >> frontend/.env.local && \
 		echo "VITE_AWS_REGION=us-east-1" >> frontend/.env.local && \
-		echo "VITE_S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> frontend/.env.local
+		echo "VITE_S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> frontend/.env.local && \
+		if [ -n "$$VITE_STRIPE_PUBLISHABLE_KEY" ]; then \
+			echo "VITE_STRIPE_PUBLISHABLE_KEY=$$VITE_STRIPE_PUBLISHABLE_KEY" >> frontend/.env.local; \
+		fi
 	@echo "Environment files created"
 	@COGNITO_POOL_ID=$$(grep '^COGNITO_USER_POOL_ID=' .env 2>/dev/null | cut -d'=' -f2 | tr -d ' ' || echo ""); \
 	COGNITO_CLIENT=$$(grep '^COGNITO_CLIENT_ID=' .env 2>/dev/null | cut -d'=' -f2 | tr -d ' ' || echo ""); \
@@ -363,6 +368,11 @@ local-down:
 	cd ../../../
 	@rm -f .env frontend/.env.local
 	@docker-compose down backend frontend postgres -v
+
+local-restart:
+	@echo "Restarting application services..."
+	@docker-compose restart backend frontend
+	@echo "Services restarted!"
 
 backend-logs:
 	@docker-compose logs -f backend

@@ -19,7 +19,7 @@ import java.util.UUID;
  * Framework-agnostic entity that works with both Spring Boot and Quarkus.
  */
 @Entity
-@Table(name = "order_item", indexes = {
+@Table(name = "order_items", indexes = {
     @Index(name = "idx_order_item_order", columnList = "order_id"),
     @Index(name = "idx_order_item_ticket", columnList = "ticket_id")
 })

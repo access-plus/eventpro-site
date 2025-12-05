@@ -77,9 +77,26 @@ public class CognitoAdminService implements CognitoAdminServiceInterface {
      * @return Map of user attributes (email, given_name, family_name, phone_number, etc.)
      * @throws ValidationException if Cognito operation fails
      */
+    @Override
     public Map<String, String> getUserAttributes(String cognitoUserId) {
-        log.debug("Getting user attributes from Cognito: cognitoUserId={}", cognitoUserId);
-
+        // Delegate to overloaded method with null username (will use cognitoUserId as fallback)
+        return getUserAttributes(null, cognitoUserId);
+    }
+    
+    /**
+     * Gets user attributes from Cognito using Admin API.
+     * 
+     * <p>This method uses the username (email) for AdminGetUser API call when available,
+     * which is required when users sign up with email as username. Falls back to
+     * cognitoUserId if username is null or empty.
+     * 
+     * @param username The Cognito username (typically email when users sign up with email)
+     * @param cognitoUserId AWS Cognito user ID (sub claim) - used as fallback if username is null
+     * @return Map of user attributes (email, given_name, family_name, phone_number, etc.)
+     * @throws ValidationException if Cognito operation fails
+     */
+    @Override
+    public Map<String, String> getUserAttributes(String username, String cognitoUserId) {
         if (userPoolId == null || userPoolId.trim().isEmpty()) {
             throw new IllegalStateException(
                 "aws.cognito.userPoolId must be configured. " +
@@ -87,30 +104,74 @@ public class CognitoAdminService implements CognitoAdminServiceInterface {
             );
         }
 
-        try {
-            AdminGetUserRequest request = AdminGetUserRequest.builder()
-                    .userPoolId(userPoolId)
-                    .username(cognitoUserId) // Using sub claim as username
-                    .build();
+        // Strategy: Try username (email) first, then fall back to cognitoUserId (sub)
+        // When users sign up with email as username, AdminGetUser typically requires the email
+        // However, it can also work with the sub claim in some configurations
+        String[] identifiersToTry = {
+            username,           // Try email/username first (most reliable when email is username)
+            cognitoUserId       // Fall back to sub claim
+        };
 
-            AdminGetUserResponse response = cognitoClient.adminGetUser(request);
+        CognitoIdentityProviderException lastException = null;
+        
+        for (String userIdentifier : identifiersToTry) {
+            // Skip null or empty identifiers
+            if (userIdentifier == null || userIdentifier.trim().isEmpty()) {
+                continue;
+            }
             
-            // Convert attributes list to map for easier access
-            Map<String, String> attributes = response.userAttributes().stream()
-                    .collect(Collectors.toMap(
-                            AttributeType::name,
-                            AttributeType::value,
-                            (existing, replacement) -> existing // Keep first value if duplicate
-                    ));
+            log.info("Attempting to get user attributes from Cognito: userIdentifier={}, username={}, cognitoUserId={}", 
+                    userIdentifier, username, cognitoUserId);
 
-            log.debug("Retrieved user attributes from Cognito: cognitoUserId={}, attributes={}", 
-                    cognitoUserId, attributes.keySet());
-            return attributes;
-        } catch (CognitoIdentityProviderException e) {
-            log.error("Failed to get user attributes from Cognito: cognitoUserId={}, error={}", 
-                    cognitoUserId, e.getMessage(), e);
-            throw new ValidationException("Failed to get user attributes: " + e.getMessage());
+            try {
+                AdminGetUserRequest request = AdminGetUserRequest.builder()
+                        .userPoolId(userPoolId)
+                        .username(userIdentifier)
+                        .build();
+
+                AdminGetUserResponse response = cognitoClient.adminGetUser(request);
+                
+                // Convert attributes list to map for easier access
+                Map<String, String> attributes = response.userAttributes().stream()
+                        .collect(Collectors.toMap(
+                                AttributeType::name,
+                                AttributeType::value,
+                                (existing, replacement) -> existing // Keep first value if duplicate
+                        ));
+
+                log.info("Successfully retrieved user attributes from Cognito: userIdentifier={}, attributes={}", 
+                        userIdentifier, attributes.keySet());
+                return attributes;
+                
+            } catch (CognitoIdentityProviderException e) {
+                lastException = e;
+                log.warn("Failed to get user attributes using identifier '{}': errorCode={}, statusCode={}, message={}", 
+                        userIdentifier, e.awsErrorDetails().errorCode(), 
+                        e.statusCode(), e.getMessage());
+                
+                // If this is a "UserNotFoundException" or similar, try next identifier
+                // Otherwise, log and continue to next attempt
+                if (e.awsErrorDetails().errorCode().equals("UserNotFoundException") ||
+                    e.awsErrorDetails().errorCode().equals("ResourceNotFoundException")) {
+                    log.debug("User not found with identifier '{}', trying next identifier...", userIdentifier);
+                    continue;
+                }
+            }
         }
+
+        // If we get here, all attempts failed
+        String errorMessage = String.format(
+            "Failed to get user attributes from Cognito after trying all identifiers. " +
+            "Last error: %s (code: %s, status: %d). " +
+            "Tried username='%s', cognitoUserId='%s'",
+            lastException != null ? lastException.getMessage() : "Unknown error",
+            lastException != null ? lastException.awsErrorDetails().errorCode() : "N/A",
+            lastException != null ? lastException.statusCode() : 0,
+            username, cognitoUserId
+        );
+        
+        log.error(errorMessage, lastException);
+        throw new ValidationException(errorMessage);
     }
 }
 

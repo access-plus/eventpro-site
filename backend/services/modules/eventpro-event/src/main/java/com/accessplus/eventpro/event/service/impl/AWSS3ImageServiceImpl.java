@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.event.service.impl;
 
-import com.accessplus.eventpro.event.config.S3Config;
+import com.accessplus.eventpro.event.config.S3AclConfig.S3AclProperties;
+import com.accessplus.eventpro.event.config.S3Properties;
 import com.accessplus.eventpro.event.service.AWSS3ImageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +50,8 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
 
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
-    private final S3Config s3Config;
+    private final S3Properties s3Properties;
+    private final S3AclProperties s3AclProperties;
 
     /**
      * Uploads an image file to S3.
@@ -78,13 +80,19 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
             }
 
             // Build PutObjectRequest
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(s3Config.getBucketName())
+            // ACL usage is determined by profile-specific configuration
+            PutObjectRequest.Builder putObjectRequestBuilder = PutObjectRequest.builder()
+                    .bucket(s3Properties.getBucketName())
                     .key(finalKey)
                     .contentType(contentType)
-                    .contentLength(file.getSize())
-                    .acl(ObjectCannedACL.PUBLIC_READ) // Make image publicly readable
-                    .build();
+                    .contentLength(file.getSize());
+
+            // Set ACL based on profile configuration (disabled for local/LocalStack)
+            if (s3AclProperties.isUseAcl()) {
+                putObjectRequestBuilder.acl(ObjectCannedACL.PUBLIC_READ);
+            }
+
+            PutObjectRequest putObjectRequest = putObjectRequestBuilder.build();
 
             // Upload file
             s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
@@ -117,7 +125,7 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
 
         try {
             DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
-                    .bucket(s3Config.getBucketName())
+                    .bucket(s3Properties.getBucketName())
                     .key(key)
                     .build();
 
@@ -147,7 +155,7 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         log.debug("Generating presigned URL for image: key={}, expiration={} minutes", key, expirationMinutes);
 
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                .bucket(s3Config.getBucketName())
+                .bucket(s3Properties.getBucketName())
                 .key(key)
                 .build();
 
@@ -179,16 +187,19 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         // Build public URL
         // Format: https://{bucket}.s3.{region}.amazonaws.com/{key}
         // For LocalStack: http://localhost:4566/{bucket}/{key}
-        String bucketName = s3Config.getBucketName();
-        // Get region from S3Config (which reads from application.yml)
-        // The region is already configured in S3Config, so we'll use a default approach
-        String region = "us-east-1"; // Default, can be overridden via config
+        String bucketName = s3Properties.getBucketName();
+        String region = s3Properties.getRegion();
+        String endpoint = s3Properties.getEndpoint();
+        String publicEndpoint = s3Properties.getPublicEndpoint();
 
-        // Check if using LocalStack (endpoint override)
-        String endpoint = s3Config.getS3Endpoint();
-        if (endpoint != null && !endpoint.isEmpty()) {
+        // Use publicEndpoint if configured (for frontend-accessible URLs), otherwise use endpoint
+        String urlEndpoint = (publicEndpoint != null && !publicEndpoint.isEmpty()) 
+                ? publicEndpoint 
+                : endpoint;
+
+        if (urlEndpoint != null && !urlEndpoint.isEmpty()) {
             // LocalStack format: http://localhost:4566/{bucket}/{key}
-            return String.format("%s/%s/%s", endpoint, bucketName, actualKey);
+            return String.format("%s/%s/%s", urlEndpoint, bucketName, actualKey);
         } else {
             // AWS format: https://{bucket}.s3.{region}.amazonaws.com/{key}
             return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, actualKey);
@@ -305,8 +316,9 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         // Format: https://{bucket}.s3.{region}.amazonaws.com/{key}
         // or: http://localhost:4566/{bucket}/{key}
         try {
-            if (urlOrKey.contains("/" + s3Config.getBucketName() + "/")) {
-                int keyStartIndex = urlOrKey.indexOf("/" + s3Config.getBucketName() + "/") + s3Config.getBucketName().length() + 1;
+            String bucketName = s3Properties.getBucketName();
+            if (urlOrKey.contains("/" + bucketName + "/")) {
+                int keyStartIndex = urlOrKey.indexOf("/" + bucketName + "/") + bucketName.length() + 1;
                 return urlOrKey.substring(keyStartIndex);
             } else if (urlOrKey.contains(".s3.")) {
                 // AWS format: https://bucket.s3.region.amazonaws.com/key

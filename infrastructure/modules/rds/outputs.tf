@@ -81,9 +81,8 @@ output "db_instance_storage_encrypted" {
   value       = aws_db_instance.main.storage_encrypted
 }
 
-output "db_password" {
-  description = "The generated password for the master DB user"
-  value       = random_password.db_password.result
-  sensitive   = true
+output "db_master_user_secret_arn" {
+  description = "ARN of the Secrets Manager secret managed by RDS for the master user password"
+  value       = aws_db_instance.main.master_user_secret[0].secret_arn
 }
 
