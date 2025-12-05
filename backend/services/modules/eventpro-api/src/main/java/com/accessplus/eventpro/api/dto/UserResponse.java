@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -33,6 +34,8 @@ public class UserResponse {
     private String profilePictureUrl;
     private String status;
     private String role;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     
     // Account flags (managed by Cognito, default to true)
     @Builder.Default
@@ -71,6 +74,8 @@ public class UserResponse {
                 .profilePictureUrl(entity.getProfilePictureUrl())
                 .status(entity.getStatus())
                 .role(entity.getRole())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
                 .accountNonExpired(true)
                 .accountNonLocked(true)
                 .credentialsNonExpired(true)

@@ -84,17 +84,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem("refreshToken", tokens.refreshToken);
 
       // Sync user with backend
-      const userData = await apiService.syncUser();
-      setUser(userData);
+      // This is critical - if sync fails, user can't use the app
+      try {
+        const userData = await apiService.syncUser();
+        setUser(userData);
 
-      toast({
-        title: "Welcome back!",
-        description: `Logged in as ${userData.email}`,
-      });
+        toast({
+          title: "Welcome back!",
+          description: `Logged in as ${userData.email}`,
+        });
+      } catch (syncError: any) {
+        // Sync failed - this is a critical error
+        console.error("User sync failed after login:", syncError);
+        
+        // Clear tokens since sync failed
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        
+        // Provide detailed error message
+        const errorMessage = syncError.response?.data?.message || 
+                             syncError.message || 
+                             "Failed to sync user with backend. Please try again or contact support.";
+        
+        toast({
+          title: "Login failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        throw new Error(errorMessage);
+      }
     } catch (error: any) {
+      // Cognito login failed
+      console.error("Cognito login failed:", error);
       toast({
         title: "Login failed",
-        description: error.message || "Invalid credentials",
+        description: error.message || "Invalid credentials. Please check your email and password.",
         variant: "destructive",
       });
       throw error;

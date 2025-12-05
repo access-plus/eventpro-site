@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.event.service.impl;
 
-import com.accessplus.eventpro.event.config.S3Config;
+import com.accessplus.eventpro.event.config.S3AclConfig.S3AclProperties;
+import com.accessplus.eventpro.event.config.S3Properties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,7 +44,10 @@ class AWSS3ImageServiceImplTest {
     private S3Presigner s3Presigner;
 
     @Mock
-    private S3Config s3Config;
+    private S3Properties s3Properties;
+
+    @Mock
+    private S3AclProperties s3AclProperties;
 
     @InjectMocks
     private AWSS3ImageServiceImpl imageService;
@@ -53,8 +57,10 @@ class AWSS3ImageServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        when(s3Config.getBucketName()).thenReturn(BUCKET_NAME);
-        when(s3Config.getS3Endpoint()).thenReturn("");
+        when(s3Properties.getBucketName()).thenReturn(BUCKET_NAME);
+        when(s3Properties.getEndpoint()).thenReturn("");
+        when(s3Properties.getRegion()).thenReturn("us-east-1");
+        when(s3AclProperties.isUseAcl()).thenReturn(true);
     }
 
     @Test

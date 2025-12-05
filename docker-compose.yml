@@ -90,13 +90,15 @@ services:
       - "35729:35729"  # DevTools LiveReload port
     environment:
       - SPRING_PROFILES_ACTIVE=local
-      - DB_URL=jdbc:postgresql://postgres:5432/eventpro
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=eventpro
       - DB_USERNAME=eventpro
       - DB_PASSWORD=eventpro
       - AWS_ENDPOINT_URL=http://localstack:4566
       - AWS_REGION=us-east-1
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-test}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-test}
       # Cognito Configuration - REQUIRED
       # COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID must be set in .env file
       # Application will fail to start if these are not provided
@@ -108,6 +110,12 @@ services:
       - ORDER_QUEUE_URL=${ORDER_QUEUE_URL:-}
       - PAYMENT_QUEUE_URL=${PAYMENT_QUEUE_URL:-}
       - NOTIFICATION_QUEUE_URL=${NOTIFICATION_QUEUE_URL:-}
+      # JWT Secret - set in .env file for local development
+      - JWT_SECRET=${JWT_SECRET:-}
+      # Stripe Configuration - set in .env file for local development
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_local}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-pk_test_local}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_test_local}
       # Enable DevTools for hot reload
       - SPRING_DEVTOOLS_RESTART_ENABLED=true
     command: >

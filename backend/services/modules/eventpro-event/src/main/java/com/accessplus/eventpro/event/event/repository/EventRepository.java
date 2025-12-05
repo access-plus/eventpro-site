@@ -13,19 +13,6 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Repository interface for EventEntity.
- * Provides standard CRUD operations and custom query methods.
- * 
- * <p>Custom query methods:
- * <ul>
- *   <li>findByCategory - Find events by category</li>
- *   <li>findByOrganizer - Find events by organizer</li>
- *   <li>findByMarketingEnabled - Find events with marketing enabled</li>
- *   <li>findByStartTimeAfter - Find upcoming events</li>
- *   <li>findByStartTimeBetween - Find events in date range</li>
- * </ul>
- */
 @Repository
 public interface EventRepository extends JpaRepository<EventEntity, UUID> {
 

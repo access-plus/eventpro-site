@@ -11,43 +11,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Cart entity representing items in user's shopping cart.
- * 
- * <p>Fields match the database schema from V1__create_base_tables.sql:
- * <ul>
- *   <li>id (UUID, PK) - From BaseEntity</li>
- *   <li>quantity (Integer, not null) - Number of tickets</li>
- *   <li>createdAt (LocalDateTime) - From BaseEntity</li>
- *   <li>updatedAt (LocalDateTime) - From BaseEntity</li>
- * </ul>
- * 
- * <p>Relationships:
- * <ul>
- *   <li>Many-to-One: user (UserEntity) - User who owns the cart item</li>
- *   <li>Many-to-One: ticket (TicketEntity) - Ticket being added to cart</li>
- * </ul>
- * 
- * <p>Validation Rules:
- * <ul>
- *   <li>Quantity must be > 0</li>
- *   <li>Ticket must be AVAILABLE status (enforced by business logic)</li>
- *   <li>User cannot add same ticket twice (unique constraint on user + ticket)</li>
- * </ul>
- * 
- * <p>Indexes (from V1__create_base_tables.sql):
- * <ul>
- *   <li>idx_cart_user on user_id</li>
- *   <li>idx_cart_ticket on ticket_id</li>
- * </ul>
- * 
- * <p>Unique Constraint:
- * <ul>
- *   <li>uk_cart_user_ticket on user_id, ticket_id (one cart item per user-ticket combination)</li>
- * </ul>
- */
+
 @Entity
-@Table(name = "cart", indexes = {
+@Table(name = "carts", indexes = {
     @Index(name = "idx_cart_user", columnList = "user_id"),
     @Index(name = "idx_cart_ticket", columnList = "ticket_id")
 }, uniqueConstraints = {

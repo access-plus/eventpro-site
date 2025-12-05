@@ -54,6 +54,7 @@ make local-up
   ```
 
   You can also rebuild Lambda images separately if needed:
+
   ```bash
   make lambda-build  # Rebuild Lambda images (optional - local-infra does this automatically)
   ```
@@ -118,7 +119,7 @@ make local-infra
 4. **Provisions Terraform resources** in LocalStack:
    - S3 bucket
    - SQS queues (order, payment, notification + DLQs)
-   - Secrets Manager secrets
+   - Secrets Manager secrets (for Lambda functions only - backend API uses environment variables)
    - **Lambda Functions** (order-processor, payment-processor, notification-sender)
    - **Event Source Mappings** (automatically trigger Lambdas from SQS queues)
    - IAM roles and policies
@@ -140,8 +141,11 @@ cat .env
 # - PAYMENT_QUEUE_URL
 # - NOTIFICATION_QUEUE_URL
 # - S3_BUCKET_NAME
-# - COGNITO_USER_POOL_ID (if Cognito was created)
-# - COGNITO_CLIENT_ID (if Cognito was created)
+# - COGNITO_USER_POOL_ID (if Cognito was created) - REQUIRED
+# - COGNITO_CLIENT_ID (if Cognito was created) - REQUIRED
+
+# Note: Database credentials are set in docker-compose.yml, not in .env
+# The local profile uses environment variables directly, not Secrets Manager
 
 # Verify Lambda functions are registered
 make local-lambda-status
@@ -379,6 +383,10 @@ make local-event-mappings
 ```bash
 # Verify .env file exists and has required values
 cat .env | grep QUEUE_URL
+cat .env | grep COGNITO  # These are REQUIRED
+
+# Check database environment variables (set in docker-compose.yml)
+docker-compose exec backend env | grep -E "DB_|COGNITO"
 
 # Regenerate .env file
 make local-infra
@@ -386,6 +394,11 @@ make local-infra
 # Restart backend
 make start-backend
 ```
+
+**Common Issues:**
+
+- **Missing Cognito credentials**: `COGNITO_USER_POOL_ID` and `COGNITO_CLIENT_ID` are REQUIRED. The application will fail to start without them.
+- **Database connection**: Verify `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` are set in docker-compose.yml (they are by default).
 
 ### Issue: Database connection failed
 
@@ -472,6 +485,32 @@ make local-up
    make local-infra  # This automatically rebuilds Lambda images and redeploys
    ```
 
+### Issue: Lambda functions cannot connect to PostgreSQL
+
+**Symptoms:** Lambda logs show database connection errors like "Connection refused" or "Name or service not known"
+
+**Solution:**
+
+Lambda functions connect to PostgreSQL using `postgres:5432` (Docker network hostname). If this fails:
+
+1. **Verify all services are on the same Docker network:**
+
+   ```bash
+   docker network inspect eventpro-site_eventpro
+   # Should show postgres, localstack, backend, frontend containers
+   ```
+
+2. **Check LocalStack Lambda executor configuration:**
+   - LocalStack uses `LAMBDA_EXECUTOR=docker` which should allow Lambda containers to access the same network
+   - If issues persist, you may need to use `host.docker.internal:5432` instead of `postgres:5432` in Lambda environment variables
+
+3. **Restart LocalStack to refresh network configuration:**
+
+   ```bash
+   docker-compose restart localstack
+   make local-infra  # Redeploy Lambda functions
+   ```
+
 ### Issue: Docker image build fails with "invalid tag" error
 
 **Symptoms:** Error like `invalid tag ".dkr.ecr.us-east-1.amazonaws.com/..."`
@@ -481,27 +520,32 @@ make local-up
 **Solution:**
 
 1. **Check if `AWS_ACCOUNT_ID` is set:**
+
    ```bash
    echo $AWS_ACCOUNT_ID
    ```
 
 2. **If it's set but empty or incorrect, unset it:**
+
    ```bash
    unset AWS_ACCOUNT_ID
    ```
 
 3. **Verify it's unset:**
+
    ```bash
    echo $AWS_ACCOUNT_ID
    # Should output nothing (empty)
    ```
 
 4. **Run `make local-infra` again:**
+
    ```bash
    make local-infra
    ```
 
 **How the build script works:**
+
 - ✅ **When `AWS_ACCOUNT_ID` is NOT set:** Uses local tags (e.g., `eventpro-order-processor:latest`) - perfect for local development
 - ✅ **When `AWS_ACCOUNT_ID` IS set:** Uses ECR tags (e.g., `123456789012.dkr.ecr.us-east-1.amazonaws.com/eventpro-order-processor:latest`) - for AWS deployment
 - ⚠️ **When `AWS_ACCOUNT_ID` is set but empty:** Causes the invalid tag error
@@ -549,6 +593,18 @@ docker-compose ps
 ---
 
 ## 🗄️ Database Access
+
+### Database Configuration (Local Profile)
+
+The local profile uses `LocalDataSourceConfig` which reads database credentials directly from environment variables set in `docker-compose.yml`:
+
+- `DB_HOST=postgres` (PostgreSQL container name)
+- `DB_PORT=5432`
+- `DB_NAME=eventpro`
+- `DB_USERNAME=eventpro`
+- `DB_PASSWORD=eventpro`
+
+**Important:** The local profile does NOT use AWS Secrets Manager for database credentials. It reads directly from environment variables, making local development simpler and faster.
 
 ### Connect to PostgreSQL
 
@@ -615,7 +671,7 @@ docker-compose down -v
 
 ```bash
 # Backend environment variables
-docker-compose exec backend env | grep -E "COGNITO|QUEUE_URL|S3"
+docker-compose exec backend env | grep -E "COGNITO|QUEUE_URL|S3|DB_|STRIPE"
 
 # Frontend environment variables
 docker-compose exec frontend env | grep VITE_
@@ -624,6 +680,14 @@ docker-compose exec frontend env | grep VITE_
 aws --endpoint-url=http://localhost:4566 lambda get-function-configuration \
   --function-name local-order-processor --query 'Environment.Variables' --output json
 ```
+
+**Important Notes:**
+
+- **Database credentials** (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`) are set in `docker-compose.yml` and used by `LocalDataSourceConfig` for the local profile
+- **Local profile does NOT use Secrets Manager** for database credentials - it reads directly from environment variables
+- **Cognito credentials** (`COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`) are REQUIRED and must be in `.env` file
+- **Stripe secrets** can be set via environment variables or use defaults from `application-local.yml`
+- **Lambda functions** connect to PostgreSQL using `postgres:5432` (Docker network hostname). If Lambda functions cannot connect, check that LocalStack is on the same Docker network as PostgreSQL.
 
 ### Test LocalStack Resources
 
@@ -634,9 +698,11 @@ aws --endpoint-url=http://localhost:4566 s3 ls
 # List SQS queues
 aws --endpoint-url=http://localhost:4566 sqs list-queues
 
-# List secrets
+# List secrets (used by Lambda functions, not by backend API in local profile)
 aws --endpoint-url=http://localhost:4566 secretsmanager list-secrets
 ```
+
+**Note:** Secrets Manager secrets in LocalStack are used by Lambda functions for database credentials. The backend API (local profile) uses environment variables directly from `docker-compose.yml`, not Secrets Manager.
 
 ### Restart Services
 
@@ -664,6 +730,7 @@ make lambda-build-notification
 ```
 
 **For AWS deployment:** Set `AWS_ACCOUNT_ID` environment variable to build and push to ECR:
+
 ```bash
 AWS_ACCOUNT_ID=123456789012 AWS_REGION=us-east-1 make lambda-build
 ```
@@ -676,12 +743,14 @@ AWS_ACCOUNT_ID=123456789012 AWS_REGION=us-east-1 make lambda-build
 
 Created automatically by `make local-infra`. Contains:
 
-- `COGNITO_USER_POOL_ID` - AWS Cognito User Pool ID
-- `COGNITO_CLIENT_ID` - AWS Cognito App Client ID
+- `COGNITO_USER_POOL_ID` - AWS Cognito User Pool ID (REQUIRED)
+- `COGNITO_CLIENT_ID` - AWS Cognito App Client ID (REQUIRED)
 - `S3_BUCKET_NAME` - S3 bucket for images
 - `ORDER_QUEUE_URL` - SQS order queue URL
 - `PAYMENT_QUEUE_URL` - SQS payment queue URL
 - `NOTIFICATION_QUEUE_URL` - SQS notification queue URL
+
+**Note:** Database credentials (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`) are set directly in `docker-compose.yml` and do not need to be in `.env`. The local profile uses `LocalDataSourceConfig` which reads these environment variables - it does NOT use Secrets Manager.
 
 ### Frontend Environment (`frontend/.env.local`)
 
@@ -692,8 +761,12 @@ Created automatically by `make local-infra`. Contains:
 - `VITE_COGNITO_CLIENT_ID` - Cognito Client ID
 - `VITE_AWS_REGION` - AWS region
 - `VITE_S3_BUCKET_NAME` - S3 bucket name
+- `VITE_STRIPE_PUBLISHABLE_KEY` - Stripe publishable key (optional, for payment features)
 
-**Note:** These files are automatically generated. Manual edits may be overwritten when running `make local-infra`.
+**Note:** These files are automatically generated. Manual edits may be overwritten when running `make local-infra`. To add Stripe key, either:
+
+1. Add it to the root `.env` file before running `make local-infra`, or
+2. Manually add it to `frontend/.env.local` after running `make local-infra`
 
 ---
 
@@ -727,9 +800,11 @@ After local setup is working:
 
 - **Hot Reload:** Backend and frontend support hot reload. Changes are automatically reflected.
 - **Database Migrations:** Run automatically on backend startup via Flyway.
-- **Lambda Functions:** Managed by LocalStack and automatically triggered by SQS event source mappings. No manual invocation needed.
-- **Cognito:** Required for authentication. Must be configured before starting services.
+- **Database Configuration:** Local profile uses `LocalDataSourceConfig` which reads `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` from environment variables (set in docker-compose.yml). It does NOT use Secrets Manager.
+- **Lambda Functions:** Managed by LocalStack and automatically triggered by SQS event source mappings. No manual invocation needed. Lambda functions use Secrets Manager for database credentials (different from backend API).
+- **Cognito:** Required for authentication. Must be configured before starting services. JWT validation uses Cognito's public keys, not a custom JWT secret.
 - **LocalStack:** Emulates AWS services locally. All SQS, S3, Secrets Manager, and Lambda operations go through LocalStack.
+- **Secrets Manager:** Used by Lambda functions for database credentials. Backend API (local profile) uses environment variables directly, not Secrets Manager.
 
 ---
 

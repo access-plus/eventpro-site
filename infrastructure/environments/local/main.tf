@@ -254,6 +254,25 @@ resource "aws_cognito_user_pool_client" "main" {
     "ALLOW_USER_PASSWORD_AUTH"
   ]
 
+  # Read/Write Attributes - Ensure username and email are readable for token claims
+  # This ensures the 'username' claim is available in access tokens
+  read_attributes = [
+    "email",
+    "phone_number",
+    "given_name",
+    "family_name",
+    "custom:role"
+  ]
+
+  # Write Attributes - Allow writing user attributes during signup
+  write_attributes = [
+    "email",
+    "phone_number",
+    "given_name",
+    "family_name",
+    "custom:role"
+  ]
+
   supported_identity_providers = ["COGNITO"]
 }
 
@@ -280,73 +299,6 @@ resource "aws_cognito_user_group" "user" {
   user_pool_id = aws_cognito_user_pool.main.id
   description  = "Regular user group"
   precedence   = 3
-}
-
-# Secrets Manager - Database Secret (provisioned in LocalStack)
-resource "aws_secretsmanager_secret" "database" {
-  provider = aws.localstack
-
-  name        = "eventpro-db-secret"
-  description = "Database credentials for local development"
-
-  tags = {
-    Name        = "eventpro-db-secret"
-    Environment = "local"
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "database" {
-  provider  = aws.localstack
-  secret_id = aws_secretsmanager_secret.database.id
-  secret_string = jsonencode({
-    host     = "localhost"
-    port     = "5432"
-    dbname   = "eventpro"
-    username = "eventpro"
-    password = "eventpro"
-  })
-}
-
-# Secrets Manager - JWT Secret (provisioned in LocalStack)
-resource "aws_secretsmanager_secret" "jwt" {
-  provider = aws.localstack
-
-  name        = "eventpro-jwt-secret"
-  description = "JWT secret key for local development"
-
-  tags = {
-    Name        = "eventpro-jwt-secret"
-    Environment = "local"
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "jwt" {
-  provider      = aws.localstack
-  secret_id     = aws_secretsmanager_secret.jwt.id
-  secret_string = "Dh7fjbnd2O2iSkqpYL/lz2nM3LE/8fC36iFNPHERysc="
-}
-
-# Secrets Manager - Stripe Keys (provisioned in LocalStack)
-resource "aws_secretsmanager_secret" "stripe" {
-  provider = aws.localstack
-
-  name        = "eventpro-stripe-keys"
-  description = "Stripe API keys for local development"
-
-  tags = {
-    Name        = "eventpro-stripe-keys"
-    Environment = "local"
-  }
-}
-
-resource "aws_secretsmanager_secret_version" "stripe" {
-  provider  = aws.localstack
-  secret_id = aws_secretsmanager_secret.stripe.id
-  secret_string = jsonencode({
-    secret_key      = "sk_test_local"
-    publishable_key = "pk_test_local"
-    webhook_secret  = "whsec_test_local"
-  })
 }
 
 # Lambda Functions (provisioned in LocalStack)

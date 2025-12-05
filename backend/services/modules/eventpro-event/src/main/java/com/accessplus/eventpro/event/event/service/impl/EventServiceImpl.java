@@ -22,20 +22,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.UUID;
 
-/**
- * Implementation of EventService.
- * Handles event CRUD operations with image upload support.
- * 
- * <p>Features:
- * <ul>
- *   <li>Event creation with S3 image upload</li>
- *   <li>Event updates with optional image replacement</li>
- *   <li>Event deletion with image cleanup</li>
- *   <li>Pagination support for all list operations</li>
- *   <li>Validation of organizer, category, and event data</li>
- *   <li>Proper error handling and logging</li>
- * </ul>
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

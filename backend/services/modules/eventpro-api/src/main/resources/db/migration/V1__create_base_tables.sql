@@ -39,7 +39,7 @@ CREATE TYPE user_notification_status AS ENUM ('UNREAD', 'READ');
 -- ============================================================================
 
 -- 1. Category Table
-CREATE TABLE category (
+CREATE TABLE categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -65,7 +65,7 @@ CREATE TABLE users (
 );
 
 -- 3. Address Table
-CREATE TABLE address (
+CREATE TABLE addresses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     street VARCHAR(255) NOT NULL,
     city VARCHAR(100) NOT NULL,
@@ -79,7 +79,7 @@ CREATE TABLE address (
 );
 
 -- 4. Event Table
-CREATE TABLE event (
+CREATE TABLE events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -93,12 +93,12 @@ CREATE TABLE event (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_event_organizer FOREIGN KEY (organizer_id) REFERENCES users(id) ON DELETE RESTRICT,
-    CONSTRAINT fk_event_category FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE RESTRICT,
-    CONSTRAINT fk_event_address FOREIGN KEY (address_id) REFERENCES address(id) ON DELETE CASCADE
+    CONSTRAINT fk_event_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_event_address FOREIGN KEY (address_id) REFERENCES addresses(id) ON DELETE CASCADE
 );
 
 -- 5. Ticket Table
-CREATE TABLE ticket (
+CREATE TABLE tickets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     price NUMERIC(10, 2) NOT NULL,
@@ -113,13 +113,13 @@ CREATE TABLE ticket (
     creator_id UUID NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_ticket_event FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ticket_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
     CONSTRAINT fk_ticket_purchaser FOREIGN KEY (purchaser_id) REFERENCES users(id) ON DELETE SET NULL,
     CONSTRAINT fk_ticket_creator FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE RESTRICT
 );
 
 -- 6. Cart Table
-CREATE TABLE cart (
+CREATE TABLE carts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     quantity INTEGER NOT NULL,
     user_id UUID NOT NULL,
@@ -127,11 +127,11 @@ CREATE TABLE cart (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_cart_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_cart_ticket FOREIGN KEY (ticket_id) REFERENCES ticket(id) ON DELETE CASCADE
+    CONSTRAINT fk_cart_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
 );
 
 -- 7. Order Table
-CREATE TABLE "order" (
+CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_number VARCHAR(50) NOT NULL,
     total_amount NUMERIC(10, 2) NOT NULL,
@@ -144,7 +144,7 @@ CREATE TABLE "order" (
 );
 
 -- 8. OrderItem Table
-CREATE TABLE order_item (
+CREATE TABLE order_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     quantity INTEGER NOT NULL,
     price NUMERIC(10, 2) NOT NULL,
@@ -152,12 +152,12 @@ CREATE TABLE order_item (
     ticket_id UUID NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_order_item_order FOREIGN KEY (order_id) REFERENCES "order"(id) ON DELETE CASCADE,
-    CONSTRAINT fk_order_item_ticket FOREIGN KEY (ticket_id) REFERENCES ticket(id) ON DELETE RESTRICT
+    CONSTRAINT fk_order_item_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT fk_order_item_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE RESTRICT
 );
 
 -- 9. Payment Table
-CREATE TABLE payment (
+CREATE TABLE payments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     amount NUMERIC(10, 2) NOT NULL,
     payment_method VARCHAR(50) NOT NULL,
@@ -167,11 +167,11 @@ CREATE TABLE payment (
     order_id UUID NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_payment_order FOREIGN KEY (order_id) REFERENCES "order"(id) ON DELETE RESTRICT
+    CONSTRAINT fk_payment_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT
 );
 
 -- 10. Notification Table
-CREATE TABLE notification (
+CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
@@ -182,7 +182,7 @@ CREATE TABLE notification (
 );
 
 -- 11. UserNotification Table
-CREATE TABLE user_notification (
+CREATE TABLE user_notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     status user_notification_status NOT NULL,
     read_at TIMESTAMP,
@@ -191,11 +191,11 @@ CREATE TABLE user_notification (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_user_notification_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_user_notification_notification FOREIGN KEY (notification_id) REFERENCES notification(id) ON DELETE CASCADE
+    CONSTRAINT fk_user_notification_notification FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE
 );
 
 -- 12. NotificationPreference Table
-CREATE TABLE notification_preference (
+CREATE TABLE notification_preferences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     sms_enabled BOOLEAN NOT NULL DEFAULT TRUE,
@@ -212,44 +212,44 @@ CREATE TABLE notification_preference (
 
 ALTER TABLE users ADD CONSTRAINT uk_user_email UNIQUE (email);
 ALTER TABLE users ADD CONSTRAINT uk_user_cognito_id UNIQUE (cognito_user_id);
-ALTER TABLE category ADD CONSTRAINT uk_category_name UNIQUE (name);
-ALTER TABLE "order" ADD CONSTRAINT uk_order_number UNIQUE (order_number);
+ALTER TABLE categories ADD CONSTRAINT uk_category_name UNIQUE (name);
+ALTER TABLE orders ADD CONSTRAINT uk_order_number UNIQUE (order_number);
 -- Partial unique index: transaction_id must be unique when provided (NOT NULL)
 -- PostgreSQL allows multiple NULLs in unique constraints, but partial index is more explicit
-CREATE UNIQUE INDEX uk_payment_transaction_id ON payment(transaction_id) WHERE transaction_id IS NOT NULL;
-ALTER TABLE cart ADD CONSTRAINT uk_cart_user_ticket UNIQUE (user_id, ticket_id);
-ALTER TABLE notification_preference ADD CONSTRAINT uk_notification_preference_user UNIQUE (user_id);
+CREATE UNIQUE INDEX uk_payment_transaction_id ON payments(transaction_id) WHERE transaction_id IS NOT NULL;
+ALTER TABLE carts ADD CONSTRAINT uk_cart_user_ticket UNIQUE (user_id, ticket_id);
+ALTER TABLE notification_preferences ADD CONSTRAINT uk_notification_preference_user UNIQUE (user_id);
 
 -- ============================================================================
 -- CHECK CONSTRAINTS
 -- ============================================================================
 
 -- Ticket constraints
-ALTER TABLE ticket ADD CONSTRAINT chk_ticket_price_non_negative CHECK (price >= 0);
-ALTER TABLE ticket ADD CONSTRAINT chk_ticket_end_after_start CHECK (end_time IS NULL OR start_time IS NULL OR end_time > start_time);
+ALTER TABLE tickets ADD CONSTRAINT chk_ticket_price_non_negative CHECK (price >= 0);
+ALTER TABLE tickets ADD CONSTRAINT chk_ticket_end_after_start CHECK (end_time IS NULL OR start_time IS NULL OR end_time > start_time);
 
 -- Order constraints
-ALTER TABLE "order" ADD CONSTRAINT chk_order_total_non_negative CHECK (total_amount >= 0);
+ALTER TABLE orders ADD CONSTRAINT chk_order_total_non_negative CHECK (total_amount >= 0);
 
 -- Payment constraints
-ALTER TABLE payment ADD CONSTRAINT chk_payment_amount_positive CHECK (amount > 0);
+ALTER TABLE payments ADD CONSTRAINT chk_payment_amount_positive CHECK (amount > 0);
 
 -- Cart constraints
-ALTER TABLE cart ADD CONSTRAINT chk_cart_quantity_positive CHECK (quantity > 0);
+ALTER TABLE carts ADD CONSTRAINT chk_cart_quantity_positive CHECK (quantity > 0);
 
 -- OrderItem constraints
-ALTER TABLE order_item ADD CONSTRAINT chk_order_item_quantity_positive CHECK (quantity > 0);
-ALTER TABLE order_item ADD CONSTRAINT chk_order_item_price_non_negative CHECK (price >= 0);
+ALTER TABLE order_items ADD CONSTRAINT chk_order_item_quantity_positive CHECK (quantity > 0);
+ALTER TABLE order_items ADD CONSTRAINT chk_order_item_price_non_negative CHECK (price >= 0);
 
 -- Event constraints
-ALTER TABLE event ADD CONSTRAINT chk_event_end_after_start CHECK (end_time > start_time);
+ALTER TABLE events ADD CONSTRAINT chk_event_end_after_start CHECK (end_time > start_time);
 
 -- NotificationPreference constraints
-ALTER TABLE notification_preference ADD CONSTRAINT chk_notification_preference_at_least_one_enabled 
+ALTER TABLE notification_preferences ADD CONSTRAINT chk_notification_preference_at_least_one_enabled 
     CHECK (email_enabled = TRUE OR sms_enabled = TRUE OR push_enabled = TRUE);
 
 -- UserNotification constraints
-ALTER TABLE user_notification ADD CONSTRAINT chk_user_notification_read_at 
+ALTER TABLE user_notifications ADD CONSTRAINT chk_user_notification_read_at 
     CHECK ((status = 'READ' AND read_at IS NOT NULL) OR (status = 'UNREAD' AND read_at IS NULL));
 
 -- ============================================================================
@@ -263,51 +263,51 @@ CREATE INDEX idx_user_status ON users(status);
 CREATE INDEX idx_user_role ON users(role);
 
 -- Category indexes
-CREATE INDEX idx_category_name ON category(name);
+CREATE INDEX idx_category_name ON categories(name);
 
 -- Address indexes
-CREATE INDEX idx_address_city_state ON address(city, state);
+CREATE INDEX idx_address_city_state ON addresses(city, state);
 
 -- Event indexes
-CREATE INDEX idx_event_organizer ON event(organizer_id);
-CREATE INDEX idx_event_category ON event(category_id);
-CREATE INDEX idx_event_start_time ON event(start_time);
-CREATE INDEX idx_event_marketing ON event(marketing_enabled);
+CREATE INDEX idx_event_organizer ON events(organizer_id);
+CREATE INDEX idx_event_category ON events(category_id);
+CREATE INDEX idx_event_start_time ON events(start_time);
+CREATE INDEX idx_event_marketing ON events(marketing_enabled);
 
 -- Ticket indexes
-CREATE INDEX idx_ticket_event ON ticket(event_id);
-CREATE INDEX idx_ticket_status ON ticket(ticket_status);
-CREATE INDEX idx_ticket_type ON ticket(ticket_type);
-CREATE INDEX idx_ticket_purchaser ON ticket(purchaser_id);
+CREATE INDEX idx_ticket_event ON tickets(event_id);
+CREATE INDEX idx_ticket_status ON tickets(ticket_status);
+CREATE INDEX idx_ticket_type ON tickets(ticket_type);
+CREATE INDEX idx_ticket_purchaser ON tickets(purchaser_id);
 
 -- Cart indexes
-CREATE INDEX idx_cart_user ON cart(user_id);
-CREATE INDEX idx_cart_ticket ON cart(ticket_id);
+CREATE INDEX idx_cart_user ON carts(user_id);
+CREATE INDEX idx_cart_ticket ON carts(ticket_id);
 
 -- Order indexes
-CREATE INDEX idx_order_user ON "order"(user_id);
-CREATE INDEX idx_order_status ON "order"(status);
-CREATE INDEX idx_order_number ON "order"(order_number);
-CREATE INDEX idx_order_date ON "order"(order_date);
+CREATE INDEX idx_order_user ON orders(user_id);
+CREATE INDEX idx_order_status ON orders(status);
+CREATE INDEX idx_order_number ON orders(order_number);
+CREATE INDEX idx_order_date ON orders(order_date);
 
 -- OrderItem indexes
-CREATE INDEX idx_order_item_order ON order_item(order_id);
-CREATE INDEX idx_order_item_ticket ON order_item(ticket_id);
+CREATE INDEX idx_order_item_order ON order_items(order_id);
+CREATE INDEX idx_order_item_ticket ON order_items(ticket_id);
 
 -- Payment indexes
-CREATE INDEX idx_payment_order ON payment(order_id);
-CREATE INDEX idx_payment_status ON payment(status);
-CREATE INDEX idx_payment_transaction_id ON payment(transaction_id);
-CREATE INDEX idx_payment_date ON payment(payment_date);
+CREATE INDEX idx_payment_order ON payments(order_id);
+CREATE INDEX idx_payment_status ON payments(status);
+CREATE INDEX idx_payment_transaction_id ON payments(transaction_id);
+CREATE INDEX idx_payment_date ON payments(payment_date);
 
 -- Notification indexes
-CREATE INDEX idx_notification_type ON notification(type);
-CREATE INDEX idx_notification_delivery ON notification(delivery_type);
+CREATE INDEX idx_notification_type ON notifications(type);
+CREATE INDEX idx_notification_delivery ON notifications(delivery_type);
 
 -- UserNotification indexes
-CREATE INDEX idx_user_notification_user ON user_notification(user_id);
-CREATE INDEX idx_user_notification_status ON user_notification(status);
-CREATE INDEX idx_user_notification_created ON user_notification(created_at);
+CREATE INDEX idx_user_notification_user ON user_notifications(user_id);
+CREATE INDEX idx_user_notification_status ON user_notifications(status);
+CREATE INDEX idx_user_notification_created ON user_notifications(created_at);
 
 -- NotificationPreference index (unique index already created via unique constraint)
 -- idx_notification_preference_user is handled by unique constraint

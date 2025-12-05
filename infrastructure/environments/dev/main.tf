@@ -222,29 +222,7 @@ module "cognito" {
   tags = var.tags
 }
 
-# Lambda Secret Rotation Module (if image is provided)
-module "lambda_secret_rotation" {
-  count  = var.secret_rotation_lambda_image != "" ? 1 : 0
-  source = "../../modules/lambda-secret-rotation"
-
-  name_prefix = var.name_prefix
-  image_uri   = var.secret_rotation_lambda_image
-  secret_arn  = module.secrets_manager.secret_arns["database"]
-
-  vpc_config = {
-    vpc_id                 = module.vpc.vpc_id
-    subnet_ids             = module.vpc.private_subnet_ids
-    rds_security_group_ids = [module.vpc.rds_security_group_id]
-  }
-
-  timeout     = 60
-  memory_size = 256
-  db_sslmode  = "require"
-
-  tags = var.tags
-
-  depends_on = [module.secrets_manager]
-}
+# Lambda Secret Rotation Module removed - RDS now manages credential rotation natively
 
 # Lambda Order Processor Module (if image is provided)
 module "lambda_order_processor" {
@@ -259,9 +237,10 @@ module "lambda_order_processor" {
   payment_queue_arn = module.sqs_payment.queue_arn
   payment_queue_url = module.sqs_payment.queue_url
 
-  database_url      = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${module.rds.db_instance_name}"
-  database_username = module.rds.db_instance_username
-  database_password = module.rds.db_password
+  database_secret_arn = module.rds.db_master_user_secret_arn
+  database_host       = module.rds.db_instance_address
+  database_port       = module.rds.db_instance_port
+  database_name       = module.rds.db_instance_name
 
   aws_region = var.aws_region
 
@@ -296,11 +275,12 @@ module "lambda_payment_processor" {
   notification_queue_arn = module.sqs_notification.queue_arn
   notification_queue_url = module.sqs_notification.queue_url
 
-  database_url      = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${module.rds.db_instance_name}"
-  database_username = module.rds.db_instance_username
-  database_password = module.rds.db_password
+  database_secret_arn = module.rds.db_master_user_secret_arn
+  database_host       = module.rds.db_instance_address
+  database_port       = module.rds.db_instance_port
+  database_name       = module.rds.db_instance_name
 
-  stripe_secret_key_arn = try(module.secrets_manager.secret_arns["stripe"], null)
+  stripe_secret_key = var.stripe_secret_key
 
   aws_region = var.aws_region
 
@@ -319,8 +299,7 @@ module "lambda_payment_processor" {
     module.sqs_payment,
     module.sqs_notification,
     module.rds,
-    module.vpc,
-    module.secrets_manager
+    module.vpc
   ]
 }
 
@@ -334,9 +313,10 @@ module "lambda_notification_sender" {
 
   notification_queue_arn = module.sqs_notification.queue_arn
 
-  database_url      = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${module.rds.db_instance_name}"
-  database_username = module.rds.db_instance_username
-  database_password = module.rds.db_password
+  database_secret_arn = module.rds.db_master_user_secret_arn
+  database_host       = module.rds.db_instance_address
+  database_port       = module.rds.db_instance_port
+  database_name       = module.rds.db_instance_name
 
   ses_sender_email = var.ses_sender_email
 
@@ -360,48 +340,10 @@ module "lambda_notification_sender" {
   ]
 }
 
-# Secrets Manager Module
-module "secrets_manager" {
-  source = "../../modules/secrets-manager"
-
-  name_prefix = var.name_prefix
-
-  secrets = {
-    database = {
-      name        = "database-credentials"
-      description = "RDS PostgreSQL database credentials"
-      secret_key_value = {
-        host     = module.rds.db_instance_endpoint
-        username = module.rds.db_instance_username
-        password = module.rds.db_password
-        dbname   = module.rds.db_instance_name
-        port     = tostring(module.rds.db_instance_port)
-      }
-      rotation_enabled                = var.secret_rotation_lambda_image != "" ? true : false
-      rotation_lambda_arn             = var.secret_rotation_lambda_image != "" ? module.lambda_secret_rotation[0].lambda_function_arn : null
-      rotate_immediately              = false
-      rotation_automatically_after_days = 30
-    }
-    jwt = {
-      name        = "jwt-secret"
-      description = "JWT secret key for token signing and verification"
-      secret_string = var.jwt_secret != "" ? var.jwt_secret : null
-      rotation_enabled = false
-    }
-    stripe = {
-      name        = "stripe-api-keys"
-      description = "Stripe API keys for payment processing"
-      secret_key_value = {
-        secret_key      = var.stripe_secret_key != "" ? var.stripe_secret_key : "sk_test_placeholder"
-        publishable_key = var.stripe_publishable_key != "" ? var.stripe_publishable_key : "pk_test_placeholder"
-        webhook_secret  = var.stripe_webhook_secret != "" ? var.stripe_webhook_secret : "whsec_test_placeholder"
-      }
-      rotation_enabled = false
-    }
-  }
-
-  tags = var.tags
-}
+# Secrets Manager Module removed
+# - Database secret: Now managed automatically by RDS via manage_master_user_password
+# - Stripe secrets: Passed as environment variables from Terraform variables
+# - JWT secret: Not used (Cognito handles JWT token validation)
 
 # ALB Module
 module "alb" {
@@ -458,12 +400,16 @@ module "ecs_eventpro_api" {
       value = "dev"
     },
     {
-      name  = "DB_URL"
-      value = "jdbc:postgresql://${module.rds.db_instance_endpoint}/${var.db_name}"
+      name  = "DB_HOST"
+      value = module.rds.db_instance_address
     },
     {
-      name  = "DB_USERNAME"
-      value = module.rds.db_instance_username
+      name  = "DB_PORT"
+      value = tostring(module.rds.db_instance_port)
+    },
+    {
+      name  = "DB_NAME"
+      value = module.rds.db_instance_name
     },
     {
       name  = "COGNITO_USER_POOL_ID"
@@ -479,11 +425,19 @@ module "ecs_eventpro_api" {
     },
     {
       name  = "DB_SECRET_ARN"
-      value = module.secrets_manager.secret_arns["database"]
+      value = module.rds.db_master_user_secret_arn
     },
     {
-      name  = "STRIPE_SECRET_ARN"
-      value = module.secrets_manager.secret_arns["stripe"]
+      name  = "STRIPE_SECRET_KEY"
+      value = var.stripe_secret_key
+    },
+    {
+      name  = "STRIPE_PUBLISHABLE_KEY"
+      value = var.stripe_publishable_key
+    },
+    {
+      name  = "STRIPE_WEBHOOK_SECRET"
+      value = var.stripe_webhook_secret
     },
     {
       name  = "S3_BUCKET_NAME"
@@ -502,32 +456,15 @@ module "ecs_eventpro_api" {
       value = module.sqs_notification.queue_url
     },
     {
-      name  = "USE_SECRETS_MANAGER"
-      value = "true"
+      name  = "JWT_SECRET"
+      value = var.jwt_secret
     }
   ]
 
   # Secrets from AWS Secrets Manager
-  # ECS will inject these as environment variables
-  # For JSON secrets, ECS extracts the specific key using the format: arn:key::
-  secrets = [
-    {
-      name      = "DB_PASSWORD"
-      valueFrom = "${module.secrets_manager.secret_arns["database"]}:password::"
-    },
-    {
-      name      = "STRIPE_SECRET_KEY"
-      valueFrom = "${module.secrets_manager.secret_arns["stripe"]}:secret_key::"
-    },
-    {
-      name      = "STRIPE_PUBLISHABLE_KEY"
-      valueFrom = "${module.secrets_manager.secret_arns["stripe"]}:publishable_key::"
-    },
-    {
-      name      = "STRIPE_WEBHOOK_SECRET"
-      valueFrom = "${module.secrets_manager.secret_arns["stripe"]}:webhook_secret::"
-    }
-  ]
+  # Note: DB_USERNAME and DB_PASSWORD are fetched directly in SecretsManagerDataSourceConfig, not via ECS secrets
+  # Stripe secrets are now passed as environment variables from Terraform variables, not from Secrets Manager
+  secrets = []
 
   # Task role policy for AWS service access
   task_role_policy = jsonencode({
@@ -577,8 +514,7 @@ module "ecs_eventpro_api" {
           "secretsmanager:GetSecretValue"
         ]
         Resource = [
-          module.secrets_manager.secret_arns["database"],
-          module.secrets_manager.secret_arns["stripe"]
+          module.rds.db_master_user_secret_arn
         ]
       }
     ]

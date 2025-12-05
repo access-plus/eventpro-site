@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.event.ticket.service.impl;
 
-import com.accessplus.eventpro.event.config.S3Config;
+import com.accessplus.eventpro.event.config.S3AclConfig.S3AclProperties;
+import com.accessplus.eventpro.event.config.S3Properties;
 import com.accessplus.eventpro.event.ticket.service.QRCodeService;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -49,7 +50,8 @@ public class QRCodeServiceImpl implements QRCodeService {
     private static final String S3_KEY_PREFIX = "qr-codes/";
 
     private final S3Client s3Client;
-    private final S3Config s3Config;
+    private final S3Properties s3Properties;
+    private final S3AclProperties s3AclProperties;
     private final QRCodeWriter qrCodeWriter = new QRCodeWriter();
 
     /**
@@ -103,13 +105,19 @@ public class QRCodeServiceImpl implements QRCodeService {
 
         try {
             // Build PutObjectRequest
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(s3Config.getBucketName())
+            // ACL usage is determined by profile-specific configuration
+            PutObjectRequest.Builder putObjectRequestBuilder = PutObjectRequest.builder()
+                    .bucket(s3Properties.getBucketName())
                     .key(s3Key)
                     .contentType(QR_CODE_CONTENT_TYPE)
-                    .contentLength((long) qrCodeImage.length)
-                    .acl(ObjectCannedACL.PUBLIC_READ) // Make QR code publicly readable
-                    .build();
+                    .contentLength((long) qrCodeImage.length);
+
+            // Set ACL based on profile configuration (disabled for local/LocalStack)
+            if (s3AclProperties.isUseAcl()) {
+                putObjectRequestBuilder.acl(ObjectCannedACL.PUBLIC_READ);
+            }
+
+            PutObjectRequest putObjectRequest = putObjectRequestBuilder.build();
 
             // Upload QR code to S3
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(qrCodeImage));
@@ -132,17 +140,22 @@ public class QRCodeServiceImpl implements QRCodeService {
     public String getQRCodeUrl(UUID ticketId) {
         String s3Key = S3_KEY_PREFIX + ticketId + ".png";
         
-        // Check if using custom endpoint (LocalStack)
-        String endpoint = s3Config.getS3Endpoint();
-        if (endpoint != null && !endpoint.isEmpty()) {
-            // LocalStack or custom endpoint: http://localhost:4566/bucket-name/qr-codes/{ticketId}.png
-            String baseUrl = endpoint.replace("/localstack", "");
-            return String.format("%s/%s/%s", baseUrl, s3Config.getBucketName(), s3Key);
+        String endpoint = s3Properties.getEndpoint();
+        String publicEndpoint = s3Properties.getPublicEndpoint();
+        
+        // Use publicEndpoint if configured (for frontend-accessible URLs), otherwise use endpoint
+        String urlEndpoint = (publicEndpoint != null && !publicEndpoint.isEmpty()) 
+                ? publicEndpoint 
+                : endpoint;
+        
+        if (urlEndpoint != null && !urlEndpoint.isEmpty()) {
+            // LocalStack format: http://localhost:4566/bucket-name/qr-codes/{ticketId}.png
+            return String.format("%s/%s/%s", urlEndpoint, s3Properties.getBucketName(), s3Key);
         } else {
             // AWS S3: https://bucket-name.s3.region.amazonaws.com/qr-codes/{ticketId}.png
             String region = s3Client.serviceClientConfiguration().region().id();
             return String.format("https://%s.s3.%s.amazonaws.com/%s", 
-                    s3Config.getBucketName(), region, s3Key);
+                    s3Properties.getBucketName(), region, s3Key);
         }
     }
 

@@ -27,5 +27,17 @@ public interface CognitoAdminServiceInterface {
      * @return Map of user attributes
      */
     Map<String, String> getUserAttributes(String cognitoUserId);
+    
+    /**
+     * Gets user attributes from Cognito using username.
+     * 
+     * <p>This method uses the username (email) for AdminGetUser API call, which is required
+     * when users sign up with email as username. Falls back to cognitoUserId if username is null.
+     * 
+     * @param username The Cognito username (typically email when users sign up with email)
+     * @param cognitoUserId AWS Cognito user ID (sub claim) - used as fallback if username is null
+     * @return Map of user attributes
+     */
+    Map<String, String> getUserAttributes(String username, String cognitoUserId);
 }
 

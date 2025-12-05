@@ -85,6 +85,19 @@ terraform output -json | jq -r 'to_entries[] | "export \(.key | ascii_upcase)=\(
 
 ## Configuration
 
+### Terraform Variables
+
+**No variables are required** - all variables have defaults. The configuration works out of the box.
+
+If you want to customize, you can create a `terraform.tfvars` file (see `terraform.tfvars.example`):
+
+```hcl
+# Optional: Override defaults
+aws_region = "us-east-1"
+environment = "local"
+name_prefix = "eventpro-local"
+```
+
 ### Environment Variables
 
 The application should use these LocalStack endpoints:

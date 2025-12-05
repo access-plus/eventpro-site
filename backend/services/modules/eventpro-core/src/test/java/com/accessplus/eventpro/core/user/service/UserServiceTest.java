@@ -19,7 +19,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -78,7 +77,7 @@ class UserServiceTest {
 
         // When
         UserEntity result = userService.createUserFromCognito(
-                testCognitoUserId, testEmail, "John", "Doe", "+1234567890");
+                testCognitoUserId, testEmail, "John", "Doe", "+1234567890", "USER");
 
         // Then
         assertThat(result).isNotNull();
@@ -103,7 +102,7 @@ class UserServiceTest {
 
         // When/Then
         assertThatThrownBy(() -> userService.createUserFromCognito(
-                testCognitoUserId, testEmail, "John", "Doe", "+1234567890"))
+                testCognitoUserId, testEmail, "John", "Doe", "+1234567890", "USER"))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("cognitoUserId")
                 .hasMessageContaining(testCognitoUserId);
@@ -122,7 +121,7 @@ class UserServiceTest {
 
         // When/Then
         assertThatThrownBy(() -> userService.createUserFromCognito(
-                testCognitoUserId, testEmail, "John", "Doe", "+1234567890"))
+                testCognitoUserId, testEmail, "John", "Doe", "+1234567890", "USER"))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("email")
                 .hasMessageContaining(testEmail);
@@ -146,7 +145,7 @@ class UserServiceTest {
 
         // When
         UserEntity result = userService.createUserFromCognito(
-                testCognitoUserId, testEmail, "John", "Doe", null);
+                testCognitoUserId, testEmail, "John", "Doe", null, "USER");
 
         // Then
         assertThat(result).isNotNull();
@@ -343,7 +342,7 @@ class UserServiceTest {
 
         // When - create with empty string phone number
         UserEntity result = userService.createUserFromCognito(
-                testCognitoUserId, testEmail, "John", "Doe", "");
+                testCognitoUserId, testEmail, "John", "Doe", "", "USER");
 
         // Then
         assertThat(result).isNotNull();

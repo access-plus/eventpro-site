@@ -70,7 +70,8 @@ resource "aws_iam_role_policy" "sqs" {
   })
 }
 
-# IAM Policy for Secrets Manager (for Stripe secret key)
+# IAM Policy for Secrets Manager (for RDS-managed database secret only)
+# Stripe secrets are now passed as environment variables
 resource "aws_iam_role_policy" "secrets_manager" {
   name = "${var.name_prefix}-payment-processor-secrets-policy"
   role = aws_iam_role.lambda.id
@@ -84,7 +85,9 @@ resource "aws_iam_role_policy" "secrets_manager" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = var.stripe_secret_key_arn != null ? [var.stripe_secret_key_arn] : []
+        Resource = [
+          var.database_secret_arn
+        ]
       }
     ]
   })
@@ -152,13 +155,14 @@ resource "aws_lambda_function" "payment_processor" {
   # Environment variables
   environment {
     variables = {
-      DB_URL                    = var.database_url
-      DB_USERNAME               = var.database_username
-      DB_PASSWORD               = var.database_password
-      STRIPE_SECRET_KEY_ARN     = var.stripe_secret_key_arn != null ? var.stripe_secret_key_arn : ""
+      DB_HOST                    = var.database_host
+      DB_PORT                    = tostring(var.database_port)
+      DB_NAME                    = var.database_name
+      DB_SECRET_ARN              = var.database_secret_arn
+      STRIPE_SECRET_KEY          = var.stripe_secret_key != null ? var.stripe_secret_key : ""
       SQS_NOTIFICATION_QUEUE_URL = var.notification_queue_url
-      AWS_REGION                = var.aws_region
-      QUARKUS_LOG_LEVEL         = var.log_level
+      AWS_REGION                 = var.aws_region
+      QUARKUS_LOG_LEVEL          = var.log_level
     }
   }
 
