@@ -15,8 +15,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } fro
 
 const Organizer = () => {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
-  const [qrDialogOpen, setQrDialogOpen] = useState(false);
-  const [selectedQR, setSelectedQR] = useState<string | null>(null);
+  // QR code functionality disabled - endpoint not implemented in backend
+  // const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  // const [selectedQR, setSelectedQR] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: events, isLoading: eventsLoading } = useQuery({
@@ -48,15 +49,17 @@ const Organizer = () => {
     },
   });
 
-  const handleGenerateQR = async (ticketId: string) => {
-    try {
-      const { qrCode } = await apiService.generateTicketQR(ticketId);
-      setSelectedQR(qrCode);
-      setQrDialogOpen(true);
-    } catch (error) {
-      toast.error("Failed to generate QR code");
-    }
-  };
+  // QR code generation endpoint not implemented in backend
+  // QR codes are included in ticket PDF downloads
+  // const handleGenerateQR = async (ticketId: string) => {
+  //   try {
+  //     const { qrCode } = await apiService.generateTicketQR(ticketId);
+  //     setSelectedQR(qrCode);
+  //     setQrDialogOpen(true);
+  //   } catch (error) {
+  //     toast.error("Failed to generate QR code");
+  //   }
+  // };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -360,13 +363,14 @@ const Organizer = () => {
                                       Check In
                                     </Button>
                                   )}
-                                  <Button
+                                  {/* QR code generation endpoint not implemented in backend */}
+                                  {/* <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={() => handleGenerateQR(attendee.ticketId)}
                                   >
                                     <QrCode className="h-4 w-4" />
-                                  </Button>
+                                  </Button> */}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -388,7 +392,8 @@ const Organizer = () => {
           </TabsContent>
         </Tabs>
 
-        <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+        {/* QR code dialog - endpoint not implemented in backend */}
+        {/* <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Ticket QR Code</DialogTitle>
@@ -402,7 +407,7 @@ const Organizer = () => {
               </div>
             )}
           </DialogContent>
-        </Dialog>
+        </Dialog> */}
       </div>
     </div>
   );

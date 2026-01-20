@@ -7,9 +7,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-/**
- * Response DTO for admin platform statistics.
- */
 @Data
 @Builder
 @NoArgsConstructor

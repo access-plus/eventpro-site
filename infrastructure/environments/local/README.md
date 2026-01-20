@@ -57,11 +57,6 @@ This configuration creates the following resources in LocalStack:
 ### S3 Buckets
 - `eventpro-images-local` - Event images storage (with CORS enabled for localhost)
 
-### Cognito
-- User Pool: `eventpro-local-user-pool`
-- User Pool Client: `eventpro-local-client`
-- User Groups: `ADMIN`, `ORGANIZER`, `USER`
-
 ### Secrets Manager
 - `eventpro-db-secret` - Database credentials
 - `eventpro-jwt-secret` - JWT signing key
@@ -73,7 +68,6 @@ After applying, Terraform outputs include:
 
 - SQS queue URLs
 - S3 bucket name
-- Cognito User Pool ID and Client ID
 - Secrets Manager ARNs
 
 Use these values to configure your application:
@@ -105,7 +99,6 @@ The application should use these LocalStack endpoints:
 - **SQS**: `http://localhost:4566`
 - **S3**: `http://localhost:4566`
 - **Secrets Manager**: `http://localhost:4566`
-- **Cognito**: `http://localhost:4566`
 
 ### Application Configuration
 
@@ -120,8 +113,6 @@ aws:
   secrets:
     manager:
       endpoint: http://localhost:4566
-  cognito:
-    endpoint: http://localhost:4566
 ```
 
 ## Testing LocalStack Resources
@@ -149,16 +140,6 @@ aws --endpoint-url=http://localhost:4566 s3 cp test.jpg \
 
 # List objects
 aws --endpoint-url=http://localhost:4566 s3 ls s3://eventpro-images-local/
-```
-
-### Cognito
-```bash
-# List user pools
-aws --endpoint-url=http://localhost:4566 cognito-idp list-user-pools --max-results 10
-
-# Get user pool details
-aws --endpoint-url=http://localhost:4566 cognito-idp describe-user-pool \
-  --user-pool-id $(terraform output -raw cognito_user_pool_id)
 ```
 
 ### Secrets Manager

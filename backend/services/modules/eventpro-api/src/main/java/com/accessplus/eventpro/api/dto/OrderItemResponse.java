@@ -10,17 +10,6 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/**
- * Response DTO for an order item.
- * 
- * <p>Fields:
- * <ul>
- *   <li>id - Order item UUID</li>
- *   <li>quantity - Quantity of tickets</li>
- *   <li>price - Price per ticket at time of purchase</li>
- *   <li>ticket - TicketResponse for the ticket in this order item</li>
- * </ul>
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -33,9 +22,6 @@ public class OrderItemResponse {
     private BigDecimal price;
     private TicketResponse ticket;
     
-    /**
-     * Creates an OrderItemResponse from an OrderItemEntity.
-     */
     public static OrderItemResponse fromEntity(OrderItemEntity entity) {
         if (entity == null) {
             return null;

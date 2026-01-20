@@ -1,11 +1,11 @@
 # EventPro - Event Ticketing Platform
 
-A modern, full-featured event ticketing platform built with React, TypeScript, and AWS Cognito authentication.
+A modern, full-featured event ticketing platform built with React, TypeScript, and JWT authentication.
 
 ## 🚀 Features
 
 - **Multi-Role Authentication**: Support for three user roles (USER, ORGANIZER, ADMIN)
-- **AWS Cognito Integration**: Secure authentication with OTP email verification
+- **JWT Authentication**: Secure authentication with JWT tokens
 - **Password Reset Flow**: Forgot password with email verification and secure reset
 - **Password Strength Validator**: Real-time password strength checking with visual feedback
 - **Profile Management**: Edit user profiles with profile picture upload
@@ -47,7 +47,6 @@ A modern, full-featured event ticketing platform built with React, TypeScript, a
 ### Prerequisites
 
 - Node.js 18+ and npm
-- AWS Cognito User Pool configured
 - EventPro backend API running
 
 ### Environment Variables
@@ -57,10 +56,6 @@ Create a `.env` file in the root directory with the following variables:
 ```env
 # API Configuration
 VITE_API_BASE_URL=http://localhost:8080
-
-# AWS Cognito Configuration
-VITE_COGNITO_USER_POOL_ID=your-user-pool-id
-VITE_COGNITO_CLIENT_ID=your-client-id
 
 # Stripe Configuration (for payment processing)
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
@@ -74,8 +69,6 @@ VITE_RESEND_API_KEY=re_your_api_key_here
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `VITE_API_BASE_URL` | Yes | Backend API base URL (e.g., `http://localhost:8080` or `https://api.yourapp.com`) |
-| `VITE_COGNITO_USER_POOL_ID` | Yes | AWS Cognito User Pool ID for authentication |
-| `VITE_COGNITO_CLIENT_ID` | Yes | AWS Cognito App Client ID |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Yes | Stripe publishable key for payment processing |
 | `VITE_RESEND_API_KEY` | No | Resend API key for sending email notifications (optional) |
 
@@ -110,32 +103,30 @@ The app uses a comprehensive design system with:
 1. **Registration**: User creates account with email, password, and role selection
    - Password must meet complexity requirements (8+ chars, uppercase, lowercase, number, special char)
    - Real-time password strength indicator shown
-2. **OTP Verification**: User receives verification code via email from AWS Cognito
+2. **Email Verification**: User receives verification code via email from backend
 3. **Verification**: User enters code on verification page
 4. **Complete**: User redirected to login
 
 ### Login Flow
 
 1. **Login**: User authenticates with credentials
-2. **Cognito Auth**: AWS Cognito validates credentials and returns tokens
-3. **Sync**: Frontend calls `/api/v1/users/sync` to sync user data with backend database
-4. **Session**: Access token stored in localStorage for subsequent API calls
-5. **Redirect**: User redirected to profile page
+2. **Backend Auth**: Backend validates credentials and returns JWT token
+3. **Session**: Access token stored in localStorage for subsequent API calls
+4. **Redirect**: User redirected to profile page
 
 ### Forgot Password Flow
 
 1. **Request Reset**: User enters email on forgot password page
-2. **Cognito Sends Code**: AWS Cognito sends verification code via email
+2. **Backend Sends Code**: Backend sends verification code via email
 3. **Reset Password**: User enters code and new password
-4. **Optional Email**: Backend can send confirmation email via `/api/v1/auth/send-reset-email`
-5. **Complete**: User redirected to login with new password
+4. **Complete**: User redirected to login with new password
 
 ### Session Management
 
 - Access tokens stored in localStorage
 - Tokens automatically attached to API requests via Axios interceptor
 - 401 responses trigger automatic logout and redirect to login
-- No auto-refresh implemented (tokens expire per Cognito configuration)
+- Token expiration handled by backend JWT configuration
 
 ## 📱 Component Structure
 
@@ -149,7 +140,6 @@ src/
 │   └── AuthContext.tsx      # Global auth state management
 ├── lib/
 │   ├── api.ts              # API service layer
-│   ├── cognito.ts          # AWS Cognito integration
 │   └── utils.ts            # Utility functions
 ├── pages/
 │   ├── Home.tsx            # Landing page
@@ -189,7 +179,7 @@ The frontend expects the following backend API endpoints to be implemented:
 
 ```
 POST /api/v1/users/sync
-- Syncs user data from Cognito to backend database
+- User data stored in backend database
 - Body: None (uses JWT token)
 - Response: { data: User }
 
@@ -464,4 +454,4 @@ Proprietary - EventPro Team
 
 ---
 
-Built with ❤️ using React, TypeScript, Tailwind CSS, and AWS Cognito
+Built with ❤️ using React, TypeScript, Tailwind CSS, and JWT authentication

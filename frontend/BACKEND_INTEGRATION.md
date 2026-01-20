@@ -193,17 +193,17 @@ CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_status ON users(status);
 ```
 
-### AWS Cognito Integration
+### JWT Authentication Integration
 
-Since the application uses AWS Cognito for authentication:
+Since the application uses JWT tokens for authentication:
 
-1. **User Sync:** When users sign up via Cognito, sync their data to your database
+1. **User Management:** Users are created and managed in the database
 2. **Status Management:**
-   - `SUSPENDED` users should have their Cognito account disabled
-   - Use Cognito's `AdminDisableUser` API
+   - `SUSPENDED` users cannot authenticate (backend validates status)
+   - User status is stored in the database
 3. **Role Storage:**
-   - Store roles in your database, not in Cognito custom attributes
-   - Roles are business logic, not authentication data
+   - Roles are stored in the database and included in JWT tokens
+   - Roles are business logic and managed by the backend
 
 ### Error Responses
 

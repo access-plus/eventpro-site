@@ -27,12 +27,6 @@ public class SQSConfig {
     @Value("${aws.sqs.notificationQueueUrl:}")
     private String notificationQueueUrl;
 
-    /**
-     * Creates and configures SqsClient bean for AWS SQS operations.
-     * Supports both AWS and LocalStack endpoints.
-     *
-     * @return configured SqsClient instance
-     */
     @Bean
     public SqsClient sqsClient() {
         var builder = SqsClient.builder()

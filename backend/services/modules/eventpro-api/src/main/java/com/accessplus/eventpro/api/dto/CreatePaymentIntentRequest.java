@@ -9,9 +9,6 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-/**
- * Request DTO for creating a payment intent.
- */
 @Data
 @Builder
 @NoArgsConstructor

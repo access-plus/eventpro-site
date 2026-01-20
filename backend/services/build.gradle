@@ -93,6 +93,7 @@ subprojects {
         awsSdkVersion = '2.38.7'
         lombokVersion = '1.18.34'
         postgresqlVersion = '42.7.6'
+        jjwtVersion = '0.12.6'
     }
 }
 

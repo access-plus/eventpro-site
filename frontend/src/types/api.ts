@@ -111,30 +111,25 @@ export interface UpdateCartRequest {
 }
 
 export interface ApiResponse<T> {
-  status: string;
-  message: string;
+  success: boolean;
+  message?: string;
   data: T;
-  timestamp: string;
+  timestamp?: string;
 }
 
-export interface LoginResponse {
+export interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
   expiresIn: number;
+  user: User;
 }
 
 export interface SignUpRequest {
   email: string;
   password: string;
-  firstName?: string;
-  lastName?: string;
+  firstName: string;
+  lastName: string;
   phoneNumber?: string;
   role?: UserRole;
-}
-
-export interface VerifyEmailRequest {
-  email: string;
-  code: string;
 }
 
 export interface LoginRequest {

@@ -56,26 +56,6 @@ output "s3_images_bucket_arn" {
   value       = aws_s3_bucket.images.arn
 }
 
-output "cognito_user_pool_id" {
-  description = "Cognito User Pool ID"
-  value       = try(aws_cognito_user_pool.main.id, null)
-}
-
-output "cognito_user_pool_arn" {
-  description = "Cognito User Pool ARN"
-  value       = try(aws_cognito_user_pool.main.arn, null)
-}
-
-output "cognito_user_pool_client_id" {
-  description = "Cognito User Pool Client ID"
-  value       = try(aws_cognito_user_pool_client.main.id, null)
-}
-
-output "cognito_user_pool_domain" {
-  description = "Cognito User Pool Domain"
-  value       = try(aws_cognito_user_pool.main.domain, null)
-}
-
 # Lambda Function Outputs
 output "lambda_order_processor_arn" {
   description = "Order Processor Lambda Function ARN"
@@ -134,8 +114,5 @@ output "environment_variables" {
     NOTIFICATION_QUEUE_URL = aws_sqs_queue.notification_queue.url
     NOTIFICATION_QUEUE_ARN = aws_sqs_queue.notification_queue.arn
     S3_BUCKET_NAME         = aws_s3_bucket.images.id
-    COGNITO_USER_POOL_ID   = try(aws_cognito_user_pool.main.id, null)
-    COGNITO_CLIENT_ID      = try(aws_cognito_user_pool_client.main.id, null)
   }
 }
-

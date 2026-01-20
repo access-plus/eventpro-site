@@ -51,10 +51,10 @@ CREATE TABLE categories (
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255),
     phone_number VARCHAR(20),
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    cognito_user_id VARCHAR(255) NOT NULL,
     bio TEXT,
     location VARCHAR(255),
     profile_picture_url VARCHAR(500),
@@ -211,7 +211,6 @@ CREATE TABLE notification_preferences (
 -- ============================================================================
 
 ALTER TABLE users ADD CONSTRAINT uk_user_email UNIQUE (email);
-ALTER TABLE users ADD CONSTRAINT uk_user_cognito_id UNIQUE (cognito_user_id);
 ALTER TABLE categories ADD CONSTRAINT uk_category_name UNIQUE (name);
 ALTER TABLE orders ADD CONSTRAINT uk_order_number UNIQUE (order_number);
 -- Partial unique index: transaction_id must be unique when provided (NOT NULL)
@@ -258,7 +257,6 @@ ALTER TABLE user_notifications ADD CONSTRAINT chk_user_notification_read_at
 
 -- User indexes
 CREATE INDEX idx_user_email ON users(email);
-CREATE INDEX idx_user_cognito_id ON users(cognito_user_id);
 CREATE INDEX idx_user_status ON users(status);
 CREATE INDEX idx_user_role ON users(role);
 
@@ -311,4 +309,3 @@ CREATE INDEX idx_user_notification_created ON user_notifications(created_at);
 
 -- NotificationPreference index (unique index already created via unique constraint)
 -- idx_notification_preference_user is handled by unique constraint
-

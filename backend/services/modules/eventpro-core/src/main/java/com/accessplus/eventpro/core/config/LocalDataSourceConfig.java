@@ -12,13 +12,6 @@ import org.springframework.context.annotation.Profile;
 
 import javax.sql.DataSource;
 
-/**
- * DataSource configuration for local development.
- * Reads database connection details from environment variables with sensible defaults.
- * 
- * This configuration is active only for the "local" profile.
- * It uses environment variables: DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD
- */
 @Configuration
 @Profile("local")
 public class LocalDataSourceConfig {
