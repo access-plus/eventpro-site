@@ -90,7 +90,7 @@ class ApiService {
 
 
   // Event endpoints
-  async getEvents(page = 0, size = 20, keyword?: string): Promise<Event[]> {
+  async getEvents(page = 1, size = 20, keyword?: string): Promise<Event[]> {
     let url = `/api/v1/events?page=${page}&size=${size}`;
     if (keyword) {
       url += `&keyword=${encodeURIComponent(keyword)}`;
@@ -114,18 +114,18 @@ class ApiService {
   }
 
   async getUserEvents(): Promise<Event[]> {
-    const response = await this.api.get<ApiResponse<{ content: Event[] }>>(
+    const response = await this.api.get<ApiResponse<Event[]>>(
       "/api/v1/events/my-events"
     );
-    return response.data.data.content;
+    return response.data.data;
   }
 
   // Ticket Type endpoints
   async getEventTicketTypes(eventId: string): Promise<TicketType[]> {
-    const response = await this.api.get<ApiResponse<{ content: TicketType[] }>>(
+    const response = await this.api.get<ApiResponse<TicketType[]>>(
       `/api/v1/events/${eventId}/ticket-types`
     );
-    return response.data.data.content;
+    return response.data.data;
   }
 
   // Cart endpoints
@@ -225,10 +225,10 @@ class ApiService {
   }
 
   async getEventSales(): Promise<any[]> {
-    const response = await this.api.get<ApiResponse<{ content: any[] }>>(
+    const response = await this.api.get<ApiResponse<any[]>>(
       "/api/v1/admin/event-sales"
     );
-    return response.data.data.content;
+    return response.data.data;
   }
 
   async getRevenueData(period: string = "30d"): Promise<any[]> {
@@ -255,10 +255,10 @@ class ApiService {
 
   // Organizer endpoints
   async getOrganizerEvents(): Promise<Event[]> {
-    const response = await this.api.get<ApiResponse<{ content: Event[] }>>(
+    const response = await this.api.get<ApiResponse<Event[]>>(
       "/api/v1/organizer/events"
     );
-    return response.data.data.content;
+    return response.data.data;
   }
 
   async getOrganizerEventStats(eventId: string): Promise<any> {
@@ -269,22 +269,24 @@ class ApiService {
   }
 
   async getEventAttendees(eventId: string): Promise<any[]> {
-    const response = await this.api.get<ApiResponse<{ content: any[] }>>(
+    const response = await this.api.get<ApiResponse<any[]>>(
       `/api/v1/organizer/events/${eventId}/attendees`
     );
-    return response.data.data.content;
+    return response.data.data;
   }
 
   async checkInAttendee(ticketId: string): Promise<void> {
     await this.api.post(`/api/v1/organizer/tickets/${ticketId}/check-in`);
   }
 
-  async generateTicketQR(ticketId: string): Promise<{ qrCode: string }> {
-    const response = await this.api.get<ApiResponse<{ qrCode: string }>>(
-      `/api/v1/organizer/tickets/${ticketId}/qr`
-    );
-    return response.data.data;
-  }
+  // Note: QR code generation endpoint not implemented in backend
+  // QR codes are included in ticket PDF downloads
+  // async generateTicketQR(ticketId: string): Promise<{ qrCode: string }> {
+  //   const response = await this.api.get<ApiResponse<{ qrCode: string }>>(
+  //     `/api/v1/organizer/tickets/${ticketId}/qr`
+  //   );
+  //   return response.data.data;
+  // }
 
   async createEvent(data: any): Promise<Event> {
     const response = await this.api.post<ApiResponse<Event>>(

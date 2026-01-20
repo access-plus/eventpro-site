@@ -111,10 +111,10 @@ export interface UpdateCartRequest {
 }
 
 export interface ApiResponse<T> {
-  status: string;
-  message: string;
+  success: boolean;
+  message?: string;
   data: T;
-  timestamp: string;
+  timestamp?: string;
 }
 
 export interface AuthResponse {
@@ -126,8 +126,8 @@ export interface AuthResponse {
 export interface SignUpRequest {
   email: string;
   password: string;
-  firstName?: string;
-  lastName?: string;
+  firstName: string;
+  lastName: string;
   phoneNumber?: string;
   role?: UserRole;
 }
