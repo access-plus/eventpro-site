@@ -63,13 +63,17 @@ public class JwtUtils {
     /**
      * Extracts the username from the current JWT token.
      * 
-     * <p>Cognito access tokens may include a 'username' claim that contains the actual username
-     * (email when users sign up with email as username). This is needed for AdminGetUser API calls.
+     * <p>Cognito access tokens from USER_PASSWORD_AUTH flow typically don't include user attributes
+     * like 'username' or 'email'. However, when users sign up with email as username, the email
+     * used for login IS the username in Cognito.
      * 
-     * <p>If the 'username' claim is not present, this method attempts to extract the email
-     * from the 'email' claim as a fallback, since email is often used as the username.
+     * <p>This method tries multiple claim names in order:
+     * 1. 'username' claim (if present)
+     * 2. 'cognito:username' claim (alternative format)
+     * 3. 'email' claim (when email is used as username)
+     * 4. 'preferred_username' claim (OIDC standard)
      * 
-     * @return Username from the JWT token (from 'username' or 'email' claim), or null if not present
+     * @return Username from the JWT token, or null if not present
      * @throws IllegalStateException if no authentication is present or token is invalid
      */
     public static String getCurrentUserUsername() {
@@ -81,13 +85,25 @@ public class JwtUtils {
             return username;
         }
         
+        // Try cognito:username claim (alternative format)
+        String cognitoUsername = jwt.getClaimAsString("cognito:username");
+        if (cognitoUsername != null && !cognitoUsername.trim().isEmpty()) {
+            return cognitoUsername;
+        }
+        
         // Fallback to email claim (when email is used as username)
         String email = jwt.getClaimAsString("email");
         if (email != null && !email.trim().isEmpty()) {
             return email;
         }
         
-        // Neither username nor email found
+        // Try preferred_username (OIDC standard)
+        String preferredUsername = jwt.getClaimAsString("preferred_username");
+        if (preferredUsername != null && !preferredUsername.trim().isEmpty()) {
+            return preferredUsername;
+        }
+        
+        // None of the claims found
         return null;
     }
     

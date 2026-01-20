@@ -4,6 +4,7 @@ import com.accessplus.eventpro.api.dto.ApiResponse;
 import com.accessplus.eventpro.api.dto.PromoteUserRequest;
 import com.accessplus.eventpro.api.dto.UpdateUserRequest;
 import com.accessplus.eventpro.api.dto.UserResponse;
+import com.accessplus.eventpro.shared.exception.ConflictException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
@@ -54,6 +55,47 @@ public class UserController extends BaseController {
     private final com.accessplus.eventpro.core.user.service.CognitoAdminServiceInterface cognitoAdminService;
     private final AWSS3ImageService imageService;
 
+    /**
+     * Creates a user entity from JWT token claims.
+     * This is the preferred method as it doesn't require AWS credentials for Cognito Admin API.
+     * 
+     * <p>Note: Cognito access tokens (from USER_PASSWORD_AUTH flow) do NOT contain user attributes
+     * like email, given_name, family_name. However, they DO contain the 'username' claim which
+     * is the email used for login. This method uses username as email when email claim is missing.
+     * 
+     * @param cognitoUserId The Cognito user ID (sub claim)
+     * @param username The username/email from JWT (used as email fallback if email claim is missing)
+     * @return UserEntity created from JWT claims
+     */
+    private UserEntity createUserFromJwt(String cognitoUserId, String username) {
+        // Extract claims from JWT token
+        String email = JwtUtils.getClaim("email");
+        String firstName = JwtUtils.getClaim("given_name");
+        String lastName = JwtUtils.getClaim("family_name");
+        String phoneNumber = JwtUtils.getClaim("phone_number");
+        String role = JwtUtils.getClaim("custom:role");
+        
+        // Fallbacks for missing data
+        if (email == null || email.isEmpty()) {
+            email = username != null && !username.trim().isEmpty() ? username : cognitoUserId + "@eventpro.local";
+            log.warn("Email not found in JWT token, using fallback: {}", email);
+        }
+        if (firstName == null || firstName.isEmpty()) {
+            firstName = email.split("@")[0];
+            log.debug("First name not found in JWT, using email prefix: {}", firstName);
+        }
+        if (lastName == null || lastName.isEmpty()) {
+            lastName = "User";
+            log.debug("Last name not found in JWT, using default: {}", lastName);
+        }
+        if (role == null || role.isEmpty()) {
+            role = "USER";
+            log.debug("Role not found in JWT, defaulting to USER");
+        }
+        
+        return userService.createUserFromCognito(cognitoUserId, email, firstName, lastName, phoneNumber, role);
+    }
+
     @GetMapping("/me")
     @Operation(summary = "Get current user profile", description = "Returns the profile of the currently authenticated user. " +
                                                                    "Automatically syncs user from Cognito if not found in database.")
@@ -87,59 +129,89 @@ public class UserController extends BaseController {
         try {
             user = userService.getUserByCognitoId(cognitoUserId);
         } catch (com.accessplus.eventpro.shared.exception.ResourceNotFoundException e) {
-            // User doesn't exist in database, sync from Cognito
-            log.info("User not found in database, syncing from Cognito: cognitoUserId={}, username={}", 
+            // User doesn't exist in database, sync from JWT token claims or Cognito Admin API
+            log.info("User not found in database, syncing from JWT token or Cognito: cognitoUserId={}, username={}", 
                     cognitoUserId, username);
             
-            // Fetch user attributes from Cognito using Admin API
-            // Access tokens don't contain user attributes, so we need to fetch them from Cognito
-            // CognitoAdminService will try username (email) first, then fall back to cognitoUserId (sub)
-            Map<String, String> attributes = cognitoAdminService.getUserAttributes(username, cognitoUserId);
-            
-            log.debug("Retrieved attributes from Cognito: attributes={}", attributes.keySet());
-            
-            String email = attributes.get("email");
-            String firstName = attributes.get("given_name");
-            String lastName = attributes.get("family_name");
-            String phoneNumber = attributes.get("phone_number");
-            // Extract role from custom:role attribute (set during signup)
-            String role = attributes.get("custom:role");
+            // Try to extract user info from JWT token claims first (no credentials needed)
+            // Note: createUserFromJwt() handles all fallbacks gracefully, including when username is null.
+            // It will use username as email if available, otherwise fallback to cognitoUserId + "@eventpro.local"
+            // This avoids Admin API calls which require AWS credentials.
+            log.debug("Using JWT token claims for user sync (username={}, cognitoUserId={})", username, cognitoUserId);
+            try {
+                user = createUserFromJwt(cognitoUserId, username);
+                log.info("Successfully auto-synced user from JWT token: id={}, email={}, firstName={}, lastName={}, cognitoUserId={}", 
+                        user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getCognitoUserId());
+            } catch (ConflictException conflictError) {
+                // User already exists - fetch and return the existing user
+                log.info("User already exists (likely created concurrently), fetching existing user: cognitoUserId={}, error={}", 
+                        cognitoUserId, conflictError.getMessage());
+                try {
+                    user = userService.getUserByCognitoId(cognitoUserId);
+                    log.info("Retrieved existing user: id={}, email={}, cognitoUserId={}", 
+                            user.getId(), user.getEmail(), user.getCognitoUserId());
+                } catch (Exception fetchError) {
+                    log.error("Failed to fetch existing user after ConflictException: cognitoUserId={}", cognitoUserId, fetchError);
+                    throw conflictError; // Re-throw the original conflict exception
+                }
+            } catch (Exception jwtError) {
+                // If JWT-based creation fails, fallback to Cognito Admin API (requires AWS credentials)
+                log.warn("Failed to create user from JWT token claims, falling back to Cognito Admin API. " +
+                        "This requires valid AWS credentials. Error: {}, cognitoUserId={}, username={}", 
+                        jwtError.getMessage(), cognitoUserId, username, jwtError);
+                
+                try {
+                    Map<String, String> attributes = cognitoAdminService.getUserAttributes(username, cognitoUserId);
+                    
+                    log.debug("Retrieved attributes from Cognito Admin API: attributes={}", attributes.keySet());
+                    
+                    String email = attributes.get("email");
+                    String firstName = attributes.get("given_name");
+                    String lastName = attributes.get("family_name");
+                    String phoneNumber = attributes.get("phone_number");
+                    String role = attributes.get("custom:role");
 
-            // Validate email (required)
-            if (email == null || email.isEmpty()) {
-                log.error("Email is required but not found in Cognito user attributes. Available attributes: {}", attributes.keySet());
-                throw new ValidationException("Email is required but not found in Cognito user attributes");
-            }
-            
-            // Use fallbacks for firstName/lastName if missing
-            if (firstName == null || firstName.isEmpty()) {
-                // Extract from email prefix (e.g., "john@example.com" -> "john")
-                firstName = email.split("@")[0];
-                log.info("First name not found in Cognito, using email prefix as fallback: firstName={}", firstName);
-            }
-            if (lastName == null || lastName.isEmpty()) {
-                lastName = "User"; // Default fallback
-                log.info("Last name not found in Cognito, using default fallback: lastName={}", lastName);
-            }
-            
-            // Default role to USER if not found in Cognito attributes
-            if (role == null || role.isEmpty()) {
-                role = "USER";
-                log.info("Role not found in Cognito attributes, defaulting to USER");
-            }
+                    // Validate email (required)
+                    if (email == null || email.isEmpty()) {
+                        log.error("Email is required but not found in Cognito user attributes. Available attributes: {}", attributes.keySet());
+                        throw new ValidationException("Email is required but not found in Cognito user attributes");
+                    }
+                    
+                    // Use fallbacks for firstName/lastName if missing
+                    if (firstName == null || firstName.isEmpty()) {
+                        firstName = email.split("@")[0];
+                        log.info("First name not found in Cognito, using email prefix as fallback: firstName={}", firstName);
+                    }
+                    if (lastName == null || lastName.isEmpty()) {
+                        lastName = "User";
+                        log.info("Last name not found in Cognito, using default fallback: lastName={}", lastName);
+                    }
+                    
+                    // Default role to USER if not found
+                    if (role == null || role.isEmpty()) {
+                        role = "USER";
+                        log.info("Role not found in Cognito attributes, defaulting to USER");
+                    }
 
-            // Create user in database
-            user = userService.createUserFromCognito(
-                    cognitoUserId,
-                    email,
-                    firstName,
-                    lastName,
-                    phoneNumber,
-                    role
-            );
-            
-            log.info("Successfully auto-synced user from Cognito: id={}, email={}, firstName={}, lastName={}, cognitoUserId={}", 
-                    user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getCognitoUserId());
+                    // Create user in database
+                    user = userService.createUserFromCognito(
+                            cognitoUserId,
+                            email,
+                            firstName,
+                            lastName,
+                            phoneNumber,
+                            role
+                    );
+                    
+                    log.info("Successfully auto-synced user from Cognito Admin API: id={}, email={}, firstName={}, lastName={}, cognitoUserId={}", 
+                            user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getCognitoUserId());
+                } catch (Exception adminApiError) {
+                    log.error("Failed to fetch user attributes from Cognito Admin API (credentials may be invalid): {}. " +
+                            "JWT-based user creation also failed. Cannot sync user.", adminApiError.getMessage(), adminApiError);
+                    throw new ValidationException("Cannot sync user: JWT-based creation failed and Cognito Admin API unavailable. " +
+                            "Error: " + adminApiError.getMessage());
+                }
+            }
         }
         
         UserResponse response = UserResponse.fromEntity(user);
@@ -287,61 +359,92 @@ public class UserController extends BaseController {
             return ResponseEntity.ok(ApiResponse.success(response, "User already synced"));
         } catch (com.accessplus.eventpro.shared.exception.ResourceNotFoundException e) {
             // User doesn't exist, proceed with sync
-            log.debug("User not found in database, syncing from Cognito: cognitoUserId={}, username={}", 
+            log.debug("User not found in database, syncing from JWT token or Cognito: cognitoUserId={}, username={}", 
                     cognitoUserId, username);
         }
 
-        // Fetch user attributes from Cognito using Admin API
-        // Access tokens don't contain user attributes, so we need to fetch them from Cognito
-        // Use username (email) for AdminGetUser API call, which is required when users sign up with email as username
-        Map<String, String> attributes = cognitoAdminService.getUserAttributes(username, cognitoUserId);
-        
-        log.debug("Retrieved attributes from Cognito: attributes={}", attributes.keySet());
-        
-        String email = attributes.get("email");
-        String firstName = attributes.get("given_name");
-        String lastName = attributes.get("family_name");
-        String phoneNumber = attributes.get("phone_number");
-        // Extract role from custom:role attribute (set during signup)
-        String role = attributes.get("custom:role");
+        // Try to extract user info from JWT token claims first (no credentials needed)
+        // Note: createUserFromJwt() handles all fallbacks gracefully, including when username is null.
+        // It will use username as email if available, otherwise fallback to cognitoUserId + "@eventpro.local"
+        // This avoids Admin API calls which require AWS credentials.
+        UserEntity user;
+        log.debug("Using JWT token claims for user sync (username={}, cognitoUserId={})", username, cognitoUserId);
+        try {
+            user = createUserFromJwt(cognitoUserId, username);
+            log.info("Successfully synced user from JWT token: id={}, email={}, firstName={}, lastName={}, cognitoUserId={}", 
+                    user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getCognitoUserId());
+        } catch (ConflictException conflictError) {
+            // User already exists - fetch and return the existing user
+            log.info("User already exists (likely created concurrently), fetching existing user: cognitoUserId={}, error={}", 
+                    cognitoUserId, conflictError.getMessage());
+            try {
+                user = userService.getUserByCognitoId(cognitoUserId);
+                log.info("Retrieved existing user: id={}, email={}, cognitoUserId={}", 
+                        user.getId(), user.getEmail(), user.getCognitoUserId());
+            } catch (Exception fetchError) {
+                log.error("Failed to fetch existing user after ConflictException: cognitoUserId={}", cognitoUserId, fetchError);
+                throw conflictError; // Re-throw the original conflict exception
+            }
+        } catch (Exception jwtError) {
+            // If JWT-based creation fails, fallback to Cognito Admin API (requires AWS credentials)
+            log.warn("Failed to create user from JWT token claims, falling back to Cognito Admin API. " +
+                    "This requires valid AWS credentials. Error: {}, cognitoUserId={}, username={}", 
+                    jwtError.getMessage(), cognitoUserId, username, jwtError);
+            
+            try {
+                Map<String, String> attributes = cognitoAdminService.getUserAttributes(username, cognitoUserId);
+                
+                log.debug("Retrieved attributes from Cognito Admin API: attributes={}", attributes.keySet());
+                
+                String email = attributes.get("email");
+                String firstName = attributes.get("given_name");
+                String lastName = attributes.get("family_name");
+                String phoneNumber = attributes.get("phone_number");
+                String role = attributes.get("custom:role");
 
-        // Validate email (required)
-        if (email == null || email.isEmpty()) {
-            log.error("Email is required but not found in Cognito user attributes. Available attributes: {}", attributes.keySet());
-            throw new ValidationException("Email is required but not found in Cognito user attributes");
-        }
-        
-        // Use fallbacks for firstName/lastName if missing
-        if (firstName == null || firstName.isEmpty()) {
-            // Extract from email prefix (e.g., "john@example.com" -> "john")
-            firstName = email.split("@")[0];
-            log.info("First name not found in Cognito, using email prefix as fallback: firstName={}", firstName);
-        }
-        if (lastName == null || lastName.isEmpty()) {
-            lastName = "User"; // Default fallback
-            log.info("Last name not found in Cognito, using default fallback: lastName={}", lastName);
-        }
-        
-        // Default role to USER if not found in Cognito attributes
-        if (role == null || role.isEmpty()) {
-            role = "USER";
-            log.info("Role not found in Cognito attributes, defaulting to USER");
-        }
+                // Validate email (required)
+                if (email == null || email.isEmpty()) {
+                    log.error("Email is required but not found in Cognito user attributes. Available attributes: {}", attributes.keySet());
+                    throw new ValidationException("Email is required but not found in Cognito user attributes");
+                }
+                
+                // Use fallbacks for firstName/lastName if missing
+                if (firstName == null || firstName.isEmpty()) {
+                    firstName = email.split("@")[0];
+                    log.info("First name not found in Cognito, using email prefix as fallback: firstName={}", firstName);
+                }
+                if (lastName == null || lastName.isEmpty()) {
+                    lastName = "User";
+                    log.info("Last name not found in Cognito, using default fallback: lastName={}", lastName);
+                }
+                
+                // Default role to USER if not found
+                if (role == null || role.isEmpty()) {
+                    role = "USER";
+                    log.info("Role not found in Cognito attributes, defaulting to USER");
+                }
 
-        // Create user in database
-        UserEntity user = userService.createUserFromCognito(
-                cognitoUserId,
-                email,
-                firstName,
-                lastName,
-                phoneNumber,
-                role
-        );
+                // Create user in database
+                user = userService.createUserFromCognito(
+                        cognitoUserId,
+                        email,
+                        firstName,
+                        lastName,
+                        phoneNumber,
+                        role
+                );
+                
+                log.info("Successfully synced user from Cognito Admin API: id={}, email={}, firstName={}, lastName={}, cognitoUserId={}", 
+                        user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getCognitoUserId());
+            } catch (Exception adminApiError) {
+                log.error("Failed to fetch user attributes from Cognito Admin API (credentials may be invalid): {}. " +
+                        "JWT-based user creation also failed. Cannot sync user.", adminApiError.getMessage(), adminApiError);
+                throw new ValidationException("Cannot sync user: JWT-based creation failed and Cognito Admin API unavailable. " +
+                        "Error: " + adminApiError.getMessage());
+            }
+        }
 
         UserResponse response = UserResponse.fromEntity(user);
-        log.info("Successfully synced user from Cognito: id={}, email={}, firstName={}, lastName={}, cognitoUserId={}", 
-                user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getCognitoUserId());
-
         return ResponseEntity.ok(ApiResponse.success(response, "User synced successfully"));
     }
 
