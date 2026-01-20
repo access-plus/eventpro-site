@@ -7,34 +7,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * User entity representing application users (customers, organizers, admins).
- * 
- * <p>Fields match the database schema from V1__create_base_tables.sql:
- * <ul>
- *   <li>id (UUID, PK) - From BaseEntity</li>
- *   <li>email (String, unique, not null) - User email address</li>
- *   <li>phoneNumber (String, nullable) - Phone number for SMS notifications</li>
- *   <li>firstName (String, not null) - User's first name</li>
- *   <li>lastName (String, not null) - User's last name</li>
- *   <li>cognitoUserId (String, unique, not null) - AWS Cognito user ID</li>
- *   <li>createdAt (LocalDateTime) - From BaseEntity</li>
- *   <li>updatedAt (LocalDateTime) - From BaseEntity</li>
- * </ul>
- * 
- * <p>Relationships (to be added in future phases):
- * <ul>
- *   <li>One-to-Many: orders (List<OrderEntity>)</li>
- *   <li>One-to-Many: cartItems (List<CartEntity>)</li>
- *   <li>One-to-Many: events (List<EventEntity>) - Events created by organizer</li>
- *   <li>One-to-Many: userNotifications (List<UserNotificationEntity>)</li>
- *   <li>One-to-One: notificationPreference (NotificationPreferenceEntity)</li>
- * </ul>
- */
 @Entity
 @Table(name = "users", indexes = {
-    @Index(name = "idx_user_email", columnList = "email"),
-    @Index(name = "idx_user_cognito_id", columnList = "cognito_user_id")
+    @Index(name = "idx_user_email", columnList = "email")
 })
 @Getter
 @Setter
@@ -54,8 +29,8 @@ public class UserEntity extends BaseEntity {
     @Column(name = "last_name", nullable = false, length = 100)
     private String lastName;
 
-    @Column(name = "cognito_user_id", nullable = false, unique = true, length = 255)
-    private String cognitoUserId;
+    @Column(name = "password_hash", length = 255)
+    private String passwordHash;
 
     @Column(name = "bio", columnDefinition = "TEXT")
     private String bio;
@@ -113,4 +88,3 @@ public class UserEntity extends BaseEntity {
     // @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     // private NotificationPreferenceEntity notificationPreference;
 }
-

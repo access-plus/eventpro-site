@@ -29,9 +29,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Implementation of OrganizerService.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

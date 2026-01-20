@@ -2,10 +2,8 @@ package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.*;
 import com.accessplus.eventpro.api.service.AdminService;
-import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.service.UserService;
-import com.accessplus.eventpro.core.user.service.CognitoAdminServiceInterface;
 import com.accessplus.eventpro.event.event.entity.EventEntity;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.event.service.EventService;
@@ -27,22 +25,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * REST controller for admin operations.
- * 
- * <p>Endpoints:
- * <ul>
- *   <li>GET /api/v1/admin/stats - Get platform statistics</li>
- *   <li>GET /api/v1/admin/event-sales - Get event sales data</li>
- *   <li>GET /api/v1/admin/revenue - Get revenue data</li>
- *   <li>GET /api/v1/admin/events - Get all events</li>
- *   <li>PATCH /api/v1/admin/events/{id}/status - Update event status</li>
- *   <li>GET /api/v1/admin/users - Get all users</li>
- *   <li>PUT /api/v1/admin/users/{id} - Update user</li>
- *   <li>PATCH /api/v1/admin/users/{id}/status - Update user status</li>
- *   <li>PATCH /api/v1/admin/users/{id}/role - Update user role</li>
- * </ul>
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/admin")
@@ -55,7 +37,6 @@ public class AdminController extends BaseController {
     private final UserService userService;
     private final EventService eventService;
     private final EventRepository eventRepository;
-    private final CognitoAdminServiceInterface cognitoAdminService;
 
     @GetMapping("/stats")
     @PreAuthorize("hasRole('ADMIN')")
@@ -154,9 +135,9 @@ public class AdminController extends BaseController {
 
         UserEntity user = userService.getUserById(id);
         
-        // Update user profile using cognitoUserId version to support extended fields
+        // Update user profile using UUID version to support extended fields
         UserEntity updatedUser = userService.updateUserProfile(
-                user.getCognitoUserId(),
+                user.getId(),
                 request.getFirstName(),
                 request.getLastName(),
                 request.getPhoneNumber(),
@@ -185,7 +166,7 @@ public class AdminController extends BaseController {
 
     @PatchMapping("/users/{id}/role")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update user role", description = "Updates user role and syncs with Cognito. Requires ADMIN role.")
+    @Operation(summary = "Update user role", description = "Updates user role. Requires ADMIN role.")
     public ResponseEntity<ApiResponse<UserResponse>> updateUserRole(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateUserRoleRequest request) {
@@ -194,19 +175,7 @@ public class AdminController extends BaseController {
         // Update role in database
         UserEntity updatedUser = userService.updateUserRole(id, request.getRole());
         
-        // Sync role with Cognito (only for ORGANIZER role promotion)
-        try {
-            if ("ORGANIZER".equals(request.getRole())) {
-                cognitoAdminService.promoteUserToOrganizer(updatedUser.getCognitoUserId());
-                log.info("User role synced with Cognito: userId={}, role={}", id, request.getRole());
-            }
-        } catch (Exception e) {
-            log.error("Failed to sync user role with Cognito: userId={}, error={}", id, e.getMessage(), e);
-            // Continue even if Cognito sync fails
-        }
-        
         UserResponse response = UserResponse.fromEntity(updatedUser);
         return ResponseEntity.ok(ApiResponse.success(response, "User role updated successfully"));
     }
 }
-

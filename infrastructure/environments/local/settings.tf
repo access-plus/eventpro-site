@@ -44,14 +44,3 @@ provider "aws" {
     # Add more resources as needed for other services
   }
 }
-
-# Provider for real AWS resources (Cognito)
-# Uses default AWS credentials from environment variables or ~/.aws/credentials
-provider "aws" {
-  alias  = "aws"
-  region = "us-east-1"
-  # Credentials are read from:
-  # 1. AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables
-  # 2. ~/.aws/credentials file
-  # 3. IAM role (if running on EC2/ECS)
-}

@@ -40,14 +40,11 @@ eventpro-site/
 │   │   │   │   ├── coreApi.ts       # Core API client
 │   │   │   │   ├── eventApi.ts      # Event API client
 │   │   │   │   └── websocketApi.ts  # WebSocket client
-│   │   │   └── cognito/
-│   │   │       └── authService.ts   # Cognito authentication
 │   │   ├── hooks/                   # Custom React hooks
 │   │   ├── utils/                   # Utility functions
 │   │   ├── types/                   # TypeScript type definitions
 │   │   ├── config/                  # Configuration
 │   │   │   ├── api.config.ts
-│   │   │   └── cognito.config.ts
 │   │   └── App.tsx
 │   ├── public/
 │   ├── package.json
@@ -88,11 +85,13 @@ eventpro-site/
 │   │   │   │   │   │   └── OrderEntity.java
 │   │   │   │   │   ├── config/
 │   │   │   │   │   │   ├── DatabaseConfig.java
-│   │   │   │   │   │   ├── CognitoConfig.java
+│   │   │   │   │   │   ├── JwtConfig.java
 │   │   │   │   │   │   └── SQSConfig.java
 │   │   │   │   │   ├── security/
 │   │   │   │   │   │   ├── SecurityConfig.java
-│   │   │   │   │   │   └── CognitoRoleMapper.java
+│   │   │   │   │   │   ├── JwtService.java
+│   │   │   │   │   │   ├── JwtAuthenticationFilter.java
+│   │   │   │   │   │   └── JwtUtils.java
 │   │   │   │   │   ├── messaging/
 │   │   │   │   │   │   └── SQSMessagePublisher.java
 │   │   │   │   │   ├── exception/
@@ -324,9 +323,6 @@ eventpro-site/
 │   │   │   ├── main.tf
 │   │   │   ├── variables.tf
 │   │   │   └── outputs.tf
-│   │   ├── cognito/
-│   │   │   ├── main.tf
-│   │   │   ├── variables.tf
 │   │   │   └── outputs.tf
 │   │   ├── secrets-manager/
 │   │   │   ├── main.tf
@@ -429,12 +425,14 @@ services/core-api/
 │   │   │   │
 │   │   │   ├── config/
 │   │   │   │   ├── DatabaseConfig.java
-│   │   │   │   ├── CognitoConfig.java
+│   │   │   │   ├── JwtConfig.java
 │   │   │   │   └── SQSConfig.java
 │   │   │   │
 │   │   │   ├── security/
 │   │   │   │   ├── SecurityConfig.java
-│   │   │   │   └── CognitoRoleMapper.java
+│   │   │   │   ├── JwtService.java
+│   │   │   │   ├── JwtAuthenticationFilter.java
+│   │   │   │   └── JwtUtils.java
 │   │   │   │
 │   │   │   ├── messaging/
 │   │   │   │   └── SQSMessagePublisher.java
@@ -1210,8 +1208,8 @@ dependencies {
     // Database
     runtimeOnly 'org.postgresql:postgresql'
     
-    // Cognito
-    implementation 'com.amazonaws:aws-java-sdk-cognitoidp:1.12.500'
+    // JWT (jjwt)
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
     
     // Shared modules
     implementation project(':shared:common')
@@ -1489,10 +1487,6 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 aws:
-  cognito:
-    userPoolId: ${COGNITO_USER_POOL_ID}
-    clientId: ${COGNITO_CLIENT_ID}
-    region: ${AWS_REGION:us-east-1}
   sqs:
     orderQueueUrl: ${ORDER_QUEUE_URL}
     paymentQueueUrl: ${PAYMENT_QUEUE_URL}

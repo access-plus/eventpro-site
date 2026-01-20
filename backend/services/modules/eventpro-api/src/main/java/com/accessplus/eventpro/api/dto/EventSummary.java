@@ -8,20 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/**
- * Response DTO for event ticket summary.
- * 
- * <p>Matches the EventSummary structure from README.md Tickets API `GET /group/{eventId}`.
- * Provides a summary of event information with ticket counts grouped by type.
- * 
- * <p>Fields:
- * <ul>
- *   <li>eventName - Event name</li>
- *   <li>startTime - Event start time (formatted string)</li>
- *   <li>endTime - Event end time (formatted string)</li>
- *   <li>tickets - List of EventTickets (ticket summary by type)</li>
- * </ul>
- */
 @Data
 @Builder
 @NoArgsConstructor

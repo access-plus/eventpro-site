@@ -156,48 +156,6 @@ variable "enable_blue_green" {
   default     = false
 }
 
-variable "cognito_user_pool_arn" {
-  description = "ARN of the Cognito User Pool for authentication"
-  type        = string
-  default     = null
-}
-
-variable "cognito_user_pool_client_id" {
-  description = "ID of the Cognito User Pool Client"
-  type        = string
-  default     = null
-}
-
-variable "cognito_user_pool_domain" {
-  description = "Domain prefix or fully-qualified domain name of the Cognito User Pool"
-  type        = string
-  default     = null
-}
-
-variable "cognito_on_unauthenticated_request" {
-  description = "Behavior if the user is not authenticated. Valid values are deny, allow and authenticate"
-  type        = string
-  default     = "authenticate"
-}
-
-variable "cognito_scope" {
-  description = "Set of user claims to be requested from the IdP"
-  type        = string
-  default     = "openid"
-}
-
-variable "cognito_session_cookie_name" {
-  description = "Name of the cookie used to maintain session information"
-  type        = string
-  default     = "AWSELBAuthSessionCookie"
-}
-
-variable "cognito_session_timeout" {
-  description = "Maximum duration of the authentication session, in seconds"
-  type        = number
-  default     = 604800
-}
-
 variable "path_routing_rules" {
   description = "Map of path-based routing rules. Key is rule name, value contains priority, path_patterns, target_group_arn, and optional host_header"
   type = map(object({
@@ -214,4 +172,3 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
-

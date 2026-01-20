@@ -39,7 +39,7 @@ EventPro is a modern event ticketing platform designed to handle the complete li
 - **Shared Module**: Framework-agnostic entities, enums, and utilities
 - **Cloud-Native**: Built for AWS with infrastructure as code
 - **Scalable**: Designed to scale from startup to enterprise
-- **Secure**: AWS Cognito authentication, JWT-based authorization, encrypted data
+- **Secure**: JWT authentication (RS256), role-based authorization, encrypted data
 - **Developer-Friendly**: Hot reload, comprehensive testing, clear documentation
 
 ---
@@ -55,7 +55,7 @@ EventPro is a modern event ticketing platform designed to handle the complete li
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           USER (Browser)                                    │
 │                    React Frontend (Port 5173)                               │
-│                    - Authentication (Cognito JS SDK)                        │
+│                    - Authentication (JWT via backend)                       │
 │                    - API Calls (Axios with JWT)                             │
 │                    - State Management (Redux Toolkit)                       │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -64,14 +64,14 @@ EventPro is a modern event ticketing platform designed to handle the complete li
                     │               │               │
                     ▼               ▼               ▼
         ┌───────────────────┐  ┌───────────────┐  ┌───────────────┐
-        │  AWS Cognito      │  │  Backend API  │  │  AWS S3       │
-        │  (Real AWS)       │  │  (Spring Boot)│  │  (LocalStack) │
+        │  Auth (JWT)       │  │  Backend API  │  │  AWS S3       │
+        │  (Spring Boot)    │  │  (Spring Boot)│  │  (LocalStack) │
         │                   │  │  Port 8080    │  │               │
         │ - Sign Up/In      │  │               │  │ - Images      │
         │ - JWT Tokens      │  │ Controllers:  │  │ - PDFs        │
         │ - Password Reset  │  │ - Auth        │  │               │
-        │ - User Groups     │  │ - Users       │  │               │
-        │   (ADMIN/ORG/USER)│  │ - Events      │  │               │
+        │ - Roles (ADMIN/   │  │ - Users       │  │               │
+        │   ORG/USER)       │  │ - Events      │  │               │
         └───────────────────┘  │ - Tickets     │  └───────────────┘
                                │ - Cart        │         ▲
                                │ - Orders      │         │
@@ -382,87 +382,52 @@ EventPro is a modern event ticketing platform designed to handle the complete li
 
 1. USER SIGN UP
    ┌─────────────┐
-   │   Frontend  │ cognitoService.signUp({ email, password, role })
+   │   Frontend  │ POST /api/v1/auth/signup
+   └──────┬──────┘
+          │ { email, password, role }
+          ▼
+   ┌─────────────┐
+   │  Backend    │ → AuthController.signUp()
+   │  API        │ → AuthService.signUp()
    └──────┬──────┘
           │
           ▼
    ┌─────────────┐
-   │ AWS Cognito │ Create user (status: UNCONFIRMED)
+   │ PostgreSQL  │ INSERT INTO users (password_hash, role, ...)
    └──────┬──────┘
           │
           ▼
    ┌─────────────┐
-   │ AWS Cognito │ Send verification code via email
-   └──────┬──────┘
-          │
-          ▼
-   ┌─────────────┐
-   │   Frontend  │ Display: "Check email for verification code"
+   │   Frontend  │ ← { user: { id, email, role, ... } }
    └─────────────┘
 
-2. USER VERIFIES EMAIL
+2. USER LOGIN
    ┌─────────────┐
-   │   Frontend  │ cognitoService.verifyEmail({ code })
+   │   Frontend  │ POST /api/v1/auth/login
+   └──────┬──────┘
+          │ { email, password }
+          ▼
+   ┌─────────────┐
+   │  Backend    │ → AuthController.login()
+   │  API        │ → AuthService.login()
    └──────┬──────┘
           │
           ▼
    ┌─────────────┐
-   │ AWS Cognito │ Confirm user (status: CONFIRMED)
+   │  Backend    │ Generate JWT access token (RS256)
    └──────┬──────┘
           │
           ▼
    ┌─────────────┐
-   │   Frontend  │ Redirect to login
+   │   Frontend  │ Store token in localStorage
+   └──────┬──────┘
+          │
+          ▼
+   ┌─────────────┐
+   │   Frontend  │ ← { accessToken, user, expiresIn }
    └─────────────┘
 
-3. USER LOGIN
-   ┌─────────────┐
-   │   Frontend  │ cognitoService.login({ email, password })
-   └──────┬──────┘
-          │
-          ▼
-   ┌─────────────┐
-   │ AWS Cognito │ Authenticate → Return JWT tokens
-   │             │ - Access Token
-   │             │ - ID Token
-   │             │ - Refresh Token
-   └──────┬──────┘
-          │
-          ▼
-   ┌─────────────┐
-   │   Frontend  │ Store tokens in localStorage
-   └──────┬──────┘
-          │
-          ▼
-   ┌─────────────┐
-   │   Frontend  │ POST /api/v1/users/sync
-   └──────┬──────┘
-          │ JWT Token
-          ▼
-   ┌─────────────┐
-   │  Backend    │ → UserController.syncUser()
-   │  API        │ → CognitoAdminService.getUserAttributes()
-   └──────┬──────┘
-          │
-          ├─────────────────┐
-          │                 │
-          ▼                 ▼
-   ┌─────────────┐  ┌─────────────┐
-   │ AWS Cognito │  │ UserService │
-   │ Get User    │  │ createUser  │
-   └─────────────┘  └──────┬──────┘
-                           │
-                           ▼
-                   ┌─────────────┐
-                   │ PostgreSQL  │ INSERT INTO users
-                   └──────┬──────┘
-                          │
-                          ▼
-                   ┌─────────────┐
-                   │   Frontend  │ ← { user: { id, email, role, ... } }
-                   └─────────────┘
-
-4. SUBSEQUENT API CALLS
+3. SUBSEQUENT API CALLS
    ┌─────────────┐
    │   Frontend  │ GET /api/v1/events
    └──────┬──────┘
@@ -470,17 +435,13 @@ EventPro is a modern event ticketing platform designed to handle the complete li
           ▼
    ┌─────────────┐
    │  Backend    │ → JwtAuthenticationFilter
-   │  API        │ → Validate JWT with Cognito
+   │  API        │ → Validate JWT with public key
    └──────┬──────┘
           │
-          ├─────────────────┐
-          │                 │
-          ▼                 ▼
-   ┌─────────────┐  ┌─────────────┐
-   │ AWS Cognito │  │ If valid:   │
-   │ Validate    │  │ Process     │
-   │ JWT Token   │  │ Request     │
-   └─────────────┘  └─────────────┘
+          ▼
+   ┌─────────────┐
+   │ If valid:   │ Process request
+   └─────────────┘
 ```
 
 </details>
@@ -605,7 +566,6 @@ EventPro is a modern event ticketing platform designed to handle the complete li
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │         Application Load Balancer (ALB)                     │
-│         - Authentication (AWS Cognito)                      │
 │         - SSL/TLS Termination                               │
 │         - Request Routing                                   │
 └─────────────────────────────────────────────────────────────┘
@@ -734,7 +694,6 @@ EventPro uses a **Modular Monolith** architecture for the main API service, comb
 | **shadcn/ui** | - | UI component library |
 | **Tailwind CSS** | 3.4.18 | Utility-first CSS |
 | **Radix UI** | - | Accessible UI primitives |
-| **Amazon Cognito JS** | 6.3.15 | Authentication SDK |
 | **Vitest** | 2.1.8 | Testing framework |
 
 ### Infrastructure
@@ -756,7 +715,6 @@ EventPro uses a **Modular Monolith** architecture for the main API service, comb
 | **RDS PostgreSQL** | Managed database (Multi-AZ) |
 | **S3** | Image storage for events |
 | **CloudFront** | CDN for frontend and images |
-| **Cognito** | User authentication and authorization |
 | **ALB** | Application Load Balancer |
 | **Route53** | DNS management |
 | **Secrets Manager** | Secure credential storage |
@@ -831,7 +789,6 @@ eventpro-site/
 │   └── modules/                  # Reusable Terraform modules
 │       ├── alb/                  # Application Load Balancer
 │       ├── cloudfront/           # CloudFront CDN
-│       ├── cognito/              # Cognito User Pool
 │       ├── ecs/                  # ECS Fargate service
 │       ├── lambda/               # Lambda functions
 │       ├── rds/                  # RDS PostgreSQL
@@ -873,7 +830,7 @@ eventpro-site/
 
 1. **eventpro-core**
    - User management (CRUD operations)
-   - Authentication/Authorization (AWS Cognito integration)
+   - Authentication/Authorization (JWT)
    - Role management (ADMIN, ORGANIZER, USER)
    - Common utilities, exceptions, and base entities
    - JWT token validation and security configuration
@@ -1054,15 +1011,12 @@ eventpro-site/
 
 #### Security
 
-- **Cognito**: User authentication and authorization
-  - User pools for user management
-  - JWT token generation
-  - OAuth integration (planned)
+- **JWT Authentication**: RS256 tokens issued by the backend API
+  - Passwords hashed with BCrypt
+  - Role-based access control
 - **Secrets Manager**: Secure credential storage
   - Database credentials
   - API keys
-  - JWT secrets
-  - Automatic rotation via Lambda
 
 #### Messaging & Notifications
 
@@ -1093,7 +1047,7 @@ For local development, the following services are used:
 
 - **PostgreSQL (Docker)**: Local database
 - **LocalStack (Docker)**: AWS service emulation
-  - S3, SQS, Cognito, Secrets Manager, SES, SNS
+  - S3, SQS, Secrets Manager, SES, SNS
 - **Docker Compose**: Service orchestration
 
 ---
@@ -1108,7 +1062,7 @@ For local development, the following services are used:
 - **Terraform 1.5+** - [Download](https://www.terraform.io/downloads)
 - **Make** - Usually pre-installed on macOS/Linux
 - **AWS CLI** - [Download](https://aws.amazon.com/cli/) (optional, for testing LocalStack)
-- **AWS Account with Credentials** - Required for Cognito (can use real AWS or LocalStack Pro)
+- **OpenSSL** - Required for generating JWT RSA keys
 
 ### Quick Start
 
@@ -1194,12 +1148,36 @@ For comprehensive local development setup, testing, and troubleshooting instruct
 The local development guide covers:
 
 - Detailed setup instructions
-- Authentication using AWS Cognito (requires Cognito User Pool)
+- JWT authentication using local RSA keys
 - Step-by-step configuration
 - Testing procedures
 - Troubleshooting common issues
 - Makefile commands reference
 - Service management
+
+### JWT Keys (Required for Local Auth)
+
+Generate an RSA key pair and set the environment variables in the root `.env` file:
+
+```bash
+openssl genpkey -algorithm RSA -out jwt-private.pem -pkeyopt rsa_keygen_bits:2048
+openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem
+
+# macOS
+JWT_PRIVATE_KEY=$(openssl pkcs8 -topk8 -inform PEM -outform DER -in jwt-private.pem -nocrypt | base64 | tr -d '\n')
+JWT_PUBLIC_KEY=$(openssl rsa -in jwt-private.pem -pubout -outform DER | base64 | tr -d '\n')
+
+# Linux
+JWT_PRIVATE_KEY=$(openssl pkcs8 -topk8 -inform PEM -outform DER -in jwt-private.pem -nocrypt | base64 -w0)
+JWT_PUBLIC_KEY=$(openssl rsa -in jwt-private.pem -pubout -outform DER | base64 -w0)
+```
+
+```bash
+JWT_ISSUER=eventpro
+JWT_ACCESS_TTL_SECONDS=3600
+JWT_PRIVATE_KEY=<value from command above>
+JWT_PUBLIC_KEY=<value from command above>
+```
 
 ### Quick Reference
 
@@ -1212,11 +1190,10 @@ The local development guide covers:
 | LocalStack | <http://localhost:4566> | 4566 |
 | PostgreSQL | localhost:5432 | 5432 |
 
-| Cognito Configuration |
-|----------------------|
-| User Pool ID: Required |
-| Client ID: Required |
-| Note: Create users in your Cognito User Pool |
+| JWT Configuration |
+|------------------|
+| Set `JWT_PUBLIC_KEY` and `JWT_PRIVATE_KEY` in `.env` |
+| Optional: `JWT_ISSUER`, `JWT_ACCESS_TTL_SECONDS` |
 
 ---
 
@@ -1239,13 +1216,18 @@ Authorization: Bearer <jwt_token>
 <details>
 <summary><strong>Click to expand</strong></summary>
 
+#### Auth API (`/api/v1/auth`)
+
+- `POST /api/v1/auth/signup` - Create user account
+- `POST /api/v1/auth/login` - Authenticate and return JWT access token
+- `POST /api/v1/auth/send-reset-email` - Send password reset confirmation email
+
 #### Users API (`/api/v1/users`)
 
 - `GET /api/v1/users` - List users (paginated, ADMIN only)
 - `GET /api/v1/users/{id}` - Get user by ID
 - `GET /api/v1/users/me` - Get current user profile
 - `PUT /api/v1/users/{id}` - Update user profile
-- `POST /api/v1/users/sync` - Sync user from Cognito
 
 #### Events API (`/api/v1/events`)
 

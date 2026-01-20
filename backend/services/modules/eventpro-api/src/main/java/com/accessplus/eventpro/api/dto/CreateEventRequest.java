@@ -10,30 +10,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-
-/**
- * Request DTO for creating a new event.
- * 
- * <p>Matches the EventCreateRequest structure from README.md Events API.
- * Used in multipart/form-data POST /api/v1/events endpoint.
- * 
- * <p>Required fields:
- * <ul>
- *   <li>name - Event name</li>
- *   <li>startTime - Event start date/time (ISO-8601)</li>
- *   <li>endTime - Event end date/time (ISO-8601)</li>
- *   <li>category - Category UUID or name (depends on implementation)</li>
- *   <li>address - Address information (city and country required)</li>
- * </ul>
- * 
- * <p>Optional fields:
- * <ul>
- *   <li>description - Event description</li>
- *   <li>marketingEnabled - Whether event is promoted (default: false)</li>
- * </ul>
- * 
- * <p>Note: The imageFile is sent as a separate part in multipart/form-data.
- */
 @Data
 @Builder
 @NoArgsConstructor

@@ -16,7 +16,7 @@ dependencies {
     implementation project(':eventpro-event')
     implementation project(':eventpro-order')
     implementation project(':eventpro-payment')
-    implementation project(':eventpro-notification')
+    // Note: eventpro-notification removed - notifications are handled asynchronously by notification-sender Lambda
     
     // Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -25,6 +25,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    
+    // Spring Data Commons (explicitly added to fix DevTools classpath issue with TypeInformation)
+    implementation 'org.springframework.data:spring-data-commons'
     
     // Database Migration - Use Spring Boot starter for proper auto-configuration
     implementation 'org.springframework.boot:spring-boot-starter-flyway'

@@ -47,7 +47,7 @@ const Events = () => {
         data = await apiService.getEventsByCategory(selectedCategory);
       } else {
         // Load events with optional search keyword
-        data = await apiService.getEvents(0, 20, searchQuery || undefined);
+        data = await apiService.getEvents(1, 20, searchQuery || undefined);
       }
       
       setEvents(data);

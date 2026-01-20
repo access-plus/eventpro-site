@@ -61,7 +61,7 @@ const SignUp = () => {
         phoneNumber: data.phoneNumber,
         role: data.role,
       });
-      navigate("/verify", { state: { email: data.email } });
+      navigate("/login");
     } catch (error) {
       console.error("Sign up error:", error);
     } finally {

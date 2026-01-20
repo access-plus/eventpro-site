@@ -44,14 +44,14 @@ alb_internal        = false
 # CloudFront Configuration
 cloudfront_certificate_arn = null  # Set to ACM certificate ARN if you have one (must be in us-east-1)
 
-# Cognito Configuration
-cognito_domain        = "eventpro-dev-auth"  # Optional: Cognito domain prefix
-cognito_certificate_arn = null  # Set to ACM certificate ARN for custom domain (must be in us-east-1)
-
 # Secrets Manager Configuration
 stripe_secret_key      = ""  # Your Stripe secret key (sk_test_... for dev)
 stripe_publishable_key = ""  # Your Stripe publishable key (pk_test_... for dev)
-jwt_secret             = ""  # JWT secret key for token signing (generate a strong random string)
+# JWT Configuration
+jwt_issuer             = "eventpro"
+jwt_access_ttl_seconds = 3600
+jwt_public_key         = ""  # PEM or base64 public key
+jwt_private_key        = ""  # PEM or base64 private key
 
 # Analytics Service Lambda (Optional - remains as serverless)
 # analytics_service_image = "eventpro/analytics-service:latest"
@@ -63,4 +63,3 @@ tags = {
   ManagedBy   = "terraform"
   Owner       = "devops-team"
 }
-

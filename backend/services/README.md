@@ -8,10 +8,11 @@ The application is organized into modules with clear boundaries:
 
 - **eventpro-core**: User management, authentication, common utilities
 - **eventpro-event**: Event management, tickets, search
-- **eventpro-order**: Shopping cart, orders, checkout
-- **eventpro-payment**: Payment processing (Stripe)
-- **eventpro-notification**: Email, SMS, WebSocket notifications
+- **eventpro-order**: Shopping cart, orders, checkout (synchronous REST API)
+- **eventpro-payment**: Payment processing (Stripe) - synchronous REST API
 - **eventpro-api**: Main application module (REST API, configuration)
+
+**Note:** Notifications are handled asynchronously by the `notification-sender` Lambda function, not by a Spring Boot module.
 
 ## Building
 

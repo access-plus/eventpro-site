@@ -51,39 +51,20 @@ public class EventEntity extends BaseEntity {
     @Column(name = "marketing_enabled", nullable = false)
     private Boolean marketingEnabled = false;
 
-    /**
-     * User who created this event (organizer).
-     * Many events can be created by one user.
-     */
     @NotNull(message = "Event organizer is required")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organizer_id", nullable = false, foreignKey = @ForeignKey(name = "fk_event_organizer"))
     private UserEntity organizer;
 
-    /**
-     * Category this event belongs to.
-     * Many events can belong to one category.
-     */
     @NotNull(message = "Event category is required")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false, foreignKey = @ForeignKey(name = "fk_event_category"))
     private CategoryEntity category;
 
-    /**
-     * Address where this event takes place.
-     * One-to-one bidirectional relationship with AddressEntity.
-     */
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "address_id", foreignKey = @ForeignKey(name = "fk_event_address"))
     private AddressEntity address;
 
-    /**
-     * Tickets for this event.
-     * One event can have many tickets.
-     * 
-     * Note: Using @JoinColumn instead of mappedBy because TicketEntity uses UUID reference (eventId)
-     * instead of entity relationship to maintain framework independence.
-     */
     @OneToMany(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", foreignKey = @ForeignKey(name = "fk_ticket_event"))
     private List<TicketEntity> tickets = new ArrayList<>();

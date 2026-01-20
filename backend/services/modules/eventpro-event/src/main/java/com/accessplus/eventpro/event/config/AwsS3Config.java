@@ -9,10 +9,6 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
-/**
- * S3 configuration for AWS (non-local profiles).
- * Configures S3 clients for real AWS with full ACL support.
- */
 @Configuration
 @Profile("!local")
 public class AwsS3Config {

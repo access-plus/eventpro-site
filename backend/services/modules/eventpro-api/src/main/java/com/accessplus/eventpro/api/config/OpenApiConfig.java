@@ -31,10 +31,9 @@ public class OpenApiConfig {
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")
-                                .description("AWS Cognito JWT token")));
+                                .description("JWT access token")));
                 // Note: Security requirement is NOT applied globally
                 // Controllers should use @SecurityRequirement annotation per endpoint
                 // Public endpoints (e.g., /actuator/health, /api/v1/events) don't require auth
     }
 }
-

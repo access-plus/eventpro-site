@@ -43,21 +43,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * REST controller for event management operations.
- * 
-     * <p>Endpoints:
-     * <ul>
-     *   <li>POST /api/v1/events - Create event (admin/organizer only, multipart/form-data)</li>
-     *   <li>GET /api/v1/events/{id} - Get event by ID (public)</li>
-     *   <li>GET /api/v1/events - Get all events (public, paginated, searchable)</li>
-     *   <li>GET /api/v1/events/{id}/ticket-types - Get ticket types for event (public)</li>
-     *   <li>GET /api/v1/events/my-events - Get events user has purchased tickets for (authenticated)</li>
-     *   <li>GET /api/v1/events/category/{categoryName} - Get events by category (public)</li>
-     *   <li>PATCH /api/v1/events/{id} - Update event (admin/organizer only)</li>
-     *   <li>DELETE /api/v1/events/{id} - Delete event (admin/organizer only)</li>
-     * </ul>
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/events")
@@ -72,15 +57,6 @@ public class EventController extends BaseController {
     private final TicketService ticketService;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Creates a new event with optional image upload.
-     * 
-     * <p>Content-Type: multipart/form-data
-     * <ul>
-     *   <li>request (String, JSON) - EventCreateRequest</li>
-     *   <li>imageFile (MultipartFile) - Optional event image</li>
-     * </ul>
-     */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
     @Operation(summary = "Create event", description = "Creates a new event with optional image upload. " +
@@ -99,8 +75,8 @@ public class EventController extends BaseController {
             validateCreateRequest(request);
             
             // Get current user (organizer)
-            String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-            com.accessplus.eventpro.core.user.entity.UserEntity organizer = userService.getUserByCognitoId(cognitoUserId);
+            UUID userId = JwtUtils.getCurrentUserId();
+            com.accessplus.eventpro.core.user.entity.UserEntity organizer = userService.getUserById(userId);
             
             // Resolve category (by UUID or name)
             UUID categoryId = resolveCategoryId(request.getCategory());
@@ -152,9 +128,6 @@ public class EventController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    /**
-     * Retrieves all events with pagination and optional search.
-     */
     @GetMapping
     @Operation(summary = "Get all events", description = "Returns paginated list of all events. " +
             "Supports search by keyword (name). Public endpoint.")
@@ -192,11 +165,6 @@ public class EventController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(responsePage));
     }
 
-    /**
-     * Retrieves events by category name.
-     * 
-     * <p>Note: Uses categoryName, not categoryId, as per README.md specification.
-     */
     @GetMapping("/category/{categoryName}")
     @Operation(summary = "Get events by category", description = "Returns list of events in the specified category. " +
             "Uses category name, not ID. Public endpoint.")
@@ -219,12 +187,6 @@ public class EventController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
-    /**
-     * Retrieves ticket types for an event.
-     * 
-     * @param id event UUID
-     * @return List of TicketTypeResponse
-     */
     @GetMapping("/{id}/ticket-types")
     @Operation(summary = "Get ticket types for event", description = "Returns ticket types with availability information for an event. Public endpoint.")
     public ResponseEntity<ApiResponse<List<TicketTypeResponse>>> getTicketTypes(@PathVariable UUID id) {
@@ -286,11 +248,6 @@ public class EventController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(ticketTypes));
     }
 
-    /**
-     * Retrieves events where the authenticated user has purchased tickets.
-     * 
-     * @return List of EventResponse
-     */
     @GetMapping("/my-events")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Get my events", description = "Returns events where the authenticated user has purchased tickets. " +
@@ -300,8 +257,7 @@ public class EventController extends BaseController {
         log.debug("Getting events for current user");
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Get events where user has purchased tickets (no pagination for this endpoint)
         Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
@@ -314,11 +270,6 @@ public class EventController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
-    /**
-     * Updates an existing event.
-     * 
-     * <p>Note: imageFile is sent as a query parameter, not in request body, per README.md specification.
-     */
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
     @Operation(summary = "Update event", description = "Updates an existing event. " +
@@ -363,9 +314,6 @@ public class EventController extends BaseController {
         }
     }
 
-    /**
-     * Deletes an event by ID.
-     */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
     @Operation(summary = "Delete event", description = "Deletes an event by ID. " +
@@ -379,13 +327,6 @@ public class EventController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(null, "Event deleted successfully"));
     }
 
-    /**
-     * Resolves category ID from UUID string or category name.
-     * 
-     * @param categoryIdentifier UUID string or category name
-     * @return Category UUID
-     * @throws ResourceNotFoundException if category not found
-     */
     private UUID resolveCategoryId(String categoryIdentifier) {
         if (categoryIdentifier == null || categoryIdentifier.trim().isEmpty()) {
             throw new ValidationException("Category is required");
@@ -406,9 +347,6 @@ public class EventController extends BaseController {
         }
     }
 
-    /**
-     * Validates CreateEventRequest.
-     */
     private void validateCreateRequest(CreateEventRequest request) {
         if (request.getName() == null || request.getName().trim().isEmpty()) {
             throw new ValidationException("Event name is required");
@@ -436,4 +374,3 @@ public class EventController extends BaseController {
         }
     }
 }
-

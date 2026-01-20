@@ -36,7 +36,7 @@ EventPro Site is a **microservices-based event ticketing platform** that enables
 
 ### Core Business Requirements
 
-1. **User Management**: Authentication via AWS Cognito, role-based access (ADMIN, ORGANIZER, USER)
+1. **User Management**: Authentication via JWT tokens, role-based access (ADMIN, ORGANIZER, USER)
 2. **Event Management**: CRUD operations for events with categories, locations, and images
 3. **Ticket Management**: Create, sell, and manage tickets with QR code generation
 4. **Shopping Cart & Checkout**: Add tickets to cart, checkout, and order processing
@@ -195,7 +195,7 @@ PostgreSQL    PostgreSQL    SQS Queues
 - **State Management**: Redux Toolkit
 - **Routing**: React Router
 - **HTTP Client**: Axios or Fetch API
-- **Authentication**: AWS Cognito SDK
+- **Authentication**: JWT tokens (via backend API)
 
 ### Backend (ECS Services)
 - **Framework**: Spring Boot 3.5.7
@@ -203,7 +203,7 @@ PostgreSQL    PostgreSQL    SQS Queues
 - **Build Tool**: Gradle 8.5+
 - **Database**: PostgreSQL 15+ (RDS Multi-AZ)
 - **ORM**: Spring Data JPA / Hibernate
-- **Security**: Spring Security + AWS Cognito
+- **Security**: Spring Security + JWT (jjwt library)
 - **Messaging**: AWS SQS SDK
 - **Storage**: AWS S3 SDK
 - **Secrets**: AWS Secrets Manager
@@ -418,7 +418,6 @@ PostgreSQL    PostgreSQL    SQS Queues
    1. VPC and networking
    2. RDS PostgreSQL
    3. S3 buckets
-   4. Cognito User Pool
    5. Secrets Manager
    6. ECS cluster and services
    7. ALB
@@ -530,7 +529,7 @@ PostgreSQL    PostgreSQL    SQS Queues
 
 **MUST FOLLOW**:
 - ✅ All endpoints secured (except public)
-- ✅ Use Cognito for authentication
+- ✅ Use JWT tokens for authentication
 - ✅ Use Secrets Manager for secrets
 - ✅ Encrypt data at rest and in transit
 - ✅ Use least privilege IAM policies

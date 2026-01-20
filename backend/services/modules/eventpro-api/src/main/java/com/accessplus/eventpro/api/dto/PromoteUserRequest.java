@@ -7,12 +7,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Request DTO for promoting a user to ORGANIZER role.
- * 
- * <p>Users can only be promoted to ORGANIZER role.
- * ADMIN role can only be assigned via Terraform infrastructure.
- */
 @Data
 @Builder
 @NoArgsConstructor
