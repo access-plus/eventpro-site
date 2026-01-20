@@ -169,59 +169,6 @@ module "cloudfront" {
   tags = var.tags
 }
 
-# Cognito Module
-module "cognito" {
-  source = "../../modules/cognito"
-
-  name_prefix = var.name_prefix
-
-  custom_attributes = [
-    {
-      name                = "role"
-      attribute_data_type = "String"
-      mutable             = true
-      required            = false
-      string_constraints = {
-        min_length = 0
-        max_length = 50
-      }
-    }
-  ]
-
-  user_groups = {
-    admin = {
-      name        = "ADMIN"
-      description = "Administrator group"
-      precedence  = 1
-    }
-    organizer = {
-      name        = "ORGANIZER"
-      description = "Event organizer group"
-      precedence  = 2
-    }
-    user = {
-      name        = "USER"
-      description = "Regular user group"
-      precedence  = 3
-    }
-  }
-
-  domain            = var.cognito_domain
-  certificate_arn   = var.cognito_certificate_arn
-
-  callback_urls = [
-    "https://${var.frontend_subdomain}.${var.domain_name}/auth/callback",
-    "http://localhost:5173/auth/callback" # For local development
-  ]
-
-  logout_urls = [
-    "https://${var.frontend_subdomain}.${var.domain_name}/auth/logout",
-    "http://localhost:5173/auth/logout" # For local development
-  ]
-
-  tags = var.tags
-}
-
 # Lambda Secret Rotation Module removed - RDS now manages credential rotation natively
 
 # Lambda Order Processor Module (if image is provided)
@@ -343,7 +290,7 @@ module "lambda_notification_sender" {
 # Secrets Manager Module removed
 # - Database secret: Now managed automatically by RDS via manage_master_user_password
 # - Stripe secrets: Passed as environment variables from Terraform variables
-# - JWT secret: Not used (Cognito handles JWT token validation)
+# - JWT keys: Passed as environment variables from Terraform variables
 
 # ALB Module
 module "alb" {
@@ -360,11 +307,6 @@ module "alb" {
   target_port           = 8080
   health_check_path     = "/actuator/health"
   health_check_protocol = "HTTP"
-
-  # Cognito authentication (optional)
-  cognito_user_pool_arn       = module.cognito.user_pool_arn
-  cognito_user_pool_client_id = module.cognito.user_pool_client_id
-  cognito_user_pool_domain    = module.cognito.user_pool_domain_name
 
   tags = var.tags
 }
@@ -412,14 +354,6 @@ module "ecs_eventpro_api" {
       value = module.rds.db_instance_name
     },
     {
-      name  = "COGNITO_USER_POOL_ID"
-      value = module.cognito.user_pool_id
-    },
-    {
-      name  = "COGNITO_CLIENT_ID"
-      value = module.cognito.user_pool_client_id
-    },
-    {
       name  = "AWS_REGION"
       value = var.aws_region
     },
@@ -456,8 +390,20 @@ module "ecs_eventpro_api" {
       value = module.sqs_notification.queue_url
     },
     {
-      name  = "JWT_SECRET"
-      value = var.jwt_secret
+      name  = "JWT_ISSUER"
+      value = var.jwt_issuer
+    },
+    {
+      name  = "JWT_ACCESS_TTL_SECONDS"
+      value = tostring(var.jwt_access_ttl_seconds)
+    },
+    {
+      name  = "JWT_PUBLIC_KEY"
+      value = var.jwt_public_key
+    },
+    {
+      name  = "JWT_PRIVATE_KEY"
+      value = var.jwt_private_key
     }
   ]
 
@@ -552,4 +498,3 @@ module "route53" {
 
   tags = var.tags
 }
-

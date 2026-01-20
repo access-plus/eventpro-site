@@ -27,12 +27,6 @@ spring:
 
 aws:
   region: ${AWS_REGION:us-east-1}
-  # Cognito Configuration - REQUIRED
-  # COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID must be set via environment variables
-  # The application will fail to start if these are not configured
-  cognito:
-    userPoolId: ${COGNITO_USER_POOL_ID}  # REQUIRED
-    clientId: ${COGNITO_CLIENT_ID}  # REQUIRED
   s3:
     bucketName: ${S3_BUCKET_NAME}
   sqs:
@@ -51,6 +45,13 @@ stripe:
   secretKey: ${STRIPE_SECRET_KEY}
   publishableKey: ${STRIPE_PUBLISHABLE_KEY}
   webhookSecret: ${STRIPE_WEBHOOK_SECRET}
+
+security:
+  jwt:
+    issuer: ${JWT_ISSUER:eventpro}
+    accessTokenTtlSeconds: ${JWT_ACCESS_TTL_SECONDS:3600}
+    publicKey: ${JWT_PUBLIC_KEY}
+    privateKey: ${JWT_PRIVATE_KEY}
 
 server:
   port: 8080
@@ -91,4 +92,6 @@ springdoc:
     enabled: true
     operationsSorter: method
     tagsSorter: alpha
-
+  # Disable QueryDSL support (not used in this project, prevents TypeInformation classpath issues with DevTools)
+  querydsl:
+    enabled: false

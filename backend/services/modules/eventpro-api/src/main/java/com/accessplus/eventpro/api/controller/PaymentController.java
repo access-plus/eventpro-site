@@ -5,7 +5,6 @@ import com.accessplus.eventpro.api.dto.ConfirmPaymentRequest;
 import com.accessplus.eventpro.api.dto.CreatePaymentIntentRequest;
 import com.accessplus.eventpro.api.dto.OrderResponse;
 import com.accessplus.eventpro.core.security.JwtUtils;
-import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.payment.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -21,15 +20,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * REST controller for payment operations.
- * 
- * <p>Endpoints:
- * <ul>
- *   <li>POST /api/v1/payments/create-intent - Create Stripe payment intent</li>
- *   <li>POST /api/v1/payments/confirm - Confirm payment and create order</li>
- * </ul>
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/payments")
@@ -39,14 +29,7 @@ import java.util.UUID;
 public class PaymentController extends BaseController {
 
     private final PaymentService paymentService;
-    private final UserService userService;
 
-    /**
-     * Creates a Stripe payment intent.
-     * 
-     * @param request CreatePaymentIntentRequest with amount
-     * @return Payment intent client secret
-     */
     @PostMapping("/create-intent")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Create payment intent", description = "Creates a Stripe payment intent for the specified amount. " +
@@ -69,12 +52,6 @@ public class PaymentController extends BaseController {
         }
     }
 
-    /**
-     * Confirms a payment and creates an order from the user's cart.
-     * 
-     * @param request ConfirmPaymentRequest with payment intent ID
-     * @return Created order
-     */
     @PostMapping("/confirm")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Confirm payment", description = "Confirms a Stripe payment and creates an order from the user's cart. " +
@@ -85,8 +62,7 @@ public class PaymentController extends BaseController {
 
         try {
             // Get current user's UUID from JWT
-            String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-            UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+            UUID userId = JwtUtils.getCurrentUserId();
 
             // Process payment and create order
             var order = paymentService.processPayment(userId, request.getPaymentIntentId());
@@ -100,4 +76,3 @@ public class PaymentController extends BaseController {
         }
     }
 }
-

@@ -197,3 +197,5 @@ z_old_project/**
 terraform.tfstate.backup
 **/terraform.tfstate.backup
 ticket-**/
+
+**/*.pem

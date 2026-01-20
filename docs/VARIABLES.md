@@ -41,20 +41,21 @@ AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 ```
 
-### AWS Cognito Configuration (REQUIRED)
+### JWT Configuration (REQUIRED)
 
 ```env
-# AWS Cognito User Pool ID - REQUIRED
-# The application will fail to start if this is not configured
-# Format: us-east-1_XXXXXXXXX
-COGNITO_USER_POOL_ID=your-user-pool-id
+# JWT issuer (optional, defaults to eventpro)
+JWT_ISSUER=eventpro
 
-# AWS Cognito App Client ID - REQUIRED
-# The application will fail to start if this is not configured
-COGNITO_CLIENT_ID=your-client-id
+# Access token TTL in seconds (optional, defaults to 3600)
+JWT_ACCESS_TTL_SECONDS=3600
+
+# RSA keys for RS256 signing/verification (REQUIRED)
+JWT_PUBLIC_KEY=your-base64-or-pem-public-key
+JWT_PRIVATE_KEY=your-base64-or-pem-private-key
 ```
 
-**Note**: Cognito credentials are required even for local development. LocalStack Community Edition has limited Cognito support, so you'll need to use a real AWS Cognito User Pool or LocalStack Pro.
+**Note**: JWT keys are required for local development. Use RS256 keys (RSA) and store them in `.env`.
 
 ### S3 Configuration
 
@@ -188,18 +189,9 @@ The frontend React application requires the following environment variables. The
 VITE_API_BASE_URL=http://localhost:8080
 ```
 
-### Frontend AWS Cognito Configuration (REQUIRED)
+### Frontend AWS Configuration
 
 ```env
-# AWS Cognito User Pool ID - REQUIRED
-# Must match the backend COGNITO_USER_POOL_ID
-# Format: us-east-1_XXXXXXXXX
-VITE_COGNITO_USER_POOL_ID=your-user-pool-id
-
-# AWS Cognito App Client ID - REQUIRED
-# Must match the backend COGNITO_CLIENT_ID
-VITE_COGNITO_CLIENT_ID=your-client-id
-
 # AWS Region
 # Default: us-east-1
 VITE_AWS_REGION=us-east-1
@@ -264,7 +256,7 @@ If you prefer to set up manually:
 
 3. **Fill in the required values**, especially:
 
-   - `COGNITO_USER_POOL_ID` and `COGNITO_CLIENT_ID` (must be from real AWS or LocalStack Pro)
+   - `JWT_PUBLIC_KEY` and `JWT_PRIVATE_KEY` (required for backend auth)
    - `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, and `STRIPE_WEBHOOK_SECRET` (use test keys for local dev)
 
 ## Variable Reference Table
@@ -276,8 +268,10 @@ If you prefer to set up manually:
 | `DB_URL` | Yes | - | PostgreSQL connection URL |
 | `DB_USERNAME` | Yes | - | Database username |
 | `DB_PASSWORD` | Yes | - | Database password |
-| `COGNITO_USER_POOL_ID` | **Yes** | - | AWS Cognito User Pool ID |
-| `COGNITO_CLIENT_ID` | **Yes** | - | AWS Cognito App Client ID |
+| `JWT_ISSUER` | No | `eventpro` | JWT issuer |
+| `JWT_ACCESS_TTL_SECONDS` | No | `3600` | JWT access token TTL in seconds |
+| `JWT_PUBLIC_KEY` | **Yes** | - | JWT public key (RS256) |
+| `JWT_PRIVATE_KEY` | **Yes** | - | JWT private key (RS256) |
 | `AWS_REGION` | No | `us-east-1` | AWS region |
 | `AWS_ENDPOINT_URL` | No | - | LocalStack endpoint (for local dev) |
 | `S3_BUCKET_NAME` | No | `eventpro-images-local` | S3 bucket name |
@@ -293,15 +287,13 @@ If you prefer to set up manually:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `VITE_API_BASE_URL` | Yes | `http://localhost:8080` | Backend API base URL |
-| `VITE_COGNITO_USER_POOL_ID` | **Yes** | - | AWS Cognito User Pool ID |
-| `VITE_COGNITO_CLIENT_ID` | **Yes** | - | AWS Cognito App Client ID |
 | `VITE_AWS_REGION` | No | `us-east-1` | AWS region |
 | `VITE_S3_BUCKET_NAME` | No | `eventpro-images-local` | S3 bucket name |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | **Yes*** | - | Stripe publishable key (*required for payments) |
 
 ## Notes
 
-1. **Cognito is Required**: Even for local development, you need real AWS Cognito credentials. LocalStack Community Edition has limited Cognito support. Consider using LocalStack Pro or a real AWS Cognito User Pool.
+1. **JWT keys are required**: The backend will not start without `JWT_PUBLIC_KEY` and `JWT_PRIVATE_KEY`.
 
 2. **Queue URLs**: These are typically generated automatically by Terraform when running `make local-infra`. They follow the LocalStack format: `http://localhost:4566/000000000000/queue-name`.
 

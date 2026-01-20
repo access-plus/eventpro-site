@@ -10,14 +10,6 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Response DTO for User entity.
- * 
- * <p>Matches the UserResponse structure from README.md Users API.
- * Note: account flags (accountNonExpired, accountNonLocked, etc.) are not stored
- * in the database as they are managed by Cognito. These can be set to true by default
- * or retrieved from Cognito if needed in the future.
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -37,7 +29,7 @@ public class UserResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
-    // Account flags (managed by Cognito, default to true)
+    // Account flags (default to true)
     @Builder.Default
     private Boolean accountNonExpired = true;
     
@@ -55,9 +47,6 @@ public class UserResponse {
     // private List<OrderResponse> orders;
     // private Set<RoleDto> roles;
     
-    /**
-     * Creates a UserResponse from a UserEntity.
-     */
     public static UserResponse fromEntity(UserEntity entity) {
         if (entity == null) {
             return null;
@@ -83,4 +72,3 @@ public class UserResponse {
                 .build();
     }
 }
-

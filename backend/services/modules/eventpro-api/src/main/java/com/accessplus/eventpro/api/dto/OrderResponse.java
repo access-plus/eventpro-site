@@ -12,22 +12,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Response DTO for an order.
- * 
- * <p>Matches the OrderResponse structure from README.md Orders API.
- * 
- * <p>Fields:
- * <ul>
- *   <li>id - Order UUID</li>
- *   <li>amount - Order total amount (as Long for legacy API compatibility)</li>
- *   <li>orderItems - List of OrderItemResponse (tickets in the order)</li>
- *   <li>payment - PaymentResponse (nullable until payment is processed)</li>
- * </ul>
- * 
- * <p>Note: The README specifies "amount" as Long, but OrderEntity uses BigDecimal.
- * We'll convert BigDecimal to Long (cents) for API compatibility.
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -40,12 +24,6 @@ public class OrderResponse {
     private List<OrderItemResponse> orderItems;
     private PaymentResponse payment;
     
-    /**
-     * Creates an OrderResponse from an OrderEntity.
-     * 
-     * @param entity OrderEntity
-     * @return OrderResponse
-     */
     public static OrderResponse fromEntity(OrderEntity entity) {
         if (entity == null) {
             return null;

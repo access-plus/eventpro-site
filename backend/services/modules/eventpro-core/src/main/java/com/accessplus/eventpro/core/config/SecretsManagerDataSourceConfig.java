@@ -19,14 +19,6 @@ import software.amazon.awssdk.services.secretsmanager.model.SecretsManagerExcept
 
 import javax.sql.DataSource;
 
-/**
- * DataSource configuration for non-local environments.
- * Fetches database credentials from RDS-managed Secrets Manager secret.
- * 
- * This configuration is active for all profiles except "local".
- * It reads DB_HOST, DB_PORT, DB_NAME from environment variables and
- * fetches username and password from the RDS-managed secret.
- */
 @Configuration
 @Profile("!local")
 public class SecretsManagerDataSourceConfig {

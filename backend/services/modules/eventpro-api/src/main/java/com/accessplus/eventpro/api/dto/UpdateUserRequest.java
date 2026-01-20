@@ -6,12 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Request DTO for updating user profile.
- * 
- * <p>Matches the UserUpdateRequest structure from README.md Users API.
- * All fields are optional - only provided fields will be updated.
- */
 @Data
 @Builder
 @NoArgsConstructor

@@ -8,7 +8,6 @@ import com.accessplus.eventpro.api.dto.UpdateCartRequest;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
 import com.accessplus.eventpro.core.security.JwtUtils;
-import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
@@ -32,21 +31,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * REST controller for shopping cart operations.
- * 
-     * <p>Endpoints:
-     * <ul>
-     *   <li>POST /api/v1/cart/add - Add item to cart (authenticated users only)</li>
-     *   <li>POST /api/v1/cart/items - Add multiple items to cart (batch operation)</li>
-     *   <li>GET /api/v1/cart - Get user's cart (authenticated users only)</li>
-     *   <li>PATCH /api/v1/cart/update/{ticketId} - Update cart item quantity (authenticated users only)</li>
-     *   <li>DELETE /api/v1/cart/delete/{ticketId} - Remove item from cart (authenticated users only)</li>
-     *   <li>DELETE /api/v1/cart/clear - Clear cart (authenticated users only)</li>
-     * </ul>
- * 
- * <p>All endpoints use authenticated user context from JWT token.
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/cart")
@@ -58,20 +42,7 @@ public class CartController extends BaseController {
     private final CartService cartService;
     private final TicketRepository ticketRepository;
     private final EventRepository eventRepository;
-    private final UserService userService;
 
-    /**
-     * Adds an item to the user's cart.
-     * 
-     * <p>Supports two ways to specify the ticket:
-     * <ul>
-     *   <li>Direct ticket UUID: Use {@code id} field</li>
-     *   <li>Event + Type: Use {@code eventIdType} + {@code ticketType} to find an available ticket</li>
-     * </ul>
-     * 
-     * @param request AddToCartRequest with ticket information and quantity
-     * @return CartResponse with updated cart
-     */
     @PostMapping("/add")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Add item to cart", description = "Adds a ticket to the authenticated user's cart. " +
@@ -81,8 +52,7 @@ public class CartController extends BaseController {
         log.debug("Received request to add item to cart: {}", request);
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Find ticket
         UUID ticketId;
@@ -114,12 +84,6 @@ public class CartController extends BaseController {
                 .body(ApiResponse.success(response, "Item added to cart successfully"));
     }
 
-    /**
-     * Adds multiple items to the user's cart in batch.
-     * 
-     * @param items List of CartItemRequest with ticket information and quantities
-     * @return 200 OK
-     */
     @PostMapping("/items")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Add items to cart (batch)", description = "Adds multiple tickets to the authenticated user's cart in batch. " +
@@ -129,8 +93,7 @@ public class CartController extends BaseController {
         log.debug("Received request to add {} items to cart", items.size());
 
         // Get current user's UUID from JWT
-            String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-            UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+            UUID userId = JwtUtils.getCurrentUserId();
 
         // Process each item
         for (CartItemRequest item : items) {
@@ -158,11 +121,6 @@ public class CartController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(null, "Items added to cart successfully"));
     }
 
-    /**
-     * Retrieves the authenticated user's cart.
-     * 
-     * @return CartResponse with all cart items
-     */
     @GetMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Get user's cart", description = "Retrieves all items in the authenticated user's cart. " +
@@ -171,8 +129,7 @@ public class CartController extends BaseController {
         log.debug("Received request to get user's cart");
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Get cart items
         List<CartEntity> cartItems = cartService.getUserCart(userId);
@@ -182,13 +139,6 @@ public class CartController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    /**
-     * Updates the quantity of a cart item.
-     * 
-     * @param ticketId UUID of the ticket in the cart
-     * @param request UpdateCartRequest with new quantity
-     * @return CartResponse with updated cart
-     */
     @PatchMapping("/update/{ticketId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Update cart item quantity", description = "Updates the quantity of a specific item in the cart. " +
@@ -199,8 +149,7 @@ public class CartController extends BaseController {
         log.debug("Received request to update cart item: ticketId={}, quantity={}", ticketId, request.getQuantity());
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Update cart item
         cartService.updateCartItemQuantity(userId, ticketId, request.getQuantity());
@@ -214,12 +163,6 @@ public class CartController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(response, "Cart item updated successfully"));
     }
 
-    /**
-     * Removes an item from the user's cart.
-     * 
-     * @param ticketId UUID of the ticket to remove
-     * @return 200 OK with success message
-     */
     @DeleteMapping("/delete/{ticketId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Remove item from cart", description = "Removes a specific item from the authenticated user's cart. " +
@@ -228,8 +171,7 @@ public class CartController extends BaseController {
         log.debug("Received request to remove item from cart: ticketId={}", ticketId);
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Remove from cart
         cartService.removeItemFromCart(userId, ticketId);
@@ -237,11 +179,6 @@ public class CartController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(null, "Item removed from cart successfully"));
     }
 
-    /**
-     * Clears all items from the user's cart.
-     * 
-     * @return 200 OK with success message
-     */
     @DeleteMapping("/clear")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Clear cart", description = "Removes all items from the authenticated user's cart. " +
@@ -250,8 +187,7 @@ public class CartController extends BaseController {
         log.debug("Received request to clear cart");
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Clear cart
         cartService.clearCart(userId);
@@ -259,14 +195,6 @@ public class CartController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(null, "Cart cleared successfully"));
     }
 
-    /**
-     * Finds an available ticket by event ID and ticket type.
-     * 
-     * @param eventId event UUID
-     * @param ticketType ticket type
-     * @return ticket UUID
-     * @throws ResourceNotFoundException if no available ticket found
-     */
     private UUID findAvailableTicketByEventAndType(UUID eventId, TicketType ticketType) {
         // Validate event exists
         if (!eventRepository.existsById(eventId)) {
@@ -289,4 +217,3 @@ public class CartController extends BaseController {
         return availableTickets.get(0).getId();
     }
 }
-

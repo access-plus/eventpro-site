@@ -19,19 +19,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Implementation of AWS S3 image service.
- * Handles image upload, deletion, and URL generation for event images.
- * 
- * <p>Features:
- * <ul>
- *   <li>Image validation (size, format: JPEG, PNG, WebP)</li>
- *   <li>Automatic key generation with UUID prefix</li>
- *   <li>Content type detection</li>
- *   <li>Presigned URL generation for temporary access</li>
- *   <li>Public URL generation</li>
- * </ul>
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -53,15 +40,6 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
     private final S3Properties s3Properties;
     private final S3AclProperties s3AclProperties;
 
-    /**
-     * Uploads an image file to S3.
-     * 
-     * @param file the multipart file to upload
-     * @param key the S3 object key (path) where the image will be stored
-     * @return the S3 URL of the uploaded image
-     * @throws IOException if file upload fails
-     * @throws IllegalArgumentException if file validation fails
-     */
     @Override
     public String uploadImage(MultipartFile file, String key) throws IOException {
         log.debug("Uploading image to S3: key={}, size={}", key, file.getSize());
@@ -108,12 +86,6 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         }
     }
 
-    /**
-     * Deletes an image from S3.
-     * 
-     * @param key the S3 object key (path) of the image to delete
-     * @throws IOException if deletion fails
-     */
     @Override
     public void deleteImage(String key) throws IOException {
         if (key == null || key.isEmpty()) {
@@ -138,14 +110,6 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         }
     }
 
-    /**
-     * Generates a presigned URL for an image in S3.
-     * Useful for temporary access to private images.
-     * 
-     * @param key the S3 object key (path) of the image
-     * @param expirationMinutes expiration time in minutes for the presigned URL
-     * @return presigned URL for the image
-     */
     @Override
     public String getPresignedUrl(String key, int expirationMinutes) {
         if (key == null || key.isEmpty()) {
@@ -168,13 +132,6 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         return presignedRequest.url().toString();
     }
 
-    /**
-     * Gets the public URL for an image in S3.
-     * Assumes the bucket/object has public read access.
-     * 
-     * @param key the S3 object key (path) of the image
-     * @return public URL for the image
-     */
     @Override
     public String getImageUrl(String key) {
         if (key == null || key.isEmpty()) {
@@ -206,13 +163,6 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         }
     }
 
-    /**
-     * Validates an image file.
-     * Checks file size, format (JPEG, PNG, WebP), and other constraints.
-     * 
-     * @param file the file to validate
-     * @throws IllegalArgumentException if validation fails
-     */
     @Override
     public void validateImage(MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -249,13 +199,6 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         }
     }
 
-    /**
-     * Generates a unique S3 key for an image.
-     * Format: events/{uuid}-{original-filename}
-     * 
-     * @param originalFilename the original filename
-     * @return generated S3 key
-     */
     private String generateImageKey(String originalFilename) {
         String uuid = UUID.randomUUID().toString();
         String filename = originalFilename != null ? originalFilename : "image";
@@ -263,12 +206,6 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         return String.format("events/%s%s", uuid, extension);
     }
 
-    /**
-     * Gets the file extension from a filename.
-     * 
-     * @param filename the filename
-     * @return file extension (including dot), or empty string if no extension
-     */
     private String getFileExtension(String filename) {
         if (filename == null || filename.isEmpty()) {
             return "";
@@ -280,12 +217,6 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         return filename.substring(lastDotIndex);
     }
 
-    /**
-     * Determines content type from filename extension.
-     * 
-     * @param filename the filename
-     * @return content type, or "image/jpeg" as default
-     */
     private String determineContentType(String filename) {
         if (filename == null) {
             return "image/jpeg";
@@ -299,13 +230,6 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         };
     }
 
-    /**
-     * Extracts the S3 key from a full URL.
-     * If the input is already a key, returns it as-is.
-     * 
-     * @param urlOrKey the URL or key
-     * @return extracted key
-     */
     private String extractKeyFromUrl(String urlOrKey) {
         // If it's already a key (no http/https), return as-is
         if (!urlOrKey.startsWith("http://") && !urlOrKey.startsWith("https://")) {
