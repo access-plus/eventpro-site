@@ -10,6 +10,9 @@ import type {
   CartResponse,
   AddToCartRequest,
   UpdateCartRequest,
+  SignUpRequest,
+  LoginRequest,
+  AuthResponse,
 } from "@/types/api";
 
 class ApiService {
@@ -46,7 +49,6 @@ class ApiService {
           if (hadToken) {
             // Token expired or invalid - clear tokens and redirect
             localStorage.removeItem("accessToken");
-            localStorage.removeItem("refreshToken");
             window.location.href = "/login";
           }
           // If no token, just reject the error (public endpoint failed, don't redirect)
@@ -57,6 +59,22 @@ class ApiService {
   }
 
   // User endpoints
+  async signUp(data: SignUpRequest): Promise<User> {
+    const response = await this.api.post<ApiResponse<User>>(
+      "/api/v1/auth/signup",
+      data
+    );
+    return response.data.data;
+  }
+
+  async login(data: LoginRequest): Promise<AuthResponse> {
+    const response = await this.api.post<ApiResponse<AuthResponse>>(
+      "/api/v1/auth/login",
+      data
+    );
+    return response.data.data;
+  }
+
   async getCurrentUser(): Promise<User> {
     const response = await this.api.get<ApiResponse<User>>("/api/v1/users/me");
     return response.data.data;
@@ -70,12 +88,6 @@ class ApiService {
     return response.data.data;
   }
 
-  async syncUser(): Promise<User> {
-    const response = await this.api.post<ApiResponse<User>>(
-      "/api/v1/users/sync"
-    );
-    return response.data.data;
-  }
 
   // Event endpoints
   async getEvents(page = 0, size = 20, keyword?: string): Promise<Event[]> {

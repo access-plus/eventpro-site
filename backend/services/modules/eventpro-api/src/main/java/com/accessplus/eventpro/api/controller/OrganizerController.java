@@ -4,7 +4,6 @@ import com.accessplus.eventpro.api.dto.*;
 import com.accessplus.eventpro.api.service.OrganizerService;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
-import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.event.event.entity.EventEntity;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.event.service.EventService;
@@ -59,7 +58,6 @@ public class OrganizerController extends BaseController {
     private final EventService eventService;
     private final TicketService ticketService;
     private final EventRepository eventRepository;
-    private final UserService userService;
     private final AWSS3ImageService imageService;
 
     @GetMapping("/events")
@@ -69,8 +67,7 @@ public class OrganizerController extends BaseController {
         log.debug("Getting organizer's events");
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID organizerId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID organizerId = JwtUtils.getCurrentUserId();
 
         // Get events by organizer (no pagination for this endpoint)
         Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
@@ -91,8 +88,7 @@ public class OrganizerController extends BaseController {
         log.debug("Creating new event: name={}", request.getName());
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID organizerId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID organizerId = JwtUtils.getCurrentUserId();
 
         // Create event (reuse existing EventController logic)
         // Note: This would need to be refactored to share logic
@@ -130,8 +126,7 @@ public class OrganizerController extends BaseController {
         log.debug("Updating event: eventId={}", id);
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID organizerId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID organizerId = JwtUtils.getCurrentUserId();
 
         // Verify event belongs to organizer
         EventEntity event = eventRepository.findById(id)
@@ -206,8 +201,7 @@ public class OrganizerController extends BaseController {
         log.debug("Getting event stats: eventId={}", id);
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID organizerId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID organizerId = JwtUtils.getCurrentUserId();
 
         EventStatsResponse stats = organizerService.getEventStats(id, organizerId);
         return ResponseEntity.ok(ApiResponse.success(stats));
@@ -220,8 +214,7 @@ public class OrganizerController extends BaseController {
         log.debug("Getting event attendees: eventId={}", id);
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID organizerId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID organizerId = JwtUtils.getCurrentUserId();
 
         List<AttendeeResponse> attendees = organizerService.getEventAttendees(id, organizerId);
         return ResponseEntity.ok(ApiResponse.success(attendees));
@@ -241,8 +234,7 @@ public class OrganizerController extends BaseController {
                 .orElseThrow(() -> new ResourceNotFoundException("Event", ticket.getEventId().toString()));
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID organizerId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID organizerId = JwtUtils.getCurrentUserId();
 
         if (!event.getOrganizer().getId().equals(organizerId)) {
             throw new ResourceNotFoundException("Ticket", id.toString());
@@ -255,4 +247,3 @@ public class OrganizerController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(null, "Attendee checked in successfully"));
     }
 }
-

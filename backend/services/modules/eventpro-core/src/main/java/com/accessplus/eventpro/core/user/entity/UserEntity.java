@@ -17,7 +17,7 @@ import lombok.Setter;
  *   <li>phoneNumber (String, nullable) - Phone number for SMS notifications</li>
  *   <li>firstName (String, not null) - User's first name</li>
  *   <li>lastName (String, not null) - User's last name</li>
- *   <li>cognitoUserId (String, unique, not null) - AWS Cognito user ID</li>
+ *   <li>passwordHash (String, nullable) - Hashed password for local auth</li>
  *   <li>createdAt (LocalDateTime) - From BaseEntity</li>
  *   <li>updatedAt (LocalDateTime) - From BaseEntity</li>
  * </ul>
@@ -33,8 +33,7 @@ import lombok.Setter;
  */
 @Entity
 @Table(name = "users", indexes = {
-    @Index(name = "idx_user_email", columnList = "email"),
-    @Index(name = "idx_user_cognito_id", columnList = "cognito_user_id")
+    @Index(name = "idx_user_email", columnList = "email")
 })
 @Getter
 @Setter
@@ -54,8 +53,8 @@ public class UserEntity extends BaseEntity {
     @Column(name = "last_name", nullable = false, length = 100)
     private String lastName;
 
-    @Column(name = "cognito_user_id", nullable = false, unique = true, length = 255)
-    private String cognitoUserId;
+    @Column(name = "password_hash", length = 255)
+    private String passwordHash;
 
     @Column(name = "bio", columnDefinition = "TEXT")
     private String bio;
@@ -113,4 +112,3 @@ public class UserEntity extends BaseEntity {
     // @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     // private NotificationPreferenceEntity notificationPreference;
 }
-

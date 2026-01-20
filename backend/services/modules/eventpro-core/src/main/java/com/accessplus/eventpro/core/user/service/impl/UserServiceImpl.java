@@ -19,8 +19,8 @@ import java.util.UUID;
  * 
  * <p>Handles user management operations including:
  * <ul>
- *   <li>Syncing users from Cognito after signup</li>
- *   <li>Retrieving users by Cognito ID</li>
+ *   <li>Creating users for local auth</li>
+ *   <li>Retrieving users by email</li>
  *   <li>Updating user profiles</li>
  * </ul>
  */
@@ -33,49 +33,43 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
 
     @Override
-    public UserEntity createUserFromCognito(String cognitoUserId, String email, String firstName, 
-                                           String lastName, String phoneNumber, String role) {
-        log.debug("Creating user from Cognito: cognitoUserId={}, email={}, role={}", cognitoUserId, email, role);
-
-        // Check if user already exists by Cognito ID
-        if (userRepository.findByCognitoUserId(cognitoUserId).isPresent()) {
-            log.warn("User with Cognito ID '{}' already exists", cognitoUserId);
-            throw new ConflictException("User", "cognitoUserId", cognitoUserId);
-        }
+    public UserEntity createUser(String email, String passwordHash, String firstName,
+                                 String lastName, String phoneNumber, String role) {
+        log.debug("Creating user: email={}, role={}", email, role);
 
         // Check if user already exists by email
-        if (userRepository.findByEmail(email).isPresent()) {
+        if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
             log.warn("User with email '{}' already exists", email);
             throw new ConflictException("User", "email", email);
         }
 
         // Create new user entity
         UserEntity user = new UserEntity();
-        user.setCognitoUserId(cognitoUserId);
         user.setEmail(email);
+        user.setPasswordHash(passwordHash);
         user.setFirstName(firstName);
         user.setLastName(lastName);
         user.setPhoneNumber(phoneNumber);
         user.setStatus("ACTIVE"); // Set default status (database has NOT NULL constraint with DEFAULT 'ACTIVE')
-        // Set role from Cognito custom:role attribute, default to USER if not provided
+        // Set role, default to USER if not provided
         user.setRole(role != null && !role.isEmpty() ? role : "USER");
 
         UserEntity savedUser = userRepository.save(user);
-        log.info("Created user from Cognito: id={}, email={}, cognitoUserId={}, role={}", 
-                savedUser.getId(), savedUser.getEmail(), savedUser.getCognitoUserId(), savedUser.getRole());
+        log.info("Created user: id={}, email={}, role={}",
+                savedUser.getId(), savedUser.getEmail(), savedUser.getRole());
 
         return savedUser;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public UserEntity getUserByCognitoId(String cognitoUserId) {
-        log.debug("Retrieving user by Cognito ID: {}", cognitoUserId);
+    public UserEntity getUserByEmail(String email) {
+        log.debug("Retrieving user by email: {}", email);
 
-        return userRepository.findByCognitoUserId(cognitoUserId)
+        return userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> {
-                    log.warn("User not found with Cognito ID: {}", cognitoUserId);
-                    return new ResourceNotFoundException("User", cognitoUserId);
+                    log.warn("User not found with email: {}", email);
+                    return new ResourceNotFoundException("User", email);
                 });
     }
 
@@ -112,19 +106,12 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserEntity updateUserProfile(String cognitoUserId, String firstName, String lastName, String phoneNumber) {
-        log.debug("Updating user profile: cognitoUserId={}", cognitoUserId);
-
-        UserEntity user = getUserByCognitoId(cognitoUserId);
-        return updateUserFields(user, firstName, lastName, phoneNumber, null, null, null);
-    }
-
     @Override
-    public UserEntity updateUserProfile(String cognitoUserId, String firstName, String lastName, String phoneNumber,
-                                       String bio, String location, String profilePictureUrl) {
-        log.debug("Updating user profile with extended fields: cognitoUserId={}", cognitoUserId);
+    public UserEntity updateUserProfile(UUID userId, String firstName, String lastName, String phoneNumber,
+                                        String bio, String location, String profilePictureUrl) {
+        log.debug("Updating user profile with extended fields: userId={}", userId);
 
-        UserEntity user = getUserByCognitoId(cognitoUserId);
+        UserEntity user = getUserById(userId);
         return updateUserFields(user, firstName, lastName, phoneNumber, bio, location, profilePictureUrl);
     }
 
@@ -218,4 +205,3 @@ public class UserServiceImpl implements UserService {
         return savedUser;
     }
 }
-

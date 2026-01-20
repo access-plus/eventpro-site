@@ -155,19 +155,6 @@ variable "cloudfront_certificate_arn" {
   default     = null
 }
 
-# Cognito Configuration
-variable "cognito_domain" {
-  description = "Domain prefix for Cognito User Pool (e.g., eventpro-dev-auth)"
-  type        = string
-  default     = null
-}
-
-variable "cognito_certificate_arn" {
-  description = "ARN of the ACM certificate for Cognito custom domain (must be in us-east-1)"
-  type        = string
-  default     = null
-}
-
 # Secrets Manager Configuration
 variable "stripe_webhook_secret" {
   description = "Stripe webhook secret for webhook verification"
@@ -190,8 +177,27 @@ variable "stripe_publishable_key" {
   default     = ""
 }
 
-variable "jwt_secret" {
-  description = "JWT secret key for token signing"
+variable "jwt_issuer" {
+  description = "JWT issuer for access tokens"
+  type        = string
+  default     = "eventpro"
+}
+
+variable "jwt_access_ttl_seconds" {
+  description = "JWT access token TTL in seconds"
+  type        = number
+  default     = 3600
+}
+
+variable "jwt_public_key" {
+  description = "JWT public key (PEM or base64) for token verification"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "jwt_private_key" {
+  description = "JWT private key (PEM or base64) for token signing"
   type        = string
   sensitive   = true
   default     = ""

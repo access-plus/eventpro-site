@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import type { User, UserRole, LoginRequest, SignUpRequest, VerifyEmailRequest } from "@/types/api";
-import { cognitoService } from "@/lib/cognito";
+import type { User, UserRole, LoginRequest, SignUpRequest } from "@/types/api";
 import { apiService } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -9,7 +8,6 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   signUp: (data: SignUpRequest) => Promise<void>;
-  verifyEmail: (data: VerifyEmailRequest) => Promise<void>;
   login: (data: LoginRequest) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -37,7 +35,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Auth check failed:", error);
       localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
     } finally {
       setIsLoading(false);
     }
@@ -45,10 +42,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (data: SignUpRequest) => {
     try {
-      await cognitoService.signUp(data);
+      await apiService.signUp(data);
       toast({
         title: "Success",
-        description: "Account created! Please check your email for verification code.",
+        description: "Account created! You can now log in.",
       });
     } catch (error: any) {
       toast({
@@ -60,62 +57,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const verifyEmail = async (data: VerifyEmailRequest) => {
-    try {
-      await cognitoService.verifyEmail(data);
-      toast({
-        title: "Success",
-        description: "Email verified! You can now log in.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Verification failed",
-        description: error.message || "Invalid verification code",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
   const login = async (data: LoginRequest) => {
     try {
-      const tokens = await cognitoService.login(data);
-      localStorage.setItem("accessToken", tokens.accessToken);
-      localStorage.setItem("refreshToken", tokens.refreshToken);
+      const result = await apiService.login(data);
+      localStorage.setItem("accessToken", result.accessToken);
+      setUser(result.user);
 
-      // Sync user with backend
-      // This is critical - if sync fails, user can't use the app
-      try {
-        const userData = await apiService.syncUser();
-        setUser(userData);
-
-        toast({
-          title: "Welcome back!",
-          description: `Logged in as ${userData.email}`,
-        });
-      } catch (syncError: any) {
-        // Sync failed - this is a critical error
-        console.error("User sync failed after login:", syncError);
-        
-        // Clear tokens since sync failed
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        
-        // Provide detailed error message
-        const errorMessage = syncError.response?.data?.message || 
-                             syncError.message || 
-                             "Failed to sync user with backend. Please try again or contact support.";
-        
-        toast({
-          title: "Login failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        throw new Error(errorMessage);
-      }
+      toast({
+        title: "Welcome back!",
+        description: `Logged in as ${result.user.email}`,
+      });
     } catch (error: any) {
-      // Cognito login failed
-      console.error("Cognito login failed:", error);
+      console.error("Login failed:", error);
       toast({
         title: "Login failed",
         description: error.message || "Invalid credentials. Please check your email and password.",
@@ -127,7 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
     setUser(null);
     toast({
       title: "Logged out",
@@ -155,7 +107,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         isAuthenticated: !!user,
         signUp,
-        verifyEmail,
         login,
         logout,
         refreshUser,

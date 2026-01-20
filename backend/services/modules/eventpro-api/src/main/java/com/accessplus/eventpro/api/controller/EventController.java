@@ -99,8 +99,8 @@ public class EventController extends BaseController {
             validateCreateRequest(request);
             
             // Get current user (organizer)
-            String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-            com.accessplus.eventpro.core.user.entity.UserEntity organizer = userService.getUserByCognitoId(cognitoUserId);
+            UUID userId = JwtUtils.getCurrentUserId();
+            com.accessplus.eventpro.core.user.entity.UserEntity organizer = userService.getUserById(userId);
             
             // Resolve category (by UUID or name)
             UUID categoryId = resolveCategoryId(request.getCategory());
@@ -300,8 +300,7 @@ public class EventController extends BaseController {
         log.debug("Getting events for current user");
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Get events where user has purchased tickets (no pagination for this endpoint)
         Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
@@ -436,4 +435,3 @@ public class EventController extends BaseController {
         }
     }
 }
-

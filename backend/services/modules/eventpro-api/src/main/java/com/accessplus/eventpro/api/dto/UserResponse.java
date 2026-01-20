@@ -15,8 +15,7 @@ import java.util.UUID;
  * 
  * <p>Matches the UserResponse structure from README.md Users API.
  * Note: account flags (accountNonExpired, accountNonLocked, etc.) are not stored
- * in the database as they are managed by Cognito. These can be set to true by default
- * or retrieved from Cognito if needed in the future.
+ * in the database. These are set to true by default for now.
  */
 @Data
 @Builder
@@ -37,7 +36,7 @@ public class UserResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
-    // Account flags (managed by Cognito, default to true)
+    // Account flags (default to true)
     @Builder.Default
     private Boolean accountNonExpired = true;
     
@@ -83,4 +82,3 @@ public class UserResponse {
                 .build();
     }
 }
-

@@ -22,7 +22,7 @@ import java.util.Arrays;
 
 /**
  * Spring Security configuration for OAuth2 Resource Server.
- * Configures JWT token validation using AWS Cognito and maps Cognito groups to Spring Security roles.
+ * Configures JWT token validation and maps role claims to Spring Security roles.
  */
 @Configuration
 @EnableWebSecurity
@@ -30,11 +30,11 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtDecoder jwtDecoder;
-    private final CognitoRoleMapper cognitoRoleMapper;
+    private final JwtRoleMapper jwtRoleMapper;
 
-    public SecurityConfig(JwtDecoder jwtDecoder, CognitoRoleMapper cognitoRoleMapper) {
+    public SecurityConfig(JwtDecoder jwtDecoder, JwtRoleMapper jwtRoleMapper) {
         this.jwtDecoder = jwtDecoder;
-        this.cognitoRoleMapper = cognitoRoleMapper;
+        this.jwtRoleMapper = jwtRoleMapper;
     }
 
     /**
@@ -42,7 +42,7 @@ public class SecurityConfig {
      * 
      * Security rules:
      * - /actuator/health: Public access (no authentication required)
-     * - All other endpoints: Require valid JWT access token from Cognito
+     * - All other endpoints: Require valid JWT access token
      * 
      * The backend validates JWT tokens directly (not relying on ALB authentication).
      *
@@ -61,6 +61,7 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 // Swagger/OpenAPI documentation endpoints - public access
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/api-docs/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/send-reset-email").permitAll()
                 // Public Events endpoints - no authentication required (GET only)
                 .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/*").permitAll()
@@ -108,14 +109,13 @@ public class SecurityConfig {
     }
 
     /**
-     * Creates a JWT authentication converter that extracts authorities from Cognito groups.
-     * Uses CognitoRoleMapper to convert Cognito group claims to Spring Security authorities.
+     * Creates a JWT authentication converter that extracts authorities from JWT role claims.
      *
-     * @return JwtAuthenticationConverter configured for Cognito groups
+     * @return JwtAuthenticationConverter configured for role claims
      */
     private JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(cognitoRoleMapper::convert);
+        converter.setJwtGrantedAuthoritiesConverter(jwtRoleMapper::convert);
         return converter;
     }
 
@@ -145,4 +145,3 @@ public class SecurityConfig {
         return source;
     }
 }
-

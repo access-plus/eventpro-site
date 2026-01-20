@@ -8,11 +8,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.security:spring-security-oauth2-jose'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     
     // AWS SDK
     implementation platform("software.amazon.awssdk:bom:${project.ext.awsSdkVersion}")
-    implementation 'software.amazon.awssdk:cognitoidentityprovider'
     implementation 'software.amazon.awssdk:secretsmanager'
     implementation 'software.amazon.awssdk:sqs'
     implementation 'software.amazon.awssdk:ses'
@@ -36,4 +36,3 @@ dependencies {
     testImplementation 'com.h2database:h2' // For @DataJpaTest
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher' // Required for JUnit 5 test execution
 }
-

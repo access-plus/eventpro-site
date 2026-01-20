@@ -5,7 +5,6 @@ import com.accessplus.eventpro.api.dto.ConfirmPaymentRequest;
 import com.accessplus.eventpro.api.dto.CreatePaymentIntentRequest;
 import com.accessplus.eventpro.api.dto.OrderResponse;
 import com.accessplus.eventpro.core.security.JwtUtils;
-import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.payment.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -39,7 +38,6 @@ import java.util.UUID;
 public class PaymentController extends BaseController {
 
     private final PaymentService paymentService;
-    private final UserService userService;
 
     /**
      * Creates a Stripe payment intent.
@@ -85,8 +83,7 @@ public class PaymentController extends BaseController {
 
         try {
             // Get current user's UUID from JWT
-            String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-            UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+            UUID userId = JwtUtils.getCurrentUserId();
 
             // Process payment and create order
             var order = paymentService.processPayment(userId, request.getPaymentIntentId());
@@ -100,4 +97,3 @@ public class PaymentController extends BaseController {
         }
     }
 }
-

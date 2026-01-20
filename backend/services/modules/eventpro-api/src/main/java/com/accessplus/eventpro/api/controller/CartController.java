@@ -8,7 +8,6 @@ import com.accessplus.eventpro.api.dto.UpdateCartRequest;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
 import com.accessplus.eventpro.core.security.JwtUtils;
-import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
@@ -58,7 +57,6 @@ public class CartController extends BaseController {
     private final CartService cartService;
     private final TicketRepository ticketRepository;
     private final EventRepository eventRepository;
-    private final UserService userService;
 
     /**
      * Adds an item to the user's cart.
@@ -81,8 +79,7 @@ public class CartController extends BaseController {
         log.debug("Received request to add item to cart: {}", request);
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Find ticket
         UUID ticketId;
@@ -129,8 +126,7 @@ public class CartController extends BaseController {
         log.debug("Received request to add {} items to cart", items.size());
 
         // Get current user's UUID from JWT
-            String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-            UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+            UUID userId = JwtUtils.getCurrentUserId();
 
         // Process each item
         for (CartItemRequest item : items) {
@@ -171,8 +167,7 @@ public class CartController extends BaseController {
         log.debug("Received request to get user's cart");
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Get cart items
         List<CartEntity> cartItems = cartService.getUserCart(userId);
@@ -199,8 +194,7 @@ public class CartController extends BaseController {
         log.debug("Received request to update cart item: ticketId={}, quantity={}", ticketId, request.getQuantity());
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Update cart item
         cartService.updateCartItemQuantity(userId, ticketId, request.getQuantity());
@@ -228,8 +222,7 @@ public class CartController extends BaseController {
         log.debug("Received request to remove item from cart: ticketId={}", ticketId);
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Remove from cart
         cartService.removeItemFromCart(userId, ticketId);
@@ -250,8 +243,7 @@ public class CartController extends BaseController {
         log.debug("Received request to clear cart");
 
         // Get current user's UUID from JWT
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID userId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Clear cart
         cartService.clearCart(userId);
@@ -289,4 +281,3 @@ public class CartController extends BaseController {
         return availableTickets.get(0).getId();
     }
 }
-

@@ -72,27 +72,6 @@ output "frontend_bucket_name" {
   value       = module.s3_frontend.bucket_id
 }
 
-# Cognito Outputs
-output "cognito_user_pool_id" {
-  description = "ID of the Cognito User Pool"
-  value       = module.cognito.user_pool_id
-}
-
-output "cognito_user_pool_arn" {
-  description = "ARN of the Cognito User Pool"
-  value       = module.cognito.user_pool_arn
-}
-
-output "cognito_client_id" {
-  description = "ID of the Cognito User Pool Client"
-  value       = module.cognito.user_pool_client_id
-}
-
-output "cognito_domain_name" {
-  description = "Domain name of the Cognito User Pool"
-  value       = module.cognito.user_pool_domain_name
-}
-
 # Secrets Manager Outputs removed
 # Database secret ARN is available via module.rds.db_master_user_secret_arn (RDS-managed)
 # Stripe secrets are passed as environment variables, not via Secrets Manager
@@ -144,4 +123,3 @@ output "sqs_notification_queue_url" {
   description = "SQS Notification Queue URL"
   value       = module.sqs_notification.queue_url
 }
-

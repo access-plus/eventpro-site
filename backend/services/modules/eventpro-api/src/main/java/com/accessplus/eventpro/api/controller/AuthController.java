@@ -1,7 +1,14 @@
 package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.ApiResponse;
+import com.accessplus.eventpro.api.dto.AuthLoginRequest;
+import com.accessplus.eventpro.api.dto.AuthResponse;
+import com.accessplus.eventpro.api.dto.AuthSignupRequest;
 import com.accessplus.eventpro.api.dto.SendResetEmailRequest;
+import com.accessplus.eventpro.api.dto.UserResponse;
+import com.accessplus.eventpro.api.service.AuthResult;
+import com.accessplus.eventpro.api.service.AuthService;
+import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.email.service.EmailService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +23,8 @@ import org.springframework.web.bind.annotation.*;
  * 
  * <p>Endpoints:
  * <ul>
+ *   <li>POST /api/v1/auth/signup - Create user account</li>
+ *   <li>POST /api/v1/auth/login - Authenticate and return JWT</li>
  *   <li>POST /api/v1/auth/send-reset-email - Send password reset confirmation email</li>
  * </ul>
  */
@@ -27,6 +36,34 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController extends BaseController {
 
     private final EmailService emailService;
+    private final AuthService authService;
+
+    @PostMapping("/signup")
+    @Operation(summary = "Sign up", description = "Creates a new user account.")
+    public ResponseEntity<ApiResponse<UserResponse>> signUp(
+            @Valid @RequestBody AuthSignupRequest request) {
+        log.info("Signing up user: email={}", request.getEmail());
+
+        UserEntity user = authService.signUp(request);
+        UserResponse response = UserResponse.fromEntity(user);
+        return ResponseEntity.ok(ApiResponse.success(response, "Signup successful"));
+    }
+
+    @PostMapping("/login")
+    @Operation(summary = "Login", description = "Authenticates user and returns a JWT access token.")
+    public ResponseEntity<ApiResponse<AuthResponse>> login(
+            @Valid @RequestBody AuthLoginRequest request) {
+        log.debug("Logging in user: email={}", request.getEmail());
+
+        AuthResult result = authService.login(request);
+        AuthResponse response = AuthResponse.builder()
+                .accessToken(result.accessToken())
+                .expiresIn(result.expiresIn())
+                .user(UserResponse.fromEntity(result.user()))
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Login successful"));
+    }
 
     /**
      * Sends a password reset confirmation email.
@@ -50,4 +87,3 @@ public class AuthController extends BaseController {
         }
     }
 }
-

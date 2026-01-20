@@ -141,31 +141,10 @@ resource "aws_lb_listener" "https" {
   ssl_policy        = var.ssl_policy
   certificate_arn   = var.certificate_arn
 
-  # Cognito authentication (if enabled)
-  dynamic "default_action" {
-    for_each = var.cognito_user_pool_arn != null ? [1] : []
-    content {
-      type = "authenticate-cognito"
-      order = 1
-
-      authenticate_cognito {
-        user_pool_arn       = var.cognito_user_pool_arn
-        user_pool_client_id = var.cognito_user_pool_client_id
-        user_pool_domain    = var.cognito_user_pool_domain
-
-        on_unauthenticated_request = var.cognito_on_unauthenticated_request
-        scope                      = var.cognito_scope
-        session_cookie_name        = var.cognito_session_cookie_name
-        session_timeout            = var.cognito_session_timeout
-      }
-    }
-  }
-
   # Forward action (always required)
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.primary.arn
-    order            = var.cognito_user_pool_arn != null ? 2 : 1
   }
 
   tags = merge(
@@ -211,4 +190,3 @@ resource "aws_lb_listener_rule" "path_routing" {
     }
   )
 }
-

@@ -117,10 +117,10 @@ export interface ApiResponse<T> {
   timestamp: string;
 }
 
-export interface LoginResponse {
+export interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
   expiresIn: number;
+  user: User;
 }
 
 export interface SignUpRequest {
@@ -130,11 +130,6 @@ export interface SignUpRequest {
   lastName?: string;
   phoneNumber?: string;
   role?: UserRole;
-}
-
-export interface VerifyEmailRequest {
-  email: string;
-  code: string;
 }
 
 export interface LoginRequest {

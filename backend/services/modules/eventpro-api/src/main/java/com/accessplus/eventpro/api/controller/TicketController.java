@@ -84,8 +84,8 @@ public class TicketController extends BaseController {
                 request.getEventId(), request.getTickets().size());
 
         // Get current user (creator)
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        com.accessplus.eventpro.core.user.entity.UserEntity creator = userService.getUserByCognitoId(cognitoUserId);
+        UUID userId = JwtUtils.getCurrentUserId();
+        com.accessplus.eventpro.core.user.entity.UserEntity creator = userService.getUserById(userId);
 
         // Validate event exists
         eventRepository.findById(request.getEventId())
@@ -166,8 +166,7 @@ public class TicketController extends BaseController {
         TicketEntity ticket = ticketService.getTicketById(id);
 
         // Check authorization: user can only download their own tickets, admin can download any
-        String cognitoUserId = JwtUtils.getCurrentUserCognitoId();
-        UUID currentUserId = userService.getUserByCognitoId(cognitoUserId).getId();
+        UUID currentUserId = JwtUtils.getCurrentUserId();
         boolean isAdmin = hasAdminRole();
 
         if (!isAdmin && (ticket.getPurchaserId() == null || !ticket.getPurchaserId().equals(currentUserId))) {
@@ -341,4 +340,3 @@ public class TicketController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(null, "Ticket deleted successfully"));
     }
 }
-
