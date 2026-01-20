@@ -52,7 +52,7 @@ services:
     image: localstack/localstack:4.10.0
     container_name: localstack
     environment:
-      - SERVICES=sqs,s3,secretsmanager,cognito-idp,sns,ses,lambda,logs,iam
+      - SERVICES=sqs,s3,secretsmanager,sns,ses,lambda,logs,iam
       - DEBUG=1
       - DATA_DIR=/tmp/localstack/data
       - DOCKER_HOST=unix:///var/run/docker.sock

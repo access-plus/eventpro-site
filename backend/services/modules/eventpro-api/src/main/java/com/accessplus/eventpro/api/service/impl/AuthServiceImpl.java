@@ -4,7 +4,7 @@ import com.accessplus.eventpro.api.dto.AuthLoginRequest;
 import com.accessplus.eventpro.api.dto.AuthSignupRequest;
 import com.accessplus.eventpro.api.service.AuthResult;
 import com.accessplus.eventpro.api.service.AuthService;
-import com.accessplus.eventpro.core.config.JwtProperties;
+import com.accessplus.eventpro.core.security.JwtService;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.UserRepository;
 import com.accessplus.eventpro.core.user.service.UserService;
@@ -13,12 +13,8 @@ import com.accessplus.eventpro.shared.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtClaimsSet;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.Locale;
 import java.util.Set;
 
@@ -32,8 +28,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserService userService;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtEncoder jwtEncoder;
-    private final JwtProperties jwtProperties;
+    private final JwtService jwtService;
 
     @Override
     public UserEntity signUp(AuthSignupRequest request) {
@@ -70,20 +65,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private AuthResult issueToken(UserEntity user) {
-        Instant now = Instant.now();
-        Instant expiresAt = now.plusSeconds(jwtProperties.getAccessTokenTtlSeconds());
-
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer(jwtProperties.getIssuer())
-                .issuedAt(now)
-                .expiresAt(expiresAt)
-                .subject(user.getId().toString())
-                .claim("email", user.getEmail())
-                .claim("role", user.getRole())
-                .build();
-
-        String token = jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
-        return new AuthResult(token, jwtProperties.getAccessTokenTtlSeconds(), user);
+        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole());
+        long ttlSeconds = jwtService.getAccessTokenTtlSeconds();
+        return new AuthResult(token, ttlSeconds, user);
     }
 
     private String normalizeEmail(String email) {

@@ -1,21 +1,15 @@
 package com.accessplus.eventpro.core.config;
 
-import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
-import com.nimbusds.jose.jwk.source.JWKSource;
-import com.nimbusds.jose.proc.SecurityContext;
+import com.accessplus.eventpro.core.security.JwtService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -33,21 +27,18 @@ public class JwtConfig {
     }
 
     @Bean
-    public JwtDecoder jwtDecoder() {
-        RSAPublicKey publicKey = parsePublicKey(jwtProperties.getPublicKey());
-        return NimbusJwtDecoder.withPublicKey(publicKey).build();
+    public PublicKey jwtPublicKey() {
+        return parsePublicKey(jwtProperties.getPublicKey());
     }
 
     @Bean
-    public JwtEncoder jwtEncoder() {
-        RSAPublicKey publicKey = parsePublicKey(jwtProperties.getPublicKey());
-        RSAPrivateKey privateKey = parsePrivateKey(jwtProperties.getPrivateKey());
-        RSAKey rsaKey = new RSAKey.Builder(publicKey)
-                .privateKey(privateKey)
-                .keyID("eventpro-jwt")
-                .build();
-        JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(new JWKSet(rsaKey));
-        return new NimbusJwtEncoder(jwkSource);
+    public PrivateKey jwtPrivateKey() {
+        return parsePrivateKey(jwtProperties.getPrivateKey());
+    }
+
+    @Bean
+    public JwtService jwtService(JwtProperties jwtProperties, PublicKey publicKey, PrivateKey privateKey) {
+        return new JwtService(jwtProperties, privateKey, publicKey);
     }
 
     @Bean
@@ -55,7 +46,7 @@ public class JwtConfig {
         return new BCryptPasswordEncoder();
     }
 
-    private RSAPublicKey parsePublicKey(String key) {
+    private PublicKey parsePublicKey(String key) {
         try {
             String sanitized = sanitizeKey(key);
             byte[] decoded = Base64.getDecoder().decode(sanitized);
@@ -67,7 +58,7 @@ public class JwtConfig {
         }
     }
 
-    private RSAPrivateKey parsePrivateKey(String key) {
+    private PrivateKey parsePrivateKey(String key) {
         try {
             String sanitized = sanitizeKey(key);
             byte[] decoded = Base64.getDecoder().decode(sanitized);

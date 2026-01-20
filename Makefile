@@ -1,4 +1,4 @@
-.PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build
+.PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build
 
 # Variables
 API_DIR := backend/services
@@ -25,6 +25,7 @@ help:
 	@echo "  make api-test       - Test EventPro API"
 	@echo "  make api-run        - Run EventPro API locally"
 	@echo "  make api            - Clean, build, and test EventPro API"
+	@echo "  make backend-build  - Build Backend (alias for api-build)"
 	@echo ""
 	@echo "Individual Modules:"
 	@echo "  make core-build     - Build eventpro-core module"
@@ -43,6 +44,7 @@ help:
 	@echo "  make web-build      - Build Frontend"
 	@echo "  make web-dev        - Start Frontend development server"
 	@echo "  make web-preview    - Preview Frontend production build"
+	@echo "  make frontend-build - Build Frontend (alias for web-build)"
 	@echo ""
 	@echo "Docker Images:"
 	@echo "  make docker-build   - Build EventPro API Docker image"
@@ -115,6 +117,9 @@ api-clean:
 api-build:
 	@echo "Building EventPro API..."
 	cd $(API_DIR) && ./gradlew build
+
+backend-build: api-build
+	@echo "Backend build complete!"
 
 api-test:
 	@echo "Testing EventPro API..."
@@ -189,6 +194,9 @@ analytics: analytics-clean analytics-build analytics-test
 web-build:
 	@echo "Building Web Frontend..."
 	cd $(WEB_DIR) && npm run build
+
+frontend-build: web-build
+	@echo "Frontend build complete!"
 
 web-dev:
 	@echo "Starting Web development server..."
@@ -272,31 +280,16 @@ local-infra:
 	@docker tag eventpro-notification-sender:latest eventpro-notification-sender:local 2>/dev/null || true
 	@echo "Step 3: Provisioning AWS resources..."
 	@echo "  - LocalStack resources: S3, SQS, Secrets Manager, Lambda Functions"
-	@echo "  - Real AWS resources: Cognito (requires AWS credentials)"
 	@if ! docker ps | grep -q "localstack"; then \
 		echo "LocalStack not running. Starting it..."; \
 		$(MAKE) local-infra-only; \
-	fi
-	@if [ -z "$$AWS_ACCESS_KEY_ID" ] && [ ! -f ~/.aws/credentials ]; then \
-		echo ""; \
-		echo "⚠️  WARNING: AWS credentials not found."; \
-		echo "   Cognito will be created in real AWS and requires valid credentials."; \
-		echo "   Configure credentials using one of these methods:"; \
-		echo "   1. Set environment variables: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"; \
-		echo "   2. Run: aws configure"; \
-		echo "   Continuing anyway (Cognito creation may fail)..."; \
-		echo ""; \
 	fi
 	@cd infrastructure/environments/local && \
 		terraform init -upgrade && \
 		terraform apply -auto-approve || \
 		(echo ""; \
 		 echo "⚠️  Terraform apply completed with errors."; \
-		 echo "   If Cognito creation failed, check:"; \
-		 echo "   1. AWS credentials are configured (AWS_ACCESS_KEY_ID or ~/.aws/credentials)"; \
-		 echo "   2. AWS credentials have permissions to create Cognito resources"; \
-		 echo "   Other resources (S3, SQS, Secrets Manager, Lambda) should still be created in LocalStack."; \
-		 echo "   You can manually create Cognito in AWS Console and add credentials to .env"; \
+		 echo "   Check Terraform output for details."; \
 		 echo ""; \
 		 true)
 	@echo "Step 4: Creating environment files..."
@@ -305,39 +298,19 @@ local-infra:
 		ORDER_QUEUE_URL=$$(terraform output -raw sqs_order_queue_url 2>/dev/null || echo "") && \
 		PAYMENT_QUEUE_URL=$$(terraform output -raw sqs_payment_queue_url 2>/dev/null || echo "") && \
 		NOTIFICATION_QUEUE_URL=$$(terraform output -raw sqs_notification_queue_url 2>/dev/null || echo "") && \
-		COGNITO_USER_POOL_ID=$$(terraform output -raw cognito_user_pool_id 2>/dev/null | grep -v "^null$$" || echo "") && \
-		COGNITO_CLIENT_ID=$$(terraform output -raw cognito_user_pool_client_id 2>/dev/null | grep -v "^null$$" || echo "") && \
 		cd ../../.. && \
-		echo "COGNITO_USER_POOL_ID=$$COGNITO_USER_POOL_ID" > .env && \
-		echo "COGNITO_CLIENT_ID=$$COGNITO_CLIENT_ID" >> .env && \
-		echo "S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> .env && \
+		echo "S3_BUCKET_NAME=$$S3_BUCKET_NAME" > .env && \
 		echo "ORDER_QUEUE_URL=$$ORDER_QUEUE_URL" >> .env && \
 		echo "PAYMENT_QUEUE_URL=$$PAYMENT_QUEUE_URL" >> .env && \
 		echo "NOTIFICATION_QUEUE_URL=$$NOTIFICATION_QUEUE_URL" >> .env && \
 		VITE_STRIPE_PUBLISHABLE_KEY=$$(grep '^VITE_STRIPE_PUBLISHABLE_KEY=' .env 2>/dev/null | cut -d'=' -f2- | tr -d ' ' || echo "") && \
 		echo "VITE_API_BASE_URL=http://localhost:8080" > frontend/.env.local && \
-		echo "VITE_COGNITO_USER_POOL_ID=$$COGNITO_USER_POOL_ID" >> frontend/.env.local && \
-		echo "VITE_COGNITO_CLIENT_ID=$$COGNITO_CLIENT_ID" >> frontend/.env.local && \
 		echo "VITE_AWS_REGION=us-east-1" >> frontend/.env.local && \
 		echo "VITE_S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> frontend/.env.local && \
 		if [ -n "$$VITE_STRIPE_PUBLISHABLE_KEY" ]; then \
 			echo "VITE_STRIPE_PUBLISHABLE_KEY=$$VITE_STRIPE_PUBLISHABLE_KEY" >> frontend/.env.local; \
 		fi
 	@echo "Environment files created"
-	@COGNITO_POOL_ID=$$(grep '^COGNITO_USER_POOL_ID=' .env 2>/dev/null | cut -d'=' -f2 | tr -d ' ' || echo ""); \
-	COGNITO_CLIENT=$$(grep '^COGNITO_CLIENT_ID=' .env 2>/dev/null | cut -d'=' -f2 | tr -d ' ' || echo ""); \
-	if [ -z "$$COGNITO_POOL_ID" ] || [ -z "$$COGNITO_CLIENT" ]; then \
-		echo ""; \
-		echo "⚠️  WARNING: Cognito credentials are not set in .env file."; \
-		echo "   Cognito requires LocalStack Pro or a real AWS account."; \
-		echo ""; \
-		echo "   To use real AWS Cognito (Option A - recommended):"; \
-		echo "   1. Create a Cognito User Pool in your AWS account"; \
-		echo "   2. Edit .env and set: COGNITO_USER_POOL_ID=your-pool-id"; \
-		echo "   3. Edit .env and set: COGNITO_CLIENT_ID=your-client-id"; \
-		echo "   4. Edit frontend/.env.local with the same values"; \
-		echo ""; \
-	fi
 
 # Step 3: Start all services (Backend + Frontend)
 # Note: Lambda functions are managed by LocalStack via Terraform

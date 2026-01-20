@@ -1,65 +1,88 @@
 package com.accessplus.eventpro.core.security;
 
+import io.jsonwebtoken.Claims;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+
+import java.util.UUID;
 
 /**
  * Utility class for extracting information from JWT tokens.
+ * 
+ * <p>Works with UsernamePasswordAuthenticationToken where:
+ * <ul>
+ *   <li>Principal is userId as String (UUID.toString())</li>
+ *   <li>Details contains Claims object from jjwt</li>
+ * </ul>
  */
 public class JwtUtils {
     
-    private static final String SUB_CLAIM = "sub";
-    
     /**
-     * Extracts the user ID (sub claim) from the current JWT token.
+     * Extracts the user ID from the current authentication.
      * 
-     * @return User ID (UUID) from the JWT token
+     * <p>The principal in UsernamePasswordAuthenticationToken is the userId as String.
+     * 
+     * @return User ID (UUID) from the authentication principal
      * @throws IllegalStateException if no authentication is present or token is invalid
      */
-    public static java.util.UUID getCurrentUserId() {
+    public static UUID getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
         if (authentication == null) {
             throw new IllegalStateException("No valid JWT authentication found: authentication is null");
         }
         
-        if (!(authentication instanceof JwtAuthenticationToken)) {
+        if (!(authentication instanceof UsernamePasswordAuthenticationToken)) {
             throw new IllegalStateException(
-                String.format("No valid JWT authentication found: authentication type is %s, expected JwtAuthenticationToken", 
+                String.format("No valid JWT authentication found: authentication type is %s, expected UsernamePasswordAuthenticationToken", 
                     authentication.getClass().getName()));
         }
         
-        JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
-        Jwt jwt = jwtAuth.getToken();
-        
-        String sub = jwt.getClaimAsString(SUB_CLAIM);
-        if (sub == null || sub.isEmpty()) {
-            throw new IllegalStateException("JWT token does not contain 'sub' claim");
+        Object principal = authentication.getPrincipal();
+        if (principal == null) {
+            throw new IllegalStateException("JWT authentication principal is null");
         }
+        
         try {
-            return java.util.UUID.fromString(sub);
+            return UUID.fromString(principal.toString());
         } catch (IllegalArgumentException e) {
-            throw new IllegalStateException("JWT token 'sub' claim is not a valid UUID", e);
+            throw new IllegalStateException("JWT authentication principal is not a valid UUID: " + principal, e);
         }
     }
     
     /**
-     * Gets the current JWT token.
+     * Gets the current JWT claims from authentication details.
      * 
-     * @return JWT token
-     * @throws IllegalStateException if no authentication is present or token is invalid
+     * <p>Claims are stored in authentication details by JwtAuthenticationFilter.
+     * 
+     * @return JWT claims
+     * @throws IllegalStateException if no authentication is present or claims are not available
      */
-    public static Jwt getCurrentJwt() {
+    public static Claims getCurrentJwt() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
-        if (authentication == null || !(authentication instanceof JwtAuthenticationToken)) {
-            throw new IllegalStateException("No valid JWT authentication found");
+        if (authentication == null) {
+            throw new IllegalStateException("No valid JWT authentication found: authentication is null");
         }
         
-        JwtAuthenticationToken jwtAuth = (JwtAuthenticationToken) authentication;
-        return jwtAuth.getToken();
+        if (!(authentication instanceof UsernamePasswordAuthenticationToken)) {
+            throw new IllegalStateException(
+                String.format("No valid JWT authentication found: authentication type is %s, expected UsernamePasswordAuthenticationToken", 
+                    authentication.getClass().getName()));
+        }
+        
+        Object details = authentication.getDetails();
+        if (details == null) {
+            throw new IllegalStateException("JWT authentication details are null - claims not available");
+        }
+        
+        if (!(details instanceof Claims)) {
+            throw new IllegalStateException(
+                String.format("JWT authentication details are not Claims: %s", details.getClass().getName()));
+        }
+        
+        return (Claims) details;
     }
     
     /**
@@ -69,7 +92,11 @@ public class JwtUtils {
      * @return Claim value as String, or null if not present
      */
     public static String getClaim(String claimName) {
-        Jwt jwt = getCurrentJwt();
-        return jwt.getClaimAsString(claimName);
+        Claims claims = getCurrentJwt();
+        Object claim = claims.get(claimName);
+        if (claim == null) {
+            return null;
+        }
+        return claim.toString();
     }
 }

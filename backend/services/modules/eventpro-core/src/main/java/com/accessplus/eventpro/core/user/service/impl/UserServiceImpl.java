@@ -14,16 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-/**
- * Implementation of UserService.
- * 
- * <p>Handles user management operations including:
- * <ul>
- *   <li>Creating users for local auth</li>
- *   <li>Retrieving users by email</li>
- *   <li>Updating user profiles</li>
- * </ul>
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -105,7 +95,6 @@ public class UserServiceImpl implements UserService {
         return updateUserFields(user, firstName, lastName, phoneNumber, null, null, null);
     }
 
-    @Override
     @Override
     public UserEntity updateUserProfile(UUID userId, String firstName, String lastName, String phoneNumber,
                                         String bio, String location, String profilePictureUrl) {
