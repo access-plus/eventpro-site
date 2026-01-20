@@ -16,7 +16,7 @@ dependencies {
     implementation project(':eventpro-event')
     implementation project(':eventpro-order')
     implementation project(':eventpro-payment')
-    implementation project(':eventpro-notification')
+    // Note: eventpro-notification removed - notifications are handled asynchronously by notification-sender Lambda
     
     // Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter-web'
