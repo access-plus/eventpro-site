@@ -171,16 +171,16 @@ openssl genpkey -algorithm RSA -out jwt-private.pem -pkeyopt rsa_keygen_bits:204
 openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem
 ```
 
-**Convert to single-line base64 (recommended for .env):**
+**Convert to single-line base64 (DER format, recommended for .env):**
 
 ```bash
 # macOS
-base64 -b 0 jwt-private.pem > jwt-private.b64
-base64 -b 0 jwt-public.pem > jwt-public.b64
+JWT_PRIVATE_KEY=$(openssl pkcs8 -topk8 -inform PEM -outform DER -in jwt-private.pem -nocrypt | base64 | tr -d '\n')
+JWT_PUBLIC_KEY=$(openssl rsa -in jwt-private.pem -pubout -outform DER | base64 | tr -d '\n')
 
 # Linux
-base64 -w 0 jwt-private.pem > jwt-private.b64
-base64 -w 0 jwt-public.pem > jwt-public.b64
+JWT_PRIVATE_KEY=$(openssl pkcs8 -topk8 -inform PEM -outform DER -in jwt-private.pem -nocrypt | base64 -w0)
+JWT_PUBLIC_KEY=$(openssl rsa -in jwt-private.pem -pubout -outform DER | base64 -w0)
 ```
 
 **Add to `.env`:**
@@ -188,11 +188,11 @@ base64 -w 0 jwt-public.pem > jwt-public.b64
 ```bash
 JWT_ISSUER=eventpro
 JWT_ACCESS_TTL_SECONDS=3600
-JWT_PRIVATE_KEY=<contents of jwt-private.b64>
-JWT_PUBLIC_KEY=<contents of jwt-public.b64>
+JWT_PRIVATE_KEY=<value from command above>
+JWT_PUBLIC_KEY=<value from command above>
 ```
 
-**Note:** The backend accepts PEM or base64 keys. Base64 is recommended for single-line `.env` values.
+**Note:** The backend accepts PEM or base64 DER keys. Base64 DER is recommended for single-line `.env` values.
 
 **Where to store:**
 - Store keys in the root `.env` file (used by `docker-compose.yml`).
@@ -292,8 +292,7 @@ curl http://localhost:8080/actuator/health
 
 1. Navigate to Sign Up: <http://localhost:5173/signup>
 2. Create a new account
-3. Verify email (check your email for verification code)
-4. Sign in with your credentials
+3. Sign in with your credentials (email verification is disabled in local dev)
 
 ### 4. Test API Endpoints
 
