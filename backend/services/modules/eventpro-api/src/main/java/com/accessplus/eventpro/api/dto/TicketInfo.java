@@ -13,20 +13,6 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/**
- * DTO for ticket information in bulk creation requests.
- * 
- * <p>Used in TicketCreateRequest for specifying ticket details.
- * Matches the TicketInfo structure from README.md Tickets API.
- * 
- * <p>Required fields:
- * <ul>
- *   <li>price - Ticket price (BigDecimal, >= 0)</li>
- *   <li>ticketType - Ticket type enum (VIP, REGULAR, EARLY_BIRD)</li>
- *   <li>quantity - Number of tickets to create (Long, > 0)</li>
- *   <li>eventId - Event UUID</li>
- * </ul>
- */
 @Data
 @Builder
 @NoArgsConstructor

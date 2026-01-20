@@ -18,16 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * REST controller for authentication-related operations.
- * 
- * <p>Endpoints:
- * <ul>
- *   <li>POST /api/v1/auth/signup - Create user account</li>
- *   <li>POST /api/v1/auth/login - Authenticate and return JWT</li>
- *   <li>POST /api/v1/auth/send-reset-email - Send password reset confirmation email</li>
- * </ul>
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -65,12 +55,6 @@ public class AuthController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(response, "Login successful"));
     }
 
-    /**
-     * Sends a password reset confirmation email.
-     * 
-     * @param request SendResetEmailRequest with email and code
-     * @return 200 OK
-     */
     @PostMapping("/send-reset-email")
     @Operation(summary = "Send password reset confirmation email", 
                description = "Sends a confirmation email after password reset with the verification code.")

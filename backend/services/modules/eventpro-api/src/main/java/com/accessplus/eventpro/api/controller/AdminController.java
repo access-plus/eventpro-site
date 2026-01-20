@@ -25,22 +25,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * REST controller for admin operations.
- * 
- * <p>Endpoints:
- * <ul>
- *   <li>GET /api/v1/admin/stats - Get platform statistics</li>
- *   <li>GET /api/v1/admin/event-sales - Get event sales data</li>
- *   <li>GET /api/v1/admin/revenue - Get revenue data</li>
- *   <li>GET /api/v1/admin/events - Get all events</li>
- *   <li>PATCH /api/v1/admin/events/{id}/status - Update event status</li>
- *   <li>GET /api/v1/admin/users - Get all users</li>
- *   <li>PUT /api/v1/admin/users/{id} - Update user</li>
- *   <li>PATCH /api/v1/admin/users/{id}/status - Update user status</li>
- *   <li>PATCH /api/v1/admin/users/{id}/role - Update user role</li>
- * </ul>
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/admin")

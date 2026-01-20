@@ -32,20 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * REST controller for organizer operations.
- * 
- * <p>Endpoints:
- * <ul>
- *   <li>GET /api/v1/organizer/events - Get organizer's events</li>
- *   <li>POST /api/v1/organizer/events - Create new event</li>
- *   <li>PUT /api/v1/organizer/events/{id} - Update event</li>
- *   <li>POST /api/v1/organizer/events/upload-image - Upload event image</li>
- *   <li>GET /api/v1/organizer/events/{id}/stats - Get event statistics</li>
- *   <li>GET /api/v1/organizer/events/{id}/attendees - Get event attendees</li>
- *   <li>POST /api/v1/organizer/tickets/{id}/check-in - Check in attendee</li>
- * </ul>
- */
+
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/organizer")

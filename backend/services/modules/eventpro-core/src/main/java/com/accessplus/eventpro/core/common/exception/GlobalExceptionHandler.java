@@ -25,18 +25,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Global exception handler for REST API.
- * Handles all exceptions and returns consistent error responses.
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     
-    /**
-     * Handle business exceptions.
-     */
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(
             BusinessException ex, WebRequest request) {
@@ -71,9 +64,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
     
-    /**
-     * Handle validation exceptions.
-     */
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             ValidationException ex, WebRequest request) {
@@ -91,9 +81,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
     
-    /**
-     * Handle unauthorized exceptions.
-     */
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorizedException(
             UnauthorizedException ex, WebRequest request) {
@@ -109,9 +96,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
     }
     
-    /**
-     * Handle conflict exceptions.
-     */
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ErrorResponse> handleConflictException(
             ConflictException ex, WebRequest request) {
@@ -127,9 +111,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
     }
     
-    /**
-     * Handle method argument validation errors.
-     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, WebRequest request) {
@@ -156,9 +137,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
     
-    /**
-     * Handle constraint violation exceptions.
-     */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolation(
             ConstraintViolationException ex, WebRequest request) {
@@ -178,9 +156,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
     
-    /**
-     * Handle Spring Security access denied exceptions.
-     */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(
             AccessDeniedException ex, WebRequest request) {
@@ -196,9 +171,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
     }
     
-    /**
-     * Handle authentication exceptions.
-     */
     @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticationException(
             AuthenticationCredentialsNotFoundException ex, WebRequest request) {
@@ -214,9 +186,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
     }
     
-    /**
-     * Handle all other exceptions.
-     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex, WebRequest request) {
@@ -232,17 +201,11 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
     }
     
-    /**
-     * Extract the request path from WebRequest.
-     */
     private String extractPath(WebRequest request) {
         String description = request.getDescription(false);
         return description.replace("uri=", "");
     }
     
-    /**
-     * Determine HTTP status based on exception type.
-     */
     private HttpStatus determineHttpStatus(BusinessException ex) {
         return switch (ex.getErrorCode()) {
             case "RESOURCE_NOT_FOUND" -> HttpStatus.NOT_FOUND;

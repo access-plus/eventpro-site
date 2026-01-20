@@ -10,27 +10,6 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Response DTO for Event entity.
- * 
- * <p>Matches the EventResponse structure from README.md Events API.
- * Address fields are flattened (addressStreet, addressCity, etc.) as per API specification.
- * 
- * <p>Fields:
- * <ul>
- *   <li>id - Event UUID</li>
- *   <li>name - Event name</li>
- *   <li>description - Event description</li>
- *   <li>imageUrl - S3 URL for event image</li>
- *   <li>marketingEnabled - Whether event is promoted</li>
- *   <li>startTime - Event start date/time</li>
- *   <li>endTime - Event end date/time</li>
- *   <li>userId - Organizer UUID</li>
- *   <li>categoryId - Category UUID</li>
- *   <li>categoryName - Category name</li>
- *   <li>addressStreet, addressCity, addressState, addressCountry, addressZipCode - Flattened address fields</li>
- * </ul>
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -56,9 +35,6 @@ public class EventResponse {
     private String addressCountry;
     private String addressZipCode;
     
-    /**
-     * Creates an EventResponse from an EventEntity.
-     */
     public static EventResponse fromEntity(EventEntity entity) {
         if (entity == null) {
             return null;

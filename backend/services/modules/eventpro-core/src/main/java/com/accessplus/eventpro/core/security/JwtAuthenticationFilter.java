@@ -18,21 +18,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-/**
- * JWT Authentication Filter that validates JWT tokens and sets Spring Security authentication.
- * 
- * <p>Replaces OAuth2 Resource Server functionality with custom jjwt-based validation.
- * 
- * <p>Flow:
- * <ol>
- *   <li>Skip filter for public endpoints</li>
- *   <li>Extract token from Authorization header</li>
- *   <li>Validate token using JwtService</li>
- *   <li>Create UsernamePasswordAuthenticationToken with userId as principal</li>
- *   <li>Store Claims in authentication details for backward compatibility</li>
- *   <li>Set authentication in SecurityContext</li>
- * </ol>
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -102,9 +87,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * Checks if the request path and method match a public endpoint.
-     */
     private boolean isPublicEndpoint(String path, String method) {
         // Health endpoint
         if ("/actuator/health".equals(path)) {
@@ -139,11 +121,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return false;
     }
 
-    /**
-     * Extracts JWT token from Authorization header.
-     * 
-     * @return Token string, or null if not found or invalid format
-     */
     private String extractToken(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -152,9 +129,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return authHeader.substring(7); // Remove "Bearer " prefix
     }
 
-    /**
-     * Handles authentication errors by returning 401 Unauthorized response.
-     */
     private void handleAuthenticationError(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");

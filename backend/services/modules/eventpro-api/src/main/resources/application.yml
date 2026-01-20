@@ -92,3 +92,6 @@ springdoc:
     enabled: true
     operationsSorter: method
     tagsSorter: alpha
+  # Disable QueryDSL support (not used in this project, prevents TypeInformation classpath issues with DevTools)
+  querydsl:
+    enabled: false

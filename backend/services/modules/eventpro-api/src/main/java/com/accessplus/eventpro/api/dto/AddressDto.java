@@ -11,27 +11,6 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/**
- * DTO for Address information in event requests and responses.
- * 
- * <p>Used in CreateEventRequest and UpdateEventRequest for nested address data.
- * In EventResponse, address fields are flattened (addressStreet, addressCity, etc.).
- * 
- * <p>Required fields (for creation):
- * <ul>
- *   <li>city (required)</li>
- *   <li>country (required)</li>
- * </ul>
- * 
- * <p>Optional fields:
- * <ul>
- *   <li>street</li>
- *   <li>state</li>
- *   <li>zipCode</li>
- *   <li>latitude</li>
- *   <li>longitude</li>
- * </ul>
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -57,9 +36,6 @@ public class AddressDto {
     
     private BigDecimal longitude;
     
-    /**
-     * Creates an AddressDto from an AddressEntity.
-     */
     public static AddressDto fromEntity(AddressEntity entity) {
         if (entity == null) {
             return null;
@@ -77,9 +53,6 @@ public class AddressDto {
                 .build();
     }
     
-    /**
-     * Creates an AddressEntity from this DTO.
-     */
     public AddressEntity toEntity() {
         AddressEntity entity = new AddressEntity();
         entity.setStreet(this.street);

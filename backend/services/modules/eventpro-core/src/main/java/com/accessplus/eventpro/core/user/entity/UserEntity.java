@@ -7,30 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * User entity representing application users (customers, organizers, admins).
- * 
- * <p>Fields match the database schema from V1__create_base_tables.sql:
- * <ul>
- *   <li>id (UUID, PK) - From BaseEntity</li>
- *   <li>email (String, unique, not null) - User email address</li>
- *   <li>phoneNumber (String, nullable) - Phone number for SMS notifications</li>
- *   <li>firstName (String, not null) - User's first name</li>
- *   <li>lastName (String, not null) - User's last name</li>
- *   <li>passwordHash (String, nullable) - Hashed password for local auth</li>
- *   <li>createdAt (LocalDateTime) - From BaseEntity</li>
- *   <li>updatedAt (LocalDateTime) - From BaseEntity</li>
- * </ul>
- * 
- * <p>Relationships (to be added in future phases):
- * <ul>
- *   <li>One-to-Many: orders (List<OrderEntity>)</li>
- *   <li>One-to-Many: cartItems (List<CartEntity>)</li>
- *   <li>One-to-Many: events (List<EventEntity>) - Events created by organizer</li>
- *   <li>One-to-Many: userNotifications (List<UserNotificationEntity>)</li>
- *   <li>One-to-One: notificationPreference (NotificationPreferenceEntity)</li>
- * </ul>
- */
 @Entity
 @Table(name = "users", indexes = {
     @Index(name = "idx_user_email", columnList = "email")

@@ -10,13 +10,6 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Response DTO for User entity.
- * 
- * <p>Matches the UserResponse structure from README.md Users API.
- * Note: account flags (accountNonExpired, accountNonLocked, etc.) are not stored
- * in the database. These are set to true by default for now.
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -54,9 +47,6 @@ public class UserResponse {
     // private List<OrderResponse> orders;
     // private Set<RoleDto> roles;
     
-    /**
-     * Creates a UserResponse from a UserEntity.
-     */
     public static UserResponse fromEntity(UserEntity entity) {
         if (entity == null) {
             return null;

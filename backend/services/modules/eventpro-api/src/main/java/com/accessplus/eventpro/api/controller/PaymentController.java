@@ -20,15 +20,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * REST controller for payment operations.
- * 
- * <p>Endpoints:
- * <ul>
- *   <li>POST /api/v1/payments/create-intent - Create Stripe payment intent</li>
- *   <li>POST /api/v1/payments/confirm - Confirm payment and create order</li>
- * </ul>
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/payments")
@@ -39,12 +30,6 @@ public class PaymentController extends BaseController {
 
     private final PaymentService paymentService;
 
-    /**
-     * Creates a Stripe payment intent.
-     * 
-     * @param request CreatePaymentIntentRequest with amount
-     * @return Payment intent client secret
-     */
     @PostMapping("/create-intent")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Create payment intent", description = "Creates a Stripe payment intent for the specified amount. " +
@@ -67,12 +52,6 @@ public class PaymentController extends BaseController {
         }
     }
 
-    /**
-     * Confirms a payment and creates an order from the user's cart.
-     * 
-     * @param request ConfirmPaymentRequest with payment intent ID
-     * @return Created order
-     */
     @PostMapping("/confirm")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Confirm payment", description = "Confirms a Stripe payment and creates an order from the user's cart. " +

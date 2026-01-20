@@ -83,7 +83,7 @@ public class AdminServiceImpl implements AdminService {
         
         // Get all events
         Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
-        var events = eventRepository.findAll(pageable).getContent();
+        List<EventEntity> events = eventRepository.findAll(pageable).getContent();
         
         List<EventSaleResponse> eventSales = new ArrayList<>();
         

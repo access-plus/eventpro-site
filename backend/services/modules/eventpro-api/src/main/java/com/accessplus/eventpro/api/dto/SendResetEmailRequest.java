@@ -7,9 +7,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Request DTO for sending password reset confirmation email.
- */
 @Data
 @Builder
 @NoArgsConstructor

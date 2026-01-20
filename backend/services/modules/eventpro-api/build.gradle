@@ -26,6 +26,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     
+    // Spring Data Commons (explicitly added to fix DevTools classpath issue with TypeInformation)
+    implementation 'org.springframework.data:spring-data-commons'
+    
     // Database Migration - Use Spring Boot starter for proper auto-configuration
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     // PostgreSQL 16 support (required for PostgreSQL 16.11)

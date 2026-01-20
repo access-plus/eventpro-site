@@ -3,10 +3,6 @@ package com.accessplus.eventpro.core.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-/**
- * Configuration properties for AWS services.
- * Binds properties from application.yml with prefix "aws".
- */
 @Component
 @ConfigurationProperties(prefix = "aws")
 public class AwsProperties {

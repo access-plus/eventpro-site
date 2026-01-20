@@ -29,9 +29,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * REST controller for user management operations.
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/users")

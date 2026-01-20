@@ -16,10 +16,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
-/**
- * Spring Security configuration with custom JWT authentication filter.
- * Configures JWT token validation using jjwt library and maps role claims to Spring Security roles.
- */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
@@ -31,19 +27,6 @@ public class SecurityConfig {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
-    /**
-     * Configures the security filter chain with custom JWT authentication filter.
-     * 
-     * Security rules:
-     * - /actuator/health: Public access (no authentication required)
-     * - All other endpoints: Require valid JWT access token
-     * 
-     * The backend validates JWT tokens directly using jjwt library.
-     *
-     * @param http the HttpSecurity configuration
-     * @return configured SecurityFilterChain
-     * @throws Exception if configuration fails
-     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -67,13 +50,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * Configures CORS to allow Authorization header from frontend origins.
-     * This is critical for JWT token authentication - browsers require explicit
-     * permission for the Authorization header in CORS preflight responses.
-     *
-     * @return CorsConfigurationSource configured with allowed origins, headers, and methods
-     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

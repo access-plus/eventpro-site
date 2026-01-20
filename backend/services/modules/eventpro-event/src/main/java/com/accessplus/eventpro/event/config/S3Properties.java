@@ -4,10 +4,6 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/**
- * Properties for S3 configuration.
- * Provides configuration values for S3 operations.
- */
 @Component
 @Getter
 public class S3Properties {

@@ -12,12 +12,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Response DTO for ticket type information.
- * 
- * <p>Represents aggregated ticket type data for an event.
- * Matches the TicketType structure from frontend.
- */
 @Data
 @Builder
 @NoArgsConstructor

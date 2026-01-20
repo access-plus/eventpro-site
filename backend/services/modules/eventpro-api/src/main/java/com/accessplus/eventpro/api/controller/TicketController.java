@@ -40,21 +40,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * REST controller for ticket management operations.
- * 
- * <p>Endpoints:
- * <ul>
- *   <li>POST /api/v1/tickets - Create tickets in bulk (admin/organizer only)</li>
- *   <li>GET /api/v1/tickets/{id} - Get ticket by ID (public)</li>
-     *   <li>GET /api/v1/tickets/{id}/download - Download ticket as PDF (authenticated users, own tickets)</li>
- *   <li>GET /api/v1/tickets/event/{eventId} - Get tickets for event (public)</li>
- *   <li>GET /api/v1/tickets/groupTickets/{eventId} - Get tickets grouped by type (public)</li>
- *   <li>GET /api/v1/tickets/group/{eventId} - Get ticket summary (public)</li>
- *   <li>PATCH /api/v1/tickets/{id} - Update ticket (admin/organizer only)</li>
- *   <li>DELETE /api/v1/tickets/{id} - Delete ticket (admin/organizer only)</li>
- * </ul>
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/tickets")
@@ -69,9 +54,6 @@ public class TicketController extends BaseController {
     private final EventRepository eventRepository;
     private final UserService userService;
 
-    /**
-     * Creates tickets in bulk for an event.
-     */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
     @Operation(summary = "Create tickets in bulk", description = "Creates multiple tickets for an event. " +
@@ -128,12 +110,6 @@ public class TicketController extends BaseController {
                 .body(ApiResponse.success(responses, "Tickets created successfully"));
     }
 
-    /**
-     * Retrieves a ticket by ID.
-     * 
-     * <p>Note: README.md specifies this returns List&lt;TicketResponse&gt;, but logically it should return a single ticket.
-     * Following the API contract, we return a list with one element.
-     */
     @GetMapping("/{id}")
     @Operation(summary = "Get ticket by ID", description = "Returns ticket details by ID. Public endpoint.")
     public ResponseEntity<ApiResponse<List<TicketResponse>>> getTicketById(@PathVariable UUID id) {
@@ -146,13 +122,6 @@ public class TicketController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(List.of(response)));
     }
 
-    /**
-     * Downloads a ticket as PDF.
-     * Users can only download their own tickets.
-     * 
-     * @param id ticket UUID
-     * @return PDF file as binary response
-     */
     @GetMapping("/{id}/download")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Download ticket as PDF", description = "Downloads a ticket as PDF with QR code. " +
@@ -194,9 +163,6 @@ public class TicketController extends BaseController {
         }
     }
 
-    /**
-     * Checks if the current authenticated user has the ADMIN role.
-     */
     private boolean hasAdminRole() {
         org.springframework.security.core.Authentication authentication = 
                 org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
@@ -209,9 +175,6 @@ public class TicketController extends BaseController {
                 .anyMatch(authority -> authority.equals("ROLE_ADMIN"));
     }
 
-    /**
-     * Retrieves all tickets for an event.
-     */
     @GetMapping("/event/{eventId}")
     @Operation(summary = "Get tickets for event", description = "Returns all tickets for a specific event. Public endpoint.")
     public ResponseEntity<ApiResponse<List<TicketResponse>>> getTicketsByEvent(
@@ -229,9 +192,6 @@ public class TicketController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
-    /**
-     * Retrieves tickets grouped by type for an event.
-     */
     @GetMapping("/groupTickets/{eventId}")
     @Operation(summary = "Get tickets grouped by type", description = "Returns tickets for an event grouped by ticket type. Public endpoint.")
     public ResponseEntity<ApiResponse<Map<TicketType, List<TicketResponse>>>> getGroupedTickets(
@@ -252,9 +212,6 @@ public class TicketController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(groupedResponses));
     }
 
-    /**
-     * Retrieves ticket summary for an event.
-     */
     @GetMapping("/group/{eventId}")
     @Operation(summary = "Get ticket summary", description = "Returns a summary of event tickets with counts by type. Public endpoint.")
     public ResponseEntity<ApiResponse<EventSummary>> getTicketSummary(@PathVariable UUID eventId) {
@@ -296,9 +253,6 @@ public class TicketController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(summary));
     }
 
-    /**
-     * Updates an existing ticket.
-     */
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
     @Operation(summary = "Update ticket", description = "Updates an existing ticket. " +
@@ -324,9 +278,6 @@ public class TicketController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(response, "Ticket updated successfully"));
     }
 
-    /**
-     * Deletes a ticket by ID.
-     */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
     @Operation(summary = "Delete ticket", description = "Deletes a ticket by ID. " +

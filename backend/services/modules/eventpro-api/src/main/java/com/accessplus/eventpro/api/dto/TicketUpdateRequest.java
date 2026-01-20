@@ -11,24 +11,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Request DTO for updating a ticket.
- * 
- * <p>Matches the TicketUpdateRequest structure from README.md Tickets API.
- * All fields are optional - only provided fields will be updated.
- * 
- * <p>Optional fields:
- * <ul>
- *   <li>name - Ticket name/description</li>
- *   <li>description - Ticket description (not stored in TicketEntity, but in API contract)</li>
- *   <li>price - Ticket price</li>
- *   <li>quantity - Quantity (not applicable for single ticket update, but in API contract)</li>
- *   <li>startTime - Ticket sale start time</li>
- *   <li>endTime - Ticket sale end time</li>
- *   <li>printOutUrl - Printable ticket PDF URL</li>
- *   <li>eventId - Event UUID</li>
- * </ul>
- */
 @Data
 @Builder
 @NoArgsConstructor
