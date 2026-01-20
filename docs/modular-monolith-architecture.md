@@ -33,7 +33,7 @@ This document outlines the **Modular Monolith Architecture** for EventPro Platfo
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              Application Load Balancer (ALB)                │
-│              - Authentication (AWS Cognito)                 │
+│              - Authentication (JWT)                          │
 │              - Request Routing                              │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -140,7 +140,7 @@ eventpro-api/
 
 **Responsibilities:**
 - User management (CRUD operations)
-- Authentication/Authorization (Cognito integration)
+- Authentication/Authorization (JWT token validation)
 - Role management (ADMIN, ORGANIZER, USER)
 - Common utilities and exceptions
 
@@ -151,10 +151,11 @@ com.accessplus.eventpro.core/
 │   ├── UserService.java
 │   ├── UserRepository.java
 │   └── UserEntity.java
-├── auth/
-│   ├── CognitoService.java
+├── security/
+│   ├── JwtService.java
+│   ├── JwtAuthenticationFilter.java
 │   ├── SecurityConfig.java
-│   └── JwtTokenProvider.java
+│   └── JwtUtils.java
 └── common/
     ├── BaseEntity.java
     ├── BusinessException.java
@@ -440,7 +441,7 @@ dependencies {
     
     // AWS SDK
     implementation platform('software.amazon.awssdk:bom:2.21.29')
-    implementation 'software.amazon.awssdk:cognitoidentityprovider'
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
     
     // Database
     runtimeOnly 'org.postgresql:postgresql'

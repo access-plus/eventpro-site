@@ -7,25 +7,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.UUID;
 
-/**
- * Utility class for extracting information from JWT tokens.
- * 
- * <p>Works with UsernamePasswordAuthenticationToken where:
- * <ul>
- *   <li>Principal is userId as String (UUID.toString())</li>
- *   <li>Details contains Claims object from jjwt</li>
- * </ul>
- */
 public class JwtUtils {
     
-    /**
-     * Extracts the user ID from the current authentication.
-     * 
-     * <p>The principal in UsernamePasswordAuthenticationToken is the userId as String.
-     * 
-     * @return User ID (UUID) from the authentication principal
-     * @throws IllegalStateException if no authentication is present or token is invalid
-     */
     public static UUID getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
@@ -51,14 +34,6 @@ public class JwtUtils {
         }
     }
     
-    /**
-     * Gets the current JWT claims from authentication details.
-     * 
-     * <p>Claims are stored in authentication details by JwtAuthenticationFilter.
-     * 
-     * @return JWT claims
-     * @throws IllegalStateException if no authentication is present or claims are not available
-     */
     public static Claims getCurrentJwt() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         
@@ -85,12 +60,6 @@ public class JwtUtils {
         return (Claims) details;
     }
     
-    /**
-     * Extracts a claim value from the current JWT token.
-     * 
-     * @param claimName Name of the claim to extract
-     * @return Claim value as String, or null if not present
-     */
     public static String getClaim(String claimName) {
         Claims claims = getCurrentJwt();
         Object claim = claims.get(claimName);

@@ -272,9 +272,7 @@ The local Terraform environment provisions:
 - ✅ **3 Secrets** in LocalStack (database, JWT, Stripe)
 - ✅ **3 Lambda Functions** in LocalStack (order-processor, payment-processor, notification-sender)
 - ✅ **3 Event Source Mappings** connecting SQS queues to Lambda functions
-- ✅ **1 Cognito User Pool** in real AWS (with groups)
-
 These services support the complete async order processing flow:
 **Order → Order-Processor → Payment-Processor → Notification-Sender**
 
-All services connect to the same PostgreSQL database and use LocalStack for AWS service emulation (except Cognito which uses real AWS). Lambda functions are automatically triggered by SQS event source mappings, providing production-like behavior for local development.
+All services connect to the same PostgreSQL database and use LocalStack for AWS service emulation. Lambda functions are automatically triggered by SQS event source mappings, providing production-like behavior for local development.

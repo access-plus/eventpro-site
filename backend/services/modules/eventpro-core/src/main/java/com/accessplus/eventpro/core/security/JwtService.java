@@ -19,18 +19,7 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.UUID;
 
-/**
- * Service for JWT token generation and validation using jjwt library.
- * 
- * <p>Handles:
- * <ul>
- *   <li>Token generation with RS256 signing</li>
- *   <li>Token validation and claim extraction</li>
- *   <li>Helper methods for extracting user information from claims</li>
- * </ul>
- */
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class JwtService {
 
@@ -38,14 +27,6 @@ public class JwtService {
     private final PrivateKey privateKey;
     private final PublicKey publicKey;
 
-    /**
-     * Generates a JWT token for the given user.
-     * 
-     * @param userId User ID (UUID)
-     * @param email User email
-     * @param role User role (USER, ORGANIZER, ADMIN)
-     * @return JWT token string
-     */
     public String generateToken(UUID userId, String email, String role) {
         Instant now = Instant.now();
         Instant expiration = now.plusSeconds(jwtProperties.getAccessTokenTtlSeconds());
@@ -61,13 +42,6 @@ public class JwtService {
                 .compact();
     }
 
-    /**
-     * Validates a JWT token and returns its claims.
-     * 
-     * @param token JWT token string
-     * @return Claims from the validated token
-     * @throws JwtException if token is invalid, expired, or malformed
-     */
     public Claims validateToken(String token) throws JwtException {
         try {
             return Jwts.parser()
@@ -90,13 +64,6 @@ public class JwtService {
         }
     }
 
-    /**
-     * Extracts the user ID from JWT claims.
-     * 
-     * @param claims JWT claims
-     * @return User ID (UUID)
-     * @throws IllegalStateException if sub claim is missing or invalid
-     */
     public UUID getUserId(Claims claims) {
         String sub = claims.getSubject();
         if (sub == null || sub.isEmpty()) {
@@ -109,25 +76,10 @@ public class JwtService {
         }
     }
 
-    /**
-     * Extracts the email from JWT claims.
-     * 
-     * @param claims JWT claims
-     * @return User email, or null if not present
-     */
     public String getEmail(Claims claims) {
         return claims.get("email", String.class);
     }
 
-    /**
-     * Extracts the role from JWT claims.
-     * 
-     * <p>Handles both "role" (single) and "roles" (collection) claims,
-     * matching the behavior of JwtRoleMapper.
-     * 
-     * @param claims JWT claims
-     * @return User role, or "USER" if not found
-     */
     public String getRole(Claims claims) {
         // Check "role" claim first
         Object roleClaim = claims.get("role");
@@ -159,11 +111,6 @@ public class JwtService {
         return "USER";
     }
 
-    /**
-     * Returns the access token TTL in seconds.
-     * 
-     * @return TTL in seconds
-     */
     public long getAccessTokenTtlSeconds() {
         return jwtProperties.getAccessTokenTtlSeconds();
     }

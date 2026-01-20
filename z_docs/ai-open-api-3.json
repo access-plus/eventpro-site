@@ -46,7 +46,7 @@
                     "Users"
                 ],
                 "summary": "Get current user profile",
-                "description": "Returns the profile of the currently authenticated user. Automatically syncs user from Cognito if not found in database.",
+                "description": "Returns the profile of the currently authenticated user.",
                 "operationId": "getCurrentUser",
                 "responses": {
                     "200": {
@@ -107,8 +107,8 @@
                 "tags": [
                     "Users"
                 ],
-                "summary": "Sync user from Cognito",
-                "description": "Syncs the current authenticated user from Cognito to the application database. This endpoint should be called after user signup to create the user record in the database.",
+                "summary": "Sync user (deprecated)",
+                "description": "This endpoint is deprecated. Users are now created directly in the database during signup.",
                 "operationId": "syncUser",
                 "responses": {
                     "200": {
@@ -2180,7 +2180,7 @@
         "securitySchemes": {
             "bearerAuth": {
                 "type": "http",
-                "description": "AWS Cognito JWT token",
+                "description": "JWT token",
                 "scheme": "bearer",
                 "bearerFormat": "JWT"
             }
