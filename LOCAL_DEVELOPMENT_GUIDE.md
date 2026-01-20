@@ -225,14 +225,12 @@ JWT_PUBLIC_KEY=$(openssl rsa -in jwt-private.pem -pubout -outform DER | base64 -
 **Display the keys (to copy to `.env`):**
 
 ```bash
-# macOS
-echo "JWT_PRIVATE_KEY=$JWT_PRIVATE_KEY"
-echo "JWT_PUBLIC_KEY=$JWT_PUBLIC_KEY"
-
-# Linux
+# Both macOS and Linux use the same command
 echo "JWT_PRIVATE_KEY=$JWT_PRIVATE_KEY"
 echo "JWT_PUBLIC_KEY=$JWT_PUBLIC_KEY"
 ```
+
+**Copy the output** - you'll need to paste these values into your `.env` file.
 
 **Add to `.env` file:**
 
@@ -282,6 +280,7 @@ JWT_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----
 **Note:** 
 - The backend accepts PEM or base64 DER keys. Base64 DER is recommended for single-line `.env` values.
 - After adding keys, restart the backend: `make start-backend` or `docker-compose restart backend`
+- If backend is not running yet, just run `make local-up` which will start it with the new keys
 
 **Where to store:**
 - Store keys in the root `.env` file (used by `docker-compose.yml`).
@@ -759,8 +758,12 @@ Lambda functions connect to PostgreSQL using `postgres:5432` (Docker network hos
 1. **Verify all services are on the same Docker network:**
 
    ```bash
+   # Network name is {project-directory}_eventpro (e.g., eventpro-site_eventpro)
    docker network inspect eventpro-site_eventpro
    # Should show postgres, localstack, backend, frontend containers
+   
+   # Or list all networks to find the correct one
+   docker network ls | grep eventpro
    ```
 
 2. **Check LocalStack Lambda executor configuration:**
