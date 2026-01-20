@@ -1,7 +1,6 @@
 package com.accessplus.eventpro.core.email.service.impl;
 
 import com.accessplus.eventpro.core.email.service.EmailService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -15,7 +14,6 @@ import software.amazon.awssdk.services.ses.model.*;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
     
     @Value("${aws.ses.region:us-east-1}")
