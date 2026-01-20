@@ -4,7 +4,7 @@ Complete guide for setting up and running the EventPro application locally using
 
 ---
 
-## 🚀 Quick Start (2 Simple Steps)
+## 🚀 Quick Start (3 Simple Steps)
 
 ### First Time Setup
 
@@ -14,11 +14,13 @@ Complete guide for setting up and running the EventPro application locally using
 #   - Build Lambda Docker images (no AWS credentials needed for local dev)
 #   - Start PostgreSQL and LocalStack (if not running)
 #   - Deploy Lambda functions to LocalStack with event source mappings
-#   - Create Cognito User Pool (if AWS credentials configured)
 #   - Generate .env files
 make local-infra
 
-# Step 2: Start application services (backend + frontend)
+# Step 2: Add JWT keys to .env (required for backend auth)
+# See "Step 2: Configure JWT Keys" below
+
+# Step 3: Start application services (backend + frontend)
 # Lambda functions are already running via LocalStack
 make local-up
 ```
@@ -28,6 +30,7 @@ make local-up
 - **You don't need to build Lambda images separately** - `make local-infra` automatically builds them for local development
 - **No AWS credentials needed for Lambda builds** - The build script detects local development mode and uses local image tags (e.g., `eventpro-order-processor:latest`) instead of ECR tags
 - **Don't set `AWS_ACCOUNT_ID`** unless you're actually deploying to AWS - see Prerequisites section for details
+- **JWT keys are required** for backend auth - add them to `.env` after `make local-infra` (see Step 2)
 
 **That's it!** Your application is now running:
 
@@ -81,9 +84,7 @@ Before starting, ensure you have:
 2. ✅ **Terraform 1.12+** installed
 3. ✅ **Make** installed (usually pre-installed on macOS/Linux)
 4. ✅ **AWS CLI** (optional, for testing LocalStack resources)
-5. ✅ **AWS Account with Credentials** (required for Cognito only)
-   - Configure using: `aws configure` OR
-   - Set environment variables: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+5. ✅ **OpenSSL** (or equivalent) for generating JWT RSA keys
 
 ### ⚠️ Important: AWS Account ID for Local Development
 
@@ -123,8 +124,7 @@ make local-infra
    - **Lambda Functions** (order-processor, payment-processor, notification-sender)
    - **Event Source Mappings** (automatically trigger Lambdas from SQS queues)
    - IAM roles and policies
-5. **Creates Cognito User Pool** in real AWS (if credentials configured)
-6. **Creates environment files**:
+5. **Creates environment files**:
    - `.env` (backend configuration)
    - `frontend/.env.local` (frontend configuration)
 
@@ -136,13 +136,15 @@ make local-infra
 # Check .env file was created
 cat .env
 
-# Should contain:
+# Should contain (after Step 2):
 # - ORDER_QUEUE_URL
 # - PAYMENT_QUEUE_URL
 # - NOTIFICATION_QUEUE_URL
 # - S3_BUCKET_NAME
-# - COGNITO_USER_POOL_ID (if Cognito was created) - REQUIRED
-# - COGNITO_CLIENT_ID (if Cognito was created) - REQUIRED
+# - JWT_ISSUER (optional, defaults to eventpro)
+# - JWT_ACCESS_TTL_SECONDS (optional, defaults to 3600)
+# - JWT_PUBLIC_KEY (required)
+# - JWT_PRIVATE_KEY (required)
 
 # Note: Database credentials are set in docker-compose.yml, not in .env
 # The local profile uses environment variables directly, not Secrets Manager
@@ -158,43 +160,44 @@ make local-event-mappings
 
 ---
 
-### Step 2: Configure Cognito (If Needed)
+### Step 2: Configure JWT Keys
 
-**If you see a warning about missing Cognito credentials:**
+JWT authentication uses RS256 (RSA) keys. Generate a key pair and store the values in the root `.env` file.
 
-Cognito is required for authentication. You have two options:
-
-#### Option A: Use Real AWS Cognito (Recommended)
-
-1. **Create Cognito User Pool in AWS Console:**
-   - Go to AWS Console → Cognito → Create User Pool
-   - Note the User Pool ID (format: `us-east-1_XXXXXXXXX`)
-   - Create an App Client and note the Client ID
-
-2. **Add credentials to `.env` file:**
-
-   ```bash
-   COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
-   COGNITO_CLIENT_ID=your-client-id
-   ```
-
-3. **Add credentials to `frontend/.env.local` file:**
-
-   ```bash
-   VITE_COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
-   VITE_COGNITO_CLIENT_ID=your-client-id
-   ```
-
-#### Option B: Let Terraform Create Cognito (Automatic)
-
-If you have AWS credentials configured (`aws configure` or environment variables), Terraform will automatically create Cognito during `make local-infra`.
-
-**Verify Cognito was created:**
+**Generate RSA keys (one-time):**
 
 ```bash
-cat .env | grep COGNITO
-# Should show COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID
+openssl genpkey -algorithm RSA -out jwt-private.pem -pkeyopt rsa_keygen_bits:2048
+openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem
 ```
+
+**Convert to single-line base64 (recommended for .env):**
+
+```bash
+# macOS
+base64 -b 0 jwt-private.pem > jwt-private.b64
+base64 -b 0 jwt-public.pem > jwt-public.b64
+
+# Linux
+base64 -w 0 jwt-private.pem > jwt-private.b64
+base64 -w 0 jwt-public.pem > jwt-public.b64
+```
+
+**Add to `.env`:**
+
+```bash
+JWT_ISSUER=eventpro
+JWT_ACCESS_TTL_SECONDS=3600
+JWT_PRIVATE_KEY=<contents of jwt-private.b64>
+JWT_PUBLIC_KEY=<contents of jwt-public.b64>
+```
+
+**Note:** The backend accepts PEM or base64 keys. Base64 is recommended for single-line `.env` values.
+
+**Where to store:**
+- Store keys in the root `.env` file (used by `docker-compose.yml`).
+- Do not commit `.env` or key files to version control.
+- If running backend outside Docker, export the same variables in your shell.
 
 ---
 
@@ -366,13 +369,13 @@ make local-event-mappings
 
 ## 🐛 Troubleshooting
 
-### Issue: "Cognito credentials are not set"
+### Issue: "JWT keys are not set"
 
 **Solution:**
 
 1. Check if `.env` file exists: `cat .env`
 2. If missing, run: `make local-infra`
-3. If Cognito credentials are empty, follow "Step 2: Configure Cognito" above
+3. Add JWT keys and restart backend (see "Step 2: Configure JWT Keys")
 
 ### Issue: Backend fails to start
 
@@ -383,10 +386,10 @@ make local-event-mappings
 ```bash
 # Verify .env file exists and has required values
 cat .env | grep QUEUE_URL
-cat .env | grep COGNITO  # These are REQUIRED
+cat .env | grep JWT  # JWT_PUBLIC_KEY and JWT_PRIVATE_KEY are REQUIRED
 
 # Check database environment variables (set in docker-compose.yml)
-docker-compose exec backend env | grep -E "DB_|COGNITO"
+docker-compose exec backend env | grep -E "DB_|JWT"
 
 # Regenerate .env file
 make local-infra
@@ -397,7 +400,7 @@ make start-backend
 
 **Common Issues:**
 
-- **Missing Cognito credentials**: `COGNITO_USER_POOL_ID` and `COGNITO_CLIENT_ID` are REQUIRED. The application will fail to start without them.
+- **Missing JWT keys**: `JWT_PUBLIC_KEY` and `JWT_PRIVATE_KEY` are REQUIRED. The application will fail to start without them.
 - **Database connection**: Verify `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` are set in docker-compose.yml (they are by default).
 
 ### Issue: Database connection failed
@@ -616,8 +619,8 @@ docker exec -it postgres psql -U eventpro -d eventpro
 
 ```sql
 -- View all users
-SELECT id, email, first_name, last_name, cognito_user_id, created_at 
-FROM "user" 
+SELECT id, email, first_name, last_name, role, status, created_at
+FROM users
 ORDER BY created_at DESC;
 
 -- Check migrations
@@ -671,7 +674,7 @@ docker-compose down -v
 
 ```bash
 # Backend environment variables
-docker-compose exec backend env | grep -E "COGNITO|QUEUE_URL|S3|DB_|STRIPE"
+docker-compose exec backend env | grep -E "JWT|QUEUE_URL|S3|DB_|STRIPE"
 
 # Frontend environment variables
 docker-compose exec frontend env | grep VITE_
@@ -685,7 +688,7 @@ aws --endpoint-url=http://localhost:4566 lambda get-function-configuration \
 
 - **Database credentials** (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`) are set in `docker-compose.yml` and used by `LocalDataSourceConfig` for the local profile
 - **Local profile does NOT use Secrets Manager** for database credentials - it reads directly from environment variables
-- **Cognito credentials** (`COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`) are REQUIRED and must be in `.env` file
+- **JWT keys** (`JWT_PUBLIC_KEY`, `JWT_PRIVATE_KEY`) are REQUIRED and must be in `.env` file
 - **Stripe secrets** can be set via environment variables or use defaults from `application-local.yml`
 - **Lambda functions** connect to PostgreSQL using `postgres:5432` (Docker network hostname). If Lambda functions cannot connect, check that LocalStack is on the same Docker network as PostgreSQL.
 
@@ -741,10 +744,12 @@ AWS_ACCOUNT_ID=123456789012 AWS_REGION=us-east-1 make lambda-build
 
 ### Backend Environment (`.env`)
 
-Created automatically by `make local-infra`. Contains:
+Created automatically by `make local-infra`. Add JWT keys manually after generation. Contains:
 
-- `COGNITO_USER_POOL_ID` - AWS Cognito User Pool ID (REQUIRED)
-- `COGNITO_CLIENT_ID` - AWS Cognito App Client ID (REQUIRED)
+- `JWT_ISSUER` - JWT issuer (optional, defaults to eventpro)
+- `JWT_ACCESS_TTL_SECONDS` - JWT access token TTL in seconds (optional)
+- `JWT_PUBLIC_KEY` - JWT public key (REQUIRED)
+- `JWT_PRIVATE_KEY` - JWT private key (REQUIRED)
 - `S3_BUCKET_NAME` - S3 bucket for images
 - `ORDER_QUEUE_URL` - SQS order queue URL
 - `PAYMENT_QUEUE_URL` - SQS payment queue URL
@@ -757,13 +762,11 @@ Created automatically by `make local-infra`. Contains:
 Created automatically by `make local-infra`. Contains:
 
 - `VITE_API_BASE_URL` - Backend API URL
-- `VITE_COGNITO_USER_POOL_ID` - Cognito User Pool ID
-- `VITE_COGNITO_CLIENT_ID` - Cognito Client ID
 - `VITE_AWS_REGION` - AWS region
 - `VITE_S3_BUCKET_NAME` - S3 bucket name
 - `VITE_STRIPE_PUBLISHABLE_KEY` - Stripe publishable key (optional, for payment features)
 
-**Note:** These files are automatically generated. Manual edits may be overwritten when running `make local-infra`. To add Stripe key, either:
+**Note:** These files are automatically generated. Manual edits may be overwritten when running `make local-infra`. Re-add JWT keys after regenerating `.env`. To add Stripe key, either:
 
 1. Add it to the root `.env` file before running `make local-infra`, or
 2. Manually add it to `frontend/.env.local` after running `make local-infra`
@@ -802,7 +805,7 @@ After local setup is working:
 - **Database Migrations:** Run automatically on backend startup via Flyway.
 - **Database Configuration:** Local profile uses `LocalDataSourceConfig` which reads `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` from environment variables (set in docker-compose.yml). It does NOT use Secrets Manager.
 - **Lambda Functions:** Managed by LocalStack and automatically triggered by SQS event source mappings. No manual invocation needed. Lambda functions use Secrets Manager for database credentials (different from backend API).
-- **Cognito:** Required for authentication. Must be configured before starting services. JWT validation uses Cognito's public keys, not a custom JWT secret.
+- **JWT Auth:** Backend uses RS256 keys from `.env`. Update `JWT_PUBLIC_KEY`/`JWT_PRIVATE_KEY` and restart backend if you rotate keys.
 - **LocalStack:** Emulates AWS services locally. All SQS, S3, Secrets Manager, and Lambda operations go through LocalStack.
 - **Secrets Manager:** Used by Lambda functions for database credentials. Backend API (local profile) uses environment variables directly, not Secrets Manager.
 

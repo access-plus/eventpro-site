@@ -46,7 +46,7 @@ All queues are provisioned in LocalStack and used for asynchronous message proce
 ---
 
 ### 3. **Secrets Manager** (LocalStack)
-Three secrets are provisioned for local development:
+Two secrets are provisioned for local development:
 
 #### Database Secret (`eventpro-db-secret`)
 ```json
@@ -58,9 +58,6 @@ Three secrets are provisioned for local development:
   "password": "eventpro"
 }
 ```
-
-#### JWT Secret (`eventpro-jwt-secret`)
-- Plain text secret: `Dh7fjbnd2O2iSkqpYL/lz2nM3LE/8fC36iFNPHERysc=`
 
 #### Stripe Keys (`eventpro-stripe-keys`)
 ```json
@@ -77,17 +74,11 @@ Three secrets are provisioned for local development:
 
 ---
 
-### 4. **Cognito User Pool** (Real AWS)
-**Note:** Cognito is provisioned in **real AWS**, not LocalStack, because LocalStack Community Edition doesn't fully support Cognito.
+### 4. **JWT Authentication** (Local)
+Authentication uses locally generated JWT keys stored in the `.env` file:
 
-**Resources:**
-- User Pool: `eventpro-local-user-pool`
-- User Pool Client: `eventpro-local-client`
-- User Groups: `ADMIN`, `ORGANIZER`, `USER`
-
-**Used By:**
-- Frontend for user authentication (sign up, sign in, password reset)
-- Backend API for JWT token validation and user authorization
+- `JWT_PUBLIC_KEY` - Used to verify access tokens
+- `JWT_PRIVATE_KEY` - Used to sign access tokens
 
 ---
 
@@ -138,12 +129,9 @@ Three secrets are provisioned for local development:
 ### LocalStack (Port 4566)
 - **SQS** - All queues (order, payment, notification + DLQs)
 - **S3** - Image storage bucket
-- **Secrets Manager** - Database, JWT, Stripe secrets
+- **Secrets Manager** - Database, Stripe secrets
 - **SES** - Email sending (for notification-sender Lambda)
 - **SNS** - SMS sending (for notification-sender Lambda)
-
-### Real AWS
-- **Cognito** - User authentication (requires AWS credentials)
 
 ### Docker Containers
 - **PostgreSQL** - Database (port 5432)
@@ -167,7 +155,7 @@ The backend API connects to:
 2. **LocalStack SQS** - Via `AWS_ENDPOINT_URL=http://localstack:4566`
 3. **LocalStack S3** - Via `AWS_ENDPOINT_URL=http://localstack:4566`
 4. **LocalStack Secrets Manager** - Via `AWS_ENDPOINT_URL=http://localstack:4566`
-5. **Real AWS Cognito** - Via AWS SDK (uses real AWS credentials)
+5. **JWT configuration** - Via `JWT_PUBLIC_KEY` / `JWT_PRIVATE_KEY` environment variables
 
 ### Lambda Functions Configuration
 Lambda functions (managed by LocalStack) connect to:
@@ -194,9 +182,11 @@ AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 
-# Cognito (Real AWS)
-COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
-COGNITO_CLIENT_ID=your-client-id
+# JWT (local)
+JWT_ISSUER=eventpro
+JWT_ACCESS_TTL_SECONDS=3600
+JWT_PUBLIC_KEY=your-base64-or-pem-public-key
+JWT_PRIVATE_KEY=your-base64-or-pem-private-key
 
 # SQS Queues (from Terraform outputs)
 ORDER_QUEUE_URL=http://localhost:4566/000000000000/order-queue
@@ -231,7 +221,7 @@ STRIPE_SECRET_KEY_ARN=arn:aws:secretsmanager:us-east-1:000000000000:secret:event
 ## Key Points
 
 1. **LocalStack is for AWS service emulation** - SQS, S3, Secrets Manager, SES, SNS, Lambda
-2. **Cognito must be real AWS** - LocalStack Community doesn't fully support it
+2. **JWT keys are local** - Store `JWT_PUBLIC_KEY` and `JWT_PRIVATE_KEY` in the `.env` file
 3. **Lambdas are managed by LocalStack** - Registered via Terraform, automatically triggered by SQS event source mappings
 4. **PostgreSQL is separate** - Docker container, not in LocalStack
 5. **DLQs handle failures** - Messages that fail 3 times go to DLQ for manual inspection
@@ -288,4 +278,3 @@ These services support the complete async order processing flow:
 **Order → Order-Processor → Payment-Processor → Notification-Sender**
 
 All services connect to the same PostgreSQL database and use LocalStack for AWS service emulation (except Cognito which uses real AWS). Lambda functions are automatically triggered by SQS event source mappings, providing production-like behavior for local development.
-
