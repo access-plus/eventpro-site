@@ -109,8 +109,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        // Public Events endpoints (GET only)
+        // Public Events endpoints (GET only) - my-events requires authentication
         if (HttpMethod.GET.name().equals(method)) {
+            if (path.equals("/api/v1/events/my-events")) {
+                return false;
+            }
             if (path.equals("/api/v1/events") ||
                 path.startsWith("/api/v1/events/") ||
                 path.startsWith("/api/v1/events/category/")) {

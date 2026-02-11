@@ -166,7 +166,7 @@ export const Navigation = () => {
                     </Link>
                   )}
                   
-                  {hasRole("ORGANIZER") && (
+                  {(hasRole("ORGANIZER") || hasRole("ADMIN")) && (
                     <Link
                       to="/organizer"
                       onClick={() => setIsOpen(false)}

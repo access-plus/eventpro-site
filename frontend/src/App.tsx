@@ -115,7 +115,7 @@ const App = () => (
               <Route
                 path="/organizer"
                 element={
-                  <ProtectedRoute allowedRoles={["ORGANIZER"]}>
+                  <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
                     <Organizer />
                   </ProtectedRoute>
                 }
@@ -124,7 +124,7 @@ const App = () => (
               <Route
                 path="/organizer/events/new"
                 element={
-                  <ProtectedRoute allowedRoles={["ORGANIZER"]}>
+                  <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
                     <EventForm />
                   </ProtectedRoute>
                 }
@@ -133,7 +133,7 @@ const App = () => (
               <Route
                 path="/organizer/events/:id/edit"
                 element={
-                  <ProtectedRoute allowedRoles={["ORGANIZER"]}>
+                  <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
                     <EventForm />
                   </ProtectedRoute>
                 }

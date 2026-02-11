@@ -45,6 +45,10 @@ const eventFormSchema = z.object({
   name: z.string().min(1, "Event name is required").max(200),
   description: z.string().optional(),
   venue: z.string().min(1, "Venue is required").max(200),
+  city: z.string().min(1, "City is required").max(100),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  country: z.string().min(1, "Country is required").max(100),
   category: z.string().min(1, "Category is required"),
   startDateTime: z.date({
     required_error: "Start date and time is required",
@@ -52,7 +56,6 @@ const eventFormSchema = z.object({
   endDateTime: z.date({
     required_error: "End date and time is required",
   }),
-  status: z.enum(["DRAFT", "PUBLISHED", "CANCELLED", "COMPLETED"]),
   imageUrl: z.string().optional(),
   marketingEnabled: z.boolean().optional(),
   ticketTypes: z.array(ticketTypeSchema).min(1, "At least one ticket type is required"),
@@ -82,8 +85,11 @@ const EventForm = () => {
       name: "",
       description: "",
       venue: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      country: "",
       category: "",
-      status: "DRAFT",
       marketingEnabled: false,
       ticketTypes: [
         {
@@ -148,16 +154,19 @@ const EventForm = () => {
   const onSubmit = (data: EventFormValues) => {
     const payload = {
       name: data.name,
-      description: data.description,
-      venue: data.venue,
-      category: data.category, // Backend will resolve category name to UUID
+      description: data.description ?? undefined,
+      category: data.category,
       startTime: data.startDateTime.toISOString(),
       endTime: data.endDateTime.toISOString(),
-      status: data.status,
       imageUrl: data.imageUrl,
-      marketingEnabled: data.marketingEnabled || false,
-      // Note: ticketTypes are created separately via ticket endpoints
-      // The backend event creation doesn't include ticketTypes in the request
+      marketingEnabled: data.marketingEnabled ?? false,
+      address: {
+        street: data.venue,
+        city: data.city,
+        state: data.state || undefined,
+        zipCode: data.zipCode || undefined,
+        country: data.country,
+      },
     };
 
     if (isEditMode) {
@@ -249,10 +258,68 @@ const EventForm = () => {
                       <FormControl>
                         <Input placeholder="Madison Square Garden, New York" {...field} />
                       </FormControl>
+                      <FormDescription>Venue or street address</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City</FormLabel>
+                        <FormControl>
+                          <Input placeholder="New York" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country</FormLabel>
+                        <FormControl>
+                          <Input placeholder="USA" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State / Region (optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="NY" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="zipCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ZIP / Postal Code (optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="10001" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
@@ -282,37 +349,9 @@ const EventForm = () => {
                   )}
                 />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="DRAFT">Draft</SelectItem>
-                            <SelectItem value="PUBLISHED">Published</SelectItem>
-                            <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                            <SelectItem value="COMPLETED">Completed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Published events will be visible to attendees
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="marketingEnabled"
+                <FormField
+                  control={form.control}
+                  name="marketingEnabled"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
@@ -330,7 +369,6 @@ const EventForm = () => {
                       </FormItem>
                     )}
                   />
-                </div>
 
                 <div>
                   <FormLabel>Event Image</FormLabel>

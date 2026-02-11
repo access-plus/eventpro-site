@@ -3,13 +3,15 @@ package com.accessplus.eventpro.api.controller;
 import com.accessplus.eventpro.api.dto.*;
 import com.accessplus.eventpro.api.service.OrganizerService;
 import com.accessplus.eventpro.core.security.JwtUtils;
-import com.accessplus.eventpro.core.user.entity.UserEntity;
+import com.accessplus.eventpro.event.category.entity.CategoryEntity;
+import com.accessplus.eventpro.event.category.repository.CategoryRepository;
 import com.accessplus.eventpro.event.event.entity.EventEntity;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.event.service.EventService;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
+import com.accessplus.eventpro.shared.exception.ValidationException;
 import com.accessplus.eventpro.event.service.AWSS3ImageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -20,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -45,6 +46,7 @@ public class OrganizerController extends BaseController {
     private final EventService eventService;
     private final TicketService ticketService;
     private final EventRepository eventRepository;
+    private final CategoryRepository categoryRepository;
     private final AWSS3ImageService imageService;
 
     @GetMapping("/events")
@@ -77,8 +79,10 @@ public class OrganizerController extends BaseController {
         // Get current user's UUID from JWT
         UUID organizerId = JwtUtils.getCurrentUserId();
 
-        // Create event (reuse existing EventController logic)
-        // Note: This would need to be refactored to share logic
+        // Resolve category by UUID or name
+        UUID categoryId = resolveCategoryId(request.getCategory());
+
+        // Create event (aligned with EventController logic)
         EventEntity event = new EventEntity();
         event.setName(request.getName());
         event.setDescription(request.getDescription());
@@ -86,10 +90,12 @@ public class OrganizerController extends BaseController {
         event.setEndTime(request.getEndTime());
         event.setMarketingEnabled(request.getMarketingEnabled() != null ? request.getMarketingEnabled() : false);
 
+        // Set address if provided
+        if (request.getAddress() != null) {
+            event.setAddress(request.getAddress().toEntity());
+        }
+
         try {
-            // Parse category UUID from string
-            UUID categoryId = UUID.fromString(request.getCategory());
-            
             EventEntity createdEvent = eventService.createEvent(
                     event,
                     organizerId,
@@ -131,12 +137,17 @@ public class OrganizerController extends BaseController {
         eventUpdate.setEndTime(request.getEndTime());
         eventUpdate.setMarketingEnabled(request.getMarketingEnabled() != null ? request.getMarketingEnabled() : false);
 
-        // Parse category UUID from string if provided
-        UUID categoryId = null;
-        if (request.getCategory() != null) {
-            categoryId = UUID.fromString(request.getCategory());
+        // Set address if provided
+        if (request.getAddress() != null) {
+            eventUpdate.setAddress(request.getAddress().toEntity());
         }
-        
+
+        // Resolve category by UUID or name if provided
+        UUID categoryId = null;
+        if (request.getCategory() != null && !request.getCategory().trim().isEmpty()) {
+            categoryId = resolveCategoryId(request.getCategory());
+        }
+
         // Update event
         EventEntity updatedEvent = eventService.updateEvent(
                 id,
@@ -232,5 +243,24 @@ public class OrganizerController extends BaseController {
         
         log.info("Attendee checked in: ticketId={}", id);
         return ResponseEntity.ok(ApiResponse.success(null, "Attendee checked in successfully"));
+    }
+
+    private UUID resolveCategoryId(String categoryIdentifier) {
+        if (categoryIdentifier == null || categoryIdentifier.trim().isEmpty()) {
+            throw new ValidationException("Category is required");
+        }
+
+        // Try to parse as UUID first
+        try {
+            UUID categoryUuid = UUID.fromString(categoryIdentifier);
+            categoryRepository.findById(categoryUuid)
+                    .orElseThrow(() -> new ResourceNotFoundException("Category", categoryIdentifier));
+            return categoryUuid;
+        } catch (IllegalArgumentException e) {
+            // Not a UUID, try to find by name
+            CategoryEntity category = categoryRepository.findByName(categoryIdentifier)
+                    .orElseThrow(() -> new ResourceNotFoundException("Category", categoryIdentifier));
+            return category.getId();
+        }
     }
 }
