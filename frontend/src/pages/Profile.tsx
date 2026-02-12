@@ -146,7 +146,7 @@ const Profile = () => {
                   </p>
                   <Button 
                     className="bg-gradient-primary"
-                    onClick={() => navigate("/events")}
+                    onClick={() => navigate("/organizer/events/new")}
                   >
                     Create Event
                   </Button>

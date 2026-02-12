@@ -13,7 +13,55 @@ import type {
   SignUpRequest,
   LoginRequest,
   AuthResponse,
+  CreateEventRequest,
 } from "@/types/api";
+
+/** Backend event response shape (flattened address, startTime/endTime, userId) */
+interface EventResponseRaw {
+  id: string;
+  name?: string;
+  description?: string;
+  imageUrl?: string;
+  marketingEnabled?: boolean;
+  startTime?: string;
+  endTime?: string;
+  userId?: string;
+  categoryId?: string;
+  categoryName?: string;
+  addressStreet?: string;
+  addressCity?: string;
+  addressState?: string;
+  addressCountry?: string;
+  addressZipCode?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+function normalizeEvent(raw: EventResponseRaw): Event {
+  const addressParts = [
+    raw.addressStreet,
+    raw.addressCity,
+    raw.addressState,
+    raw.addressCountry,
+    raw.addressZipCode,
+  ].filter(Boolean);
+  const venue = addressParts.length > 0 ? addressParts.join(", ") : undefined;
+
+  return {
+    id: raw.id,
+    name: raw.name ?? "",
+    description: raw.description,
+    venue,
+    startDateTime: raw.startTime ?? "",
+    endDateTime: raw.endTime ?? "",
+    status: "PUBLISHED",
+    organizerId: raw.userId ?? "",
+    imageUrl: raw.imageUrl,
+    category: raw.categoryName ?? raw.categoryId,
+    createdAt: raw.createdAt ?? "",
+    updatedAt: raw.updatedAt ?? "",
+  };
+}
 
 class ApiService {
   private api: AxiosInstance;
@@ -95,29 +143,31 @@ class ApiService {
     if (keyword) {
       url += `&keyword=${encodeURIComponent(keyword)}`;
     }
-    const response = await this.api.get<ApiResponse<{ content: Event[] }>>(url);
-    return response.data.data.content;
+    const response = await this.api.get<ApiResponse<{ content: EventResponseRaw[] }>>(url);
+    return (response.data.data.content ?? []).map(normalizeEvent);
   }
 
   async getEventsByCategory(categoryName: string): Promise<Event[]> {
-    const response = await this.api.get<ApiResponse<Event[]>>(
+    const response = await this.api.get<ApiResponse<EventResponseRaw[]>>(
       `/api/v1/events/category/${encodeURIComponent(categoryName)}`
     );
-    return response.data.data;
+    const data = response.data.data;
+    return Array.isArray(data) ? data.map(normalizeEvent) : [];
   }
 
   async getEventById(id: string): Promise<Event> {
-    const response = await this.api.get<ApiResponse<Event>>(
+    const response = await this.api.get<ApiResponse<EventResponseRaw>>(
       `/api/v1/events/${id}`
     );
-    return response.data.data;
+    return normalizeEvent(response.data.data);
   }
 
   async getUserEvents(): Promise<Event[]> {
-    const response = await this.api.get<ApiResponse<Event[]>>(
+    const response = await this.api.get<ApiResponse<EventResponseRaw[]>>(
       "/api/v1/events/my-events"
     );
-    return response.data.data;
+    const data = response.data.data;
+    return Array.isArray(data) ? data.map(normalizeEvent) : [];
   }
 
   // Ticket Type endpoints
@@ -239,26 +289,27 @@ class ApiService {
   }
 
   async getAllEvents(): Promise<Event[]> {
-    const response = await this.api.get<ApiResponse<{ content: Event[] }>>(
+    const response = await this.api.get<ApiResponse<{ content: EventResponseRaw[] }>>(
       "/api/v1/admin/events"
     );
-    return response.data.data.content;
+    return (response.data.data.content ?? []).map(normalizeEvent);
   }
 
   async updateEventStatus(eventId: string, status: string): Promise<Event> {
-    const response = await this.api.patch<ApiResponse<Event>>(
+    const response = await this.api.patch<ApiResponse<EventResponseRaw>>(
       `/api/v1/admin/events/${eventId}/status`,
       { status }
     );
-    return response.data.data;
+    return normalizeEvent(response.data.data);
   }
 
   // Organizer endpoints
   async getOrganizerEvents(): Promise<Event[]> {
-    const response = await this.api.get<ApiResponse<Event[]>>(
+    const response = await this.api.get<ApiResponse<EventResponseRaw[]>>(
       "/api/v1/organizer/events"
     );
-    return response.data.data;
+    const data = response.data.data;
+    return Array.isArray(data) ? data.map(normalizeEvent) : [];
   }
 
   async getOrganizerEventStats(eventId: string): Promise<any> {
@@ -288,20 +339,20 @@ class ApiService {
   //   return response.data.data;
   // }
 
-  async createEvent(data: any): Promise<Event> {
-    const response = await this.api.post<ApiResponse<Event>>(
+  async createEvent(data: CreateEventRequest): Promise<Event> {
+    const response = await this.api.post<ApiResponse<EventResponseRaw>>(
       "/api/v1/organizer/events",
       data
     );
-    return response.data.data;
+    return normalizeEvent(response.data.data);
   }
 
-  async updateEvent(eventId: string, data: any): Promise<Event> {
-    const response = await this.api.put<ApiResponse<Event>>(
+  async updateEvent(eventId: string, data: Partial<CreateEventRequest>): Promise<Event> {
+    const response = await this.api.put<ApiResponse<EventResponseRaw>>(
       `/api/v1/organizer/events/${eventId}`,
       data
     );
-    return response.data.data;
+    return normalizeEvent(response.data.data);
   }
 
   async uploadEventImage(file: File): Promise<{ url: string }> {

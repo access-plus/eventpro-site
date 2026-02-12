@@ -32,6 +32,24 @@ export interface Event {
   updatedAt: string;
 }
 
+export interface EventAddress {
+  street?: string;
+  city: string;
+  state?: string;
+  zipCode?: string;
+  country: string;
+}
+
+export interface CreateEventRequest {
+  name: string;
+  description?: string;
+  startTime: string;
+  endTime: string;
+  marketingEnabled?: boolean;
+  category: string;
+  address: EventAddress;
+}
+
 export interface Category {
   id: string;
   name: string;

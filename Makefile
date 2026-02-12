@@ -1,4 +1,4 @@
-.PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build
+.PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build jwt-keys
 
 # Variables
 API_DIR := backend/services
@@ -63,6 +63,9 @@ help:
 	@echo "  make local-reset    - Reset containers (fixes conflicts)"
 	@echo "  make local-clean    - Clean everything (containers + Terraform)"
 	@echo "  make local-logs    - View all logs"
+	@echo ""
+	@echo "Security:"
+	@echo "  make jwt-keys       - Generate JWT public key and update .env keys"
 	@echo ""
 	@echo "Quick Commands:"
 	@echo "  make rebuild        - Clean and rebuild everything"
@@ -247,6 +250,10 @@ lambda-build-notification:
 lambda-build-order:
 	@echo "Building order-processor Lambda Docker image..."
 	@./scripts/build-lambda-images.sh order-processor latest
+
+jwt-keys:
+	@echo "Generating JWT keys and updating .env..."
+	@./scripts/jwt-script.sh
 
 # ============================================================================
 # Local Development (Docker Compose + LocalStack)
