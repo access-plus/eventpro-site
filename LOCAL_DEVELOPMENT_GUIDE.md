@@ -31,18 +31,36 @@ Complete guide for setting up and running the EventPro application locally using
 #   - Deploy Lambda functions to LocalStack with event source mappings
 #   - Generate .env files
 make local-infra
+```
 
-# Step 2: Add JWT keys to .env (required for backend auth)
-# See "Step 2: Configure JWT Keys" below
-- `openssl genpkey -algorithm RSA -out jwt-private.pem -pkeyopt rsa_keygen_bits:2048`
+<details>
+<summary>jwt keys</summary>
 
-# Extract public key from private key
-- `openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem`
-- `JWT_PRIVATE_KEY=$(openssl pkcs8 -topk8 -inform PEM -outform DER -in jwt-private.pem -nocrypt | base64 | tr -d '\n')`
-- `JWT_PUBLIC_KEY=$(openssl rsa -in jwt-private.pem -pubout -outform DER | base64 | tr -d '\n')`
-- `echo "JWT_PRIVATE_KEY=$JWT_PRIVATE_KEY" >> .env`
-- `echo "JWT_PUBLIC_KEY=$JWT_PUBLIC_KEY" >> .env`
+Option 1
 
+```bash
+make jwt-keys
+```
+
+Option 2
+
+<details>
+<summary>manual</summary>
+
+```bash
+openssl genpkey -algorithm RSA -out jwt-private.pem -pkeyopt rsa_keygen_bits:2048
+openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem
+JWT_PRIVATE_KEY=$(openssl pkcs8 -topk8 -inform PEM -outform DER -in jwt-private.pem -nocrypt | base64 | tr -d '\n')
+JWT_PUBLIC_KEY=$(openssl rsa -in jwt-private.pem -pubout -outform DER | base64 | tr -d '\n')
+echo "JWT_PRIVATE_KEY=$JWT_PRIVATE_KEY" >> .env
+echo "JWT_PUBLIC_KEY=$JWT_PUBLIC_KEY" >> .env
+echo "JWT_ISSUER=eventpro" >> .env
+```
+</details>
+
+</details>
+
+```bash
 # Step 3: Start application services (backend + frontend)
 # Lambda functions are already running via LocalStack
 make local-up
