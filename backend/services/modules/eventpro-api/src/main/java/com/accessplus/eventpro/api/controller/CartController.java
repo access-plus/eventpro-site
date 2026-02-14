@@ -203,7 +203,7 @@ public class CartController extends BaseController {
 
         // Find available tickets of the specified type
         List<TicketEntity> availableTickets = ticketRepository
-                .findByEventIdAndTicketType(eventId, ticketType, PageRequest.of(0, 1))
+                .findByEventIdAndTicketType(eventId, ticketType.name(), PageRequest.of(0, 1))
                 .getContent()
                 .stream()
                 .filter(t -> t.getTicketStatus() == TicketStatus.AVAILABLE)

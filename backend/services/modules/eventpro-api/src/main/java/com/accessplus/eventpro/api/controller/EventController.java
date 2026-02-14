@@ -16,6 +16,7 @@ import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.event.service.EventService;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
+import com.accessplus.eventpro.shared.enums.EventStatus;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
 import com.accessplus.eventpro.shared.enums.TicketType;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -129,57 +130,59 @@ public class EventController extends BaseController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all events", description = "Returns paginated list of all events. " +
-            "Supports search by keyword (name). Public endpoint.")
+    @Operation(summary = "Get all events", description = "Returns paginated list of PUBLISHED events. " +
+            "Supports search by keyword (name). Public endpoint - only shows published events.")
     public ResponseEntity<ApiResponse<Page<EventResponse>>> getAllEvents(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "startTime") String sortBy,
             @RequestParam(defaultValue = "asc") String dir,
             @RequestParam(required = false) String keyword) {
-        log.debug("Getting all events: page={}, size={}, sortBy={}, dir={}, keyword={}", 
+        log.debug("Getting all published events: page={}, size={}, sortBy={}, dir={}, keyword={}",
                 page, size, sortBy, dir, keyword);
 
         // Convert page from 1-based to 0-based
         int pageIndex = page > 0 ? page - 1 : 0;
-        
+
         // Validate sort direction
-        Sort.Direction direction = "desc".equalsIgnoreCase(dir) 
-                ? Sort.Direction.DESC 
+        Sort.Direction direction = "desc".equalsIgnoreCase(dir)
+                ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
-        
+
         // Create pageable with sorting
         Pageable pageable = PageRequest.of(pageIndex, size, Sort.by(direction, sortBy));
-        
+
         Page<EventEntity> eventPage;
-        
-        // Apply search filter if keyword provided
+
+        // Apply search filter if keyword provided - only show PUBLISHED events
         if (keyword != null && !keyword.trim().isEmpty()) {
-            eventPage = eventRepository.findByNameContainingIgnoreCase(keyword.trim(), pageable);
+            eventPage = eventRepository.findByStatusAndNameContainingIgnoreCase(
+                    EventStatus.PUBLISHED, keyword.trim(), pageable);
         } else {
-            eventPage = eventService.getAllEvents(pageable);
+            eventPage = eventService.getPublishedEvents(pageable);
         }
-        
+
         Page<EventResponse> responsePage = eventPage.map(EventResponse::fromEntity);
 
         return ResponseEntity.ok(ApiResponse.success(responsePage));
     }
 
     @GetMapping("/category/{categoryName}")
-    @Operation(summary = "Get events by category", description = "Returns list of events in the specified category. " +
-            "Uses category name, not ID. Public endpoint.")
+    @Operation(summary = "Get events by category", description = "Returns list of PUBLISHED events in the specified category. " +
+            "Uses category name, not ID. Public endpoint - only shows published events.")
     public ResponseEntity<ApiResponse<List<EventResponse>>> getEventsByCategory(
             @PathVariable String categoryName) {
-        log.debug("Getting events by category: {}", categoryName);
+        log.debug("Getting published events by category: {}", categoryName);
 
         // Find category by name
         CategoryEntity category = categoryRepository.findByName(categoryName)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", categoryName));
-        
-        // Get events by category (no pagination for this endpoint per README.md)
+
+        // Get PUBLISHED events by category (no pagination for this endpoint per README.md)
         Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
-        Page<EventEntity> eventPage = eventService.getEventsByCategory(category.getId(), pageable);
-        
+        Page<EventEntity> eventPage = eventRepository.findByCategoryIdAndStatus(
+                category.getId(), EventStatus.PUBLISHED, pageable);
+
         List<EventResponse> responses = eventPage.getContent().stream()
                 .map(EventResponse::fromEntity)
                 .collect(Collectors.toList());
@@ -270,11 +273,55 @@ public class EventController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
+    @GetMapping("/organizer/drafts")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ORGANIZER')")
+    @Operation(summary = "Get organizer's draft events", description = "Returns draft events created by the authenticated organizer. " +
+            "Requires ADMIN or ORGANIZER role.")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<List<EventResponse>>> getOrganizerDrafts() {
+        log.debug("Getting draft events for current organizer");
+
+        // Get current user's UUID from JWT
+        UUID userId = JwtUtils.getCurrentUserId();
+
+        // Get draft events for organizer (no pagination)
+        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
+        Page<EventEntity> eventPage = eventService.getEventsByOrganizerAndStatus(userId, EventStatus.DRAFT, pageable);
+
+        List<EventResponse> responses = eventPage.getContent().stream()
+                .map(EventResponse::fromEntity)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    @GetMapping("/organizer/my-events")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ORGANIZER')")
+    @Operation(summary = "Get organizer's all events", description = "Returns all events (draft and published) created by the authenticated organizer. " +
+            "Requires ADMIN or ORGANIZER role.")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<List<EventResponse>>> getOrganizerEvents() {
+        log.debug("Getting all events for current organizer");
+
+        // Get current user's UUID from JWT
+        UUID userId = JwtUtils.getCurrentUserId();
+
+        // Get all events for organizer (no pagination)
+        Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
+        Page<EventEntity> eventPage = eventService.getEventsByOrganizer(userId, pageable);
+
+        List<EventResponse> responses = eventPage.getContent().stream()
+                .map(EventResponse::fromEntity)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
     @Operation(summary = "Update event", description = "Updates an existing event. " +
             "Requires ADMIN or ORGANIZER role. All fields are optional. " +
-            "imageFile can be provided as a query parameter.")
+            "imageFile can be provided as a query parameter. Can update status field.")
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<EventResponse>> updateEvent(
             @PathVariable UUID id,
@@ -290,27 +337,46 @@ public class EventController extends BaseController {
             eventUpdate.setStartTime(request.getStartTime());
             eventUpdate.setEndTime(request.getEndTime());
             eventUpdate.setMarketingEnabled(request.getMarketingEnabled());
-            
+            eventUpdate.setStatus(request.getStatus());
+
             // Set address if provided
             if (request.getAddress() != null) {
                 eventUpdate.setAddress(request.getAddress().toEntity());
             }
-            
+
             // Resolve category ID if provided
             UUID categoryId = null;
             if (request.getCategory() != null) {
                 categoryId = resolveCategoryId(request.getCategory());
             }
-            
+
             // Update event via service
             EventEntity updatedEvent = eventService.updateEvent(id, eventUpdate, categoryId, imageFile);
-            
+
             EventResponse response = EventResponse.fromEntity(updatedEvent);
             return ResponseEntity.ok(ApiResponse.success(response, "Event updated successfully"));
-            
+
         } catch (IOException e) {
             log.error("Failed to update event: {}", e.getMessage(), e);
             throw new ValidationException("Failed to update event: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/publish")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
+    @Operation(summary = "Publish event", description = "Changes event status from DRAFT to PUBLISHED. " +
+            "Requires ADMIN or ORGANIZER role. Validates that event has required data (image, address) before publishing.")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<EventResponse>> publishEvent(@PathVariable UUID id) {
+        log.debug("Publishing event: id={}", id);
+
+        try {
+            EventEntity publishedEvent = eventService.publishEvent(id);
+            EventResponse response = EventResponse.fromEntity(publishedEvent);
+            return ResponseEntity.ok(ApiResponse.success(response, "Event published successfully"));
+        } catch (IllegalStateException e) {
+            log.error("Failed to publish event: {}", e.getMessage());
+            throw new ValidationException(e.getMessage());
         }
     }
 

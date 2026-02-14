@@ -5,6 +5,7 @@ import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.event.address.entity.AddressEntity;
 import com.accessplus.eventpro.event.category.entity.CategoryEntity;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
+import com.accessplus.eventpro.shared.enums.EventStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,7 +23,9 @@ import java.util.List;
     @Index(name = "idx_event_organizer", columnList = "organizer_id"),
     @Index(name = "idx_event_category", columnList = "category_id"),
     @Index(name = "idx_event_start_time", columnList = "start_time"),
-    @Index(name = "idx_event_marketing", columnList = "marketing_enabled")
+    @Index(name = "idx_event_marketing", columnList = "marketing_enabled"),
+    @Index(name = "idx_event_status", columnList = "status"),
+    @Index(name = "idx_event_status_start_time", columnList = "status,start_time")
 })
 @Getter
 @Setter
@@ -50,6 +53,11 @@ public class EventEntity extends BaseEntity {
 
     @Column(name = "marketing_enabled", nullable = false)
     private Boolean marketingEnabled = false;
+
+    @NotNull(message = "Event status is required")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private EventStatus status = EventStatus.DRAFT;
 
     @NotNull(message = "Event organizer is required")
     @ManyToOne(fetch = FetchType.LAZY)

@@ -263,4 +263,40 @@ public class OrganizerController extends BaseController {
             return category.getId();
         }
     }
+
+    @PostMapping("/events/{eventId}/tickets")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Create tickets for event", description = "Creates tickets for an event. Requires ORGANIZER or ADMIN role.")
+    public ResponseEntity<ApiResponse<List<TicketEntity>>> createTickets(
+            @PathVariable UUID eventId,
+            @Valid @RequestBody CreateTicketsRequest request) {
+        log.debug("Creating tickets: eventId={}, type={}, quantity={}", eventId, request.getTicketType(), request.getQuantity());
+
+        // Get current user's UUID from JWT
+        UUID organizerId = JwtUtils.getCurrentUserId();
+
+        // Verify event exists and belongs to organizer
+        EventEntity event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+
+        if (!event.getOrganizer().getId().equals(organizerId)) {
+            throw new ValidationException("You can only create tickets for your own events");
+        }
+
+        // Create tickets using the ticket service
+        List<TicketEntity> createdTickets = ticketService.createTickets(
+                eventId,
+                organizerId,
+                request.getTicketType(),
+                request.getPrice(),
+                request.getQuantity(),
+                request.getName() != null ? request.getName() : request.getTicketType().name() + " Ticket",
+                request.getSaleStartDate(),
+                request.getSaleEndDate()
+        );
+
+        log.info("Successfully created {} tickets for event: eventId={}", createdTickets.size(), eventId);
+        return ResponseEntity.ok(ApiResponse.success(createdTickets,
+                createdTickets.size() + " tickets created successfully"));
+    }
 }

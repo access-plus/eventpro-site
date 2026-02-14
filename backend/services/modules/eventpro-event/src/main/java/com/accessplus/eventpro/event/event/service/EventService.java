@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.event.event.service;
 
 import com.accessplus.eventpro.event.event.entity.EventEntity;
+import com.accessplus.eventpro.shared.enums.EventStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -107,11 +108,40 @@ public interface EventService {
 
     /**
      * Retrieves events where a user has purchased tickets.
-     * 
+     *
      * @param userId the UUID of the user
      * @param pageable pagination and sorting parameters
      * @return Page of EventEntity where user has purchased tickets
      */
     Page<EventEntity> getEventsByUserPurchases(UUID userId, Pageable pageable);
+
+    /**
+     * Retrieves published events with pagination.
+     *
+     * @param pageable pagination and sorting parameters
+     * @return Page of published EventEntity
+     */
+    Page<EventEntity> getPublishedEvents(Pageable pageable);
+
+    /**
+     * Retrieves events by organizer and status.
+     *
+     * @param organizerId the UUID of the organizer
+     * @param status the event status
+     * @param pageable pagination and sorting parameters
+     * @return Page of EventEntity matching criteria
+     */
+    Page<EventEntity> getEventsByOrganizerAndStatus(UUID organizerId, EventStatus status, Pageable pageable);
+
+    /**
+     * Publishes an event (changes status to PUBLISHED).
+     * Validates that event has required data before publishing.
+     *
+     * @param eventId the UUID of the event to publish
+     * @return published EventEntity
+     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if event not found
+     * @throws IllegalStateException if event is not ready to be published
+     */
+    EventEntity publishEvent(UUID eventId);
 }
 

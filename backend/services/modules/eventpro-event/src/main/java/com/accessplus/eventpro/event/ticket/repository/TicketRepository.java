@@ -21,10 +21,10 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID> {
 
     Page<TicketEntity> findByTicketStatus(TicketStatus status, Pageable pageable);
 
-    @Query("SELECT t FROM TicketEntity t WHERE t.eventId = :eventId AND t.ticketType = :ticketType")
+    @Query(value = "SELECT * FROM tickets WHERE event_id = :eventId AND CAST(ticket_type AS text) = :ticketType", nativeQuery = true)
     Page<TicketEntity> findByEventIdAndTicketType(
             @Param("eventId") UUID eventId,
-            @Param("ticketType") TicketType ticketType,
+            @Param("ticketType") String ticketType,
             Pageable pageable);
 
     @Query("SELECT t FROM TicketEntity t WHERE t.eventId = :eventId AND t.ticketStatus = 'AVAILABLE'")
