@@ -265,7 +265,7 @@ public class TicketServiceImpl implements TicketService {
         for (TicketType type : TicketType.values()) {
             // Get all tickets of this type for the event
             Pageable pageable = org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE);
-            long availableCount = ticketRepository.findByEventIdAndTicketType(eventId, type, pageable)
+            long availableCount = ticketRepository.findByEventIdAndTicketType(eventId, type.name(), pageable)
                     .getContent()
                     .stream()
                     .filter(t -> t.getTicketStatus() == TicketStatus.AVAILABLE)

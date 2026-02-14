@@ -9,8 +9,10 @@ import com.accessplus.eventpro.event.event.entity.EventEntity;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.event.service.EventService;
 import com.accessplus.eventpro.event.service.AWSS3ImageService;
+import com.accessplus.eventpro.shared.enums.EventStatus;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.UserRepository;
+import com.accessplus.eventpro.event.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,6 +35,7 @@ public class EventServiceImpl implements EventService {
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
     private final AWSS3ImageService imageService;
+    private final TicketRepository ticketRepository;
 
     /**
      * Creates a new event with optional image upload.
@@ -123,6 +126,9 @@ public class EventServiceImpl implements EventService {
         }
         if (eventUpdate.getMarketingEnabled() != null) {
             existingEvent.setMarketingEnabled(eventUpdate.getMarketingEnabled());
+        }
+        if (eventUpdate.getStatus() != null) {
+            existingEvent.setStatus(eventUpdate.getStatus());
         }
 
         // Update category if provided
@@ -359,6 +365,76 @@ public class EventServiceImpl implements EventService {
 
         // Fallback: return last part of URL
         return imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+    }
+
+    /**
+     * Retrieves published events with pagination.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EventEntity> getPublishedEvents(Pageable pageable) {
+        log.debug("Retrieving published events");
+        return eventRepository.findByStatus(EventStatus.PUBLISHED, pageable);
+    }
+
+    /**
+     * Retrieves events by organizer and status.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EventEntity> getEventsByOrganizerAndStatus(UUID organizerId, EventStatus status, Pageable pageable) {
+        log.debug("Retrieving events by organizer and status: organizerId={}, status={}", organizerId, status);
+
+        // Validate organizer exists
+        userRepository.findById(organizerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", organizerId.toString()));
+
+        return eventRepository.findByOrganizerIdAndStatus(organizerId, status, pageable);
+    }
+
+    /**
+     * Publishes an event (changes status to PUBLISHED).
+     * Validates that event has required data before publishing.
+     */
+    @Override
+    public EventEntity publishEvent(UUID eventId) {
+        log.debug("Publishing event: id={}", eventId);
+
+        EventEntity event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+
+        // Validate event is ready to be published
+        if (event.getStatus() == EventStatus.PUBLISHED) {
+            throw new IllegalStateException("Event is already published");
+        }
+
+        if (event.getStatus() == EventStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot publish a cancelled event");
+        }
+
+        // Validate required fields for publishing
+        if (event.getImageUrl() == null || event.getImageUrl().trim().isEmpty()) {
+            throw new IllegalStateException("Event must have an image before publishing");
+        }
+
+        if (event.getAddress() == null) {
+            throw new IllegalStateException("Event must have an address before publishing");
+        }
+
+        // Check if event has at least one ticket
+        long ticketCount = ticketRepository.countByEventIdAndStatus(eventId,
+                com.accessplus.eventpro.shared.enums.TicketStatus.AVAILABLE);
+        if (ticketCount == 0) {
+            throw new IllegalStateException("Event must have at least one available ticket before publishing");
+        }
+
+        // Update status to PUBLISHED
+        event.setStatus(EventStatus.PUBLISHED);
+        EventEntity publishedEvent = eventRepository.save(event);
+
+        log.info("Event published successfully: id={}, name={}, ticketCount={}",
+                eventId, event.getName(), ticketCount);
+        return publishedEvent;
     }
 }
 

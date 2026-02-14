@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.api.dto;
 
 import com.accessplus.eventpro.event.event.entity.EventEntity;
+import com.accessplus.eventpro.shared.enums.EventStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,12 +23,13 @@ public class EventResponse {
     private String description;
     private String imageUrl;
     private Boolean marketingEnabled;
+    private EventStatus status;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private UUID userId;
     private UUID categoryId;
     private String categoryName;
-    
+
     // Flattened address fields
     private String addressStreet;
     private String addressCity;
@@ -46,6 +48,7 @@ public class EventResponse {
                 .description(entity.getDescription())
                 .imageUrl(entity.getImageUrl())
                 .marketingEnabled(entity.getMarketingEnabled())
+                .status(entity.getStatus())
                 .startTime(entity.getStartTime())
                 .endTime(entity.getEndTime());
         

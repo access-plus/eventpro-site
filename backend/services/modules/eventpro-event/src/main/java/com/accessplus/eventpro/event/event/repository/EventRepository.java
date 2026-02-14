@@ -3,6 +3,7 @@ package com.accessplus.eventpro.event.event.repository;
 import com.accessplus.eventpro.event.event.entity.EventEntity;
 import com.accessplus.eventpro.event.category.entity.CategoryEntity;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
+import com.accessplus.eventpro.shared.enums.EventStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -41,5 +42,23 @@ public interface EventRepository extends JpaRepository<EventEntity, UUID> {
            "JOIN OrderEntity o ON o.id = oi.order.id " +
            "WHERE o.userId = :userId")
     Page<EventEntity> findEventsByUserPurchases(@Param("userId") UUID userId, Pageable pageable);
+
+    // Status-based queries
+    Page<EventEntity> findByStatus(EventStatus status, Pageable pageable);
+
+    @Query("SELECT e FROM EventEntity e WHERE e.organizer.id = :organizerId AND e.status = :status")
+    Page<EventEntity> findByOrganizerIdAndStatus(@Param("organizerId") UUID organizerId,
+                                                   @Param("status") EventStatus status,
+                                                   Pageable pageable);
+
+    @Query("SELECT e FROM EventEntity e WHERE e.status = :status AND LOWER(e.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+    Page<EventEntity> findByStatusAndNameContainingIgnoreCase(@Param("status") EventStatus status,
+                                                                @Param("name") String name,
+                                                                Pageable pageable);
+
+    @Query("SELECT e FROM EventEntity e WHERE e.category.id = :categoryId AND e.status = :status")
+    Page<EventEntity> findByCategoryIdAndStatus(@Param("categoryId") UUID categoryId,
+                                                  @Param("status") EventStatus status,
+                                                  Pageable pageable);
 }
 
