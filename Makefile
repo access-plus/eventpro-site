@@ -269,7 +269,7 @@ local-setup: local-infra-only local-infra local-up
 # Step 1: Start infrastructure (PostgreSQL + LocalStack)
 local-infra-only:
 	@echo "Step 1: Starting infrastructure services (PostgreSQL + LocalStack)..."
-	@docker-compose up -d postgres localstack || \
+	@docker compose up -d postgres localstack || \
 		(echo ""; \
 		 echo "Container conflict! Run: make local-reset"; \
 		 exit 1)
@@ -329,7 +329,7 @@ local-up:
 		exit 1; \
 	fi
 	@if ! docker ps | grep -q "postgres"; then $(MAKE) local-infra-only; fi
-	@docker-compose --env-file .env up -d backend frontend
+	@docker compose --env-file .env up -d backend frontend
 	@echo "Waiting for services to start (migrations run automatically)..."
 	@sleep 15
 	@echo ""
@@ -347,49 +347,49 @@ local-down:
 	@cd infrastructure/environments/local && terraform destroy -auto-approve || true
 	cd ../../../
 	@rm -f .env frontend/.env.local
-	@docker-compose down backend frontend postgres -v
+	@docker compose  down backend frontend postgres -v
 
 local-restart:
 	@echo "Restarting application services..."
-	@docker-compose restart backend frontend
+	@docker compose  restart backend frontend
 	@echo "Services restarted!"
 
 backend-logs:
-	@docker-compose logs -f backend
+	@docker compose  logs -f backend
 
 frontend-logs:
-	@docker-compose logs -f frontend
+	@docker compose  logs -f frontend
 
 # Clean everything (containers + Terraform resources)
 local-clean:
 	@cd infrastructure/environments/local && terraform destroy -auto-approve || true
-	@docker-compose down -v
+	@docker compose  down -v
 	@rm -f .env frontend/.env.local
 	@echo "Everything cleaned up"
 
 start-pg-and-localstack:
 	@echo "Starting PostgreSQL and LocalStack..."
-	@docker-compose up -d postgres localstack
+	@docker compose up -d postgres localstack
 
 start-backend:
 	@echo "Starting backend..."
-	@docker-compose --env-file .env up -d backend
+	@docker compose  --env-file .env up -d backend
 	@echo "   Backend API: http://localhost:8080"
 	@echo "   Backend health:  http://localhost:8080/actuator/health"
 	@echo "   Backend swagger:  http://localhost:8080/swagger-ui/index.html"
 
 start-frontend:
 	@echo "Starting frontend..."
-	@docker-compose --env-file frontend/.env.local up -d frontend
+	@docker compose  --env-file frontend/.env.local up -d frontend
 	@echo "   Frontend UI: http://localhost:5173"
 
 start-localstack:
 	@echo "Starting LocalStack..."
-	@docker-compose up -d localstack
+	@docker compose up -d localstack
 
 start-postgres:
 	@echo "Starting PostgreSQL..."
-	@docker-compose up -d postgres
+	@docker compose up -d postgres
 
 destroy-infrastructure:
 	@echo "Destroying infrastructure..."

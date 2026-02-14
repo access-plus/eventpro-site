@@ -23,6 +23,7 @@ dependencies {
     
     // Jackson for JSON
     implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     
     // Shared module (framework-agnostic entities, enums, exceptions, utilities)
     implementation 'com.accessplus.eventpro:eventpro-shared:1.0.0'

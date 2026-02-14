@@ -74,6 +74,7 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-test}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-test}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME:-eventpro-images-local}
+      - AWS_S3_PUBLIC_ENDPOINT=http://localhost:4566
       # SQS Queue URLs - loaded from .env file (created by make local-infra)
       # If not set, application-local.yml defaults will be used
       - ORDER_QUEUE_URL=${ORDER_QUEUE_URL:-}
@@ -109,10 +110,10 @@ services:
   # Frontend Development Server - Hot Module Replacement enabled
   frontend:
     image: node:22-alpine
-    container_name: frontend
+    container_name: eventpro-frontend
     working_dir: /app
     volumes:
-      - ./frontend:/app
+      - ./eventpro-frontend:/app
       - /app/node_modules
     ports:
       - "5173:5173"

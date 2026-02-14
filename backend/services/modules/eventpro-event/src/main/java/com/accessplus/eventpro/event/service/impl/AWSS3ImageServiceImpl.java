@@ -57,13 +57,16 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
                 contentType = determineContentType(file.getOriginalFilename());
             }
 
+            // Read file bytes into memory to avoid stream reset issues with AWS SDK signing
+            byte[] fileBytes = file.getBytes();
+
             // Build PutObjectRequest
             // ACL usage is determined by profile-specific configuration
             PutObjectRequest.Builder putObjectRequestBuilder = PutObjectRequest.builder()
                     .bucket(s3Properties.getBucketName())
                     .key(finalKey)
                     .contentType(contentType)
-                    .contentLength(file.getSize());
+                    .contentLength((long) fileBytes.length);
 
             // Set ACL based on profile configuration (disabled for local/LocalStack)
             if (s3AclProperties.isUseAcl()) {
@@ -72,8 +75,8 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
 
             PutObjectRequest putObjectRequest = putObjectRequestBuilder.build();
 
-            // Upload file
-            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+            // Upload file using bytes (allows AWS SDK to read multiple times for signing)
+            s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileBytes));
 
             // Generate and return public URL
             String imageUrl = getImageUrl(finalKey);
