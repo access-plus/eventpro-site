@@ -18,7 +18,7 @@ public class LocalStackS3Config {
     @Value("${aws.region:us-east-1}")
     private String awsRegion;
 
-    @Value("${aws.s3.endpoint:http://localhost:4566}")
+    @Value("${AWS_ENDPOINT_URL:http://localhost:4566}")
     private String s3Endpoint;
 
     @Bean
