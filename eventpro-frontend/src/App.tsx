@@ -29,8 +29,6 @@ import Admin from "./pages/Admin";
 import UserManagement from "./pages/UserManagement";
 import Organizer from "./pages/Organizer";
 import EventForm from "./pages/EventForm";
-import EventFormNew from "./pages/EventFormNew";
-import EventTickets from "./pages/EventTickets";
 import OrderHistory from "./pages/OrderHistory";
 import Pricing from "./pages/Pricing";
 import Partners from "./pages/Partners";
@@ -126,7 +124,7 @@ const AnimatedRoutes = () => {
           path="/organizer/events/new"
           element={
             <ProtectedRoute allowedRoles={["ORGANIZER"]}>
-              <PageTransition><EventFormNew /></PageTransition>
+              <PageTransition><EventForm /></PageTransition>
             </ProtectedRoute>
           }
         />
@@ -135,16 +133,7 @@ const AnimatedRoutes = () => {
           path="/organizer/events/:id/edit"
           element={
             <ProtectedRoute allowedRoles={["ORGANIZER"]}>
-              <PageTransition><EventFormNew /></PageTransition>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/organizer/events/:id/tickets"
-          element={
-            <ProtectedRoute allowedRoles={["ORGANIZER"]}>
-              <PageTransition><EventTickets /></PageTransition>
+              <PageTransition><EventForm /></PageTransition>
             </ProtectedRoute>
           }
         />
