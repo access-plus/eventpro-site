@@ -2,7 +2,29 @@
 
 Refactor the EventPro application into independently deployable microservices with Terraform colocated in each component (frontend, services, lambdas). Remove the shared module dependency by inlining data structures into each service.
 
-**Design decisions**:
+---
+
+## How to Use This Plan
+
+**Work one phase at a time.** Complete each phase fully before starting the next. Each phase has prerequisites, scope, deliverables, and a "Done when" checklist.
+
+| Phase | Name | Prerequisites | Start when |
+|-------|------|---------------|------------|
+| **0** | Prerequisites | None | Ready now |
+| **1** | Services Terraform | Phase 0 | S3 state bucket exists; docker + terraform actions work |
+| **2** | Frontend Terraform | Phase 1 | Services applied; outputs available |
+| **3** | Order-processor Terraform | Phase 1 | Services applied |
+| **4** | Payment-processor Terraform | Phase 1 | Services applied |
+| **5** | Notification-sender Terraform | Phase 1 | Services applied |
+| **6** | Shared module removal | Phases 1–5 | All Terraform + workflows complete |
+
+**Execution order**: Phase 0 → Phase 1 → (Phases 2, 3, 4, 5 in any order after 1) → Phase 6.
+
+**Start here**: Phase 0 (Prerequisites). Work through the "Done when" checklist before moving on.
+
+---
+
+## Design Decisions
 - **No foundation layer**: ACM and Route53 are managed by services Terraform.
 - **Default VPC**: Use AWS default VPC; no custom VPC creation.
 - **RDS & SQS**: Created by services Terraform (`backend/services/terraform/`).
@@ -10,6 +32,7 @@ Refactor the EventPro application into independently deployable microservices wi
 - **ECR repositories**: Pre-existing; passed in via variables (not created by component Terraform).
 - **No shared modules**: Each component uses inline `resource` blocks; no `infrastructure/modules/`. Services own RDS, SQS, ALB, Route53, ECS; frontend owns S3, CloudFront; each lambda defines its own Lambda resource.
 - **Terraform workspaces**: Use `terraform workspace` for multi-environment deployment. Resource names: `${terraform.workspace}-<resource-name>`. All resources tagged with `Env = terraform.workspace`. Route53 aliases: `${terraform.workspace}-app`, `${terraform.workspace}-api` to avoid DNS clashes.
+- **Providers**: Use latest Terraform and AWS provider (see Terraform Provider Versions below).
 
 ---
 
@@ -81,6 +104,43 @@ flowchart TB
 
 ---
 
+## Terraform Provider Versions
+
+Use latest stable versions. Consult [Terraform Registry](https://registry.terraform.io/providers/hashicorp/aws/latest) for current versions.
+
+**`versions.tf`** (in each component's terraform directory):
+
+```hcl
+terraform {
+  required_version = ">= 1.9.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.57"   # Use latest 5.x; check registry for current
+    }
+  }
+
+  backend "s3" {
+    bucket         = "eventpro-site-state"
+    key            = "<component>/terraform.tfstate"   # frontend, services, order, payment, notification
+    region         = "us-east-1"
+    use_lockfile = true
+  }
+}
+```
+
+**Components and keys**:
+| Component | Backend key |
+|-----------|-------------|
+| Frontend | `frontend/terraform.tfstate` |
+| Services | `services/terraform.tfstate` |
+| Order-processor | `order/terraform.tfstate` |
+| Payment-processor | `payment/terraform.tfstate` |
+| Notification-sender | `notification/terraform.tfstate` |
+
+---
+
 ## Terraform Workspace Conventions
 
 Use `terraform workspace select <env>` (or `terraform workspace new <env>`) to deploy to different environments. Each component uses the same workspace pattern.
@@ -97,50 +157,44 @@ Use `terraform workspace select <env>` (or `terraform workspace new <env>`) to d
 
 **Workspace names**: `default` (or `dev`), `staging`, `prod`—ensure CI/CD selects the correct workspace before apply.
 
-**State**: Backend key can include workspace: `key = "services/${terraform.workspace}/terraform.tfstate"` (or one state per workspace via backend config).
+**State backend**:
+- Bucket: `eventpro-site-{project}` (e.g. `eventpro-site-state`)
+- Keys (one per component):
+  - `frontend/terraform.tfstate`
+  - `services/terraform.tfstate`
+  - `order/terraform.tfstate`
+  - `payment/terraform.tfstate`
+  - `notification/terraform.tfstate`
+- Each component's `backend` block: `bucket = "eventpro-site-state"`, `key = "<component>/terraform.tfstate"`
 
 ---
 
-## Phase 1: Frontend Terraform Configuration
+## Phase 0: Prerequisites
 
-**Path**: `eventpro-frontend/terraform/` (colocated with frontend code)
+**Scope**: Shared infrastructure and actions needed by all components. Do this first.
 
-**Resources**:
+**Tasks**:
 
-- S3 bucket for frontend static assets (with Block Public Access enabled)
-- CloudFront Origin Access Control (OAC)
-- CloudFront distribution with S3 origin
-- S3 bucket policy allowing CloudFront OAC (via `AWS:SourceArn` condition)
-- Route53 A record: `${terraform.workspace}-app.${var.domain_name}` as alias to CloudFront (workspace in subdomain to avoid clashes)
+1. **S3 state bucket** – Create `eventpro-site-state` (or `eventpro-site-{project}`) in AWS. Use `use_lockfile = true` in backend for state locking (no DynamoDB).
+2. **Docker action** – Implement `.github/actions/docker/action.yml`: ECR login, build, tag, push. Inputs: `ecr-repository`, `image-tag`, `context`, `dockerfile`.
+3. **Terraform action** – Update `.github/actions/terraform/action.yml`: require `workspace`; add backend config for S3 bucket/key; terraform version `>= 1.9`.
+4. **Deploy workflow** – Update `.github/workflows/deploy.yml`: path filters for `frontend`, `services`, `order-processor`, `payment-processor`, `notification-sender`.
 
-**Build and deploy**:
-
-- Build: `npm run build` in `eventpro-frontend/` produces `dist/`
-- Deploy: `aws s3 sync dist/ s3://${bucket-name}/` (or use CI/CD)
-- Invalidate: `aws cloudfront create-invalidation --distribution-id ${id} --paths "/*"`
-
-**Environment variables for frontend build**:
-
-- Inject `VITE_API_BASE_URL=https://${terraform.workspace}-api.${var.domain_name}` at build time (matches workspace-specific Route53 alias; Vite uses `import.meta.env.VITE_*` at build time)
-
-**IAM**:
-
-- No IAM roles needed for the frontend itself (static content)
-- CI/CD pipeline needs: `s3:PutObject`, `s3:DeleteObject` on bucket; `cloudfront:CreateInvalidation` on distribution
-
-**Variables**: `domain_name`, `name_prefix`, `cloudfront_certificate_arn`, `route53_zone_id` (obtained via `terraform_remote_state` from services Terraform)
-
-**Implementation**: Inline `resource` blocks for `aws_s3_bucket`, `aws_cloudfront_distribution`, `aws_cloudfront_origin_access_control`, `aws_route53_record`—no modules.
-
-**Workspace**: Resource names `${terraform.workspace}-<name>`; tags `Env = terraform.workspace`.
-
-**Dependencies**: Services Terraform (for `route53_zone_id`, `cloudfront_certificate_arn`)
+**Done when**:
+- [ ] S3 bucket `eventpro-site-state` exists
+- [ ] `terraform action` runs successfully with workspace + backend
+- [ ] `docker action` builds and pushes an image to ECR
+- [ ] `deploy.yml` detects changes correctly
 
 ---
 
-## Phase 2: Services Terraform Configuration
+## Phase 1: Services Terraform Configuration
 
 **Path**: `backend/services/terraform/` (colocated with services code)
+
+**Prerequisites**: Phase 0 complete.
+
+**Scope**: Create the root Terraform config (ACM, Route53, RDS, SQS, ALB, ECS). No dependencies on other components.
 
 **Resources** (inline `resource` blocks—no modules):
 
@@ -178,13 +232,53 @@ Use `terraform workspace select <env>` (or `terraform workspace new <env>`) to d
 
 **Implementation**: All resources defined inline in `main.tf` (or split across `rds.tf`, `sqs.tf`, `alb.tf`, `ecs.tf`, `route53.tf` as needed)—no modules.
 
-**Dependencies**: None (services Terraform is the root; creates ACM, Route53, RDS, SQS, ECS, ALB).
+**Deliverables**:
+- [ ] `backend/services/terraform/` with `versions.tf`, `variables.tf`, `outputs.tf`, `main.tf` (or split files)
+- [ ] `terraform init` and `terraform apply` succeed
+- [ ] Outputs: `rds_endpoint`, queue URLs, `route53_zone_id`, `cloudfront_certificate_arn`, `alb_certificate_arn`
+- [ ] `services.yml` workflow runs: build → docker → terraform (with workspace, AWS creds, `ecr_api_image_uri`)
+
+**Done when**: Services infra is live; `terraform output` returns all required values for frontend and lambdas.
+
+---
+
+## Phase 2: Frontend Terraform Configuration
+
+**Path**: `eventpro-frontend/terraform/` (colocated with frontend code)
+
+**Prerequisites**: Phase 1 complete (need `route53_zone_id`, `cloudfront_certificate_arn` from services).
+
+**Resources**:
+- S3 bucket for frontend static assets (with Block Public Access enabled)
+- CloudFront Origin Access Control (OAC)
+- CloudFront distribution with S3 origin
+- S3 bucket policy allowing CloudFront OAC (via `AWS:SourceArn` condition)
+- Route53 A record: `${terraform.workspace}-app.${var.domain_name}` as alias to CloudFront (workspace in subdomain to avoid clashes)
+
+**Build and deploy**: `npm run build` → `aws s3 sync dist/ s3://${bucket-name}/` → CloudFront invalidation.
+
+**Environment variables for frontend build**: Inject `VITE_API_BASE_URL=https://${terraform.workspace}-api.${var.domain_name}` at build time.
+
+**Variables**: `domain_name`, `name_prefix`, `cloudfront_certificate_arn`, `route53_zone_id` (via `terraform_remote_state` from services).
+
+**Implementation**: Inline `resource` blocks for `aws_s3_bucket`, `aws_cloudfront_distribution`, `aws_cloudfront_origin_access_control`, `aws_route53_record`—no modules.
+
+**Workspace**: Resource names `${terraform.workspace}-<name>`; tags `Env = terraform.workspace`.
+
+**Deliverables**:
+- [ ] `eventpro-frontend/terraform/` with terraform files
+- [ ] `terraform apply` succeeds
+- [ ] `frontend.yml` workflow: build with `VITE_API_BASE_URL`, terraform, S3 sync, CloudFront invalidation
+
+**Done when**: Frontend is deployed; app loads from workspace-specific URL.
 
 ---
 
 ## Phase 3: Order-Processor Terraform Configuration
 
 **Path**: `backend/lambdas/order-processor/terraform/` (colocated with lambda code)
+
+**Prerequisites**: Phase 1 complete (need DB/queue URLs from services).
 
 **Resources** (inline `resource` blocks—no modules):
 
@@ -202,13 +296,20 @@ Lambda expects all database and queue connection information via environment var
 
 **Workspace**: Resource names `${terraform.workspace}-<name>`; tags `Env = terraform.workspace`.
 
-**Dependencies**: Services Terraform (RDS, order queue, payment queue); uses default VPC for RDS access
+**Deliverables**:
+- [ ] `backend/lambdas/order-processor/terraform/` with terraform files
+- [ ] `terraform apply` succeeds
+- [ ] `order-processor.yml`: fix `working-directory` to `backend/lambdas/order-processor/terraform`; add terraform inputs (workspace, AWS creds, `ecr_order_processor_image_uri`)
+
+**Done when**: Order-processor Lambda is deployed and triggered by order queue.
 
 ---
 
 ## Phase 4: Payment-Processor Terraform Configuration
 
 **Path**: `backend/lambdas/payment-processor/terraform/` (colocated with lambda code)
+
+**Prerequisites**: Phase 1 complete (need DB/queue URLs from services).
 
 **Resources** (inline `resource` blocks—no modules):
 
@@ -227,13 +328,20 @@ Lambda expects all database and queue connection information via environment var
 
 **Workspace**: Resource names `${terraform.workspace}-<name>`; tags `Env = terraform.workspace`.
 
-**Dependencies**: Services Terraform (RDS, payment queue, notification queue); uses default VPC
+**Deliverables**:
+- [ ] `backend/lambdas/payment-processor/terraform/` with terraform files
+- [ ] `terraform apply` succeeds
+- [ ] `payment-processor.yml`: add terraform inputs (workspace, AWS creds, `ecr_payment_processor_image_uri`)
+
+**Done when**: Payment-processor Lambda is deployed and triggered by payment queue.
 
 ---
 
 ## Phase 5: Notification-Sender Terraform Configuration
 
 **Path**: `backend/lambdas/notification-sender/terraform/` (colocated with lambda code)
+
+**Prerequisites**: Phase 1 complete (need DB/queue URLs from services).
 
 **Resources** (inline `resource` blocks—no modules):
 
@@ -252,13 +360,20 @@ Lambda expects all database and queue connection information via environment var
 
 **Workspace**: Resource names `${terraform.workspace}-<name>`; tags `Env = terraform.workspace`.
 
-**Dependencies**: Services Terraform (RDS, notification queue); uses default VPC
+**Deliverables**:
+- [ ] `backend/lambdas/notification-sender/terraform/` with terraform files
+- [ ] `terraform apply` succeeds
+- [ ] `notification-sender.yml`: fix `working-directory` to `backend/lambdas/notification-sender/terraform`; add terraform inputs
+
+**Done when**: Notification-sender Lambda is deployed and triggered by notification queue.
 
 ---
 
 ## Phase 6: Remove Shared Module Dependency
 
-**Strategy**: Copy/inline only what each service needs into its own package. Accept duplication for separation.
+**Prerequisites**: Phases 1–5 complete (all Terraform and workflows working).
+
+**Scope**: Remove `backend/shared` dependency from services and lambdas. Copy/inline only what each service needs. Accept duplication for separation.
 
 ### Services (Spring Boot)
 
@@ -306,6 +421,13 @@ Lambda expects all database and queue connection information via environment var
 ### Shared Folder
 
 - **Do not delete** (per user request). It remains in the repo but is no longer referenced. Can add a README noting it is deprecated.
+
+**Deliverables**:
+- [ ] Services: remove `includeBuild '../shared'`; copy entities/models into `eventpro-core`; remove shared from Dockerfile
+- [ ] Lambdas: remove `includeBuild '../../shared'`; add local `entity`, `model`, `enums` packages; remove shared from Dockerfiles
+- [ ] All builds pass without shared
+
+**Done when**: No component references `backend/shared`; builds and deploys succeed.
 
 ---
 
@@ -355,18 +477,63 @@ backend/
 - **Ownership**: Teams work within their component directory
 - **CI/CD**: Each pipeline runs `terraform` from its component's `terraform/` folder
 
-**State management**: Each component has its own Terraform state (e.g., S3 backend keyed by component and workspace). Services Terraform is the root—it contains ACM, Route53, RDS, SQS, and outputs them. Frontend and Lambdas reference services via `terraform_remote_state` to obtain `route53_zone_id`, `cloudfront_certificate_arn`, and DB/queue URLs. Use the same workspace when reading remote state (e.g. `terraform_remote_state` from services in `dev` workspace).
+**State management**: S3 backend bucket `eventpro-site-state` with keys `frontend/terraform.tfstate`, `services/terraform.tfstate`, `order/terraform.tfstate`, `payment/terraform.tfstate`, `notification/terraform.tfstate`. Services Terraform is the root—it contains ACM, Route53, RDS, SQS, and outputs them. Frontend and Lambdas reference services via `terraform_remote_state` to obtain `route53_zone_id`, `cloudfront_certificate_arn`, and DB/queue URLs. Use the same workspace when reading remote state (e.g. `terraform_remote_state` from services in `dev` workspace).
 
 ---
 
-## Implementation Order
+## Implementation Order (Quick Reference)
 
-1. **Services** – Create `backend/services/terraform/` with inline resources for **ACM, Route53, RDS, SQS, ALB, ECS**; pass `ecr_api_image_uri` as variable; use default VPC; resource names `${terraform.workspace}-<name>`, tags `Env = terraform.workspace`; apply first (root of dependency graph)
-2. **Frontend** – Create `eventpro-frontend/terraform/` with inline resources for S3, CloudFront, Route53; workspace naming/tagging; use `terraform_remote_state` for `route53_zone_id`, `cloudfront_certificate_arn`; add `VITE_API_BASE_URL` build-time injection
-3. **Order-processor** – Create `backend/lambdas/order-processor/terraform/` with inline `aws_lambda_function`, `aws_iam_role`; workspace naming/tagging; pass `ecr_order_processor_image_uri`; use `terraform_remote_state` for DB/queue URLs; remove shared, add local models/entities
-4. **Payment-processor** – Same pattern; inline Lambda resources; workspace naming/tagging
-5. **Notification-sender** – Same pattern; inline Lambda resources; workspace naming/tagging
-6. **Shared removal** – Refactor services and lambdas to use local code; remove shared references
+| # | Phase | Focus |
+|---|-------|-------|
+| 0 | Prerequisites | S3 state bucket, docker action, terraform action, deploy.yml path filters |
+| 1 | Services | `backend/services/terraform/` – ACM, Route53, RDS, SQS, ALB, ECS |
+| 2 | Frontend | `eventpro-frontend/terraform/` – S3, CloudFront, Route53 |
+| 3 | Order-processor | `backend/lambdas/order-processor/terraform/` – Lambda + IAM |
+| 4 | Payment-processor | `backend/lambdas/payment-processor/terraform/` – Lambda + IAM |
+| 5 | Notification-sender | `backend/lambdas/notification-sender/terraform/` – Lambda + IAM |
+| 6 | Shared removal | Remove shared from services and lambdas; copy/inline code |
+
+---
+
+## GitHub Actions Workflows
+
+Complete the workflows for each phase. Current state: `deploy.yml` (path filters), `services.yml`, `frontend.yml`, `order-processor.yml`, `payment-processor.yml`, `notification-sender.yml`, and actions: `terraform`, `gradle-task`, `docker`.
+
+### Workflow completion by phase
+
+| Phase | Workflow | Tasks to complete |
+|-------|----------|-------------------|
+| **0** | `deploy.yml` | Path filters for `frontend`, `services`, `order-processor`, `payment-processor`, `notification-sender` |
+| **1** | `services.yml` | Terraform inputs: `workspace`, AWS creds, `ecr_api_image_uri`; docker action builds/pushes |
+| **2** | `frontend.yml` | Fix trigger; `VITE_API_BASE_URL` from workspace; S3 sync + CloudFront invalidation; terraform with `workspace`, AWS creds |
+| **3** | `order-processor.yml` | **Fix**: `working-directory` → `backend/lambdas/order-processor/terraform`; terraform inputs |
+| **4** | `payment-processor.yml` | Terraform inputs: `workspace`, AWS creds, `ecr_payment_processor_image_uri` |
+| **5** | `notification-sender.yml` | **Fix**: `working-directory` → `backend/lambdas/notification-sender/terraform`; terraform inputs |
+
+### Deploy workflow (`deploy.yml`)
+
+- Update `detect-changes` outputs to match: `frontend`, `services`, `order-processor`, `payment-processor`, `notification-sender` (replace `shared`, `lockbox-gateway`, etc.)
+- Path filters: `eventpro-frontend/**`, `backend/services/**`, `backend/lambdas/order-processor/**`, etc.
+- Add jobs that call component workflows or run terraform conditionally: `if: needs.detect-changes.outputs.services == 'true'`
+- Orchestrate: services first, then frontend and lambdas (or run in parallel if dependencies handled via remote state)
+
+### Actions to implement
+
+| Action | Path | Tasks |
+|--------|------|-------|
+| **docker** | `.github/actions/docker/action.yml` | Implement: build Docker image, tag, push to ECR; inputs: `ecr-repository`, `image-tag`, `context`, `dockerfile`; use `aws-actions/amazon-ecr-login` |
+| **terraform** | `.github/actions/terraform/action.yml` | Add backend init with `-backend-config` for S3 bucket/key; ensure `workspace` is required and passed; update terraform version to `>= 1.9`; add `terraform plan` before apply (optional) |
+
+### Required secrets
+
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (or use OIDC with `aws-actions/configure-aws-credentials`)
+- `ECR_API_IMAGE_URI`, `ECR_ORDER_PROCESSOR_IMAGE_URI`, etc. (or derive from ECR after push)
+
+### Workflow execution order
+
+1. **Services** – Must run first (root); outputs consumed by others
+2. **Frontend** – Depends on services for `route53_zone_id`, `cloudfront_certificate_arn`
+3. **Lambdas** – Depends on services for DB/queue URLs; can run in parallel after services
 
 ---
 
@@ -383,6 +550,13 @@ backend/
 | `backend/lambdas/*/build.gradle` | Remove shared dependency |
 | `backend/lambdas/*/Dockerfile` | Remove `COPY shared` |
 | `infrastructure/environments/dev/main.tf` | Deprecate or refactor; RDS/SQS move to services; no modules; use default VPC |
+| `.github/workflows/deploy.yml` | Update path filters to `frontend`, `services`, `order-processor`, `payment-processor`, `notification-sender`; add conditional jobs |
+| `.github/workflows/services.yml` | Add terraform action inputs (workspace, AWS creds, variables) |
+| `.github/workflows/frontend.yml` | Fix trigger; add S3 sync + CloudFront invalidation; pass `VITE_API_BASE_URL` |
+| `.github/workflows/order-processor.yml` | Fix deploy `working-directory` to `backend/lambdas/order-processor/terraform` |
+| `.github/workflows/notification-sender.yml` | Fix deploy `working-directory` to `backend/lambdas/notification-sender/terraform` |
+| `.github/actions/docker/action.yml` | Implement: ECR login, build, push |
+| `.github/actions/terraform/action.yml` | Add backend config; ensure workspace required |
 
 ---
 
