@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { GuestCheckoutForm } from "@/components/GuestCheckoutForm";
-import { MerchandiseAddons, sampleMerchandise, type MerchandiseItem } from "@/components/MerchandiseAddons";
+import { MerchandiseAddons, type MerchandiseItem } from "@/components/MerchandiseAddons";
+import { apiService } from "@/lib/api";
 import { Ticket, Trash2, ArrowLeft, User, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -14,18 +15,47 @@ interface SelectedMerchItem extends MerchandiseItem {
   selectedSize?: string;
 }
 
+function eventAddonsToMerchandise(addons: { id: string; name: string; description?: string; price: number; category: string; imageUrl?: string; sizes?: string[]; isPopular?: boolean }[]): MerchandiseItem[] {
+  return addons.map((a) => ({
+    id: a.id,
+    name: a.name,
+    description: a.description ?? "",
+    price: Number(a.price),
+    image: a.imageUrl,
+    category: (a.category === "merchandise" || a.category === "addon" || a.category === "upgrade" ? a.category : "addon") as MerchandiseItem["category"],
+    popular: a.isPopular ?? false,
+    sizes: a.sizes,
+  }));
+}
+
 const Checkout = () => {
   const { items, totalAmount, removeItem } = useCart();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [checkoutMode, setCheckoutMode] = useState<"select" | "guest" | "login">("select");
   const [selectedMerch, setSelectedMerch] = useState<SelectedMerchItem[]>([]);
+  const [addonsByEvent, setAddonsByEvent] = useState<MerchandiseItem[]>([]);
   const [guestInfo, setGuestInfo] = useState<{
     firstName: string;
     lastName: string;
     email: string;
     phone: string;
   } | null>(null);
+
+  const eventIds = useMemo(() => [...new Set(items.map((i) => i.eventId).filter(Boolean))], [items]);
+
+  useEffect(() => {
+    if (eventIds.length === 0) {
+      setAddonsByEvent([]);
+      return;
+    }
+    Promise.all(eventIds.map((eventId) => apiService.getEventAddons(eventId)))
+      .then((results) => {
+        const merged = results.flat();
+        setAddonsByEvent(eventAddonsToMerchandise(merged));
+      })
+      .catch(() => setAddonsByEvent([]));
+  }, [eventIds.join(",")]);
 
   const merchTotal = selectedMerch.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -234,18 +264,20 @@ const Checkout = () => {
               </div>
             </motion.div>
 
-            {/* Merchandise & Add-ons */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <MerchandiseAddons
-                items={sampleMerchandise}
-                onItemsChange={setSelectedMerch}
-                eventName={items[0]?.eventName}
-              />
-            </motion.div>
+            {/* Merchandise & Add-ons (dynamic per event) */}
+            {addonsByEvent.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <MerchandiseAddons
+                  items={addonsByEvent}
+                  onItemsChange={setSelectedMerch}
+                  eventName={items[0]?.eventName}
+                />
+              </motion.div>
+            )}
           </div>
 
           {/* Order Summary */}

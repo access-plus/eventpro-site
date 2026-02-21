@@ -11,6 +11,7 @@ import { useCart } from "@/contexts/CartContext";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import { getEventImageUrl } from "@/lib/utils";
 import { SeatingMap, generateSampleSeats, Seat } from "@/components/SeatingMap";
 
 const EventDetails = () => {
@@ -135,7 +136,7 @@ const EventDetails = () => {
             {event.imageUrl && (
               <div className="rounded-xl overflow-hidden h-64 md:h-96">
                 <img
-                  src={event.imageUrl}
+                  src={getEventImageUrl(event.imageUrl) ?? ""}
                   alt={event.name}
                   className="w-full h-full object-cover"
                 />

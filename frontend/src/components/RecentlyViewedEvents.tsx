@@ -6,6 +6,7 @@ import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { Clock, Calendar, MapPin, X, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
+import { getEventImageUrl } from "@/lib/utils";
 
 interface RecentlyViewedEventsProps {
   showClearAll?: boolean;
@@ -80,7 +81,7 @@ export const RecentlyViewedEvents = ({
                 {event.imageUrl ? (
                   <div className="h-32 overflow-hidden">
                     <img
-                      src={event.imageUrl}
+                      src={getEventImageUrl(event.imageUrl) ?? ""}
                       alt={event.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />

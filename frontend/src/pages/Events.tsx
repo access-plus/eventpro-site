@@ -10,6 +10,7 @@ import { apiService } from "@/lib/api";
 import type { Event } from "@/types/api";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import { getEventImageUrl } from "@/lib/utils";
 
 // Common event categories (can be replaced with API call if endpoint exists)
 const EVENT_CATEGORIES = [
@@ -225,7 +226,7 @@ const Events = () => {
                   {event.imageUrl && (
                     <div className="h-48 overflow-hidden">
                       <img
-                        src={event.imageUrl}
+                        src={getEventImageUrl(event.imageUrl) ?? ""}
                         alt={event.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />

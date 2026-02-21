@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   User,
   Event,
+  EventAddon,
   Order,
   TicketType,
   UpdateUserRequest,
@@ -114,6 +115,32 @@ class ApiService {
   async getTicketTypes(eventId: string): Promise<TicketType[]> {
     const response = await this.api.get<ApiResponse<TicketType[]>>(`/api/v1/events/${eventId}/ticket-types`);
     return response.data.data;
+  }
+
+  // Event add-ons (enhancements) - public for checkout
+  async getEventAddons(eventId: string): Promise<EventAddon[]> {
+    const response = await this.api.get<ApiResponse<EventAddon[]>>(`/api/v1/events/${eventId}/addons`);
+    return response.data.data ?? [];
+  }
+
+  // Organizer: event add-ons CRUD
+  async getOrganizerEventAddons(eventId: string): Promise<EventAddon[]> {
+    const response = await this.api.get<ApiResponse<EventAddon[]>>(`/api/v1/organizer/events/${eventId}/addons`);
+    return response.data.data ?? [];
+  }
+
+  async createEventAddon(eventId: string, data: { name: string; description?: string; price: number; category: string; imageUrl?: string; sizes?: string[]; isPopular?: boolean; displayOrder?: number }): Promise<EventAddon> {
+    const response = await this.api.post<ApiResponse<EventAddon>>(`/api/v1/organizer/events/${eventId}/addons`, data);
+    return response.data.data;
+  }
+
+  async updateEventAddon(eventId: string, addonId: string, data: Partial<{ name: string; description: string; price: number; category: string; imageUrl: string; sizes: string[]; isPopular: boolean; displayOrder: number }>): Promise<EventAddon> {
+    const response = await this.api.put<ApiResponse<EventAddon>>(`/api/v1/organizer/events/${eventId}/addons/${addonId}`, data);
+    return response.data.data;
+  }
+
+  async deleteEventAddon(eventId: string, addonId: string): Promise<void> {
+    await this.api.delete(`/api/v1/organizer/events/${eventId}/addons/${addonId}`);
   }
 
   // Cart endpoints

@@ -2,9 +2,13 @@ package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.*;
 import com.accessplus.eventpro.api.service.OrganizerService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.event.category.entity.CategoryEntity;
 import com.accessplus.eventpro.event.category.repository.CategoryRepository;
+import com.accessplus.eventpro.event.addon.entity.EventAddonEntity;
+import com.accessplus.eventpro.event.addon.repository.EventAddonRepository;
 import com.accessplus.eventpro.event.event.entity.EventEntity;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.event.service.EventService;
@@ -24,6 +28,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -46,8 +51,10 @@ public class OrganizerController extends BaseController {
     private final EventService eventService;
     private final TicketService ticketService;
     private final EventRepository eventRepository;
+    private final EventAddonRepository eventAddonRepository;
     private final CategoryRepository categoryRepository;
     private final AWSS3ImageService imageService;
+    private final ObjectMapper objectMapper;
 
     @GetMapping("/events")
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
@@ -216,6 +223,102 @@ public class OrganizerController extends BaseController {
 
         List<AttendeeResponse> attendees = organizerService.getEventAttendees(id, organizerId);
         return ResponseEntity.ok(ApiResponse.success(attendees));
+    }
+
+    @GetMapping("/events/{eventId}/addons")
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "List event add-ons", description = "Returns add-ons (enhancements) for an event. Requires ORGANIZER or ADMIN role.")
+    public ResponseEntity<ApiResponse<List<EventAddonResponse>>> getEventAddons(@PathVariable UUID eventId) {
+        log.debug("Getting add-ons for event: {}", eventId);
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        EventEntity event = eventRepository.findByIdWithOrganizer(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        if (!event.getOrganizer().getId().equals(organizerId)) {
+            throw new ResourceNotFoundException("Event", eventId.toString());
+        }
+        List<EventAddonEntity> addons = eventAddonRepository.findByEventIdOrderByDisplayOrderAsc(eventId);
+        List<EventAddonResponse> responses = addons.stream().map(EventAddonResponse::fromEntity).toList();
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    @PostMapping("/events/{eventId}/addons")
+    @Transactional
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Create event add-on", description = "Creates an add-on (enhancement) for an event. Requires ORGANIZER or ADMIN role.")
+    public ResponseEntity<ApiResponse<EventAddonResponse>> createEventAddon(
+            @PathVariable UUID eventId,
+            @Valid @RequestBody CreateEventAddonRequest request) throws JsonProcessingException {
+        log.debug("Creating add-on for event: {}", eventId);
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        EventEntity event = eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        if (!event.getOrganizer().getId().equals(organizerId)) {
+            throw new ResourceNotFoundException("Event", eventId.toString());
+        }
+        EventAddonEntity entity = new EventAddonEntity();
+        entity.setEvent(event);
+        entity.setName(request.getName());
+        entity.setDescription(request.getDescription());
+        entity.setPrice(request.getPrice());
+        entity.setCategory(request.getCategory());
+        entity.setImageUrl(request.getImageUrl());
+        entity.setIsPopular(request.getIsPopular() != null ? request.getIsPopular() : false);
+        entity.setDisplayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0);
+        if (request.getSizes() != null && !request.getSizes().isEmpty()) {
+            entity.setSizesJson(objectMapper.writeValueAsString(request.getSizes()));
+        }
+        entity = eventAddonRepository.save(entity);
+        return ResponseEntity.ok(ApiResponse.success(EventAddonResponse.fromEntity(entity), "Add-on created"));
+    }
+
+    @PutMapping("/events/{eventId}/addons/{addonId}")
+    @Transactional
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Update event add-on", description = "Updates an add-on. Requires ORGANIZER or ADMIN role.")
+    public ResponseEntity<ApiResponse<EventAddonResponse>> updateEventAddon(
+            @PathVariable UUID eventId,
+            @PathVariable UUID addonId,
+            @Valid @RequestBody UpdateEventAddonRequest request) throws JsonProcessingException {
+        log.debug("Updating add-on: {}", addonId);
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        EventEntity event = eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        if (!event.getOrganizer().getId().equals(organizerId)) {
+            throw new ResourceNotFoundException("Event", eventId.toString());
+        }
+        EventAddonEntity entity = eventAddonRepository.findById(addonId).orElseThrow(() -> new ResourceNotFoundException("EventAddon", addonId.toString()));
+        if (!entity.getEvent().getId().equals(eventId)) {
+            throw new ResourceNotFoundException("EventAddon", addonId.toString());
+        }
+        if (request.getName() != null) entity.setName(request.getName());
+        if (request.getDescription() != null) entity.setDescription(request.getDescription());
+        if (request.getPrice() != null) entity.setPrice(request.getPrice());
+        if (request.getCategory() != null) entity.setCategory(request.getCategory());
+        if (request.getImageUrl() != null) entity.setImageUrl(request.getImageUrl());
+        if (request.getIsPopular() != null) entity.setIsPopular(request.getIsPopular());
+        if (request.getDisplayOrder() != null) entity.setDisplayOrder(request.getDisplayOrder());
+        if (request.getSizes() != null) {
+            entity.setSizesJson(request.getSizes().isEmpty() ? null : objectMapper.writeValueAsString(request.getSizes()));
+        }
+        entity = eventAddonRepository.save(entity);
+        return ResponseEntity.ok(ApiResponse.success(EventAddonResponse.fromEntity(entity), "Add-on updated"));
+    }
+
+    @DeleteMapping("/events/{eventId}/addons/{addonId}")
+    @Transactional
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Delete event add-on", description = "Deletes an add-on. Requires ORGANIZER or ADMIN role.")
+    public ResponseEntity<ApiResponse<Void>> deleteEventAddon(@PathVariable UUID eventId, @PathVariable UUID addonId) {
+        log.debug("Deleting add-on: {}", addonId);
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        EventEntity event = eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        if (!event.getOrganizer().getId().equals(organizerId)) {
+            throw new ResourceNotFoundException("Event", eventId.toString());
+        }
+        EventAddonEntity entity = eventAddonRepository.findById(addonId).orElseThrow(() -> new ResourceNotFoundException("EventAddon", addonId.toString()));
+        if (!entity.getEvent().getId().equals(eventId)) {
+            throw new ResourceNotFoundException("EventAddon", addonId.toString());
+        }
+        eventAddonRepository.delete(entity);
+        return ResponseEntity.ok(ApiResponse.success(null, "Add-on deleted"));
     }
 
     @PostMapping("/tickets/{id}/check-in")

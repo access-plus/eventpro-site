@@ -3,11 +3,13 @@ package com.accessplus.eventpro.event.service.impl;
 import com.accessplus.eventpro.event.config.S3AclConfig.S3AclProperties;
 import com.accessplus.eventpro.event.config.S3Properties;
 import com.accessplus.eventpro.event.service.AWSS3ImageService;
+import com.accessplus.eventpro.event.service.S3ObjectContent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -163,6 +165,32 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         } else {
             // AWS format: https://{bucket}.s3.{region}.amazonaws.com/{key}
             return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, actualKey);
+        }
+    }
+
+    @Override
+    public S3ObjectContent getObject(String key) throws IOException {
+        if (key == null || key.isEmpty()) {
+            throw new IllegalArgumentException("S3 key cannot be null or empty");
+        }
+        String actualKey = extractKeyFromUrl(key);
+        try {
+            GetObjectRequest req = GetObjectRequest.builder()
+                    .bucket(s3Properties.getBucketName())
+                    .key(actualKey)
+                    .build();
+            try (ResponseInputStream<GetObjectResponse> stream = s3Client.getObject(req)) {
+                GetObjectResponse response = stream.response();
+                String contentType = response.contentType() != null ? response.contentType() : determineContentType(actualKey);
+                byte[] content = stream.readAllBytes();
+                return new S3ObjectContent(content, contentType);
+            }
+        } catch (NoSuchKeyException e) {
+            log.warn("S3 object not found: {}", actualKey);
+            throw new IOException("Image not found: " + actualKey, e);
+        } catch (S3Exception e) {
+            log.error("Failed to get S3 object: key={}, error={}", actualKey, e.getMessage(), e);
+            throw new IOException("Failed to get image from S3: " + e.getMessage(), e);
         }
     }
 
