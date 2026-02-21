@@ -160,7 +160,7 @@ public class OrganizerController extends BaseController {
                 id,
                 eventUpdate,
                 categoryId,
-                imageFile
+                null // imageFile - handled separately
         );
         
         EventResponse response = EventResponse.fromEntity(updatedEvent);

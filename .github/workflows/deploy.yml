@@ -1,0 +1,39 @@
+name: Deploy
+
+on:
+  workflow_call:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      shared: ${{ steps.filter.outputs.shared }}
+      lockbox-gateway: ${{ steps.filter.outputs.lockbox-gateway }}
+      admin: ${{ steps.filter.outputs.admin }}
+      edge-proxy: ${{ steps.filter.outputs.edge-proxy }}
+      payment-service: ${{ steps.filter.outputs.payment-service }}
+      submission-service: ${{ steps.filter.outputs.submission-service }}
+      pdf-intake-s3: ${{ steps.filter.outputs.pdf-intake-s3 }}
+      lambdas: ${{ steps.filter.outputs.lambdas }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'eventpro-frontend/**'
+            services:
+              - 'backend/services/**'
+            order-processor:
+              - 'backend/lambdas/order-processor/**'
+            payment-processor:
+              - 'backend/lambdas/payment-processor/**'
+            notification-sender:
+              - 'backend/lambdas/notification-sender/**'

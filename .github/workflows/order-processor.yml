@@ -1,0 +1,30 @@
+name: Order Processor
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: build
+        uses: ./.github/actions/gradle-task
+        with:
+          working-directory: backend/lambdas/order-processor
+          java-version: '25'
+
+      - name: ecr-docker-build
+        uses: ./.github/actions/docker
+
+      - name: deploy
+        uses: ./.github/actions/terraform
+        with:
+          working-directory: backend/lambdas/payment-processor/terraform
