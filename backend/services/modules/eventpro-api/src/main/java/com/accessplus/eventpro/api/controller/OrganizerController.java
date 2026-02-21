@@ -155,12 +155,12 @@ public class OrganizerController extends BaseController {
             categoryId = resolveCategoryId(request.getCategory());
         }
 
-        // Update event
+        // Update event (with optional new image)
         EventEntity updatedEvent = eventService.updateEvent(
                 id,
                 eventUpdate,
                 categoryId,
-                null // imageFile - handled separately
+                imageFile
         );
         
         EventResponse response = EventResponse.fromEntity(updatedEvent);

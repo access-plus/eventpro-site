@@ -21,6 +21,7 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import axios from "axios";
 import { apiService } from "@/lib/api";
+import { getEventImageUrl } from "@/lib/utils";
 import {
   Form,
   FormControl,
@@ -100,17 +101,22 @@ const EventFormNew = () => {
       const event = await apiService.getEvent(eventId);
 
       // Format dates for datetime-local input
-      const formatDateTime = (dateStr: string) => {
+      const formatDateTime = (dateStr: string | undefined): string => {
+        if (!dateStr) return "";
         const date = new Date(dateStr);
+        if (Number.isNaN(date.getTime())) return "";
         return date.toISOString().slice(0, 16);
       };
+
+      const startRaw = event.startTime ?? event.startDateTime;
+      const endRaw = event.endTime ?? event.endDateTime;
 
       form.reset({
         name: event.name,
         description: event.description || "",
-        startTime: formatDateTime(event.startTime),
-        endTime: formatDateTime(event.endTime),
-        category: event.categoryName || "",
+        startTime: formatDateTime(startRaw),
+        endTime: formatDateTime(endRaw),
+        category: event.categoryName || event.category || "",
         marketingEnabled: event.marketingEnabled || false,
         address: {
           street: event.addressStreet || "",
@@ -122,8 +128,9 @@ const EventFormNew = () => {
       });
 
       if (event.imageUrl) {
+        const displayUrl = getEventImageUrl(event.imageUrl) ?? event.imageUrl;
         setExistingImageUrl(event.imageUrl);
-        setImagePreview(event.imageUrl);
+        setImagePreview(displayUrl);
       }
     } catch (error: any) {
       console.error("Failed to load event:", error);
@@ -170,7 +177,7 @@ const EventFormNew = () => {
       const token = localStorage.getItem("accessToken");
 
       if (isEditMode && id) {
-        // UPDATE MODE - Use PATCH
+        // UPDATE MODE - PUT organizer endpoint (supports optional image)
         const requestPayload = {
           name: values.name,
           description: values.description,
@@ -181,26 +188,18 @@ const EventFormNew = () => {
           address: values.address,
         };
 
-        // For now, send as JSON. If image needs update, we'll need FormData
+        const formData = new FormData();
+        formData.append("request", JSON.stringify(requestPayload));
         if (imageFile) {
-          const formData = new FormData();
-          formData.append("request", JSON.stringify(requestPayload));
           formData.append("imageFile", imageFile);
-
-          await axios.patch(`${baseUrl}/api/v1/events/${id}`, formData, {
-            headers: {
-              "Content-Type": "multipart/form-data",
-              ...(token && { Authorization: `Bearer ${token}` }),
-            },
-          });
-        } else {
-          await axios.patch(`${baseUrl}/api/v1/events/${id}`, requestPayload, {
-            headers: {
-              "Content-Type": "application/json",
-              ...(token && { Authorization: `Bearer ${token}` }),
-            },
-          });
         }
+
+        await axios.put(`${baseUrl}/api/v1/organizer/events/${id}`, formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        });
 
         toast.success("Event updated successfully!");
         navigate("/organizer");
@@ -290,26 +289,39 @@ const EventFormNew = () => {
                   <div className="space-y-2">
                     <Label>Event Image</Label>
                     {imagePreview ? (
-                      <div className="relative">
-                        <img
-                          src={imagePreview}
-                          alt="Preview"
-                          className="w-full h-48 object-cover rounded-lg"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-2 right-2"
-                          onClick={removeImage}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                        {!isEditMode && (
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Click the X to change the image
-                          </p>
-                        )}
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-48 object-cover rounded-lg"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-2 right-2"
+                            onClick={removeImage}
+                            title="Remove image"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="image-upload-edit" className="cursor-pointer">
+                            <span className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
+                              <Upload className="h-4 w-4" />
+                              {isEditMode ? "Update image" : "Change image"}
+                            </span>
+                          </Label>
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            className="hidden"
+                            id="image-upload-edit"
+                          />
+                        </div>
                       </div>
                     ) : (
                       <label

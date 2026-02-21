@@ -168,10 +168,13 @@ class ApiService {
     await this.api.delete("/api/v1/cart");
   }
 
-  // Order endpoints
-  async getOrders(): Promise<Order[]> {
-    const response = await this.api.get<ApiResponse<Order[]>>("/api/v1/orders");
-    return response.data.data;
+  // Order endpoints (backend returns paginated { content: [...] }; shape may use amount/orderItems)
+  async getOrders(page = 1, size = 50): Promise<unknown[]> {
+    const response = await this.api.get<ApiResponse<{ content: unknown[] }>>(
+      `/api/v1/orders?page=${page}&size=${size}`
+    );
+    const data = response.data.data;
+    return Array.isArray(data?.content) ? data.content : [];
   }
 
   async getOrder(id: string): Promise<Order> {
