@@ -1373,13 +1373,24 @@ For payment processing, configure the Stripe publishable key:
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
 ```
 
-Add this to your `.env` file (for local development) or set it in your deployment environment. Get your test key from: https://dashboard.stripe.com/test/apikeys
+Add this to your `.env` file (for local development) or set it in your deployment environment. Get your test key from: [Stripe](https://dashboard.stripe.com/test/apikeys)
 
 ### Email Notifications (Resend)
 
 For email notifications via Resend:
 
-1. Sign up at https://resend.com
-2. Verify your email domain at https://resend.com/domains
-3. Create an API key at https://resend.com/api-keys
+1. Sign up at [Resend](https://resend.com)
+2. Verify your email domain at [Resend](https://resend.com/domains)
+3. Create an API key at [Resend](https://resend.com/api-keys)
 4. Configure the API key in your environment (optional for local development)
+
+<details>
+<summary>Higher environment</summary>
+
+Order of operations:
+
+- services
+- frontend
+- lambdas
+
+</details>

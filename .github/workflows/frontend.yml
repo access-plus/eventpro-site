@@ -1,12 +1,16 @@
 name: Frontend
 
 on:
-  workflow_call:
-    inputs:
-      api-base-url:
-        description: 'API Base URL'
-        required: true
-        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - 'eventpro-frontend/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'eventpro-frontend/**'
 
 jobs:
   build:
@@ -15,20 +19,43 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: build
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+
       - name: Install dependencies
         run: npm ci
+        working-directory: eventpro-frontend
 
       - name: Build
         run: npm run build
+        working-directory: eventpro-frontend
+        env:
+          VITE_API_BASE_URL: https://${{ vars.WORKSPACE || 'dev' }}-api.${{ vars.DOMAIN_NAME }}
 
-      - name: deploy
+      - name: Terraform
         uses: ./.github/actions/terraform
         with:
           working-directory: eventpro-frontend/terraform
+          workspace: ${{ vars.WORKSPACE || 'dev' }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          backend-bucket: eventpro-site-state
+          backend-key: frontend/terraform.tfstate
+          variables: domain_name=${{ vars.DOMAIN_NAME }}
 
-    #   - name: upload-to-s3
-        
+      - name: Sync to S3
+        run: |
+          cd eventpro-frontend/terraform
+          terraform init -backend-config=bucket=eventpro-site-state -backend-config=key=frontend/terraform.tfstate -backend-config=region=us-east-1 -backend-config=use_lockfile=true
+          terraform workspace select ${{ vars.WORKSPACE || 'dev' }} || terraform workspace new ${{ vars.WORKSPACE || 'dev' }}
+          BUCKET=$(terraform output -raw bucket_name)
+          cd ../..
+          aws s3 sync eventpro-frontend/dist/ s3://$BUCKET/ --delete
+
+      - name: CloudFront invalidation
+        run: |
+          cd eventpro-frontend/terraform
+          DIST_ID=$(terraform output -raw distribution_id)
+          aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
