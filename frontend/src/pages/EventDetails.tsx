@@ -13,6 +13,7 @@ import { Calendar, MapPin, Clock, Users, ShoppingCart, ArrowLeft, Plus, Minus, T
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { getEventImageUrl } from "@/lib/utils";
 
 const EventDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -189,7 +190,7 @@ const EventDetails = () => {
                 className="relative h-96 rounded-xl overflow-hidden shadow-lg"
               >
                 <img
-                  src={event.imageUrl}
+                  src={getEventImageUrl(event.imageUrl) ?? ""}
                   alt={event.name}
                   className="w-full h-full object-cover"
                 />

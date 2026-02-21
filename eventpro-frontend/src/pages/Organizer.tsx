@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { Calendar, Plus, Edit, CheckCircle, Clock, BarChart, Ticket, RefreshCw } from "lucide-react";
+import { Calendar, Plus, Edit, CheckCircle, Clock, BarChart, Ticket, RefreshCw, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -10,6 +10,7 @@ import { Event } from "@/types/api";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { getEventImageUrl } from "@/lib/utils";
 
 const Organizer = () => {
   const { user } = useAuth();
@@ -62,7 +63,7 @@ const Organizer = () => {
       <div className="relative h-48 bg-gradient-to-br from-primary/10 to-primary/5">
         {event.imageUrl ? (
           <img
-            src={event.imageUrl}
+            src={getEventImageUrl(event.imageUrl) ?? ""}
             alt={event.name}
             className="w-full h-full object-cover"
           />
@@ -99,19 +100,25 @@ const Organizer = () => {
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        <div className="flex gap-2">
-          <Link to={`/organizer/events/${event.id}/edit`} className="flex-1">
-            <Button variant="outline" className="w-full">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="flex-1 min-w-[100px]" asChild>
+            <Link to={`/organizer/events/${event.id}/edit`}>
               <Edit className="h-4 w-4 mr-2" />
               Edit
-            </Button>
-          </Link>
-          <Link to={`/organizer/events/${event.id}/tickets`} className="flex-1">
-            <Button variant="outline" className="w-full">
+            </Link>
+          </Button>
+          <Button variant="outline" className="flex-1 min-w-[100px]" asChild>
+            <Link to={`/organizer/events/${event.id}/tickets`}>
               <Ticket className="h-4 w-4 mr-2" />
               Tickets
-            </Button>
-          </Link>
+            </Link>
+          </Button>
+          <Button variant="outline" className="flex-1 min-w-[100px]" asChild>
+            <Link to={`/organizer/events/${event.id}/enhancements`}>
+              <ShoppingBag className="h-4 w-4 mr-2" />
+              Enhance
+            </Link>
+          </Button>
         </div>
         {isDraft && (
           <Button

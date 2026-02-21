@@ -50,6 +50,19 @@ export interface Category {
   description?: string;
 }
 
+export interface EventAddon {
+  id: string;
+  eventId: string;
+  name: string;
+  description?: string;
+  price: number;
+  category: string;
+  imageUrl?: string;
+  sizes?: string[];
+  isPopular?: boolean;
+  displayOrder?: number;
+}
+
 export interface TicketType {
   id: string;
   eventId: string;

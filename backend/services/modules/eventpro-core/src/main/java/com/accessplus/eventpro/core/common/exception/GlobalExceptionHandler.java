@@ -192,10 +192,12 @@ public class GlobalExceptionHandler {
         logger.error("Unexpected error occurred", ex);
         
         String path = extractPath(request);
+        String detail = ex.getClass().getSimpleName() + ": " + (ex.getMessage() != null ? ex.getMessage() : "");
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .message("An unexpected error occurred. Please try again later.")
                 .path(path)
                 .timestamp(Instant.now())
+                .detail(detail)
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);

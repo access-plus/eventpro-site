@@ -2,6 +2,7 @@ package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.ApiResponse;
 import com.accessplus.eventpro.api.dto.CreateEventRequest;
+import com.accessplus.eventpro.api.dto.EventAddonResponse;
 import com.accessplus.eventpro.api.dto.EventResponse;
 import com.accessplus.eventpro.api.dto.TicketTypeResponse;
 import com.accessplus.eventpro.api.dto.UpdateEventRequest;
@@ -12,6 +13,8 @@ import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.event.category.entity.CategoryEntity;
 import com.accessplus.eventpro.event.category.repository.CategoryRepository;
 import com.accessplus.eventpro.event.event.entity.EventEntity;
+import com.accessplus.eventpro.event.addon.entity.EventAddonEntity;
+import com.accessplus.eventpro.event.addon.repository.EventAddonRepository;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.event.service.EventService;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
@@ -55,6 +58,7 @@ public class EventController extends BaseController {
     private final UserService userService;
     private final CategoryRepository categoryRepository;
     private final EventRepository eventRepository;
+    private final EventAddonRepository eventAddonRepository;
     private final TicketService ticketService;
     private final ObjectMapper objectMapper;
 
@@ -249,6 +253,16 @@ public class EventController extends BaseController {
         }
 
         return ResponseEntity.ok(ApiResponse.success(ticketTypes));
+    }
+
+    @GetMapping("/{id}/addons")
+    @Operation(summary = "Get event add-ons", description = "Returns add-ons (enhancements, merchandise, upgrades) for an event. Public endpoint.")
+    public ResponseEntity<ApiResponse<List<EventAddonResponse>>> getEventAddons(@PathVariable UUID id) {
+        log.debug("Getting add-ons for event: {}", id);
+        eventRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
+        List<EventAddonEntity> addons = eventAddonRepository.findByEventIdOrderByDisplayOrderAsc(id);
+        List<EventAddonResponse> responses = addons.stream().map(EventAddonResponse::fromEntity).collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/my-events")

@@ -12,10 +12,14 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface EventRepository extends JpaRepository<EventEntity, UUID> {
+
+    @Query("SELECT e FROM EventEntity e JOIN FETCH e.organizer WHERE e.id = :id")
+    Optional<EventEntity> findByIdWithOrganizer(@Param("id") UUID id);
 
     Page<EventEntity> findByCategory(CategoryEntity category, Pageable pageable);
 

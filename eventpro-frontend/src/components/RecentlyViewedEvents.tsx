@@ -4,6 +4,7 @@ import { Calendar, MapPin } from "lucide-react";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
+import { getEventImageUrl } from "@/lib/utils";
 
 interface RecentlyViewedEventsProps {
   maxDisplay?: number;
@@ -39,7 +40,7 @@ export const RecentlyViewedEvents: React.FC<RecentlyViewedEventsProps> = ({
               {event.imageUrl && (
                 <div className="h-32 overflow-hidden">
                   <img
-                    src={event.imageUrl}
+                    src={getEventImageUrl(event.imageUrl) ?? ""}
                     alt={event.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />

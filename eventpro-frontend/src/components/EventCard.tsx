@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Ticket, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import { getEventImageUrl } from "@/lib/utils";
 import type { Event } from "@/types/api";
 
 interface EventCardProps {
@@ -61,7 +62,7 @@ export const EventCard = ({ event, index = 0 }: EventCardProps) => {
         <div className="relative h-52 overflow-hidden">
           {event.imageUrl ? (
             <img
-              src={event.imageUrl}
+              src={getEventImageUrl(event.imageUrl) ?? ""}
               alt={event.name}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             />

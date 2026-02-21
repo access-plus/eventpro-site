@@ -49,12 +49,13 @@ const Home = () => {
     const loadCurrentEvents = async () => {
       try {
         setIsLoadingCurrent(true);
-        // Fetch more events and sort by date (soonest first)
-        const events = await apiService.getEvents(1, 12);
+        // Fetch enough events so we can filter to upcoming (API returns startTime)
+        const events = await apiService.getEvents(1, 50);
         const now = new Date();
+        const getStartDate = (event: Event) => new Date(event.startTime || event.startDateTime || 0);
         const upcomingEvents = events
-          .filter(event => new Date(event.startDateTime) >= now)
-          .sort((a, b) => new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime())
+          .filter(event => getStartDate(event) >= now)
+          .sort((a, b) => getStartDate(a).getTime() - getStartDate(b).getTime())
           .slice(0, 6);
         setCurrentEvents(upcomingEvents);
       } catch (error) {

@@ -31,6 +31,7 @@ import Organizer from "./pages/Organizer";
 import EventForm from "./pages/EventForm";
 import EventFormNew from "./pages/EventFormNew";
 import EventTickets from "./pages/EventTickets";
+import EventEnhancements from "./pages/EventEnhancements";
 import OrderHistory from "./pages/OrderHistory";
 import Pricing from "./pages/Pricing";
 import Partners from "./pages/Partners";
@@ -145,6 +146,15 @@ const AnimatedRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={["ORGANIZER"]}>
               <PageTransition><EventTickets /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/organizer/events/:id/enhancements"
+          element={
+            <ProtectedRoute allowedRoles={["ORGANIZER"]}>
+              <PageTransition><EventEnhancements /></PageTransition>
             </ProtectedRoute>
           }
         />
