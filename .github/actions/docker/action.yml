@@ -1,0 +1,60 @@
+name: Docker Build and Push to ECR
+description: Build Docker image and push to Amazon ECR. Uses aws-actions/amazon-ecr-login for authentication.
+
+inputs:
+  aws-region:
+    description: 'AWS Region'
+    required: false
+    default: 'us-east-1'
+  aws-access-key-id:
+    description: 'AWS Access Key ID'
+    required: true
+  aws-secret-access-key:
+    description: 'AWS Secret Access Key'
+    required: true
+  ecr-repository:
+    description: 'ECR repository name (e.g. eventpro-api, eventpro-order-processor)'
+    required: true
+  context:
+    description: 'Docker build context path'
+    required: false
+    default: 'backend'
+  dockerfile:
+    description: 'Path to Dockerfile'
+    required: false
+    default: 'backend/services/Dockerfile'
+  image-tag:
+    description: 'Image tag'
+    required: false
+    default: 'latest'
+
+outputs:
+  image-uri:
+    description: 'Full ECR image URI (registry/repository:tag)'
+    value: ${{ steps.build.outputs.image-uri }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ inputs.aws-access-key-id }}
+        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+        aws-region: ${{ inputs.aws-region }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build
+      env:
+        REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        REPOSITORY: ${{ inputs.ecr-repository }}
+        IMAGE_TAG: ${{ inputs.image-tag }}
+      run: |
+        docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -f ${{ inputs.dockerfile }} ${{ inputs.context }}
+        docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+        echo "image-uri=$REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+      shell: bash

@@ -1,7 +1,6 @@
 name: Deploy
 
 on:
-  workflow_call:
   push:
     branches:
       - main
@@ -13,14 +12,11 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      shared: ${{ steps.filter.outputs.shared }}
-      lockbox-gateway: ${{ steps.filter.outputs.lockbox-gateway }}
-      admin: ${{ steps.filter.outputs.admin }}
-      edge-proxy: ${{ steps.filter.outputs.edge-proxy }}
-      payment-service: ${{ steps.filter.outputs.payment-service }}
-      submission-service: ${{ steps.filter.outputs.submission-service }}
-      pdf-intake-s3: ${{ steps.filter.outputs.pdf-intake-s3 }}
-      lambdas: ${{ steps.filter.outputs.lambdas }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      services: ${{ steps.filter.outputs.services }}
+      order-processor: ${{ steps.filter.outputs.order-processor }}
+      payment-processor: ${{ steps.filter.outputs.payment-processor }}
+      notification-sender: ${{ steps.filter.outputs.notification-sender }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3

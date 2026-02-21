@@ -11,7 +11,7 @@ Refactor the EventPro application into independently deployable microservices wi
 | Phase | Name | Prerequisites | Start when |
 |-------|------|---------------|------------|
 | **0** | Prerequisites | None | Ready now |
-| **1** | Services Terraform | Phase 0 | S3 state bucket exists; docker + terraform actions work |
+| **1** | Services Terraform | Phase 0 | Docker + terraform actions work (S3 state bucket already exists) |
 | **2** | Frontend Terraform | Phase 1 | Services applied; outputs available |
 | **3** | Order-processor Terraform | Phase 1 | Services applied |
 | **4** | Payment-processor Terraform | Phase 1 | Services applied |
@@ -157,7 +157,7 @@ Use `terraform workspace select <env>` (or `terraform workspace new <env>`) to d
 
 **Workspace names**: `default` (or `dev`), `staging`, `prod`—ensure CI/CD selects the correct workspace before apply.
 
-**State backend**:
+**State backend** (bucket already exists):
 - Bucket: `eventpro-site-{project}` (e.g. `eventpro-site-state`)
 - Keys (one per component):
   - `frontend/terraform.tfstate`
@@ -175,14 +175,13 @@ Use `terraform workspace select <env>` (or `terraform workspace new <env>`) to d
 
 **Tasks**:
 
-1. **S3 state bucket** – Create `eventpro-site-state` (or `eventpro-site-{project}`) in AWS. Use `use_lockfile = true` in backend for state locking (no DynamoDB).
+1. **S3 state bucket** – Already exists (`eventpro-site-state` or `eventpro-site-{project}`). Use `use_lockfile = true` in backend for state locking (no DynamoDB). No creation needed.
 2. **Docker action** – Implement `.github/actions/docker/action.yml`: ECR login, build, tag, push. Inputs: `ecr-repository`, `image-tag`, `context`, `dockerfile`.
 3. **Terraform action** – Update `.github/actions/terraform/action.yml`: require `workspace`; add backend config for S3 bucket/key; terraform version `>= 1.9`.
 4. **Deploy workflow** – Update `.github/workflows/deploy.yml`: path filters for `frontend`, `services`, `order-processor`, `payment-processor`, `notification-sender`.
 
 **Done when**:
-- [ ] S3 bucket `eventpro-site-state` exists
-- [ ] `terraform action` runs successfully with workspace + backend
+- [ ] `terraform action` runs successfully with workspace + backend (bucket already exists)
 - [ ] `docker action` builds and pushes an image to ECR
 - [ ] `deploy.yml` detects changes correctly
 
@@ -477,7 +476,7 @@ backend/
 - **Ownership**: Teams work within their component directory
 - **CI/CD**: Each pipeline runs `terraform` from its component's `terraform/` folder
 
-**State management**: S3 backend bucket `eventpro-site-state` with keys `frontend/terraform.tfstate`, `services/terraform.tfstate`, `order/terraform.tfstate`, `payment/terraform.tfstate`, `notification/terraform.tfstate`. Services Terraform is the root—it contains ACM, Route53, RDS, SQS, and outputs them. Frontend and Lambdas reference services via `terraform_remote_state` to obtain `route53_zone_id`, `cloudfront_certificate_arn`, and DB/queue URLs. Use the same workspace when reading remote state (e.g. `terraform_remote_state` from services in `dev` workspace).
+**State management**: S3 backend bucket `eventpro-site-state` (already exists) with keys `frontend/terraform.tfstate`, `services/terraform.tfstate`, `order/terraform.tfstate`, `payment/terraform.tfstate`, `notification/terraform.tfstate`. Services Terraform is the root—it contains ACM, Route53, RDS, SQS, and outputs them. Frontend and Lambdas reference services via `terraform_remote_state` to obtain `route53_zone_id`, `cloudfront_certificate_arn`, and DB/queue URLs. Use the same workspace when reading remote state (e.g. `terraform_remote_state` from services in `dev` workspace).
 
 ---
 
@@ -485,7 +484,7 @@ backend/
 
 | # | Phase | Focus |
 |---|-------|-------|
-| 0 | Prerequisites | S3 state bucket, docker action, terraform action, deploy.yml path filters |
+| 0 | Prerequisites | Docker action, terraform action, deploy.yml path filters (S3 state bucket exists) |
 | 1 | Services | `backend/services/terraform/` – ACM, Route53, RDS, SQS, ALB, ECS |
 | 2 | Frontend | `eventpro-frontend/terraform/` – S3, CloudFront, Route53 |
 | 3 | Order-processor | `backend/lambdas/order-processor/terraform/` – Lambda + IAM |

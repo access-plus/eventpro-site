@@ -27,8 +27,19 @@ inputs:
     required: false
   terraform-version:
     description: 'Terraform version'
-    default: 1.12.5
+    default: "1.9.0"
     required: false
+  backend-bucket:
+    description: 'S3 backend bucket (e.g. eventpro-site-state)'
+    required: false
+    default: "eventpro-site-state"
+  backend-key:
+    description: 'S3 backend key (e.g. services/terraform.tfstate)'
+    required: false
+  backend-region:
+    description: 'S3 backend region'
+    required: false
+    default: "us-east-1"
 
 runs:
   using: "composite"
@@ -56,7 +67,15 @@ runs:
   - name: Terraform Init
     run: |
       cd ${{ inputs.working-directory }}
-      terraform init -upgrade
+      if [ -f "versions.tf" ] || [ -f "main.tf" ]; then
+        INIT_ARGS="-upgrade"
+        if [ -n "${{ inputs.backend-bucket }}" ] && [ -n "${{ inputs.backend-key }}" ]; then
+          INIT_ARGS="$INIT_ARGS -backend-config=bucket=${{ inputs.backend-bucket }} -backend-config=key=${{ inputs.backend-key }} -backend-config=region=${{ inputs.backend-region }} -backend-config=use_lockfile=true"
+        fi
+        terraform init $INIT_ARGS
+      else
+        echo "No Terraform files found in ${{ inputs.working-directory }}, skipping init."
+      fi
     shell: bash
 
   - name: Select Terraform Workspace
