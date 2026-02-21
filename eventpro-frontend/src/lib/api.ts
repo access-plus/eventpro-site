@@ -202,17 +202,7 @@ class ApiService {
 
   // Organizer endpoints
   async getOrganizerEvents(): Promise<Event[]> {
-    const response = await this.api.get<ApiResponse<Event[]>>("/api/v1/events/organizer/my-events");
-    return response.data.data;
-  }
-
-  async getOrganizerDraftEvents(): Promise<Event[]> {
-    const response = await this.api.get<ApiResponse<Event[]>>("/api/v1/events/organizer/drafts");
-    return response.data.data;
-  }
-
-  async publishEvent(eventId: string): Promise<Event> {
-    const response = await this.api.post<ApiResponse<Event>>(`/api/v1/events/${eventId}/publish`);
+    const response = await this.api.get<ApiResponse<Event[]>>("/api/v1/organizer/events");
     return response.data.data;
   }
 }

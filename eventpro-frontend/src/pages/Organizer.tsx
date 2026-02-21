@@ -249,14 +249,14 @@ const Organizer = () => {
             <h2 className="text-2xl font-bold">Published Events</h2>
             <Badge variant="secondary">{publishedEvents.length}</Badge>
           </div>
-          {publishedEvents.length === 0 ? (
+          {publishedEvents.length === 0 && draftEvents.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center">
-                <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No published events yet</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Create your first event to get started
-                </p>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="mb-4">No events yet.</p>
+                <Link to="/organizer/events/new">
+                  <Button className="bg-gradient-primary">Create your first event</Button>
+                </Link>
               </CardContent>
             </Card>
           ) : (
@@ -267,12 +267,6 @@ const Organizer = () => {
             </div>
           )}
         </motion.div>
-
-        {isLoading && (
-          <div className="py-12 text-center">
-            <p className="text-muted-foreground">Loading events...</p>
-          </div>
-        )}
       </div>
     </div>
   );

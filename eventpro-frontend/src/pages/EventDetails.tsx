@@ -50,10 +50,8 @@ const EventDetails = () => {
         id: eventData.id,
         name: eventData.name,
         imageUrl: eventData.imageUrl,
-        startDateTime: eventData.startTime || eventData.startDateTime,
-        venue: eventData.addressCity && eventData.addressState
-          ? `${eventData.addressCity}, ${eventData.addressState}`
-          : eventData.venue || "Location TBD",
+        startDateTime: eventData.startDateTime,
+        venue: eventData.venue,
       });
     } catch (error) {
       console.error("Failed to load event:", error);
@@ -154,20 +152,16 @@ const EventDetails = () => {
               <div className="flex flex-wrap gap-4 text-muted-foreground mb-6">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
-                  <span>{format(new Date(event.startTime), "PPPP")}</span>
+                  <span>{format(new Date(event.startDateTime), "PPPP")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
-                  <span>{format(new Date(event.startTime), "p")}</span>
+                  <span>{format(new Date(event.startDateTime), "p")}</span>
                 </div>
-                {(event.addressCity || event.addressState) && (
+                {event.venue && (
                   <div className="flex items-center gap-2">
                     <MapPin className="h-5 w-5" />
-                    <span>
-                      {event.addressCity && event.addressState
-                        ? `${event.addressCity}, ${event.addressState}`
-                        : event.addressCity || event.addressState || "Location TBD"}
-                    </span>
+                    <span>{event.venue}</span>
                   </div>
                 )}
               </div>
