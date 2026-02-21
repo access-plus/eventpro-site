@@ -127,7 +127,7 @@ const AnimatedRoutes = () => {
           path="/organizer/events/new"
           element={
             <ProtectedRoute allowedRoles={["ORGANIZER"]}>
-              <PageTransition><EventForm /></PageTransition>
+              <PageTransition><EventFormNew /></PageTransition>
             </ProtectedRoute>
           }
         />
@@ -136,7 +136,16 @@ const AnimatedRoutes = () => {
           path="/organizer/events/:id/edit"
           element={
             <ProtectedRoute allowedRoles={["ORGANIZER"]}>
-              <PageTransition><EventForm /></PageTransition>
+              <PageTransition><EventFormNew /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/organizer/events/:id/tickets"
+          element={
+            <ProtectedRoute allowedRoles={["ORGANIZER"]}>
+              <PageTransition><EventTickets /></PageTransition>
             </ProtectedRoute>
           }
         />
