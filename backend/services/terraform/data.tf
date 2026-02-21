@@ -17,6 +17,11 @@ data "aws_subnets" "default" {
   }
 }
 
+# Route53 hosted zone (must exist in account)
+data "aws_route53_zone" "main" {
+  name = var.domain_name
+}
+
 locals {
   workspace   = terraform.workspace
   name_prefix = local.workspace

@@ -56,18 +56,13 @@ output "rds_security_group_id" {
 }
 
 output "route53_zone_id" {
-  description = "Route53 hosted zone ID (from data lookup)"
-  value       = local.route53_zone_id
+  description = "Route53 hosted zone ID"
+  value       = data.aws_route53_zone.main.zone_id
 }
 
 output "route53_zone_name" {
   description = "Route53 hosted zone name"
-  value       = local.route53_zone_name
-}
-
-output "route53_name_servers" {
-  description = "Name servers to add at your domain registrar for DNS delegation"
-  value       = length(aws_route53_zone.main) > 0 ? aws_route53_zone.main[0].name_servers : []
+  value       = data.aws_route53_zone.main.name
 }
 
 output "cloudfront_certificate_arn" {
@@ -86,6 +81,6 @@ output "s3_images_bucket_id" {
 }
 
 output "api_url" {
-  description = "API base URL (when Route53 configured)"
-  value       = local.route53_zone_id != null && var.domain_name != "" ? "https://${terraform.workspace}-api.${var.domain_name}" : "http://${aws_lb.main.dns_name}"
+  description = "API base URL"
+  value       = "https://${terraform.workspace}-api.${var.domain_name}"
 }

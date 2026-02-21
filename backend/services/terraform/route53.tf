@@ -1,12 +1,8 @@
-# Route53 records: API alias to ALB
-# ACM cert created manually for *.domain_name; pass ARN via variable
+# Route53 A record: ${workspace}-api.${domain_name} -> ALB
 
-# API A record: ${workspace}-api.${domain_name} -> ALB
 resource "aws_route53_record" "api" {
-  count = local.route53_zone_id != null && var.domain_name != "" ? 1 : 0
-
-  zone_id = local.route53_zone_id
-  name    = "${local.workspace}-api.${var.domain_name}"
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = "${terraform.workspace}-api.${var.domain_name}"
   type    = "A"
 
   alias {

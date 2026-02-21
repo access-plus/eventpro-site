@@ -8,9 +8,8 @@ variable "ecr_api_image_uri" {
 }
 
 variable "domain_name" {
-  description = "Domain you own (e.g., example.com). Terraform creates the Route53 hosted zone."
+  description = "Domain for Route53 (e.g., example.com). Hosted zone must exist in account."
   type        = string
-  default     = ""
 }
 
 variable "cloudfront_certificate_arn" {
