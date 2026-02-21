@@ -152,11 +152,25 @@ const EventDetails = () => {
               <div className="flex flex-wrap gap-4 text-muted-foreground mb-6">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
-                  <span>{format(new Date(event.startDateTime), "PPPP")}</span>
+                  <span>
+                    {(() => {
+                      const raw = event.startTime ?? event.startDateTime;
+                      const d = raw ? new Date(raw) : null;
+                      if (!d || Number.isNaN(d.getTime())) return "Date TBD";
+                      return format(d, "PPPP");
+                    })()}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="h-5 w-5" />
-                  <span>{format(new Date(event.startDateTime), "p")}</span>
+                  <span>
+                    {(() => {
+                      const raw = event.startTime ?? event.startDateTime;
+                      const d = raw ? new Date(raw) : null;
+                      if (!d || Number.isNaN(d.getTime())) return "Time TBD";
+                      return format(d, "p");
+                    })()}
+                  </span>
                 </div>
                 {event.venue && (
                   <div className="flex items-center gap-2">

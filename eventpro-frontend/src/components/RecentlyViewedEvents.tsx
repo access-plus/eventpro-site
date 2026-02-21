@@ -51,7 +51,12 @@ export const RecentlyViewedEvents: React.FC<RecentlyViewedEventsProps> = ({
                 <CardDescription className="space-y-1">
                   <div className="flex items-center gap-1 text-xs">
                     <Calendar className="h-3 w-3" />
-                    {format(new Date(event.startDateTime), "MMM d, yyyy")}
+                    {(() => {
+                      const raw = event.startTime ?? event.startDateTime;
+                      const d = raw ? new Date(raw) : null;
+                      if (!d || Number.isNaN(d.getTime())) return "Date TBD";
+                      return format(d, "MMM d, yyyy");
+                    })()}
                   </div>
                   {event.venue && (
                     <div className="flex items-center gap-1 text-xs">
