@@ -26,13 +26,8 @@ const Organizer = () => {
   const loadEvents = async () => {
     try {
       setIsLoading(true);
-      const [drafts, allEvents] = await Promise.all([
-        apiService.getOrganizerDraftEvents(),
-        apiService.getOrganizerEvents(),
-      ]);
-
-      setDraftEvents(drafts);
-      // Filter to get only published events
+      const allEvents = await apiService.getOrganizerEvents();
+      setDraftEvents(allEvents.filter(e => e.status === "DRAFT"));
       setPublishedEvents(allEvents.filter(e => e.status === "PUBLISHED"));
     } catch (error: any) {
       console.error("Failed to load events:", error);

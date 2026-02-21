@@ -13,8 +13,16 @@ interface EventCardProps {
   index?: number;
 }
 
+function safeFormatDate(value: string | undefined, formatStr: string, fallback: string): string {
+  const raw = value;
+  const d = raw ? new Date(raw) : null;
+  if (!d || Number.isNaN(d.getTime())) return fallback;
+  return format(d, formatStr);
+}
+
 export const EventCard = ({ event, index = 0 }: EventCardProps) => {
   const navigate = useNavigate();
+  const startRaw = event.startTime ?? event.startDateTime;
 
   const getStatusColor = (status: Event["status"]) => {
     switch (status) {
@@ -134,10 +142,10 @@ export const EventCard = ({ event, index = 0 }: EventCardProps) => {
               </div>
               <div>
                 <p className="font-medium text-foreground">
-                  {format(new Date(event.startTime || event.startDateTime || new Date()), "EEEE, MMM d")}
+                  {safeFormatDate(startRaw, "EEEE, MMM d", "Date TBD")}
                 </p>
                 <p className="text-muted-foreground text-xs">
-                  {format(new Date(event.startTime || event.startDateTime || new Date()), "yyyy")}
+                  {safeFormatDate(startRaw, "yyyy", "—")}
                 </p>
               </div>
             </div>
@@ -147,7 +155,7 @@ export const EventCard = ({ event, index = 0 }: EventCardProps) => {
                 <Clock className="h-4 w-4 text-primary" />
               </div>
               <p className="font-medium text-foreground">
-                {format(new Date(event.startTime || event.startDateTime || new Date()), "h:mm a")}
+                {safeFormatDate(startRaw, "h:mm a", "Time TBD")}
               </p>
             </div>
 
