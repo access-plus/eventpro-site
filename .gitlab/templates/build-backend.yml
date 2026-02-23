@@ -1,5 +1,5 @@
 .build-backend:
-  image: eclipse-temurin:21-jdk-alpine
+  image: eclipse-temurin:25-jdk-alpine
   stage: build
   before_script:
     - cd backend/services

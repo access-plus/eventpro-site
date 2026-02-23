@@ -669,7 +669,7 @@ EventPro uses a **Modular Monolith** architecture for the main API service, comb
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **Java** | 21 | Programming language |
+| **Java** | 25 | Programming language |
 | **Spring Boot** | 4.0.0 | Application framework (Main API) |
 | **Quarkus** | 3.27.0 | Lambda framework (Async processing) |
 | **Gradle** | 9.2.1 | Build tool |
@@ -1056,7 +1056,7 @@ For local development, the following services are used:
 
 ### Prerequisites
 
-- **Java 21** - [Download](https://adoptium.net/)
+- **Java 25** - [Download](https://adoptium.net/)
 - **Node.js 22+** and **npm** - [Download](https://nodejs.org/)
 - **Docker** and **Docker Compose** - [Download](https://www.docker.com/get-started)
 - **Terraform 1.5+** - [Download](https://www.terraform.io/downloads)

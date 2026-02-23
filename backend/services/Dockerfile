@@ -1,20 +1,17 @@
 # Multi-stage build for EventPro API (Modular Monolith)
 # Build context: backend/ directory
-FROM gradle:9.2.1-jdk21-corretto AS build
+FROM gradle:9.2.1-jdk25-corretto AS build
 WORKDIR /app
 
 # Copy entire services directory structure
 COPY services ./services
-
-# Copy shared module (for composite build)
-COPY shared ./shared
 
 # Build the application from services directory
 WORKDIR /app/services
 RUN ./gradlew :eventpro-api:bootJar --no-daemon -x test
 
 # Runtime stage
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 
 # Copy the built JAR

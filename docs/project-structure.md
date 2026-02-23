@@ -1289,7 +1289,7 @@ COPY services/core-api/src ./src
 COPY shared ./shared
 RUN gradle build -x test
 
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 COPY --from=build /app/build/libs/core-api-*.jar app.jar
 EXPOSE 8080

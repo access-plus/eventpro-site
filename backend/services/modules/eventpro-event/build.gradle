@@ -26,9 +26,6 @@ dependencies {
     compileOnly "org.projectlombok:lombok:${project.ext.lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${project.ext.lombokVersion}"
     
-    // Shared module (framework-agnostic entities, enums, exceptions, utilities)
-    implementation 'com.accessplus.eventpro:eventpro-shared:1.0.0'
-    
     // Core module dependency
     implementation project(':eventpro-core')
     

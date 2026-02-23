@@ -399,7 +399,7 @@ This section provides detailed instructions for dockerizing Quarkus Lambda funct
 # Build context: backend/ directory
 
 # Build stage
-FROM gradle:9.2.1-jdk21-corretto AS build
+FROM gradle:9.2.1-jdk25-corretto AS build
 WORKDIR /app
 
 # Copy entire lambda directory structure
@@ -413,7 +413,7 @@ WORKDIR /app/lambdas/order-processor
 RUN ./gradlew build --no-daemon -x test
 
 # Runtime stage - Use AWS Lambda Java base image
-FROM public.ecr.aws/lambda/java:21
+FROM public.ecr.aws/lambda/java:25
 
 # Copy the Quarkus runner JAR and dependencies
 COPY --from=build /app/lambdas/order-processor/build/quarkus-app/lib/ /var/task/lib/
@@ -443,11 +443,8 @@ CMD ["io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"]
 # Build context: backend/ directory
 
 # Build stage
-FROM ghcr.io/graalvm/graalvm-community:21 AS build
+FROM ghcr.io/graalvm/native-image-community:25 AS build
 WORKDIR /app
-
-# Install native-image component
-RUN gu install native-image
 
 # Copy entire lambda directory structure
 COPY lambdas/order-processor ./lambdas/order-processor
@@ -633,7 +630,7 @@ sam local invoke OrderProcessorFunction \
 
 ```bash
 # Pull RIE
-docker pull public.ecr.aws/lambda/java:21
+docker pull public.ecr.aws/lambda/java:25
 
 # Run with RIE
 docker run -p 9000:8080 \

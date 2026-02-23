@@ -50,13 +50,12 @@ services:
 
   # EventPro Backend API - Development mode with hot reload
   backend:
-    image: gradle:8.5-jdk21
+    image: gradle:9.2.1-jdk25-corretto
     container_name: backend
     working_dir: /app
     volumes:
-      # Mount entire backend directory to access services, shared, and lambdas
+      # Mount entire backend directory to access services and lambdas
       # This allows DevTools to detect changes and hot reload
-      # The shared module is needed for composite builds
       - ./backend:/app/backend
       - gradle_cache:/root/.gradle
     ports:

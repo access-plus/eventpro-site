@@ -65,7 +65,7 @@ calculate-version:
 
 # # Build Quarkus Lambda functions
 # gradle-build-order-processor-lambda:
-#   image: eclipse-temurin:21-jdk-alpine
+#   image: eclipse-temurin:25-jdk-alpine
 #   stage: build
 #   before_script:
 #     - cd backend/lambdas/order-processor
@@ -84,7 +84,7 @@ calculate-version:
 #       artifacts: true
 
 # gradle-build-payment-processor-lambda:
-#   image: eclipse-temurin:21-jdk-alpine
+#   image: eclipse-temurin:25-jdk-alpine
 #   stage: build
 #   before_script:
 #     - cd backend/lambdas/payment-processor
@@ -103,7 +103,7 @@ calculate-version:
 #       artifacts: true
 
 # gradle-build-notification-sender-lambda:
-#   image: eclipse-temurin:21-jdk-alpine
+#   image: eclipse-temurin:25-jdk-alpine
 #   stage: build
 #   before_script:
 #     - cd backend/lambdas/notification-sender

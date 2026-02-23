@@ -199,7 +199,7 @@ PostgreSQL    PostgreSQL    SQS Queues
 
 ### Backend (ECS Services)
 - **Framework**: Spring Boot 3.5.7
-- **Language**: Java 21
+- **Language**: Java 25
 - **Build Tool**: Gradle 8.5+
 - **Database**: PostgreSQL 15+ (RDS Multi-AZ)
 - **ORM**: Spring Data JPA / Hibernate
@@ -210,7 +210,7 @@ PostgreSQL    PostgreSQL    SQS Queues
 
 ### Backend (Lambda Functions)
 - **Framework**: Quarkus 3.26.2
-- **Language**: Java 21
+- **Language**: Java 25
 - **Build Tool**: Gradle 8.5+
 - **Database**: PostgreSQL (via RDS) + DynamoDB (analytics)
 - **ORM**: Hibernate ORM (Quarkus)
@@ -367,7 +367,7 @@ PostgreSQL    PostgreSQL    SQS Queues
 ### Local Development Setup
 
 1. **Prerequisites**:
-   - Java 21 installed
+   - Java 25 installed
    - Gradle 8.5+ (or use Gradle wrapper)
    - Docker installed
    - Node.js 18+ and npm

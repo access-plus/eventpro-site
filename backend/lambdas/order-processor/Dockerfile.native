@@ -2,12 +2,9 @@
 # This builds a native executable container image for AWS Lambda
 # Note: Native builds require Docker-in-Docker or a build environment with GraalVM
 
-# Build stage with GraalVM
-FROM ghcr.io/graalvm/graalvm-community:21 AS build
+# Build stage with GraalVM (native-image pre-installed)
+FROM ghcr.io/graalvm/native-image-community:25 AS build
 WORKDIR /app
-
-# Install native-image component
-RUN gu install native-image
 
 # Copy Gradle wrapper and build files
 COPY gradlew .
