@@ -1,5 +1,0 @@
-rootProject.name = 'notification-sender'
-
-// Include shared module as composite build
-includeBuild '../../shared'
-

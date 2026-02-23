@@ -1,5 +1,0 @@
-rootProject.name = 'order-processor'
-
-// Include shared module as composite build
-includeBuild '../../shared'
-

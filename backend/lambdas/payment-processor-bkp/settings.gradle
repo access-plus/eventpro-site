@@ -1,5 +1,0 @@
-rootProject.name = 'payment-processor'
-
-// Include shared module as composite build
-includeBuild '../../shared'
-

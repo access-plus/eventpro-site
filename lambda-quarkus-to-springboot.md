@@ -30,8 +30,8 @@ backend/lambdas/
 | # | Task | Scope | Status |
 |---|------|-------|--------|
 | 1 | **order-processor** – full migration | deps, shared config, application.yml, function bean, services, repositories, config classes, Dockerfile, build | ✅ |
-| 2 | **payment-processor** – full migration | same pattern + Stripe | ⬜ |
-| 3 | **notification-sender** – full migration | same pattern, no JPA | ⬜ |
+| 2 | **payment-processor** – full migration | same pattern + Stripe | ✅ |
+| 3 | **notification-sender** – full migration | same pattern, no JPA | ✅ |
 | 4 | **CI, Terraform & cleanup** | workflows, Lambda env vars, docs | ⬜ |
 
 ---
@@ -133,30 +133,45 @@ Migrate the three SQS-triggered Lambdas from Quarkus 3.27 (in `*-bkp` folders) t
 
 **Source**: `payment-processor-bkp/` → **Target**: `payment-processor/`
 
+**Note**: No lambda uses the shared module. Copy required shared components into payment-processor (same pattern as order-processor).
+
 | # | Sub-task | Description |
 |---|----------|-------------|
-| 2.1 | Dependencies | Same as order-processor + `com.stripe:stripe-java` |
-| 2.2 | application.yml | Same pattern + Stripe config |
-| 2.3 | Function bean | `Consumer<SQSEvent> processPayment` |
-| 2.4 | Services | Migrate PaymentProcessorService, StripeServiceImpl, SQSPublisher |
-| 2.5 | Repositories | OrderRepository, TicketRepository |
-| 2.6 | Config classes | DatabaseSecretsConfig, SQSConfig, StripeConfig |
-| 2.7 | Dockerfile | Create Dockerfile |
-| 2.8 | Build | `./gradlew bootJar -x test` ✓ |
+| 2.1 | **Shared components** | Copy into `payment-processor` (package `com.accessplus.eventpro.shared.*`): entities (BaseEntity, OrderEntity, OrderItemEntity, TicketEntity), enums (OrderStatus, TicketStatus, TicketType, NotificationType), models (PaymentMessage, NotificationMessage), util (DatabaseSecretParser). Add `spring-boot-starter-validation`. No shared dependency, no includeBuild. |
+| 2.2 | Dependencies | Same as order-processor + `com.stripe:stripe-java` |
+| 2.3 | application.yml | Same pattern + Stripe config |
+| 2.4 | Function bean | `Consumer<SQSEvent> processPayment` |
+| 2.5 | Services | Migrate PaymentProcessorService, StripeServiceImpl, SQSPublisher |
+| 2.6 | Repositories | OrderRepository, TicketRepository |
+| 2.7 | Config classes | DataSourceConfig, AwsConfig, SQSConfig, StripeConfig |
+| 2.8 | Dockerfile | Create Dockerfile (no shared COPY) |
+| 2.9 | Build | `./gradlew build` ✓ |
 
 ### Task 3: notification-sender – Full Migration
 
 **Source**: `notification-sender-bkp/` → **Target**: `notification-sender/`
 
+**Context7 artifact reference** (consulted for latest docs):
+
+| Artifact | Context7 Library ID | Notes |
+|----------|---------------------|-------|
+| Spring Boot 4 | `/spring-projects/spring-boot/v4.0.0` | Use 4.0.3 (current); io.spring.dependency-management 1.1.7 |
+| Spring Cloud Function AWS | docs.spring.io/spring-cloud-function 4.1, 5.0.1 | Handler: `FunctionInvoker::handleRequest`; env: `spring_cloud_function_definition` |
+| AWS SDK Java (SES) | `/websites/aws_amazon_sdk-for-java` | `software.amazon.awssdk:ses`; SesClient, SendEmailRequest, Destination, Message, Body, Content |
+| AWS SNS | `/websites/aws_amazon_sns` | `software.amazon.awssdk:sns`; SnsClient, PublishRequest.phoneNumber() for SMS; PublishRequest.topicArn() for topics |
+
+**Shared components** (no shared module): Copy NotificationMessage, NotificationType, NotificationDeliveryType into notification-sender.
+
 | # | Sub-task | Description |
 |---|----------|-------------|
-| 3.1 | Dependencies | No JPA; spring-cloud-function-adapter-aws, AWS SDK (ses, sns) |
-| 3.2 | application.yml | `spring.cloud.function.definition=sendNotification` |
-| 3.3 | Function bean | `Consumer<SQSEvent> sendNotification` |
-| 3.4 | Services | NotificationSenderService, EmailServiceImpl, SMSServiceImpl |
-| 3.5 | Config classes | SESConfig, SNSConfig |
-| 3.6 | Dockerfile | Create Dockerfile |
-| 3.7 | Build | `./gradlew bootJar -x test` ✓ |
+| 3.1 | **Shared components** | Copy NotificationMessage, NotificationType, NotificationDeliveryType (package `com.accessplus.eventpro.shared.*`). No shared dependency. |
+| 3.2 | Dependencies | spring-boot-starter, spring-cloud-function-adapter-aws:4.0.5, AWS SDK (ses, sns), aws-lambda-java-events |
+| 3.3 | application.yml | `spring.cloud.function.definition=sendNotification`, SES/SNS config |
+| 3.4 | Function bean | `Consumer<SQSEvent> sendNotification` |
+| 3.5 | Services | NotificationSenderService, EmailServiceImpl (SesClient), SMSServiceImpl (SnsClient) |
+| 3.6 | Config classes | AwsConfig (SesClient, SnsClient + LocalStack endpoint), SESConfig, SNSConfig |
+| 3.7 | Dockerfile | Create Dockerfile (no shared COPY) |
+| 3.8 | Build | `./gradlew build` ✓ |
 
 ### Task 4: CI, Terraform & Cleanup
 
@@ -214,3 +229,13 @@ Lambda env: `spring_cloud_function_definition=processOrder` | `processPayment` |
 - [Spring Boot 4.0 Migration Guide](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.0-Migration-Guide)
 - [Spring Cloud Function AWS Adapter](https://docs.spring.io/spring-cloud-function/reference/adapters/aws-intro.html)
 - [AWS Lambda Java](https://docs.aws.amazon.com/lambda/latest/dg/java-handler.html)
+
+## Context7 MCP (Latest Artifacts)
+
+Use Context7 `resolve-library-id` and `query-docs` for up-to-date documentation:
+
+| Library | Context7 ID | Query examples |
+|---------|-------------|----------------|
+| Spring Boot 4 | `/spring-projects/spring-boot/v4.0.0` | "Spring Boot 4 Gradle dependencies", "AWS Lambda deployment" |
+| AWS SDK Java | `/websites/aws_amazon_sdk-for-java` | "SES send email SendEmailRequest", "SNS publish SMS" |
+| Amazon SNS | `/websites/aws_amazon_sns` | "SNS publish SMS message Java SDK" |

@@ -22,10 +22,21 @@ configurations {
 
 repositories {
     mavenCentral()
+    mavenLocal()
+}
+
+ext {
+    awsSdkVersion = '2.28.15'
 }
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.cloud:spring-cloud-function-adapter-aws:4.0.5'
+    implementation 'com.amazonaws:aws-lambda-java-events:3.11.3'
+    implementation 'com.amazonaws:aws-lambda-java-core:1.2.3'
+    implementation platform("software.amazon.awssdk:bom:${awsSdkVersion}")
+    implementation 'software.amazon.awssdk:ses'
+    implementation 'software.amazon.awssdk:sns'
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
