@@ -6,7 +6,6 @@ FROM gradle:9.2.1-jdk25-corretto AS build
 WORKDIR /app
 
 COPY lambdas/order-processor ./lambdas/order-processor
-COPY shared ./shared
 
 WORKDIR /app/lambdas/order-processor
 RUN ./gradlew bootJar --no-daemon -x test

@@ -34,6 +34,9 @@ public class DataSourceConfig {
     @Value("${DB_PASSWORD:eventpro}")
     private String dbPassword;
 
+    @Value("${DB_URL:}")
+    private String dbUrlProperty;
+
     @Bean
     @Primary
     public DataSource dataSource(SecretsManagerClient secretsManagerClient) {
@@ -71,6 +74,9 @@ public class DataSourceConfig {
     }
 
     private String buildJdbcUrl() {
+        if (dbUrlProperty != null && !dbUrlProperty.isEmpty()) {
+            return dbUrlProperty;
+        }
         String dbUrl = System.getenv("DB_URL");
         if (dbUrl != null && !dbUrl.isEmpty()) {
             return dbUrl;
