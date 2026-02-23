@@ -11,10 +11,6 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Base entity class with common fields for all entities.
- * Framework-agnostic (works with Spring Boot and Quarkus).
- */
 @MappedSuperclass
 @Getter
 @Setter

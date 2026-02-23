@@ -14,10 +14,6 @@ import org.hibernate.type.SqlTypes;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/**
- * Order item entity representing individual items within an order.
- * Framework-agnostic entity that works with both Spring Boot and Quarkus.
- */
 @Entity
 @Table(name = "order_items", indexes = {
     @Index(name = "idx_order_item_order", columnList = "order_id"),
@@ -49,19 +45,10 @@ public class OrderItemEntity extends BaseEntity {
     @JdbcTypeCode(SqlTypes.UUID)
     private UUID ticketId;
 
-    /**
-     * Order relationship (bidirectional).
-     * Uses insertable=false, updatable=false so the orderId UUID field is the source of truth.
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", insertable = false, updatable = false, foreignKey = @ForeignKey(name = "fk_order_item_order"))
     private OrderEntity order;
 
-    /**
-     * Ticket relationship (optional, for backend services that need it).
-     * Uses insertable=false, updatable=false so the ticketId UUID field is the source of truth.
-     * Backend services can populate this when loading entities with relationships.
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticket_id", insertable = false, updatable = false, foreignKey = @ForeignKey(name = "fk_order_item_ticket"))
     private TicketEntity ticket;

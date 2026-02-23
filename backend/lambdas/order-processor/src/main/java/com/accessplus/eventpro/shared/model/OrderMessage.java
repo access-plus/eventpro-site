@@ -3,11 +3,11 @@ package com.accessplus.eventpro.shared.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.UUID;
 
-/**
- * Message model for SQS order queue messages.
- * This is the message format sent from the backend when an order is created.
- * Framework-agnostic DTO.
- */
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
 public class OrderMessage {
 
     @JsonProperty("orderId")
@@ -22,36 +22,4 @@ public class OrderMessage {
     @JsonProperty("totalAmount")
     private java.math.BigDecimal totalAmount;
 
-    // Getters and Setters
-    public UUID getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(UUID orderId) {
-        this.orderId = orderId;
-    }
-
-    public String getOrderNumber() {
-        return orderNumber;
-    }
-
-    public void setOrderNumber(String orderNumber) {
-        this.orderNumber = orderNumber;
-    }
-
-    public UUID getUserId() {
-        return userId;
-    }
-
-    public void setUserId(UUID userId) {
-        this.userId = userId;
-    }
-
-    public java.math.BigDecimal getTotalAmount() {
-        return totalAmount;
-    }
-
-    public void setTotalAmount(java.math.BigDecimal totalAmount) {
-        this.totalAmount = totalAmount;
-    }
 }

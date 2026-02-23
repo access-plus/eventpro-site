@@ -17,14 +17,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Ticket entity representing individual tickets for events.
- * Framework-agnostic entity that works with both Spring Boot and Quarkus.
- *
- * <p>Note: Uses UUID references for cross-module relationships (event, user)
- * to maintain framework independence. Backend modules can add entity relationships
- * via @ManyToOne if needed for their specific use cases.
- */
 @Entity
 @Table(name = "tickets", indexes = {
     @Index(name = "idx_ticket_event", columnList = "event_id"),
@@ -69,26 +61,15 @@ public class TicketEntity extends BaseEntity {
     @Column(name = "print_out_url", length = 500)
     private String printOutUrl;
 
-    /**
-     * Event ID reference (UUID) instead of entity relationship
-     * to maintain framework independence.
-     */
     @NotNull(message = "Event ID is required")
     @Column(name = "event_id", nullable = false)
     @JdbcTypeCode(SqlTypes.UUID)
     private UUID eventId;
 
-    /**
-     * Purchaser ID reference (UUID) - nullable because tickets can be
-     * created before being purchased.
-     */
     @Column(name = "purchaser_id")
     @JdbcTypeCode(SqlTypes.UUID)
     private UUID purchaserId;
 
-    /**
-     * Creator ID reference (UUID) - user who created the ticket.
-     */
     @NotNull(message = "Creator ID is required")
     @Column(name = "creator_id", nullable = false)
     @JdbcTypeCode(SqlTypes.UUID)

@@ -18,14 +18,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Order entity representing customer orders.
- * Framework-agnostic entity that works with both Spring Boot and Quarkus.
- *
- * <p>Note: Uses UUID references for cross-module relationships (user, event)
- * to maintain framework independence. Backend modules can add entity relationships
- * via @ManyToOne if needed for their specific use cases.
- */
 @Entity
 @Table(name = "orders", indexes = {
     @Index(name = "idx_order_user", columnList = "user_id"),
@@ -57,20 +49,11 @@ public class OrderEntity extends BaseEntity {
     @Column(name = "order_date", nullable = false)
     private LocalDateTime orderDate;
 
-    /**
-     * User ID reference (UUID) instead of entity relationship
-     * to maintain framework independence.
-     * Backend modules can add @ManyToOne UserEntity if needed.
-     */
     @NotNull(message = "User ID is required")
     @Column(name = "user_id", nullable = false)
     @JdbcTypeCode(SqlTypes.UUID)
     private UUID userId;
 
-    /**
-     * Order items relationship.
-     * This is within the same domain, so entity relationship is fine.
-     */
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<OrderItemEntity> orderItems = new ArrayList<>();
 }
