@@ -13,6 +13,7 @@ import type {
   SignUpRequest,
   LoginRequest,
   AuthResponse,
+  GuestConfirmPaymentRequest,
 } from "@/types/api";
 
 class ApiService {
@@ -187,6 +188,40 @@ class ApiService {
     return response.data.data;
   }
 
+  /** Reserve tickets for guest (lock) before payment. Returns ticket IDs and reservedUntil (ISO-8601) for countdown. */
+  async guestReserve(items: { eventId: string; ticketType: string; quantity: number }[]): Promise<{
+    reservedTicketIds: string[];
+    reservedUntil: string;
+  }> {
+    const response = await this.api.post<ApiResponse<{ reservedTicketIds: string[]; reservedUntil: string }>>(
+      "/api/v1/payments/guest-reserve",
+      { items }
+    );
+    return response.data.data;
+  }
+
+  /** Create Stripe payment intent (amount in dollars). Public – works for guest. */
+  async createPaymentIntent(amount: number): Promise<{ clientSecret: string }> {
+    const response = await this.api.post<ApiResponse<{ clientSecret: string }>>("/api/v1/payments/create-intent", {
+      amount: Number(amount.toFixed(2)),
+    });
+    return response.data.data;
+  }
+
+  /** Confirm guest payment and create order (no auth). */
+  async confirmGuestPayment(body: GuestConfirmPaymentRequest): Promise<Order> {
+    const response = await this.api.post<ApiResponse<Order>>("/api/v1/payments/guest/confirm", body);
+    return response.data.data;
+  }
+
+  /** Confirm payment for authenticated user (creates order from cart). */
+  async confirmPayment(paymentIntentId: string): Promise<Order> {
+    const response = await this.api.post<ApiResponse<Order>>("/api/v1/payments/confirm", {
+      paymentIntentId,
+    });
+    return response.data.data;
+  }
+
   // Admin endpoints
   async getAllUsers(): Promise<User[]> {
     const response = await this.api.get<ApiResponse<User[]>>("/api/v1/admin/users");
@@ -206,6 +241,35 @@ class ApiService {
   // Organizer endpoints
   async getOrganizerEvents(): Promise<Event[]> {
     const response = await this.api.get<ApiResponse<Event[]>>("/api/v1/organizer/events");
+    return response.data.data;
+  }
+
+  /** Update event (organizer). Sends JSON; use uploadEventImage first if changing image. */
+  async updateOrganizerEvent(
+    id: string,
+    data: Partial<Event> & { startTime?: string; endTime?: string; category?: string; address?: Event["address"] }
+  ): Promise<Event> {
+    const response = await this.api.put<ApiResponse<Event>>(`/api/v1/organizer/events/${id}`, data);
+    return response.data.data;
+  }
+
+  /** Upload event image. Returns { url }. Use param name "image" for the file. */
+  async uploadEventImage(file: File): Promise<{ url: string }> {
+    const formData = new FormData();
+    formData.append("image", file);
+    // Remove Content-Type so browser/axios sets multipart/form-data with boundary (instance default is application/json)
+    const response = await this.api.post<ApiResponse<{ url: string }>>(
+      "/api/v1/organizer/events/upload-image",
+      formData,
+      { headers: { "Content-Type": false } as unknown as Record<string, string> }
+    );
+    const url = response.data.data?.url ?? (response.data as { data?: { url?: string } }).data?.url;
+    return { url: url ?? "" };
+  }
+
+  /** Publish event (DRAFT → PUBLISHED). Requires organizer role. */
+  async publishEvent(eventId: string): Promise<Event> {
+    const response = await this.api.post<ApiResponse<Event>>(`/api/v1/events/${eventId}/publish`);
     return response.data.data;
   }
 }

@@ -12,8 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { getEventImageUrl } from "@/lib/utils";
 
+/** Merchandise & add-ons are Pro and Enterprise only per pricing page. */
+function canUseAddons(tier: string | undefined): boolean {
+  const t = (tier ?? "BASIC").toUpperCase();
+  return t === "PRO" || t === "ENTERPRISE";
+}
+
 const Organizer = () => {
   const { user } = useAuth();
+  const showEnhance = canUseAddons(user?.subscriptionTier);
   const [draftEvents, setDraftEvents] = useState<Event[]>([]);
   const [publishedEvents, setPublishedEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,14 +60,19 @@ const Organizer = () => {
     }
   };
 
-  const EventCard = ({ event, isDraft = false }: { event: Event; isDraft?: boolean }) => (
+  const EventCard = ({ event, isDraft = false }: { event: Event; isDraft?: boolean }) => {
+    const [imgError, setImgError] = useState(false);
+    const displayUrl = getEventImageUrl(event.imageUrl);
+    const showImage = event.imageUrl && displayUrl && !imgError;
+    return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       <div className="relative h-48 bg-gradient-to-br from-primary/10 to-primary/5">
-        {event.imageUrl ? (
+        {showImage ? (
           <img
-            src={getEventImageUrl(event.imageUrl) ?? ""}
+            src={displayUrl}
             alt={event.name}
             className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -108,12 +120,21 @@ const Organizer = () => {
               Tickets
             </Link>
           </Button>
-          <Button variant="outline" className="flex-1 min-w-[100px]" asChild>
-            <Link to={`/organizer/events/${event.id}/enhancements`}>
-              <ShoppingBag className="h-4 w-4 mr-2" />
-              Enhance
-            </Link>
-          </Button>
+          {showEnhance ? (
+            <Button variant="outline" className="flex-1 min-w-[100px]" asChild>
+              <Link to={`/organizer/events/${event.id}/enhancements`}>
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                Enhance
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" className="flex-1 min-w-[100px]" asChild>
+              <Link to="/pricing" title="Merchandise & add-ons require Pro or Enterprise">
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                Enhance (Pro)
+              </Link>
+            </Button>
+          )}
         </div>
         {isDraft && (
           <Button
@@ -128,6 +149,7 @@ const Organizer = () => {
       </CardContent>
     </Card>
   );
+  };
 
   return (
     <div className="min-h-screen py-8">

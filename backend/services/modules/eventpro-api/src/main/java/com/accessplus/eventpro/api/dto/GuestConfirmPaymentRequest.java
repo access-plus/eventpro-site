@@ -1,0 +1,42 @@
+package com.accessplus.eventpro.api.dto;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class GuestConfirmPaymentRequest {
+
+    @NotBlank(message = "Payment intent ID is required")
+    private String paymentIntentId;
+
+    @NotBlank(message = "Email is required")
+    private String email;
+
+    private String firstName;
+    private String lastName;
+
+    @NotEmpty(message = "At least one item is required")
+    @Valid
+    private List<GuestOrderItemRequest> items;
+
+    @NotNull(message = "Total amount is required")
+    @DecimalMin(value = "0.01", message = "Total amount must be positive")
+    private BigDecimal totalAmount;
+
+    /** Optional: ticket IDs from guest-reserve (lock). When set, order uses these instead of reserving again. */
+    private List<UUID> reservedTicketIds;
+}

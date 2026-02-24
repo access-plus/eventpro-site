@@ -175,7 +175,7 @@ const Home = () => {
                   className="text-lg px-10 py-6 bg-background/50 backdrop-blur-sm border-border/50 hover:bg-background/80"
                   onClick={() => navigate("/signup")}
                 >
-                  Sign Up to Buy Tickets
+                  Create account
                 </Button>
               )}
             </motion.div>
@@ -435,15 +435,15 @@ const Home = () => {
                   Ready to Secure Your Tickets?
                 </h2>
                 <p className="text-xl text-primary-foreground/90 mb-10 max-w-2xl mx-auto">
-                  Create a free account to purchase tickets and never miss an event
+                  Browse events and buy tickets—no account required. Sign up to save your orders and never miss an event.
                 </p>
                 <Button
                   size="lg"
                   className="bg-background text-foreground hover:bg-background/90 text-lg px-10 py-6 shadow-lg"
-                  onClick={() => navigate(isAuthenticated ? "/events" : "/signup")}
+                  onClick={() => navigate("/events")}
                 >
                   <Ticket className="mr-2 h-5 w-5" />
-                  {isAuthenticated ? "Browse Events" : "Create Free Account"}
+                  Browse events & get tickets
                 </Button>
               </div>
             </Card>

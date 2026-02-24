@@ -46,6 +46,17 @@ stripe:
   publishableKey: ${STRIPE_PUBLISHABLE_KEY}
   webhookSecret: ${STRIPE_WEBHOOK_SECRET}
 
+# Ticket reservation expiry: release reserved tickets after this many minutes if not purchased.
+# Use 10 for high-demand sales (one winner, rest rejected instantly via atomic reserve).
+eventpro:
+  ticket:
+    reservation-expiry-minutes: ${EVENTPRO_RESERVATION_EXPIRY_MINUTES:15}
+  # In-memory per-IP rate limit for public/sensitive endpoints (login, signup, guest-reserve, create-intent)
+  rate-limit:
+    enabled: ${EVENTPRO_RATE_LIMIT_ENABLED:true}
+    requests-per-minute: ${EVENTPRO_RATE_LIMIT_REQUESTS_PER_MINUTE:60}
+    window-seconds: ${EVENTPRO_RATE_LIMIT_WINDOW_SECONDS:60}
+
 security:
   jwt:
     issuer: ${JWT_ISSUER:eventpro}
@@ -55,8 +66,12 @@ security:
 
 server:
   port: 8080
+  # Listen on all interfaces so the app is reachable via Docker port mapping (host -> container)
+  address: 0.0.0.0
   compression:
     enabled: true
+    # Only compress text/JSON; never compress image/* (e.g. image proxy) to avoid ZLIB/stream issues
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/xml
   error:
     include-message: always
 
@@ -67,7 +82,8 @@ management:
         include: health,info,metrics,prometheus
   endpoint:
     health:
-      show-details: when-authorized
+      # Show details for all callers so /actuator/health is useful when backend is up
+      show-details: always
   metrics:
     export:
       prometheus:

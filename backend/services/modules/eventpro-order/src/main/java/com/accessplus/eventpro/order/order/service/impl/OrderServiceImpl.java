@@ -6,8 +6,12 @@ import com.accessplus.eventpro.core.messaging.sqs.SQSMessagePublisher;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.UserRepository;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
+import com.accessplus.eventpro.shared.enums.TicketStatus;
+import com.accessplus.eventpro.shared.enums.TicketType;
+import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.order.cart.entity.CartEntity;
 import com.accessplus.eventpro.order.cart.service.CartService;
+import com.accessplus.eventpro.order.order.model.GuestOrderItem;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
 import com.accessplus.eventpro.shared.entity.OrderItemEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
@@ -20,6 +24,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -53,6 +58,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final CartService cartService;
     private final UserRepository userRepository;
+    private final TicketService ticketService;
     private final SQSMessagePublisher sqsMessagePublisher;
 
     private static final DateTimeFormatter ORDER_NUMBER_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -150,6 +156,169 @@ public class OrderServiceImpl implements OrderService {
             // Cart can be cleared manually if needed
         }
 
+        return savedOrder;
+    }
+
+    @Override
+    public OrderEntity createOrderForGuest(String guestEmail, String guestFirstName, String guestLastName,
+                                           List<GuestOrderItem> items, BigDecimal totalAmount) {
+        log.debug("Creating guest order: email={}, itemCount={}", guestEmail, items != null ? items.size() : 0);
+        if (guestEmail == null || guestEmail.isBlank()) {
+            throw new ValidationException("Guest email is required");
+        }
+        if (items == null || items.isEmpty()) {
+            throw new ValidationException("Order must have at least one item");
+        }
+        BigDecimal calculatedTotal = BigDecimal.ZERO;
+        List<OrderItemEntity> orderItems = new ArrayList<>();
+        for (GuestOrderItem item : items) {
+            if (item.quantity() <= 0) {
+                throw new ValidationException("Quantity must be greater than 0 for each item");
+            }
+            TicketType type;
+            try {
+                type = TicketType.valueOf(item.ticketType().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new ValidationException("Invalid ticket type: " + item.ticketType());
+            }
+            List<UUID> reservedTicketIds = ticketService.findAndReserveAvailableTickets(item.eventId(), type, item.quantity());
+            if (reservedTicketIds.size() < item.quantity()) {
+                throw new ValidationException("Not enough tickets available for event " + item.eventId() + " type " + item.ticketType());
+            }
+            TicketEntity firstTicket = ticketService.getTicketById(reservedTicketIds.get(0));
+            BigDecimal price = firstTicket.getPrice();
+            for (UUID ticketId : reservedTicketIds) {
+                TicketEntity ticket = ticketService.getTicketById(ticketId);
+                OrderItemEntity orderItem = new OrderItemEntity();
+                orderItem.setQuantity(1);
+                orderItem.setPrice(ticket.getPrice());
+                orderItem.setTicketId(ticket.getId());
+                orderItem.setTicket(ticket);
+                orderItems.add(orderItem);
+                calculatedTotal = calculatedTotal.add(ticket.getPrice());
+            }
+        }
+        if (totalAmount == null || calculatedTotal.compareTo(totalAmount) != 0) {
+            throw new ValidationException("Order total does not match calculated amount");
+        }
+        String orderNumber = generateOrderNumber();
+        OrderEntity order = new OrderEntity();
+        order.setOrderNumber(orderNumber);
+        order.setTotalAmount(calculatedTotal);
+        order.setStatus(OrderStatus.PENDING);
+        order.setOrderDate(LocalDateTime.now());
+        order.setUserId(null);
+        order.setGuestEmail(guestEmail);
+        order.setGuestFirstName(guestFirstName);
+        order.setGuestLastName(guestLastName);
+        order.setOrderItems(new ArrayList<>());
+        OrderEntity savedOrder = orderRepository.saveAndFlush(order);
+        for (OrderItemEntity oi : orderItems) {
+            oi.setOrderId(savedOrder.getId());
+            oi.setOrder(savedOrder);
+            savedOrder.getOrderItems().add(oi);
+        }
+        orderRepository.save(savedOrder);
+        log.info("Created guest order: orderId={}, orderNumber={}, guestEmail={}", savedOrder.getId(), orderNumber, guestEmail);
+        try {
+            publishOrderToSQS(savedOrder);
+        } catch (Exception e) {
+            log.error("Failed to publish guest order to SQS: orderId={}, error={}", savedOrder.getId(), e.getMessage(), e);
+        }
+        return savedOrder;
+    }
+
+    @Override
+    @Transactional
+    public List<UUID> reserveTicketsForGuest(List<GuestOrderItem> items) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> allIds = new ArrayList<>();
+        for (GuestOrderItem item : items) {
+            if (item.quantity() <= 0) continue;
+            TicketType type;
+            try {
+                type = TicketType.valueOf(item.ticketType().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new ValidationException("Invalid ticket type: " + item.ticketType());
+            }
+            List<UUID> reserved = ticketService.findAndReserveAvailableTickets(item.eventId(), type, item.quantity());
+            if (reserved.size() < item.quantity()) {
+                for (UUID id : allIds) {
+                    try {
+                        ticketService.markTicketAsAvailable(id);
+                    } catch (Exception e) {
+                        log.warn("Failed to release ticket {} on partial reserve failure: {}", id, e.getMessage());
+                    }
+                }
+                throw new ValidationException("Not enough tickets available for event " + item.eventId() + " type " + item.ticketType());
+            }
+            allIds.addAll(reserved);
+        }
+        return allIds;
+    }
+
+    @Override
+    public OrderEntity createOrderForGuestWithReservedTickets(String guestEmail, String guestFirstName, String guestLastName,
+                                                              List<GuestOrderItem> items, BigDecimal totalAmount,
+                                                              List<UUID> reservedTicketIds) {
+        if (reservedTicketIds == null || reservedTicketIds.isEmpty()) {
+            return createOrderForGuest(guestEmail, guestFirstName, guestLastName, items, totalAmount);
+        }
+        int expectedCount = items.stream().mapToInt(GuestOrderItem::quantity).sum();
+        if (reservedTicketIds.size() != expectedCount) {
+            throw new ValidationException("Reserved ticket count does not match items");
+        }
+        BigDecimal calculatedTotal = BigDecimal.ZERO;
+        List<OrderItemEntity> orderItems = new ArrayList<>();
+        int idx = 0;
+        for (GuestOrderItem item : items) {
+            for (int q = 0; q < item.quantity(); q++) {
+                UUID ticketId = reservedTicketIds.get(idx++);
+                TicketEntity ticket = ticketService.getTicketById(ticketId);
+                if (ticket.getTicketStatus() != TicketStatus.RESERVED) {
+                    throw new ValidationException("Ticket " + ticketId + " is not reserved");
+                }
+                if (!ticket.getEventId().equals(item.eventId()) || !ticket.getTicketType().name().equalsIgnoreCase(item.ticketType())) {
+                    throw new ValidationException("Reserved ticket does not match item");
+                }
+                OrderItemEntity oi = new OrderItemEntity();
+                oi.setQuantity(1);
+                oi.setPrice(ticket.getPrice());
+                oi.setTicketId(ticket.getId());
+                oi.setTicket(ticket);
+                orderItems.add(oi);
+                calculatedTotal = calculatedTotal.add(ticket.getPrice());
+            }
+        }
+        if (totalAmount == null || calculatedTotal.compareTo(totalAmount) != 0) {
+            throw new ValidationException("Order total does not match calculated amount");
+        }
+        String orderNumber = generateOrderNumber();
+        OrderEntity order = new OrderEntity();
+        order.setOrderNumber(orderNumber);
+        order.setTotalAmount(calculatedTotal);
+        order.setStatus(OrderStatus.PENDING);
+        order.setOrderDate(LocalDateTime.now());
+        order.setUserId(null);
+        order.setGuestEmail(guestEmail);
+        order.setGuestFirstName(guestFirstName);
+        order.setGuestLastName(guestLastName);
+        order.setOrderItems(new ArrayList<>());
+        OrderEntity savedOrder = orderRepository.saveAndFlush(order);
+        for (OrderItemEntity oi : orderItems) {
+            oi.setOrderId(savedOrder.getId());
+            oi.setOrder(savedOrder);
+            savedOrder.getOrderItems().add(oi);
+        }
+        orderRepository.save(savedOrder);
+        log.info("Created guest order from reserved tickets: orderId={}, orderNumber={}", savedOrder.getId(), orderNumber);
+        try {
+            publishOrderToSQS(savedOrder);
+        } catch (Exception e) {
+            log.error("Failed to publish guest order to SQS: orderId={}, error={}", savedOrder.getId(), e.getMessage(), e);
+        }
         return savedOrder;
     }
 
@@ -251,7 +420,12 @@ public class OrderServiceImpl implements OrderService {
         Map<String, Object> payload = new HashMap<>();
         payload.put("orderId", order.getId().toString());
         payload.put("orderNumber", order.getOrderNumber());
-        payload.put("userId", order.getUserId().toString());
+        payload.put("userId", order.getUserId() != null ? order.getUserId().toString() : null);
+        if (order.getGuestEmail() != null) {
+            payload.put("guestEmail", order.getGuestEmail());
+            payload.put("guestFirstName", order.getGuestFirstName());
+            payload.put("guestLastName", order.getGuestLastName());
+        }
         payload.put("totalAmount", order.getTotalAmount().doubleValue());
         payload.put("orderDate", order.getOrderDate().toString());
 
@@ -325,6 +499,19 @@ public class OrderServiceImpl implements OrderService {
             default:
                 throw new IllegalStateException(
                         String.format("Unknown order status: %s", currentStatus));
+        }
+    }
+
+    @Override
+    public void markOrderTicketsAsSold(OrderEntity order) {
+        if (order == null || order.getOrderItems() == null) return;
+        UUID purchaserId = order.getUserId(); // null for guest
+        for (OrderItemEntity oi : order.getOrderItems()) {
+            try {
+                ticketService.markTicketAsSold(oi.getTicketId(), purchaserId);
+            } catch (IOException e) {
+                log.error("Failed to mark ticket as sold: ticketId={}, error={}", oi.getTicketId(), e.getMessage(), e);
+            }
         }
     }
 }

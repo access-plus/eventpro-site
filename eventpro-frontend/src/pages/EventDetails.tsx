@@ -20,6 +20,7 @@ const EventDetails = () => {
   const [event, setEvent] = useState<Event | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [imgError, setImgError] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [ticketMode, setTicketMode] = useState<"general" | "seating">("general");
@@ -133,13 +134,18 @@ const EventDetails = () => {
         >
           {/* Event Details */}
           <div className="lg:col-span-2 space-y-6">
-            {event.imageUrl && (
+            {(event.imageUrl && !imgError) ? (
               <div className="rounded-xl overflow-hidden h-64 md:h-96">
                 <img
                   src={getEventImageUrl(event.imageUrl) ?? ""}
                   alt={event.name}
                   className="w-full h-full object-cover"
+                  onError={() => setImgError(true)}
                 />
+              </div>
+            ) : (
+              <div className="rounded-xl overflow-hidden h-64 md:h-96 bg-muted flex items-center justify-center">
+                <Ticket className="h-24 w-24 text-muted-foreground/50" />
               </div>
             )}
 

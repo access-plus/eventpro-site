@@ -93,5 +93,12 @@ public class TicketEntity extends BaseEntity {
     @Column(name = "creator_id", nullable = false)
     @JdbcTypeCode(SqlTypes.UUID)
     private UUID creatorId;
+
+    /**
+     * When this reservation expires (for RESERVED tickets). After this time the ticket
+     * is released back to AVAILABLE if still RESERVED. Null for non-reserved or sold.
+     */
+    @Column(name = "reserved_until")
+    private java.time.LocalDateTime reservedUntil;
 }
 

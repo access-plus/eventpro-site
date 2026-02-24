@@ -42,21 +42,41 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [isAuthenticated]);
 
+  const GUEST_CART_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
   const loadLocalCart = () => {
     try {
       const stored = localStorage.getItem("eventpro_cart");
-      if (stored) {
-        const cartItems = JSON.parse(stored) as CartItem[];
-        setItems(cartItems);
+      const savedAtRaw = localStorage.getItem("eventpro_cart_saved_at");
+      if (!stored) return;
+      const savedAt = savedAtRaw ? parseInt(savedAtRaw, 10) : NaN;
+      if (!savedAtRaw || Number.isNaN(savedAt)) {
+        localStorage.removeItem("eventpro_cart");
+        localStorage.removeItem("eventpro_cart_saved_at");
+        setItems([]);
+        return;
       }
+      const age = Date.now() - savedAt;
+      if (age > GUEST_CART_MAX_AGE_MS) {
+        localStorage.removeItem("eventpro_cart");
+        localStorage.removeItem("eventpro_cart_saved_at");
+        setItems([]);
+        return;
+      }
+      const cartItems = JSON.parse(stored) as CartItem[];
+      setItems(cartItems);
     } catch (error) {
       console.error("Failed to load local cart:", error);
+      localStorage.removeItem("eventpro_cart");
+      localStorage.removeItem("eventpro_cart_saved_at");
+      setItems([]);
     }
   };
 
   const saveLocalCart = (cartItems: CartItem[]) => {
     try {
       localStorage.setItem("eventpro_cart", JSON.stringify(cartItems));
+      localStorage.setItem("eventpro_cart_saved_at", String(Date.now()));
     } catch (error) {
       console.error("Failed to save local cart:", error);
     }
@@ -164,6 +184,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setItems([]);
     if (!isAuthenticated) {
       localStorage.removeItem("eventpro_cart");
+      localStorage.removeItem("eventpro_cart_saved_at");
     }
   };
 

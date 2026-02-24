@@ -130,6 +130,9 @@ public class EventServiceImpl implements EventService {
         if (eventUpdate.getStatus() != null) {
             existingEvent.setStatus(eventUpdate.getStatus());
         }
+        if (eventUpdate.getImageUrl() != null) {
+            existingEvent.setImageUrl(eventUpdate.getImageUrl());
+        }
 
         // Update category if provided
         if (categoryId != null) {

@@ -6,9 +6,12 @@ import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { GuestCheckoutForm } from "@/components/GuestCheckoutForm";
 import { MerchandiseAddons, type MerchandiseItem } from "@/components/MerchandiseAddons";
+import { CheckoutPaymentForm } from "@/components/CheckoutPaymentForm";
+import { ReservationCountdown } from "@/components/ReservationCountdown";
 import { apiService } from "@/lib/api";
-import { Ticket, Trash2, ArrowLeft, User, LogIn } from "lucide-react";
+import { Ticket, Trash2, ArrowLeft, User, LogIn, CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 interface SelectedMerchItem extends MerchandiseItem {
   quantity: number;
@@ -29,7 +32,7 @@ function eventAddonsToMerchandise(addons: { id: string; name: string; descriptio
 }
 
 const Checkout = () => {
-  const { items, totalAmount, removeItem } = useCart();
+  const { items, totalAmount, removeItem, clearCart } = useCart();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [checkoutMode, setCheckoutMode] = useState<"select" | "guest" | "login">("select");
@@ -41,6 +44,13 @@ const Checkout = () => {
     email: string;
     phone: string;
   } | null>(null);
+  const [paymentStep, setPaymentStep] = useState<"review" | "payment" | "success">("review");
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [reservedTicketIds, setReservedTicketIds] = useState<string[] | null>(null);
+  const [reservedUntil, setReservedUntil] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [isStartingPayment, setIsStartingPayment] = useState(false);
 
   const eventIds = useMemo(() => [...new Set(items.map((i) => i.eventId).filter(Boolean))], [items]);
 
@@ -68,7 +78,78 @@ const Checkout = () => {
     setCheckoutMode("select");
   };
 
-  if (items.length === 0) {
+  const handleProceedToPayment = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    setPaymentError(null);
+    setIsStartingPayment(true);
+    setReservedTicketIds(null);
+    setReservedUntil(null);
+    try {
+      const amount = Number(grandTotal.toFixed(2));
+      if (amount <= 0) {
+        setPaymentError("Order total must be greater than 0");
+        toast.error("Order total must be greater than 0");
+        return;
+      }
+      const isGuest = !isAuthenticated && !!guestInfo;
+      if (isGuest && items.length > 0) {
+        const reservePayload = items.map((i) => ({
+          eventId: i.eventId,
+          ticketType: i.ticketTypeId,
+          quantity: i.quantity,
+        }));
+        const reserveData = await apiService.guestReserve(reservePayload);
+        if (reserveData?.reservedTicketIds?.length) {
+          setReservedTicketIds(reserveData.reservedTicketIds);
+          if (reserveData.reservedUntil) setReservedUntil(reserveData.reservedUntil);
+        }
+      }
+      const data = await apiService.createPaymentIntent(amount);
+      const secret = data?.clientSecret ?? (data as { clientSecret?: string })?.clientSecret;
+      if (!secret) {
+        setPaymentError("Invalid response from server");
+        toast.error("Invalid response from server");
+        return;
+      }
+      setClientSecret(secret);
+      setPaymentStep("payment");
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string }; status?: number } };
+      const msg =
+        ax?.response?.data?.message ??
+        (err instanceof Error ? err.message : "Could not start payment");
+      setPaymentError(msg);
+      toast.error(msg);
+    } finally {
+      setIsStartingPayment(false);
+    }
+  };
+
+  const buildGuestConfirm = (paymentIntentId: string) => {
+    if (!guestInfo) throw new Error("Guest info required");
+    return apiService.confirmGuestPayment({
+      paymentIntentId,
+      email: guestInfo.email,
+      firstName: guestInfo.firstName,
+      lastName: guestInfo.lastName,
+      items: items.map((i) => ({
+        eventId: i.eventId,
+        ticketType: i.ticketTypeId,
+        quantity: i.quantity,
+      })),
+      totalAmount: grandTotal,
+      reservedTicketIds: reservedTicketIds ?? undefined,
+    });
+  };
+
+  const handlePaymentSuccess = (id: string) => {
+    setOrderId(id);
+    setPaymentStep("success");
+    clearCart();
+    toast.success("Order placed successfully");
+  };
+
+  if (items.length === 0 && paymentStep !== "success") {
     return (
       <div className="min-h-screen flex items-center justify-center py-12 px-4">
         <Card className="p-8 text-center max-w-md">
@@ -80,6 +161,24 @@ const Checkout = () => {
           <Button onClick={() => navigate("/events")}>
             Browse Events
           </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  if (paymentStep === "success") {
+    return (
+      <div className="min-h-screen flex items-center justify-center py-12 px-4">
+        <Card className="p-8 text-center max-w-md">
+          <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500" />
+          <h2 className="text-2xl font-bold mb-2">Thank you!</h2>
+          <p className="text-muted-foreground mb-4">
+            Your order has been placed. {orderId && `Order #${orderId.slice(0, 8)}`}
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Button variant="outline" onClick={() => navigate("/events")}>Browse more events</Button>
+            <Button onClick={() => navigate("/")}>Back to home</Button>
+          </div>
         </Card>
       </div>
     );
@@ -331,15 +430,67 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                <Button
-                  className="w-full bg-gradient-primary"
-                  size="lg"
-                  disabled={!isAuthenticated && !guestInfo}
-                >
-                  Proceed to Payment
-                </Button>
+                {paymentStep === "review" && (
+                  <>
+                    {reservedUntil && (
+                      <ReservationCountdown
+                        reservedUntil={reservedUntil}
+                        onExpired={() => {
+                          setReservedUntil(null);
+                          setReservedTicketIds(null);
+                          toast.warning("Reservation expired. Tickets were released. Please try again.");
+                        }}
+                        className="mb-2"
+                      />
+                    )}
+                    <Button
+                      type="button"
+                      className="w-full bg-gradient-primary"
+                      size="lg"
+                      disabled={(!isAuthenticated && !guestInfo) || isStartingPayment}
+                      onClick={(e) => handleProceedToPayment(e)}
+                    >
+                      {isStartingPayment ? "Starting payment…" : "Proceed to Payment"}
+                    </Button>
+                    {paymentError && (
+                      <p className="text-sm text-destructive text-center mt-2">{paymentError}</p>
+                    )}
+                  </>
+                )}
+                {paymentStep === "payment" && clientSecret && (
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setPaymentStep("review"); setPaymentError(null); setReservedUntil(null); }}
+                    >
+                      ← Back to review
+                    </Button>
+                    {reservedUntil && (
+                      <ReservationCountdown
+                        reservedUntil={reservedUntil}
+                        onExpired={() => {
+                          setReservedUntil(null);
+                          setReservedTicketIds(null);
+                          setPaymentStep("review");
+                          toast.warning("Reservation expired. Tickets were released. Please try again.");
+                        }}
+                      />
+                    )}
+                    <CheckoutPaymentForm
+                      clientSecret={clientSecret}
+                      amount={grandTotal}
+                      isGuest={!isAuthenticated && !!guestInfo}
+                      guestConfirm={!isAuthenticated && guestInfo ? buildGuestConfirm : undefined}
+                      authenticatedConfirm={isAuthenticated ? (id) => apiService.confirmPayment(id) : undefined}
+                      onSuccess={handlePaymentSuccess}
+                      onError={(msg) => { setPaymentError(msg); toast.error(msg); }}
+                    />
+                  </div>
+                )}
 
-                {!isAuthenticated && !guestInfo && (
+                {!isAuthenticated && !guestInfo && paymentStep === "review" && (
                   <p className="text-xs text-muted-foreground text-center">
                     Please provide your information above to continue
                   </p>

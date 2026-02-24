@@ -58,14 +58,21 @@ public class OrderEntity extends BaseEntity {
     private LocalDateTime orderDate;
 
     /**
-     * User ID reference (UUID) instead of entity relationship
-     * to maintain framework independence.
-     * Backend modules can add @ManyToOne UserEntity if needed.
+     * User ID reference (UUID) when order is placed by authenticated user.
+     * Null for guest checkout.
      */
-    @NotNull(message = "User ID is required")
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id")
     @JdbcTypeCode(SqlTypes.UUID)
     private UUID userId;
+
+    @Column(name = "guest_email", length = 255)
+    private String guestEmail;
+
+    @Column(name = "guest_first_name", length = 100)
+    private String guestFirstName;
+
+    @Column(name = "guest_last_name", length = 100)
+    private String guestLastName;
 
     /**
      * Order items relationship.

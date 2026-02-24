@@ -26,6 +26,8 @@ public class UserResponse {
     private String profilePictureUrl;
     private String status;
     private String role;
+    /** Plan tier: BASIC, PRO, ENTERPRISE. Used for feature gating. */
+    private String subscriptionTier;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
@@ -63,6 +65,7 @@ public class UserResponse {
                 .profilePictureUrl(entity.getProfilePictureUrl())
                 .status(entity.getStatus())
                 .role(entity.getRole())
+                .subscriptionTier(entity.getSubscriptionTier() != null ? entity.getSubscriptionTier() : "BASIC")
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .accountNonExpired(true)

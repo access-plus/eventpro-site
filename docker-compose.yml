@@ -53,6 +53,8 @@ services:
     image: gradle:8.5-jdk21
     container_name: backend
     working_dir: /app
+    env_file:
+      - .env
     volumes:
       # Mount entire backend directory to access services, shared, and lambdas
       # This allows DevTools to detect changes and hot reload
@@ -85,10 +87,10 @@ services:
       - JWT_ACCESS_TTL_SECONDS=${JWT_ACCESS_TTL_SECONDS:-3600}
       - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
       - JWT_PRIVATE_KEY=${JWT_PRIVATE_KEY}
-      # Stripe Configuration - set in .env file for local development
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_local}
-      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-pk_test_local}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_test_local}
+      # Stripe: values from .env (Compose loads .env from project root when you run from project root)
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
       # Enable DevTools for hot reload
       - SPRING_DEVTOOLS_RESTART_ENABLED=true
     command: >
