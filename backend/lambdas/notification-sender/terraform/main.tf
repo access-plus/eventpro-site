@@ -8,15 +8,19 @@ locals {
   common_tags = merge(var.tags, { Env = local.workspace })
 }
 
+provider "aws" {
+  region = var.aws_region
+}
+
 # Remote state from services (queues)
 data "terraform_remote_state" "services" {
   backend   = "s3"
   workspace = terraform.workspace
 
   config = {
-    bucket = "eventpro-site-state"
-    key    = "services/terraform.tfstate"
-    region = "us-east-1"
+    bucket = var.services_state_bucket
+    key    = var.services_state_key
+    region = var.services_state_region
   }
 }
 
@@ -130,8 +134,6 @@ resource "aws_lambda_function" "notification_sender" {
   function_name = "${local.name_prefix}-notification-sender"
   description   = "Sends notifications from SQS via SES (email) and SNS (SMS)"
   role          = aws_iam_role.lambda.arn
-  handler       = "org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest"
-  runtime       = "provided.al2"
   timeout       = var.timeout_seconds
   memory_size   = var.memory_size_mb
 
@@ -162,8 +164,6 @@ resource "aws_lambda_event_source_mapping" "notification_queue" {
 
   batch_size                         = var.batch_size
   maximum_batching_window_in_seconds = 5
-  bisect_batch_on_function_error     = true
-  maximum_retry_attempts             = 3
 
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-notification-sender-event-source" })
 }

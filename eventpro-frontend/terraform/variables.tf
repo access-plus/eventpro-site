@@ -15,6 +15,12 @@ variable "backend_key_services" {
   default     = "services/terraform.tfstate"
 }
 
+variable "backend_region_services" {
+  description = "AWS region of the services Terraform state bucket"
+  type        = string
+  default     = "us-east-1"
+}
+
 variable "aws_region" {
   description = "AWS region"
   type        = string

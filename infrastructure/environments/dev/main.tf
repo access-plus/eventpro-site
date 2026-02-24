@@ -91,7 +91,7 @@ module "sqs_order" {
   queue_name                 = "${var.name_prefix}-order-queue"
   queue_purpose              = "Order processing queue"
   message_retention_seconds  = 345600 # 4 days
-  visibility_timeout_seconds = 30
+  visibility_timeout_seconds = 60
   receive_wait_time_seconds  = 20     # Long polling
 
   tags = var.tags
@@ -103,7 +103,7 @@ module "sqs_payment" {
   queue_name                 = "${var.name_prefix}-payment-queue"
   queue_purpose              = "Payment processing queue"
   message_retention_seconds  = 345600 # 4 days
-  visibility_timeout_seconds = 30
+  visibility_timeout_seconds = 900
   receive_wait_time_seconds  = 20     # Long polling
 
   tags = var.tags
@@ -115,7 +115,7 @@ module "sqs_notification" {
   queue_name                 = "${var.name_prefix}-notification-queue"
   queue_purpose              = "Notification sending queue"
   message_retention_seconds  = 345600 # 4 days
-  visibility_timeout_seconds = 30
+  visibility_timeout_seconds = 60
   receive_wait_time_seconds  = 20     # Long polling
 
   tags = var.tags

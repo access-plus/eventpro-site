@@ -17,6 +17,24 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "services_state_bucket" {
+  description = "S3 bucket containing the services Terraform state"
+  type        = string
+  default     = "eventpro-site-state"
+}
+
+variable "services_state_key" {
+  description = "Key for the services Terraform state file"
+  type        = string
+  default     = "services/terraform.tfstate"
+}
+
+variable "services_state_region" {
+  description = "AWS region of the services Terraform state bucket"
+  type        = string
+  default     = "us-east-1"
+}
+
 variable "timeout_seconds" {
   description = "Lambda function timeout in seconds"
   type        = number

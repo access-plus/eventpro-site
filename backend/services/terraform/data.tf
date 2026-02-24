@@ -19,7 +19,8 @@ data "aws_subnets" "default" {
 
 # Route53 hosted zone (must exist in account)
 data "aws_route53_zone" "main" {
-  name = var.domain_name
+  name         = var.domain_name
+  private_zone = false
 }
 
 locals {

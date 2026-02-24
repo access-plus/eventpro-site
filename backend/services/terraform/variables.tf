@@ -24,6 +24,12 @@ variable "alb_certificate_arn" {
   default     = ""
 }
 
+variable "aws_region" {
+  description = "AWS region to deploy resources into"
+  type        = string
+  default     = "us-east-1"
+}
+
 # RDS
 variable "db_name" {
   description = "Database name"
@@ -107,6 +113,25 @@ variable "db_deletion_protection" {
   description = "Enable deletion protection"
   type        = bool
   default     = false
+}
+
+# SQS
+variable "order_queue_visibility_timeout_seconds" {
+  description = "Order queue visibility timeout in seconds (match/ exceed order-processor Lambda timeout)"
+  type        = number
+  default     = 60
+}
+
+variable "payment_queue_visibility_timeout_seconds" {
+  description = "Payment queue visibility timeout in seconds (match/ exceed payment-processor Lambda timeout)"
+  type        = number
+  default     = 60
+}
+
+variable "notification_queue_visibility_timeout_seconds" {
+  description = "Notification queue visibility timeout in seconds (match/ exceed notification-sender Lambda timeout)"
+  type        = number
+  default     = 60
 }
 
 # ECS

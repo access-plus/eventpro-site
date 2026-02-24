@@ -92,5 +92,5 @@ output "s3_images_bucket_id" {
 
 output "api_url" {
   description = "API base URL"
-  value       = "https://${terraform.workspace}-api.${var.domain_name}"
+  value       = "${local.alb_cert_arn != null ? "https" : "http"}://${terraform.workspace}-api.${var.domain_name}"
 }

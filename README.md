@@ -1,6 +1,6 @@
 # EventPro Platform
 
-A comprehensive full-stack event ticketing platform built with a **Modular Monolith Architecture** and **Serverless Lambda Functions**. EventPro enables event organizers to create, manage, and sell tickets for events while providing customers with a seamless experience to discover, purchase, and attend events.
+A comprehensive full-stack event ticketing platform built with a **Spring Boot modular monolith** and **SQS-triggered AWS Lambda functions**. EventPro enables event organizers to create, manage, and sell tickets for events while providing customers with a seamless experience to discover, purchase, and attend events.
 
 ---
 
@@ -26,8 +26,8 @@ EventPro is a modern event ticketing platform designed to handle the complete li
 - **Event Management**: Create, update, and manage events with rich metadata
 - **Ticket Sales**: Multiple ticket types (VIP, Regular, Early Bird) with dynamic pricing
 - **User Management**: Role-based access control (Admin, Organizer, User) with authentication
-- **Shopping Cart & Checkout**: Seamless cart management and order processing
-- **Payment Processing**: Stripe integration for secure payments
+- **Shopping Cart & Checkout**: Cart management and order creation (checkout UI exists; end-to-end payment UI flow is still being finalized)
+- **Payment Processing**: Stripe integration in both API and async processors (payment architecture is currently in transition)
 - **Notifications**: Multi-channel notifications (Email, SMS, In-App, Push)
 - **Search & Discovery**: Advanced event search and filtering capabilities
 - **Async Processing**: Event-driven order processing, payment processing, and notifications via Lambda functions
@@ -35,18 +35,31 @@ EventPro is a modern event ticketing platform designed to handle the complete li
 ### Key Characteristics
 
 - **Modular Monolith**: Single deployable unit with clear module boundaries
-- **Serverless Functions**: Quarkus-based Lambda functions for async processing
-- **Shared Module**: Framework-agnostic entities, enums, and utilities
+- **Serverless Functions**: Spring Boot 4 + Spring Cloud Function Lambda processors for async workflows
+- **Shared Types Migration**: `backend/shared` is deprecated; services/lambdas now mostly use local copies of shared models/entities
 - **Cloud-Native**: Built for AWS with infrastructure as code
 - **Scalable**: Designed to scale from startup to enterprise
 - **Secure**: JWT authentication (RS256), role-based authorization, encrypted data
 - **Developer-Friendly**: Hot reload, comprehensive testing, clear documentation
+
+### Current Repository State (Important)
+
+- **Production AWS Terraform is split by component**:
+  - `backend/services/terraform/`
+  - `eventpro-frontend/terraform/`
+  - `backend/lambdas/*/terraform/`
+- **Legacy module-based Terraform** still exists under `infrastructure/` (used by older docs/workflows and local-stack-oriented flows)
+- **Lambdas are Spring Boot container images** (some diagrams/older sections below still show historical Quarkus labels)
+- **CI/CD is transitional**: component GitHub workflows exist; top-level `.github/workflows/deploy.yml` currently only detects changes
+- **Known app gaps**: production CORS for workspace domains and frontend checkout payment submission wiring still need completion
 
 ---
 
 ## Architecture
 
 ### Comprehensive Architecture Diagram
+
+Note: The detailed diagrams in this section contain some historical labels (for example, Quarkus lambdas and shared module references). The current implementation uses Spring Boot-based lambdas and component-scoped Terraform.
 
 <details>
 <summary>Click to expand - Complete Service-to-Service Communication</summary>
@@ -626,25 +639,24 @@ EventPro uses a **Modular Monolith** architecture for the main API service, comb
 
 **Main API Service (Spring Boot):**
 
-- ✅ **Single Build System**: No Spring Boot + Quarkus conflicts
+- ✅ **Single Build System**: Spring Boot modular monolith for the primary API
 - ✅ **Simplified Deployment**: One Docker image, one ECS service
 - ✅ **Easier Development**: Single application to run locally
 - ✅ **Lower Costs**: ~$81/month vs ~$170/month (52% reduction)
 - ✅ **Future-Proof**: Can extract modules to microservices when needed
 
-**Lambda Functions (Quarkus):**
+**Lambda Functions (Spring Boot + Spring Cloud Function):**
 
-- ✅ **Fast Cold Starts**: 50-200ms with native compilation
+- ✅ **Framework Consistency**: Same framework family as the backend API
 - ✅ **Cost-Effective**: Pay per invocation
 - ✅ **Auto-Scaling**: Handles traffic spikes automatically
 - ✅ **Event-Driven**: SQS-triggered async processing
 
-**Shared Module:**
+**Shared Code Strategy (Current):**
 
-- ✅ **Single Source of Truth**: Entities, enums, DTOs defined once
-- ✅ **Framework-Agnostic**: Works with both Spring Boot and Quarkus
-- ✅ **Type Safety**: Same types across backend and Lambda
-- ✅ **No Duplication**: Eliminates code duplication
+- `backend/shared/` remains in the repo for reference/backward compatibility
+- Active services and lambdas have been moving to component-local copies of shared entities/models/enums
+- This reduces cross-component build coupling at the cost of intentional duplication
 
 **Module Communication:**
 
@@ -670,12 +682,11 @@ EventPro uses a **Modular Monolith** architecture for the main API service, comb
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | **Java** | 25 | Programming language |
-| **Spring Boot** | 4.0.0 | Application framework (Main API) |
-| **Quarkus** | 3.27.0 | Lambda framework (Async processing) |
+| **Spring Boot** | 4.0.x | Application framework (API + Lambdas) |
+| **Spring Cloud Function AWS** | 4.0.5 | AWS Lambda adapter for Java Lambdas |
 | **Gradle** | 9.2.1 | Build tool |
 | **PostgreSQL** | 16+ | Primary database |
 | **Spring Data JPA** | - | Database access layer |
-| **Hibernate Panache** | - | Database access (Lambda) |
 | **Spring Security** | - | Security framework |
 | **AWS SDK** | 2.38.7 | AWS service integration |
 | **Flyway** | - | Database migrations |
@@ -686,11 +697,11 @@ EventPro uses a **Modular Monolith** architecture for the main API service, comb
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **React** | 19.2.0 | UI framework |
+| **React** | 18.3.x | UI framework |
 | **TypeScript** | 5.9.3 | Type-safe JavaScript |
-| **Vite** | 7.2.2 | Build tool & dev server |
-| **Redux Toolkit** | 2.10.1 | State management |
-| **React Router** | 7.9.6 | Client-side routing |
+| **Vite** | 7.x | Build tool & dev server |
+| **React Context + TanStack Query** | - | State/data management |
+| **React Router** | 6.x | Client-side routing |
 | **shadcn/ui** | - | UI component library |
 | **Tailwind CSS** | 3.4.18 | Utility-first CSS |
 | **Radix UI** | - | Accessible UI primitives |
@@ -700,8 +711,8 @@ EventPro uses a **Modular Monolith** architecture for the main API service, comb
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **Terraform** | 1.5+ | Infrastructure as Code |
-| **AWS Provider** | 6.21.0+ | AWS resource management |
+| **Terraform** | 1.12+ | Infrastructure as Code |
+| **AWS Provider** | 6.31.x | AWS resource management |
 | **Docker** | - | Containerization |
 | **Docker Compose** | - | Local development orchestration |
 | **LocalStack** | 4.10.0 | AWS service emulation |
@@ -714,7 +725,7 @@ EventPro uses a **Modular Monolith** architecture for the main API service, comb
 | **Lambda** | Serverless functions (Order, Payment, Notification processing) |
 | **RDS PostgreSQL** | Managed database (Multi-AZ) |
 | **S3** | Image storage for events |
-| **CloudFront** | CDN for frontend and images |
+| **CloudFront** | CDN for frontend static assets (images handling varies by environment) |
 | **ALB** | Application Load Balancer |
 | **Route53** | DNS management |
 | **Secrets Manager** | Secure credential storage |
@@ -734,89 +745,40 @@ EventPro uses a **Modular Monolith** architecture for the main API service, comb
 
 ```txt
 eventpro-site/
-├── backend/                      # Backend Application
-│   ├── services/                 # Spring Boot Modular Monolith
+├── backend/
+│   ├── services/                      # Spring Boot modular monolith (API)
 │   │   ├── modules/
-│   │   │   ├── eventpro-core/   # Core module: Users, Auth, Common utilities
-│   │   │   ├── eventpro-event/  # Event module: Events, Tickets, Search
-│   │   │   ├── eventpro-order/  # Order module: Cart, Orders, Checkout
-│   │   │   ├── eventpro-payment/# Payment module: Stripe integration
-│   │   │   ├── eventpro-notification/# Notification module: Email, SMS, WebSocket
-│   │   │   └── eventpro-api/    # Main application module (REST API layer)
-│   │   ├── build.gradle         # Root build configuration
-│   │   ├── settings.gradle      # Project settings
-│   │   ├── Dockerfile           # Docker image definition
-│   │   └── README.md            # Backend documentation
-│   │
-│   ├── lambdas/                 # AWS Lambda Functions (Quarkus)
-│   │   ├── order-processor/     # Order processing Lambda
-│   │   │   ├── src/
-│   │   │   ├── build.gradle
-│   │   │   ├── Dockerfile       # JVM build
-│   │   │   ├── Dockerfile.native# Native build
-│   │   │   └── settings.gradle
-│   │   ├── payment-processor/   # Payment processing Lambda
-│   │   └── notification-sender/ # Notification Lambda
-│   │
-│   └── shared/                   # Shared Module (Framework-agnostic)
-│       ├── src/main/java/com/accessplus/eventpro/shared/
-│       │   ├── entity/          # JPA entities (BaseEntity, OrderEntity, etc.)
-│       │   ├── enums/           # Enums (OrderStatus, TicketStatus, etc.)
-│       │   ├── model/           # DTOs (OrderMessage, PaymentMessage)
-│       │   ├── exception/       # Common exceptions
-│       │   └── util/            # Common utilities
-│       ├── build.gradle
-│       └── settings.gradle
-│
-├── frontend/                     # Frontend Application (React + TypeScript)
+│   │   │   ├── eventpro-core/
+│   │   │   ├── eventpro-event/
+│   │   │   ├── eventpro-order/
+│   │   │   ├── eventpro-payment/
+│   │   │   └── eventpro-api/         # Main application entrypoint/controllers
+│   │   ├── terraform/                # AWS infra for API/RDS/SQS/ALB/ECS
+│   │   └── Dockerfile
+│   ├── lambdas/                      # Spring Boot Lambda container functions
+│   │   ├── order-processor/
+│   │   │   └── terraform/
+│   │   ├── payment-processor/
+│   │   │   └── terraform/
+│   │   ├── notification-sender/
+│   │   │   └── terraform/
+│   │   └── secret-rotation/          # Python Lambda (separate utility)
+│   └── shared/                       # Deprecated shared module (kept for reference)
+├── eventpro-frontend/                # React + TypeScript frontend
 │   ├── src/
-│   │   ├── components/           # React components
-│   │   ├── pages/                # Page components
-│   │   ├── services/             # API service layer
-│   │   ├── store/                # Redux store and slices
-│   │   ├── hooks/                # Custom React hooks
-│   │   └── lib/                  # Utility functions
-│   ├── public/                   # Static assets
-│   ├── package.json              # Dependencies and scripts
-│   ├── vite.config.ts           # Vite configuration
-│   ├── tailwind.config.js       # Tailwind CSS configuration
-│   └── README.md                # Frontend documentation
-│
-├── infrastructure/               # Infrastructure as Code (Terraform)
+│   ├── terraform/                    # S3 + CloudFront + Route53
+│   └── package.json
+├── infrastructure/                   # Legacy/alternative Terraform stacks + modules
 │   ├── environments/
-│   │   ├── local/                # Local development environment
-│   │   └── dev/                  # Development environment
-│   └── modules/                  # Reusable Terraform modules
-│       ├── alb/                  # Application Load Balancer
-│       ├── cloudfront/           # CloudFront CDN
-│       ├── ecs/                  # ECS Fargate service
-│       ├── lambda/               # Lambda functions
-│       ├── rds/                  # RDS PostgreSQL
-│       ├── route53/              # Route53 DNS
-│       ├── s3/                   # S3 buckets
-│       ├── secrets-manager/      # Secrets Manager
-│       ├── sqs/                  # SQS queues
-│       └── vpc/                  # VPC and networking
-│
-├── specs/                       # Project specifications and documentation
-│   └── 001-eventpro-platform/
-│       ├── data-model.md        # Database schema documentation
-│       ├── plan.md              # Implementation plan
-│       └── tasks.md             # Task tracking
-│
-├── z_docs/                      # Additional documentation
-│   ├── architecture-recommendation.md
-│   ├── modular-monolith-architecture.md
-│   ├── project-structure.md
-│   └── guideline.md
-│
-├── docker-compose.yml           # Local development orchestration
-├── Makefile                     # Development automation commands
-├── .gitlab-ci.yml              # CI/CD pipeline configuration
-├── LOCAL_DEVELOPMENT_GUIDE.md  # Comprehensive local development guide
-├── SHARED_MODULE_GUIDE.md      # Shared module documentation
-├── LAMBDA_IMPLEMENTATION_GUIDE.md # Lambda functions documentation
-└── README.md                   # This file
+│   └── modules/
+├── docs/                             # Project docs (lambda, infra, research)
+├── .github/                          # GitHub Actions (component workflows + composite actions)
+├── docker-compose.yml
+├── Makefile
+├── LOCAL_DEVELOPMENT_GUIDE.md
+├── microservice-terraform-refactor.md
+├── lambda-quarkus-to-springboot.md
+└── README.md
 ```
 
 </details>
@@ -855,27 +817,20 @@ eventpro-site/
    - Webhook handling
    - Payment status management
 
-5. **eventpro-notification**
-   - Email notifications (AWS SES)
-   - SMS notifications (AWS SNS)
-   - In-app notifications
-   - Push notifications (future)
-   - Notification preferences
-
-6. **eventpro-api**
+5. **eventpro-api**
    - REST API controllers
    - DTOs (Data Transfer Objects)
    - API configuration
    - Main application entry point
    - Global exception handling
 
-#### Lambda Functions (Quarkus)
+#### Lambda Functions (Spring Boot container images)
 
 1. **order-processor**
    - Processes orders from SQS queue
    - Validates orders and reserves tickets
    - Publishes to payment queue
-   - Uses shared module for entities and enums
+   - Uses local copies of required entities/models/enums (shared module decoupling)
 
 2. **payment-processor**
    - Processes payments from SQS queue
@@ -886,15 +841,13 @@ eventpro-site/
 3. **notification-sender**
    - Sends notifications from SQS queue
    - Email (SES) and SMS (SNS) delivery
-   - Notification preferences handling
+   - In-app notification currently simulated/logged
 
-#### Shared Module
+#### `backend/shared` (Deprecated Reference Module)
 
-- **Entities**: BaseEntity, OrderEntity, OrderItemEntity, TicketEntity
-- **Enums**: OrderStatus, TicketStatus, TicketType
-- **Models**: OrderMessage, PaymentMessage
-- **Exceptions**: BusinessException, ResourceNotFoundException, ValidationException, etc.
-- **Utilities**: DateUtils, StringUtils, UuidUtils
+- Still present in the repo for reference/history
+- No longer the primary dependency path for current services/lambdas
+- Active code has been moved/copied into component-local packages in most runtime paths
 
 </details>
 
@@ -974,23 +927,24 @@ eventpro-site/
   - Multi-AZ deployment for high availability
 
 - **Lambda**: Serverless functions for async processing
-  - Order Processor (Quarkus)
-  - Payment Processor (Quarkus)
-  - Notification Sender (Quarkus)
+  - Order Processor (Spring Boot + Spring Cloud Function)
+  - Payment Processor (Spring Boot + Spring Cloud Function)
+  - Notification Sender (Spring Boot + Spring Cloud Function)
   - Container images deployed via ECR
 
 #### Database
 
-- **RDS PostgreSQL (Multi-AZ)**: Primary database
+- **RDS PostgreSQL**: Primary database
   - Automated backups
   - Point-in-time recovery
-  - Read replicas (optional)
+  - Multi-AZ is configurable (not enabled by default in current component Terraform)
+  - Read replicas (optional/future)
 
 #### Storage
 
 - **S3**: Event image storage
-  - Public read access for images
-  - CloudFront integration for CDN
+  - Bucket is private in current component Terraform (public access blocked)
+  - CORS configured for frontend + local development origins
 
 - **ECR**: Container registry
   - Lambda function images
@@ -998,9 +952,9 @@ eventpro-site/
 
 #### Networking
 
-- **VPC**: Isolated network environment
-  - Public and private subnets
-  - NAT Gateway for outbound internet access
+- **VPC**:
+  - Current component Terraform (`backend/services/terraform`) uses the AWS **default VPC**
+  - Legacy module-based `infrastructure/` stack can provision a custom VPC
 - **ALB**: Application Load Balancer
   - SSL/TLS termination
   - Health checks
@@ -1030,7 +984,7 @@ eventpro-site/
   - Order queue (order processing)
   - Payment queue (payment processing)
   - Notification queue (notifications)
-  - Dead letter queues for error handling
+  - LocalStack/local infra flow provisions DLQs; current component AWS Terraform queues do not create DLQs by default
 
 #### CDN
 
@@ -1059,7 +1013,7 @@ For local development, the following services are used:
 - **Java 25** - [Download](https://adoptium.net/)
 - **Node.js 22+** and **npm** - [Download](https://nodejs.org/)
 - **Docker** and **Docker Compose** - [Download](https://www.docker.com/get-started)
-- **Terraform 1.5+** - [Download](https://www.terraform.io/downloads)
+- **Terraform 1.12+** - [Download](https://www.terraform.io/downloads)
 - **Make** - Usually pre-installed on macOS/Linux
 - **AWS CLI** - [Download](https://aws.amazon.com/cli/) (optional, for testing LocalStack)
 - **OpenSSL** - Required for generating JWT RSA keys
@@ -1108,17 +1062,17 @@ cd backend/lambdas/order-processor
 ./gradlew test           # Run tests
 ```
 
-**Shared Module:**
+**Shared Module (Deprecated / Reference Only):**
 
 ```bash
 cd backend/shared
-./gradlew build          # Build shared module
+./gradlew build          # Optional: build deprecated shared module for reference/testing
 ```
 
 **Frontend:**
 
 ```bash
-cd frontend
+cd eventpro-frontend
 npm install              # Install dependencies
 npm run dev              # Start development server
 npm run build            # Build for production
@@ -1129,12 +1083,10 @@ npm test                 # Run tests
 
 ```bash
 # Build backend services image
-cd backend/services
-docker build -t eventpro-api:latest .
+docker build -t eventpro-api:latest -f backend/services/Dockerfile backend
 
 # Build Lambda image
-cd backend/lambdas/order-processor
-docker build -t eventpro-order-processor:latest -f Dockerfile .
+docker build -t eventpro-order-processor:latest -f backend/lambdas/order-processor/Dockerfile backend
 ```
 
 ---
@@ -1212,6 +1164,8 @@ Authorization: Bearer <jwt_token>
 ```
 
 ### Available Endpoints
+
+Note: Swagger/OpenAPI (`/swagger-ui/index.html`) is the source of truth. The static list below is a quick reference and may lag behind the implementation.
 
 <details>
 <summary><strong>Click to expand</strong></summary>
@@ -1315,18 +1269,18 @@ When running locally, access Swagger UI at:
 ### Documentation
 
 - **[LOCAL_DEVELOPMENT_GUIDE.md](./LOCAL_DEVELOPMENT_GUIDE.md)** - Comprehensive local development guide
-- **[SHARED_MODULE_GUIDE.md](./SHARED_MODULE_GUIDE.md)** - Shared module architecture and usage
-- **[LAMBDA_IMPLEMENTATION_GUIDE.md](./z_docs/LAMBDA_IMPLEMENTATION_GUIDE.md)** - Lambda functions implementation guide
+- **[docs/LAMBDA_IMPLEMENTATION_GUIDE.md](./docs/LAMBDA_IMPLEMENTATION_GUIDE.md)** - Lambda functions implementation guide
+- **[microservice-terraform-refactor.md](./microservice-terraform-refactor.md)** - Component Terraform refactor plan/status notes
+- **[lambda-quarkus-to-springboot.md](./lambda-quarkus-to-springboot.md)** - Lambda migration notes (some sections are historical status logs)
 - **[backend/services/README.md](./backend/services/README.md)** - Backend application documentation
-- **[backend/shared/README.md](./backend/shared/README.md)** - Shared module documentation
-- **[frontend/README.md](./frontend/README.md)** - Frontend application documentation
+- **[backend/shared/README.md](./backend/shared/README.md)** - Deprecated shared module documentation (reference only)
+- **[eventpro-frontend/README.md](./eventpro-frontend/README.md)** - Frontend application documentation
 - **[z_docs/modular-monolith-architecture.md](./z_docs/modular-monolith-architecture.md)** - Detailed architecture design
-- **[specs/001-eventpro-platform/data-model.md](./specs/001-eventpro-platform/data-model.md)** - Database schema documentation
 
 ### External Resources
 
 - [Spring Boot Documentation](https://spring.io/projects/spring-boot)
-- [Quarkus Documentation](https://quarkus.io/)
+- [Spring Cloud Function Documentation](https://docs.spring.io/spring-cloud-function/reference/)
 - [React Documentation](https://react.dev/)
 - [AWS Documentation](https://docs.aws.amazon.com/)
 - [Terraform Documentation](https://www.terraform.io/docs)
@@ -1334,15 +1288,15 @@ When running locally, access Swagger UI at:
 
 ### CI/CD
 
-- GitLab CI/CD pipeline configuration: `.gitlab-ci.yml`
-- Automated testing, building, and deployment
-- Docker image builds for backend services and Lambda functions
-- ECR integration for Lambda container images
+- GitHub Actions component workflows in `.github/workflows/` (services, frontend, lambdas)
+- Composite GitHub Actions in `.github/actions/` for Gradle, Docker/ECR, and Terraform
+- Top-level `deploy.yml` currently performs change detection only (orchestration is still being completed)
+- GitLab CI configuration also exists: `.gitlab-ci.yml`
 
 ### Testing
 
 - **Backend**: JUnit 5, JaCoCo for coverage
-- **Lambda**: Quarkus JUnit 5, Mockito
+- **Lambda**: Spring Boot tests (currently mostly context-load smoke tests)
 - **Frontend**: Vitest, React Testing Library
 - **Integration**: Docker Compose for local integration testing
 
@@ -1390,7 +1344,7 @@ For email notifications via Resend:
 Order of operations:
 
 - services
-- frontend
+- eventpro-frontend
 - lambdas
 
 </details>
