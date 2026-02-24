@@ -219,7 +219,7 @@ web-install:
 
 docker-build:
 	@echo "Building EventPro API Docker image..."
-	cd backend && docker build -f services/Dockerfile -t backend:latest .
+	cd backend && docker image build -f services/Dockerfile -t backend:latest .
 
 docker-analytics:
 	@echo "Building Analytics Service Docker image..."
@@ -232,7 +232,7 @@ docker-analytics:
 # docker-secret-rotation: Removed - RDS now manages credential rotation natively
 # docker-secret-rotation:
 # 	@echo "Building Secret Rotation Lambda Docker image..."
-# 	cd $(SECRET_ROTATION_DIR) && docker build -f Dockerfile -t secret-rotation:latest .
+# 	cd $(SECRET_ROTATION_DIR) && docker image build -f Dockerfile -t secret-rotation:latest .
 
 # Lambda Docker Images
 lambda-build:

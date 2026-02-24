@@ -362,14 +362,14 @@ LAMBDA_IMPLEMENTATION_GUIDE.md      # This comprehensive guide
 #### Build Image
 ```bash
 cd backend/lambdas/order-processor
-docker build -t eventpro-order-processor:latest -f Dockerfile .
+docker image build -t eventpro-order-processor:latest -f Dockerfile .
 ```
 
 #### Push to ECR
 ```bash
 aws ecr get-login-password --region us-east-1 | \
   docker login --username AWS --password-stdin ${ECR_REGISTRY}
-docker push ${ECR_REGISTRY}/eventpro-order-processor:latest
+docker image push ${ECR_REGISTRY}/eventpro-order-processor:latest
 ```
 
 #### Deploy with Terraform
@@ -513,16 +513,16 @@ Repeat for:
 cd backend
 
 # Build Docker image (build context is backend/ directory)
-docker build -t eventpro-order-processor:latest \
+docker image build -t eventpro-order-processor:latest \
   -f lambdas/order-processor/Dockerfile .
 
 # Tag for ECR
-docker tag eventpro-order-processor:latest \
+docker image tag eventpro-order-processor:latest \
   ${ECR_REGISTRY}/eventpro-order-processor:latest
 
 # Tag with version
 VERSION=1.0.0
-docker tag eventpro-order-processor:latest \
+docker image tag eventpro-order-processor:latest \
   ${ECR_REGISTRY}/eventpro-order-processor:${VERSION}
 ```
 
@@ -532,11 +532,11 @@ docker tag eventpro-order-processor:latest \
 cd backend
 
 # Build native Docker image (requires Docker-in-Docker)
-docker build -t eventpro-order-processor:native \
+docker image build -t eventpro-order-processor:native \
   -f lambdas/order-processor/Dockerfile.native .
 
 # Tag for ECR
-docker tag eventpro-order-processor:native \
+docker image tag eventpro-order-processor:native \
   ${ECR_REGISTRY}/eventpro-order-processor:native-${VERSION}
 ```
 
@@ -556,11 +556,11 @@ aws ecr get-login-password --region ${AWS_REGION} | \
 
 ```bash
 # Push JVM image
-docker push ${ECR_REGISTRY}/eventpro-order-processor:latest
-docker push ${ECR_REGISTRY}/eventpro-order-processor:${VERSION}
+docker image push ${ECR_REGISTRY}/eventpro-order-processor:latest
+docker image push ${ECR_REGISTRY}/eventpro-order-processor:${VERSION}
 
 # Push native image (if built)
-docker push ${ECR_REGISTRY}/eventpro-order-processor:native-${VERSION}
+docker image push ${ECR_REGISTRY}/eventpro-order-processor:native-${VERSION}
 ```
 
 #### Verify Push
@@ -613,7 +613,7 @@ Ensure these are set in GitLab CI/CD settings:
 ```bash
 # Build image
 cd backend
-docker build -t eventpro-order-processor:test -f lambdas/order-processor/Dockerfile .
+docker image build -t eventpro-order-processor:test -f lambdas/order-processor/Dockerfile .
 
 # Run container locally
 docker run -p 9000:8080 \
@@ -807,7 +807,7 @@ CMD ["io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"]
 
 ```bash
 # Use JVM build instead
-docker build -f Dockerfile .
+docker image build -f Dockerfile .
 ```
 
 ### References
@@ -880,7 +880,7 @@ See section 3 above for example code.
 ```bash
 # Build and test order processor
 cd backend
-docker build -t eventpro-order-processor:test -f lambdas/order-processor/Dockerfile .
+docker image build -t eventpro-order-processor:test -f lambdas/order-processor/Dockerfile .
 docker run -p 9000:8080 eventpro-order-processor:test
 ```
 
@@ -910,10 +910,10 @@ Once ECR repositories are created and Terraform is updated:
 ```bash
 # JVM Build
 cd backend
-docker build -t eventpro-order-processor:latest -f lambdas/order-processor/Dockerfile .
+docker image build -t eventpro-order-processor:latest -f lambdas/order-processor/Dockerfile .
 
 # Native Build
-docker build -t eventpro-order-processor:native -f lambdas/order-processor/Dockerfile.native .
+docker image build -t eventpro-order-processor:native -f lambdas/order-processor/Dockerfile.native .
 ```
 
 ### Push to ECR
@@ -921,7 +921,7 @@ docker build -t eventpro-order-processor:native -f lambdas/order-processor/Docke
 ```bash
 aws ecr get-login-password --region us-east-1 | \
   docker login --username AWS --password-stdin ${ECR_REGISTRY}
-docker push ${ECR_REGISTRY}/eventpro-order-processor:latest
+docker image push ${ECR_REGISTRY}/eventpro-order-processor:latest
 ```
 
 ### Deploy with Terraform

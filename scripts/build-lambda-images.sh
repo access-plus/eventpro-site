@@ -53,7 +53,7 @@ build_and_push() {
 
     # Build the image
     echo -e "${YELLOW}Building Docker image: ${image_tag}${NC}"
-    docker build -f "$dockerfile_path" -t "$image_tag" "$build_context" || {
+    docker image build -f "$dockerfile_path" -t "$image_tag" "$build_context" || {
         echo -e "${RED}Failed to build ${lambda} image${NC}"
         return 1
     }
@@ -75,18 +75,18 @@ build_and_push() {
         aws ecr get-login-password --region "${AWS_REGION:-us-east-1}" | \
             docker login --username AWS --password-stdin "$ECR_REPO" || {
             echo -e "${YELLOW}Warning: Could not login to ECR. Image built but not pushed.${NC}"
-            echo -e "${YELLOW}To push manually, run: docker push ${image_tag}${NC}"
+            echo -e "${YELLOW}To push manually, run: docker image push ${image_tag}${NC}"
             return 0
         }
         
         # Push image
-        docker push "$image_tag" || {
+        docker image push "$image_tag" || {
             echo -e "${YELLOW}Warning: Could not push to ECR. Image built locally.${NC}"
             return 0
         }
         
         if [ "$VERSION" != "latest" ]; then
-            docker push "${ECR_REPO}/${image_name}:latest"
+            docker image push "${ECR_REPO}/${image_name}:latest"
         fi
         
         echo -e "${GREEN}Successfully pushed ${lambda} Lambda image: ${image_tag}${NC}"
@@ -95,7 +95,7 @@ build_and_push() {
         echo -e "${YELLOW}To push manually:${NC}"
         echo -e "  1. Configure AWS credentials: aws configure"
         echo -e "  2. Login to ECR: aws ecr get-login-password --region ${AWS_REGION:-us-east-1} | docker login --username AWS --password-stdin ${ECR_REPO}"
-        echo -e "  3. Push image: docker push ${image_tag}"
+        echo -e "  3. Push image: docker image push ${image_tag}"
     else
         echo -e "${GREEN}Image built locally for development: ${image_tag}${NC}"
     fi

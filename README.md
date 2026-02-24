@@ -1083,10 +1083,10 @@ npm test                 # Run tests
 
 ```bash
 # Build backend services image
-docker build -t eventpro-api:latest -f backend/services/Dockerfile backend
+docker image build -t eventpro-api:latest -f backend/services/Dockerfile backend
 
 # Build Lambda image
-docker build -t eventpro-order-processor:latest -f backend/lambdas/order-processor/Dockerfile backend
+docker image build -t eventpro-order-processor:latest -f backend/lambdas/order-processor/Dockerfile backend
 ```
 
 ---

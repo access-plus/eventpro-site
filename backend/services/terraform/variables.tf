@@ -1,10 +1,19 @@
 # Services Terraform - Variables
 # Resource names use terraform.workspace prefix
 
-variable "ecr_api_image_uri" {
-  description = "ECR image URI for the API service"
+variable "image_registry" {
+  description = "Container image registry hostname (e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com)"
   type        = string
-  default     = ""
+}
+
+variable "image_name" {
+  description = "Container image name/repository (e.g. eventpro-api)"
+  type        = string
+}
+
+variable "image_tag" {
+  description = "Container image tag (e.g. git SHA or latest)"
+  type        = string
 }
 
 variable "domain_name" {

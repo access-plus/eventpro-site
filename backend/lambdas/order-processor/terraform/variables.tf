@@ -1,7 +1,17 @@
 # Order-processor Lambda Terraform - Variables
 
-variable "ecr_order_processor_image_uri" {
-  description = "ECR image URI for the order-processor Lambda"
+variable "image_registry" {
+  description = "Container image registry hostname (e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com)"
+  type        = string
+}
+
+variable "image_name" {
+  description = "Container image name/repository (e.g. eventpro-order-processor)"
+  type        = string
+}
+
+variable "image_tag" {
+  description = "Container image tag (e.g. git SHA or latest)"
   type        = string
 }
 

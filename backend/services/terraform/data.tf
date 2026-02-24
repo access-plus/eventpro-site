@@ -26,5 +26,6 @@ data "aws_route53_zone" "main" {
 locals {
   workspace   = terraform.workspace
   name_prefix = local.workspace
+  image_uri   = "${var.image_registry}/${var.image_name}:${var.image_tag}"
   common_tags = merge(var.tags, { Env = local.workspace })
 }

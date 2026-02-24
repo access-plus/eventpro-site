@@ -42,4 +42,4 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           backend-bucket: eventpro-site-state
           backend-key: services/terraform.tfstate
-          variables: ecr_api_image_uri=${{ steps.ecr-docker-build.outputs.image-uri }},domain_name=${{ vars.DOMAIN_NAME }},alb_certificate_arn=${{ vars.ACM_CERTIFICATE_ARN }},cloudfront_certificate_arn=${{ vars.ACM_CERTIFICATE_ARN }}
+          variables: image_registry=${{ steps.ecr-docker-build.outputs.image-registry }},image_name=${{ steps.ecr-docker-build.outputs.image-name }},image_tag=${{ steps.ecr-docker-build.outputs.image-tag }},domain_name=${{ vars.DOMAIN_NAME }},alb_certificate_arn=${{ vars.ACM_CERTIFICATE_ARN }},cloudfront_certificate_arn=${{ vars.ACM_CERTIFICATE_ARN }}

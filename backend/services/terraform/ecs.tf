@@ -2,7 +2,7 @@
 
 resource "aws_cloudwatch_log_group" "api" {
   name              = "/ecs/${local.name_prefix}/eventpro-api"
-  retention_in_days  = var.ecs_log_retention_days
+  retention_in_days = var.ecs_log_retention_days
 
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-eventpro-api-logs" })
 }
@@ -25,8 +25,8 @@ resource "aws_iam_role" "ecs_execution" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "ecs-tasks.amazonaws.com" }
     }]
   })
@@ -46,8 +46,8 @@ resource "aws_iam_role" "ecs_task" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "ecs-tasks.amazonaws.com" }
     }]
   })
@@ -97,16 +97,16 @@ resource "aws_iam_role_policy" "ecs_task" {
 
 resource "aws_ecs_task_definition" "api" {
   family                   = "${local.name_prefix}-eventpro-api"
-  requires_compatibilities  = ["FARGATE"]
+  requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = var.ecs_task_cpu
   memory                   = var.ecs_task_memory
-  execution_role_arn        = aws_iam_role.ecs_execution.arn
-  task_role_arn             = aws_iam_role.ecs_task.arn
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
 
   container_definitions = jsonencode([{
     name      = "eventpro-api"
-    image     = var.ecr_api_image_uri
+    image     = local.image_uri
     essential = true
 
     portMappings = [{
@@ -162,11 +162,11 @@ resource "aws_ecs_task_definition" "api" {
 }
 
 resource "aws_ecs_service" "api" {
-  name            = "${local.name_prefix}-eventpro-api"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.api.arn
-  desired_count   = var.ecs_desired_count
-  launch_type     = "FARGATE"
+  name             = "${local.name_prefix}-eventpro-api"
+  cluster          = aws_ecs_cluster.main.id
+  task_definition  = aws_ecs_task_definition.api.arn
+  desired_count    = var.ecs_desired_count
+  launch_type      = "FARGATE"
   platform_version = "LATEST"
 
   network_configuration {
@@ -184,7 +184,7 @@ resource "aws_ecs_service" "api" {
   health_check_grace_period_seconds = 60
 
   deployment_maximum_percent         = 200
-  deployment_minimum_healthy_percent  = 100
+  deployment_minimum_healthy_percent = 100
 
   deployment_circuit_breaker {
     enable   = true

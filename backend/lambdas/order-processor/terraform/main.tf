@@ -5,6 +5,7 @@
 locals {
   workspace   = terraform.workspace
   name_prefix = local.workspace
+  image_uri   = "${var.image_registry}/${var.image_name}:${var.image_tag}"
   common_tags = merge(var.tags, { Env = local.workspace })
 }
 
@@ -156,7 +157,7 @@ resource "aws_lambda_function" "order_processor" {
   memory_size   = var.memory_size_mb
 
   package_type = "Image"
-  image_uri    = var.ecr_order_processor_image_uri
+  image_uri    = local.image_uri
 
   environment {
     variables = {

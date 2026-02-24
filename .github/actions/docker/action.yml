@@ -29,9 +29,15 @@ inputs:
     default: 'latest'
 
 outputs:
-  image-uri:
-    description: 'Full ECR image URI (registry/repository:tag)'
-    value: ${{ steps.build.outputs.image-uri }}
+  image-registry:
+    description: 'ECR registry hostname'
+    value: ${{ steps.build.outputs.image-registry }}
+  image-name:
+    description: 'ECR repository name'
+    value: ${{ steps.build.outputs.image-name }}
+  image-tag:
+    description: 'Image tag'
+    value: ${{ steps.build.outputs.image-tag }}
 
 runs:
   using: 'composite'
@@ -54,7 +60,9 @@ runs:
         REPOSITORY: ${{ inputs.ecr-repository }}
         IMAGE_TAG: ${{ inputs.image-tag }}
       run: |
-        docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -f ${{ inputs.dockerfile }} ${{ inputs.context }}
-        docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
-        echo "image-uri=$REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+        docker image build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -f ${{ inputs.dockerfile }} ${{ inputs.context }}
+        docker image push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+        echo "image-registry=$REGISTRY" >> $GITHUB_OUTPUT
+        echo "image-name=$REPOSITORY" >> $GITHUB_OUTPUT
+        echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
       shell: bash
