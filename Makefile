@@ -65,7 +65,7 @@ help:
 	@echo "  make local-logs    - View all logs"
 	@echo ""
 	@echo "Security:"
-	@echo "  make jwt-keys       - Generate JWT public key and update .env keys"
+	@echo "  make jwt-keys       - Ensure JWT PEM files exist and update .env keys"
 	@echo ""
 	@echo "Quick Commands:"
 	@echo "  make rebuild        - Clean and rebuild everything"
@@ -252,8 +252,8 @@ lambda-build-order:
 	@./scripts/build-lambda-images.sh order-processor latest
 
 jwt-keys:
-	@echo "Generating JWT keys and updating .env..."
-	@./scripts/jwt-script.sh
+	@echo "Ensuring JWT PEM files exist and updating .env..."
+	@./scripts/jwt-script.sh --generate-if-missing jwt-private.pem jwt-public.pem .env
 
 # ============================================================================
 # Local Development (Docker Compose + LocalStack)
