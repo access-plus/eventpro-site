@@ -10,7 +10,6 @@ import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.order.order.repository.OrderItemRepository;
 import com.accessplus.eventpro.order.order.repository.OrderRepository;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
-import com.accessplus.eventpro.shared.entity.OrderItemEntity;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
 import com.accessplus.eventpro.shared.enums.TicketStatus;

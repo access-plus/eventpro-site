@@ -24,9 +24,6 @@ public class EmailServiceImpl implements EmailService {
     
     private SesClient sesClient;
     
-    /**
-     * Initializes SES client lazily.
-     */
     private SesClient getSesClient() {
         if (sesClient == null) {
             sesClient = SesClient.builder()

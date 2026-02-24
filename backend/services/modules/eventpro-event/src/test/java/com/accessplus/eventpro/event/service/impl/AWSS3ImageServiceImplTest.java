@@ -14,16 +14,14 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import java.util.function.Consumer;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
 import java.net.URL;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -206,13 +204,13 @@ class AWSS3ImageServiceImplTest {
         PresignedGetObjectRequest presignedRequest = mock(PresignedGetObjectRequest.class);
         URL mockUrl = new java.net.URI("https://test-bucket.s3.us-east-1.amazonaws.com/events/test-image.jpg?signature=test").toURL();
         when(presignedRequest.url()).thenReturn(mockUrl);
-        when(s3Presigner.presignGetObject(any(java.util.function.Consumer.class))).thenReturn(presignedRequest);
+        when(s3Presigner.presignGetObject(any(Consumer.class))).thenReturn(presignedRequest);
 
         String result = imageService.getPresignedUrl(TEST_KEY, 60);
 
         assertNotNull(result);
         assertTrue(result.contains(TEST_KEY));
-        verify(s3Presigner, times(1)).presignGetObject(any(java.util.function.Consumer.class));
+        verify(s3Presigner, times(1)).presignGetObject(any(Consumer.class));
     }
 
     @Test

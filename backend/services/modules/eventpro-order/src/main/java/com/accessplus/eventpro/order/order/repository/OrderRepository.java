@@ -1,6 +1,5 @@
 package com.accessplus.eventpro.order.order.repository;
 
-import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
 import org.springframework.data.domain.Page;
