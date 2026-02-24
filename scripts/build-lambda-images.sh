@@ -1,143 +1,379 @@
-#!/bin/bash
-# Build and push Lambda Docker images to ECR
-# Usage: ./scripts/build-lambda-images.sh [lambda-name] [version] [ecr-repo]
+#!/usr/bin/env bash
+# Build and optionally push Lambda Docker images to ECR.
+#
+# Legacy usage (still supported):
+#   ./scripts/build-lambda-images.sh [lambda-name] [version] [ecr-registry]
+#
+# Flag-based usage (recommended for automation):
+#   ./scripts/build-lambda-images.sh --lambda order-processor --tag sha-abc123 --registry <acct>.dkr.ecr.us-east-1.amazonaws.com --push
 
-set -e
+set -euo pipefail
 
-LAMBDA_NAME=${1:-"all"}
-VERSION=${2:-"latest"}
-ECR_REPO=${3:-""}
+DEFAULT_LAMBDAS=(order-processor payment-processor notification-sender)
+AWS_REGION="${AWS_REGION:-us-east-1}"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+LAMBDA_NAME="all"
+IMAGE_TAG="latest"
+REGISTRY=""
+PUSH_MODE="auto"     # auto|always|never
+TAG_LATEST_ALIAS=true  # legacy-compatible default
+OUTPUT_MODE="human"   # human|env
+METADATA_FILE=""
 
-# Determine if we're building for ECR or local development
-if [ -z "$ECR_REPO" ]; then
-    if [ -n "$AWS_ACCOUNT_ID" ]; then
-        # ECR repository format
-        ECR_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION:-us-east-1}.amazonaws.com"
-        USE_ECR=true
-    else
-        # Local development - use simple tag format
-        ECR_REPO=""
-        USE_ECR=false
-    fi
-else
-    USE_ECR=true
-fi
+EXTRA_TAGS=()
+BUILT_LAMBDAS=()
+ECR_LOGGED_IN=false
 
-# Function to build and push a lambda image
-build_and_push() {
-    local lambda=$1
-    local image_name="eventpro-${lambda}"
-    
-    # Determine image tag based on whether we're using ECR or local
-    if [ "$USE_ECR" = true ]; then
-        local image_tag="${ECR_REPO}/${image_name}:${VERSION}"
-    else
-        local image_tag="${image_name}:${VERSION}"
-    fi
-    
-    local dockerfile_path="backend/lambdas/${lambda}/Dockerfile"
-    local build_context="backend"
-
-    echo -e "${GREEN}Building ${lambda} Lambda...${NC}"
-    
-    if [ ! -f "$dockerfile_path" ]; then
-        echo -e "${RED}Error: Dockerfile not found at ${dockerfile_path}${NC}"
-        return 1
-    fi
-
-    # Build the image
-    echo -e "${YELLOW}Building Docker image: ${image_tag}${NC}"
-    docker image build -f "$dockerfile_path" -t "$image_tag" "$build_context" || {
-        echo -e "${RED}Failed to build ${lambda} image${NC}"
-        return 1
-    }
-
-    # Tag as latest if version is not latest
-    if [ "$VERSION" != "latest" ]; then
-        if [ "$USE_ECR" = true ]; then
-            docker tag "$image_tag" "${ECR_REPO}/${image_name}:latest"
-        else
-            docker tag "$image_tag" "${image_name}:latest"
-        fi
-    fi
-
-    # Push to ECR (if AWS credentials are available and using ECR)
-    if [ "$USE_ECR" = true ] && [ -n "$AWS_ACCOUNT_ID" ] && command -v aws &> /dev/null; then
-        echo -e "${YELLOW}Pushing to ECR: ${image_tag}${NC}"
-        
-        # Login to ECR
-        aws ecr get-login-password --region "${AWS_REGION:-us-east-1}" | \
-            docker login --username AWS --password-stdin "$ECR_REPO" || {
-            echo -e "${YELLOW}Warning: Could not login to ECR. Image built but not pushed.${NC}"
-            echo -e "${YELLOW}To push manually, run: docker image push ${image_tag}${NC}"
-            return 0
-        }
-        
-        # Push image
-        docker image push "$image_tag" || {
-            echo -e "${YELLOW}Warning: Could not push to ECR. Image built locally.${NC}"
-            return 0
-        }
-        
-        if [ "$VERSION" != "latest" ]; then
-            docker image push "${ECR_REPO}/${image_name}:latest"
-        fi
-        
-        echo -e "${GREEN}Successfully pushed ${lambda} Lambda image: ${image_tag}${NC}"
-    elif [ "$USE_ECR" = true ]; then
-        echo -e "${YELLOW}Warning: AWS credentials not configured. Image built locally but not pushed.${NC}"
-        echo -e "${YELLOW}To push manually:${NC}"
-        echo -e "  1. Configure AWS credentials: aws configure"
-        echo -e "  2. Login to ECR: aws ecr get-login-password --region ${AWS_REGION:-us-east-1} | docker login --username AWS --password-stdin ${ECR_REPO}"
-        echo -e "  3. Push image: docker image push ${image_tag}"
-    else
-        echo -e "${GREEN}Image built locally for development: ${image_tag}${NC}"
-    fi
+is_tty() {
+  [ -t 1 ]
 }
 
-# Main execution
-if [ "$LAMBDA_NAME" = "all" ]; then
-    echo -e "${GREEN}Building all Lambda images...${NC}"
-    build_and_push "order-processor" || exit 1
-    build_and_push "payment-processor" || exit 1
-    build_and_push "notification-sender" || exit 1
-    echo -e "${GREEN}All Lambda images built successfully!${NC}"
+if is_tty; then
+  RED='\033[0;31m'
+  GREEN='\033[0;32m'
+  YELLOW='\033[1;33m'
+  NC='\033[0m'
 else
-    build_and_push "$LAMBDA_NAME" || exit 1
-    echo -e "${GREEN}Lambda image built successfully!${NC}"
+  RED=''
+  GREEN=''
+  YELLOW=''
+  NC=''
 fi
 
-echo ""
-echo -e "${GREEN}Build Summary:${NC}"
-echo "  Lambda: $LAMBDA_NAME"
-echo "  Version: $VERSION"
-if [ "$USE_ECR" = true ]; then
-    echo "  ECR Repo: $ECR_REPO"
-    echo ""
-    echo -e "${YELLOW}To use these images in Terraform, set:${NC}"
-    if [ "$LAMBDA_NAME" = "all" ]; then
-        echo "  order_processor_lambda_image = \"${ECR_REPO}/eventpro-order-processor:${VERSION}\""
-        echo "  payment_processor_lambda_image = \"${ECR_REPO}/eventpro-payment-processor:${VERSION}\""
-        echo "  notification_sender_lambda_image = \"${ECR_REPO}/eventpro-notification-sender:${VERSION}\""
-    else
-        echo "  ${LAMBDA_NAME}_lambda_image = \"${ECR_REPO}/eventpro-${LAMBDA_NAME}:${VERSION}\""
-    fi
-else
-    echo "  Mode: Local development (no ECR)"
-    echo ""
-    echo -e "${YELLOW}Images built with local tags:${NC}"
-    if [ "$LAMBDA_NAME" = "all" ]; then
-        echo "  eventpro-order-processor:${VERSION}"
-        echo "  eventpro-payment-processor:${VERSION}"
-        echo "  eventpro-notification-sender:${VERSION}"
-    else
-        echo "  eventpro-${LAMBDA_NAME}:${VERSION}"
-    fi
-fi
+log() { printf '%b\n' "$*"; }
+warn() { printf '%b\n' "${YELLOW}Warning:${NC} $*"; }
+err() { printf '%b\n' "${RED}Error:${NC} $*" >&2; }
 
+die() {
+  err "$*"
+  exit 1
+}
+
+usage() {
+  cat <<USAGE
+Usage:
+  ./scripts/build-lambda-images.sh [lambda-name] [version] [ecr-registry]
+  ./scripts/build-lambda-images.sh [options]
+
+Options:
+  -l, --lambda NAME        Lambda to build (all|order-processor|payment-processor|notification-sender)
+  -t, --tag TAG            Primary image tag (default: latest)
+      --version TAG        Alias for --tag
+  -r, --registry HOST      Registry hostname (e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com)
+      --push               Push built images to registry (requires --registry)
+      --no-push            Build only (do not push)
+      --extra-tag TAG      Additional image tag to apply/push (repeatable)
+      --no-latest-alias    Do not auto-tag :latest when primary tag != latest
+      --emit-env           Print machine-readable metadata (KEY=VALUE) after build
+      --metadata-file PATH Write machine-readable metadata (KEY=VALUE) to file
+  -h, --help               Show this help
+
+Environment:
+  AWS_REGION               AWS region for ECR login (default: us-east-1)
+  AWS_ACCOUNT_ID           Used to infer --registry when not provided
+
+Notes:
+  - Docker build context is always 'backend/' (required by the Dockerfiles).
+  - In auto push mode, the script attempts ECR push when a registry is configured and AWS CLI is available.
+USAGE
+}
+
+contains_lambda() {
+  local target="$1"
+  local lambda
+  for lambda in "${DEFAULT_LAMBDAS[@]}"; do
+    if [ "$lambda" = "$target" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+uppercase_slug() {
+  echo "$1" | tr '[:lower:]-' '[:upper:]_'
+}
+
+parse_args() {
+  # Backward-compatible positional form when first arg is not an option.
+  if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
+    LAMBDA_NAME="${1:-all}"
+    IMAGE_TAG="${2:-latest}"
+    REGISTRY="${3:-}"
+    return 0
+  fi
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -l|--lambda)
+        [ $# -ge 2 ] || die "Missing value for $1"
+        LAMBDA_NAME="$2"
+        shift 2
+        ;;
+      -t|--tag|--version)
+        [ $# -ge 2 ] || die "Missing value for $1"
+        IMAGE_TAG="$2"
+        shift 2
+        ;;
+      -r|--registry)
+        [ $# -ge 2 ] || die "Missing value for $1"
+        REGISTRY="$2"
+        shift 2
+        ;;
+      --push)
+        PUSH_MODE="always"
+        shift
+        ;;
+      --no-push)
+        PUSH_MODE="never"
+        shift
+        ;;
+      --extra-tag)
+        [ $# -ge 2 ] || die "Missing value for $1"
+        EXTRA_TAGS+=("$2")
+        shift 2
+        ;;
+      --no-latest-alias)
+        TAG_LATEST_ALIAS=false
+        shift
+        ;;
+      --emit-env)
+        OUTPUT_MODE="env"
+        shift
+        ;;
+      --metadata-file)
+        [ $# -ge 2 ] || die "Missing value for $1"
+        METADATA_FILE="$2"
+        shift 2
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        die "Unknown option: $1"
+        ;;
+    esac
+  done
+}
+
+resolve_registry() {
+  if [ -n "$REGISTRY" ]; then
+    return 0
+  fi
+
+  if [ -n "${AWS_ACCOUNT_ID:-}" ]; then
+    REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+  fi
+}
+
+should_push() {
+  case "$PUSH_MODE" in
+    always)
+      [ -n "$REGISTRY" ]
+      return
+      ;;
+    never)
+      return 1
+      ;;
+    auto)
+      [ -n "$REGISTRY" ] || return 1
+      command -v aws >/dev/null 2>&1 || return 1
+      return 0
+      ;;
+    *)
+      die "Unsupported push mode: $PUSH_MODE"
+      ;;
+  esac
+}
+
+login_ecr_once() {
+  if [ "$ECR_LOGGED_IN" = true ]; then
+    return 0
+  fi
+
+  command -v aws >/dev/null 2>&1 || die "AWS CLI is required to push images"
+
+  log "${YELLOW}Logging in to ECR (${REGISTRY})...${NC}"
+  aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY" >/dev/null
+  ECR_LOGGED_IN=true
+}
+
+build_one_lambda() {
+  local lambda="$1"
+  local image_name="eventpro-${lambda}"
+  local dockerfile_path="backend/lambdas/${lambda}/Dockerfile"
+  local build_context="backend"
+  local primary_ref
+  local registry_prefix=""
+  local -a tags_to_apply=()
+  local tag
+
+  [ -f "$dockerfile_path" ] || die "Dockerfile not found: $dockerfile_path"
+
+  if [ -n "$REGISTRY" ]; then
+    registry_prefix="${REGISTRY}/"
+  fi
+  primary_ref="${registry_prefix}${image_name}:${IMAGE_TAG}"
+
+  log "${GREEN}Building ${lambda} Lambda...${NC}"
+  log "${YELLOW}docker build -f ${dockerfile_path} -t ${primary_ref} ${build_context}${NC}"
+  docker image build -f "$dockerfile_path" -t "$primary_ref" "$build_context"
+
+  tags_to_apply=("${EXTRA_TAGS[@]}")
+  if [ "$TAG_LATEST_ALIAS" = true ] && [ "$IMAGE_TAG" != "latest" ]; then
+    tags_to_apply+=("latest")
+  fi
+  if [ ${#tags_to_apply[@]} -gt 1 ]; then
+    local -a deduped_tags=()
+    local candidate
+    for candidate in "${tags_to_apply[@]}"; do
+      [ -z "$candidate" ] && continue
+      local seen=false
+      for tag in "${deduped_tags[@]}"; do
+        if [ "$tag" = "$candidate" ]; then
+          seen=true
+          break
+        fi
+      done
+      if [ "$seen" = false ]; then
+        deduped_tags+=("$candidate")
+      fi
+    done
+    tags_to_apply=("${deduped_tags[@]}")
+  fi
+
+  for tag in "${tags_to_apply[@]}"; do
+    local extra_ref="${registry_prefix}${image_name}:${tag}"
+    docker image tag "$primary_ref" "$extra_ref"
+  done
+
+  if should_push; then
+    login_ecr_once
+    log "${YELLOW}Pushing ${primary_ref}${NC}"
+    docker image push "$primary_ref"
+
+    for tag in "${tags_to_apply[@]}"; do
+      local extra_ref="${registry_prefix}${image_name}:${tag}"
+      log "${YELLOW}Pushing ${extra_ref}${NC}"
+      docker image push "$extra_ref"
+    done
+
+    log "${GREEN}Pushed ${lambda} image(s) successfully.${NC}"
+  else
+    if [ -n "$REGISTRY" ] && [ "$PUSH_MODE" = "always" ]; then
+      die "--push requires a valid registry and AWS CLI"
+    fi
+    if [ -n "$REGISTRY" ]; then
+      warn "Built image(s) for registry tagging but did not push (push mode: ${PUSH_MODE})."
+    else
+      log "${GREEN}Built local image(s) for ${lambda}.${NC}"
+    fi
+  fi
+
+  BUILT_LAMBDAS+=("$lambda")
+}
+
+write_metadata_lines() {
+  local lambda="$1"
+  local image_name="eventpro-${lambda}"
+  local uri_prefix=""
+  local suffix
+
+  if [ -n "$REGISTRY" ]; then
+    uri_prefix="${REGISTRY}/"
+  fi
+  suffix="$(uppercase_slug "$lambda")"
+
+  cat <<META
+${suffix}_IMAGE_REGISTRY=${REGISTRY}
+${suffix}_IMAGE_NAME=${image_name}
+${suffix}_IMAGE_TAG=${IMAGE_TAG}
+${suffix}_IMAGE_URI=${uri_prefix}${image_name}:${IMAGE_TAG}
+META
+}
+
+emit_metadata() {
+  local output_dest="$1"
+  local lambda
+
+  for lambda in "${BUILT_LAMBDAS[@]}"; do
+    write_metadata_lines "$lambda" >> "$output_dest"
+  done
+}
+
+print_human_summary() {
+  local lambda
+  log ""
+  log "${GREEN}Build Summary:${NC}"
+  log "  Lambda selection: ${LAMBDA_NAME}"
+  log "  Primary tag: ${IMAGE_TAG}"
+  log "  Registry: ${REGISTRY:-<local>}"
+  if [ ${#EXTRA_TAGS[@]} -gt 0 ]; then
+    log "  Extra tags: ${EXTRA_TAGS[*]}"
+  fi
+  if [ "$TAG_LATEST_ALIAS" = true ] && [ "$IMAGE_TAG" != "latest" ]; then
+    log "  Latest alias: enabled"
+  fi
+
+  for lambda in "${BUILT_LAMBDAS[@]}"; do
+    local image_name="eventpro-${lambda}"
+    local uri_prefix=""
+    [ -n "$REGISTRY" ] && uri_prefix="${REGISTRY}/"
+    log ""
+    log "  ${lambda}:"
+    log "    image_registry = \"${REGISTRY}\""
+    log "    image_name     = \"${image_name}\""
+    log "    image_tag      = \"${IMAGE_TAG}\""
+    log "    image_uri      = \"${uri_prefix}${image_name}:${IMAGE_TAG}\""
+  done
+}
+
+main() {
+  parse_args "$@"
+  resolve_registry
+
+  if [ -z "$LAMBDA_NAME" ]; then
+    die "Lambda name cannot be empty"
+  fi
+
+  if [ "$LAMBDA_NAME" != "all" ] && ! contains_lambda "$LAMBDA_NAME"; then
+    die "Unsupported lambda: ${LAMBDA_NAME}"
+  fi
+
+  if [ "$PUSH_MODE" = "always" ] && [ -z "$REGISTRY" ]; then
+    die "--push requires --registry (or AWS_ACCOUNT_ID to infer the registry)"
+  fi
+
+  if [ -n "$METADATA_FILE" ]; then
+    : > "$METADATA_FILE"
+  fi
+
+  if [ "$LAMBDA_NAME" = "all" ]; then
+    local lambda
+    for lambda in "${DEFAULT_LAMBDAS[@]}"; do
+      build_one_lambda "$lambda"
+    done
+  else
+    build_one_lambda "$LAMBDA_NAME"
+  fi
+
+  if [ -n "$METADATA_FILE" ]; then
+    emit_metadata "$METADATA_FILE"
+  fi
+
+  if [ "$OUTPUT_MODE" = "env" ]; then
+    if [ -n "$METADATA_FILE" ]; then
+      cat "$METADATA_FILE"
+    else
+      local tmp_file
+      tmp_file="$(mktemp)"
+      emit_metadata "$tmp_file"
+      cat "$tmp_file"
+      rm -f "$tmp_file"
+    fi
+  else
+    print_human_summary
+  fi
+}
+
+main "$@"

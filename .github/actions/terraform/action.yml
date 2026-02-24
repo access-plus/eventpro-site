@@ -99,15 +99,19 @@ runs:
     run: |
       cd ${{ inputs.working-directory }}
       ls -ltr
-      var_args=""
       # Iterate through the variables and export each as TF_VAR_
-      if [ ! -z "${{ inputs.variables }}" ]; then
-        for var in $(echo "${{ inputs.variables }}" | tr ',' '\n'); do
-          key=$(echo $var | cut -d '=' -f 1)   # Extract the variable name
-          value=$(echo $var | cut -d '=' -f 2) # Extract the variable value
-          echo "Exporting TF_VAR_$key=$value"
-          export TF_VAR_$key="$value"          # Export as TF_VAR_ format
-        done
+      if [ -n "${{ inputs.variables }}" ]; then
+        while IFS= read -r var; do
+          [ -z "$var" ] && continue
+          key="${var%%=*}"
+          value="${var#*=}"
+          if [ "$key" = "$var" ]; then
+            echo "Invalid variable format: '$var' (expected key=value)" >&2
+            exit 1
+          fi
+          echo "Exporting TF_VAR_${key}=[REDACTED]"
+          export "TF_VAR_${key}=$value"
+        done < <(printf '%s\n' "${{ inputs.variables }}" | tr ',' '\n')
       fi
       if [ "${{ inputs.destroy }}" = "yes" ]; then
         echo "Destroying the infrastructure"

@@ -2,7 +2,7 @@
 
 # Variables
 API_DIR := backend/services
-WEB_DIR := frontend
+WEB_DIR := eventpro-frontend
 ANALYTICS_DIR := backend/lambdas/analytics-service
 # SECRET_ROTATION_DIR := backend/lambdas/secret-rotation  # Removed - RDS manages credential rotation natively
 

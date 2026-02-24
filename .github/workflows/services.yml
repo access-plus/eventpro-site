@@ -2,13 +2,8 @@ name: API
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'api-v*.*.*'
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       workspace:
@@ -16,6 +11,11 @@ on:
         required: true
         default: 'dev'
         type: string
+      run_deploy:
+        description: 'Run deploy steps (ECR push + Terraform apply)'
+        required: true
+        default: true
+        type: boolean
   workflow_call:
     inputs:
       workspace:
@@ -23,6 +23,15 @@ on:
         required: true
         default: 'dev'
         type: string
+      run_deploy:
+        description: 'Run deploy steps (ECR push + Terraform apply)'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  AWS_REGION: us-east-1
+  DEPLOY_WORKSPACE: ${{ inputs.workspace || github.event.inputs.workspace || 'dev' }}
 
 jobs:
   build:
@@ -45,22 +54,24 @@ jobs:
 
       - name: ecr-docker-build
         id: ecr-docker-build
+        if: ${{ github.event_name == 'push' || inputs.run_deploy }}
         uses: ./.github/actions/docker
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
           ecr-repository: eventpro-api
-          context: backend/services
-          dockerfile: Dockerfile
+          context: backend
+          dockerfile: backend/services/Dockerfile
           image-tag: ${{ steps.image-meta.outputs.primary_tag }}
           image-tags: ${{ steps.image-meta.outputs.all_tags }}
 
       - name: deploy
+        if: ${{ github.event_name == 'push' || inputs.run_deploy }}
         uses: ./.github/actions/terraform
         with:
           working-directory: backend/services/terraform
-          workspace: ${{ inputs.workspace }}
+          workspace: ${{ env.DEPLOY_WORKSPACE }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           variables: image_registry=${{ steps.ecr-docker-build.outputs.image-registry }},image_name=${{ steps.ecr-docker-build.outputs.image-name }},image_tag=${{ steps.ecr-docker-build.outputs.image-tag }},domain_name=${{ vars.DOMAIN_NAME }},alb_certificate_arn=${{ secrets.ACM_CERTIFICATE_ARN }},cloudfront_certificate_arn=${{ secrets.ACM_CERTIFICATE_ARN }}

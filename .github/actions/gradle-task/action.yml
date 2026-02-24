@@ -41,7 +41,7 @@ runs:
   - name: gradle clean
     run: |
       cd ${{ inputs.working-directory }}
-      gradle clean
+      ./gradlew clean
     shell: bash
 
   - name: gradle build

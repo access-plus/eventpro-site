@@ -2,6 +2,9 @@
 
 Complete guide for setting up and running the EventPro application locally using Make commands.
 
+<details>
+<summary>localhost</summary>
+
 ## 📖 Quick Reference
 
 | Task | Command |
@@ -1248,6 +1251,44 @@ This guide covers:
 - Frontend-Backend Endpoints: `docs/ENDPOINTS_FRONT_BACK.md`
 - Lambda Deployment: `docs/LAMBDA_DEPLOYMENT.md`
 - Local Environment Services: `docs/LOCAL_ENVIRONMENT_SERVICES.md`
+
+</details>
+
+---
+
+<details>
+<summary><strong>higher env deployment from local</strong></summary>
+
+<details>
+<summary>services only</summary>
+
+*build and deploy*
+
+```bash
+./scripts/pipeline-deploy.sh --env-file .env --only services --apply
+```
+
+*deploy existing image*
+
+Make sure the image is in the ECR registry and the image tag is set in the .env file.
+
+```bash
+export SERVICES_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
+export SERVICES_IMAGE_NAME=eventpro-api
+export SERVICES_IMAGE_TAG=sha-123456789012
+```
+
+```bash
+./scripts/pipeline-deploy.sh \
+  --env-file .env \
+  --only services \
+  --services-image-source existing \
+  --apply
+```
+
+</details>
+
+</details>
 
 ---
 
