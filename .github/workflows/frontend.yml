@@ -11,6 +11,20 @@ on:
       - main
     paths:
       - 'eventpro-frontend/**'
+  workflow_dispatch:
+    inputs:
+      workspace:
+        description: 'Workspace to deploy to'
+        required: true
+        default: 'dev'
+        type: string
+  workflow_call:
+    inputs:
+      workspace:
+        description: 'Workspace to deploy to'
+        required: true
+        default: 'dev'
+        type: string
 
 jobs:
   build:
@@ -32,13 +46,13 @@ jobs:
         run: npm run build
         working-directory: eventpro-frontend
         env:
-          VITE_API_BASE_URL: https://${{ vars.WORKSPACE || 'dev' }}-api.${{ vars.DOMAIN_NAME }}
+          VITE_API_BASE_URL: https://${{ inputs.workspace }}-api.${{ secrets.DOMAIN_NAME }}
 
       - name: Terraform
         uses: ./.github/actions/terraform
         with:
           working-directory: eventpro-frontend/terraform
-          workspace: ${{ vars.WORKSPACE || 'dev' }}
+          workspace: ${{ inputs.workspace }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           backend-bucket: eventpro-site-state
@@ -49,7 +63,7 @@ jobs:
         run: |
           cd eventpro-frontend/terraform
           terraform init -backend-config=bucket=eventpro-site-state -backend-config=key=frontend/terraform.tfstate -backend-config=region=us-east-1 -backend-config=use_lockfile=true
-          terraform workspace select ${{ vars.WORKSPACE || 'dev' }} || terraform workspace new ${{ vars.WORKSPACE || 'dev' }}
+          terraform workspace select ${{ inputs.workspace }} || terraform workspace new ${{ inputs.workspace }}
           BUCKET=$(terraform output -raw bucket_name)
           cd ../..
           aws s3 sync eventpro-frontend/dist/ s3://$BUCKET/ --delete
