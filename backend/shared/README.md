@@ -1,10 +1,19 @@
 # EventPro Shared Module
 
+**DEPRECATED** – This module is no longer used. Code has been inlined:
+
+- **Services**: Use `eventpro-core` and other modules in `backend/services/modules/`
+- **Lambdas**: Each lambda (`order-processor`, `payment-processor`, `notification-sender`) has its own local copies under `com.accessplus.eventpro.shared.*`
+
+This folder remains for reference only. Do not add new dependencies.
+
+---
+
+## Original Purpose (Historical)
+
 Framework-agnostic shared code for EventPro platform.
 
-## Purpose
-
-This module contains entities, enums, and DTOs that are used by both:
+This module contained entities, enums, and DTOs that were used by both:
 - Backend modules (Spring Boot)
 - Lambda functions (Quarkus)
 

@@ -55,6 +55,16 @@ output "rds_security_group_id" {
   value       = aws_security_group.rds.id
 }
 
+output "lambda_subnet_ids" {
+  description = "Default VPC subnet IDs (for Lambda VPC config to reach RDS)"
+  value       = data.aws_subnets.default.ids
+}
+
+output "ecs_security_group_id" {
+  description = "ECS security group ID (Lambda uses this to reach RDS - RDS allows from ECS)"
+  value       = aws_security_group.ecs.id
+}
+
 output "route53_zone_id" {
   description = "Route53 hosted zone ID"
   value       = data.aws_route53_zone.main.zone_id
