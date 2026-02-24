@@ -22,9 +22,24 @@ jobs:
           java-version: '25'
 
       - name: ecr-docker-build
+        id: ecr-docker-build
         uses: ./.github/actions/docker
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+          ecr-repository: eventpro-order-processor
+          context: backend
+          dockerfile: backend/lambdas/order-processor/Dockerfile
+          image-tag: ${{ github.sha }}
 
       - name: deploy
         uses: ./.github/actions/terraform
         with:
-          working-directory: backend/lambdas/payment-processor/terraform
+          working-directory: backend/lambdas/order-processor/terraform
+          workspace: dev
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          backend-bucket: eventpro-site-state
+          backend-key: order/terraform.tfstate
+          variables: ecr_order_processor_image_uri=${{ steps.ecr-docker-build.outputs.image-uri }}
