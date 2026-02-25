@@ -15,6 +15,8 @@ resource "aws_db_parameter_group" "main" {
   parameter {
     name  = "shared_preload_libraries"
     value = "pg_stat_statements"
+    # Static Postgres parameters must be applied on reboot, not immediately.
+    apply_method = "pending-reboot"
   }
 
   parameter {
@@ -42,10 +44,10 @@ resource "aws_db_instance" "main" {
   engine_version = var.db_engine_version
   instance_class = var.db_instance_class
 
-  db_name  = var.db_name
-  username = "accessplus"
+  db_name                     = var.db_name
+  username                    = "accessplus"
   manage_master_user_password = true
-  port     = 5432
+  port                        = 5432
 
   allocated_storage     = var.db_allocated_storage
   max_allocated_storage = var.db_max_allocated_storage
@@ -69,11 +71,11 @@ resource "aws_db_instance" "main" {
   parameter_group_name = aws_db_parameter_group.main.name
 
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
-  monitoring_interval            = var.db_monitoring_interval
-  performance_insights_enabled   = var.db_performance_insights_enabled
+  monitoring_interval             = var.db_monitoring_interval
+  performance_insights_enabled    = var.db_performance_insights_enabled
 
-  deletion_protection      = var.db_deletion_protection
-  skip_final_snapshot      = !var.db_deletion_protection
+  deletion_protection       = var.db_deletion_protection
+  skip_final_snapshot       = !var.db_deletion_protection
   final_snapshot_identifier = var.db_deletion_protection ? "${local.name_prefix}-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}" : null
 
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-rds" })

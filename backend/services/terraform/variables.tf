@@ -124,6 +124,13 @@ variable "db_deletion_protection" {
   default     = false
 }
 
+# S3
+variable "images_bucket_name" {
+  description = "Optional explicit S3 bucket name for uploaded images. Leave empty to use a globally unique default name."
+  type        = string
+  default     = ""
+}
+
 # SQS
 variable "order_queue_visibility_timeout_seconds" {
   description = "Order queue visibility timeout in seconds (match/ exceed order-processor Lambda timeout)"

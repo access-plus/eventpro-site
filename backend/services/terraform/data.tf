@@ -24,8 +24,10 @@ data "aws_route53_zone" "main" {
 }
 
 locals {
-  workspace   = terraform.workspace
-  name_prefix = local.workspace
-  image_uri   = "${var.image_registry}/${var.image_name}:${var.image_tag}"
-  common_tags = merge(var.tags, { Env = local.workspace })
+  workspace                  = terraform.workspace
+  name_prefix                = local.workspace
+  image_uri                  = "${var.image_registry}/${var.image_name}:${var.image_tag}"
+  common_tags                = merge(var.tags, { Env = local.workspace })
+  default_images_bucket_name = "eventpro-${lower(local.workspace)}-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}-images"
+  images_bucket_name         = var.images_bucket_name != "" ? var.images_bucket_name : local.default_images_bucket_name
 }

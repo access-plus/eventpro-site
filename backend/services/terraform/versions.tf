@@ -9,9 +9,9 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "eventpro-site-state"
-    key = "services/terraform.tfstate"
-    region = "us-east-1"
+    bucket       = "eventpro-site-state"
+    key          = "services/terraform.tfstate"
+    region       = "us-east-1"
     use_lockfile = true
   }
 }

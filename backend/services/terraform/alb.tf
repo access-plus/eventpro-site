@@ -14,7 +14,7 @@ resource "aws_lb" "main" {
 
   enable_deletion_protection = var.alb_enable_deletion_protection
   enable_http2               = true
-  idle_timeout                = 60
+  idle_timeout               = 60
 
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-alb" })
 }

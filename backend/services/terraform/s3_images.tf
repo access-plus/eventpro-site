@@ -1,9 +1,9 @@
 # S3 bucket for event images (used by ECS API)
 
 resource "aws_s3_bucket" "images" {
-  bucket = "${local.name_prefix}-images"
+  bucket = local.images_bucket_name
 
-  tags = merge(local.common_tags, { Name = "${local.name_prefix}-images" })
+  tags = merge(local.common_tags, { Name = local.images_bucket_name })
 }
 
 resource "aws_s3_bucket_versioning" "images" {
