@@ -21,18 +21,6 @@ variable "domain_name" {
   type        = string
 }
 
-variable "cloudfront_certificate_arn" {
-  description = "ACM certificate ARN for CloudFront (us-east-1). Create manually for *.domain_name."
-  type        = string
-  default     = ""
-}
-
-variable "alb_certificate_arn" {
-  description = "ACM certificate ARN for ALB. Create manually for *.domain_name (in ALB region)."
-  type        = string
-  default     = ""
-}
-
 variable "aws_region" {
   description = "AWS region to deploy resources into"
   type        = string

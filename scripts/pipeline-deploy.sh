@@ -98,8 +98,6 @@ Frontend deploy options:
 
 Required env vars (services/frontend):
   DOMAIN_NAME
-  ALB_CERTIFICATE_ARN
-  CLOUDFRONT_CERTIFICATE_ARN
 
 Image vars for existing-image mode (pipeline-style triplets):
   Services:
@@ -569,8 +567,6 @@ run_services_stack() {
   log "${GREEN}Deploying services stack${NC}"
 
   require_var DOMAIN_NAME
-  require_var ALB_CERTIFICATE_ARN
-  require_var CLOUDFRONT_CERTIFICATE_ARN
 
   if [ "$SERVICES_IMAGE_SOURCE" = "build" ]; then
     local primary_tag extra_tag
@@ -591,8 +587,6 @@ run_services_stack() {
     export TF_VAR_image_name="$SERVICES_IMAGE_NAME"
     export TF_VAR_image_tag="$SERVICES_IMAGE_TAG"
     export TF_VAR_domain_name="$DOMAIN_NAME"
-    export TF_VAR_alb_certificate_arn="$ALB_CERTIFICATE_ARN"
-    export TF_VAR_cloudfront_certificate_arn="$CLOUDFRONT_CERTIFICATE_ARN"
 
     [ -n "${STRIPE_SECRET_KEY:-}" ] && export TF_VAR_stripe_secret_key="$STRIPE_SECRET_KEY"
     [ -n "${STRIPE_PUBLISHABLE_KEY:-}" ] && export TF_VAR_stripe_publishable_key="$STRIPE_PUBLISHABLE_KEY"

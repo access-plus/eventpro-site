@@ -76,18 +76,28 @@ output "route53_zone_name" {
 }
 
 output "cloudfront_certificate_arn" {
-  description = "ACM certificate ARN for CloudFront (us-east-1, *.domain_name - pass in)"
-  value       = var.cloudfront_certificate_arn != "" ? var.cloudfront_certificate_arn : null
+  description = "ACM certificate ARN for CloudFront (us-east-1, managed in services Terraform)"
+  value       = aws_acm_certificate_validation.cloudfront.certificate_arn
 }
 
 output "alb_certificate_arn" {
-  description = "ACM certificate ARN for ALB (*.domain_name - pass in)"
+  description = "ACM certificate ARN for ALB (managed in services Terraform)"
   value       = local.alb_cert_arn
 }
 
 output "s3_images_bucket_id" {
   description = "S3 images bucket name"
   value       = aws_s3_bucket.images.id
+}
+
+output "load_balancer_dns_name" {
+  description = "Application Load Balancer DNS name"
+  value       = aws_lb.main.dns_name
+}
+
+output "load_balancer_url" {
+  description = "Application Load Balancer URL (AWS DNS endpoint)"
+  value       = "https://${aws_lb.main.dns_name}"
 }
 
 output "api_url" {

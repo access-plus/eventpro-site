@@ -1,8 +1,8 @@
 # Application Load Balancer for ECS API
-# Pass ACM ARN for *.domain_name (created manually); HTTPS when ARN provided
+# HTTPS is enabled when an ACM cert ARN is provided or created by Terraform
 
 locals {
-  alb_cert_arn = var.alb_certificate_arn != "" ? var.alb_certificate_arn : null
+  alb_cert_arn = aws_acm_certificate_validation.alb.certificate_arn
 }
 
 resource "aws_lb" "main" {
@@ -43,10 +43,8 @@ resource "aws_lb_target_group" "api" {
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-api-primary-tg" })
 }
 
-# HTTP listener - redirect to HTTPS when cert available
+# HTTP listener - redirect to HTTPS
 resource "aws_lb_listener" "http_redirect" {
-  count = local.alb_cert_arn != null ? 1 : 0
-
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
   protocol          = "HTTP"
@@ -64,26 +62,8 @@ resource "aws_lb_listener" "http_redirect" {
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-alb-http-listener" })
 }
 
-# HTTP listener - forward when no HTTPS cert (dev without domain)
-resource "aws_lb_listener" "http_forward" {
-  count = local.alb_cert_arn == null ? 1 : 0
-
-  load_balancer_arn = aws_lb.main.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.api.arn
-  }
-
-  tags = merge(local.common_tags, { Name = "${local.name_prefix}-alb-http-listener" })
-}
-
-# HTTPS listener - only when certificate available
+# HTTPS listener
 resource "aws_lb_listener" "https" {
-  count = local.alb_cert_arn != null ? 1 : 0
-
   load_balancer_arn = aws_lb.main.arn
   port              = "443"
   protocol          = "HTTPS"
