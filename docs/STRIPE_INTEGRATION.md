@@ -40,11 +40,10 @@ Use a **`.env` file in the project root** (same folder as `docker-compose.yml`).
 # Stripe – required for payments (get keys from Dashboard; never commit real secret key)
 STRIPE_SECRET_KEY=sk_test_...   # paste your secret key here
 STRIPE_PUBLISHABLE_KEY=pk_test_...
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 ```
 
-- Backend uses `STRIPE_SECRET_KEY` and (optionally) `STRIPE_PUBLISHABLE_KEY`.
-- Frontend container needs `VITE_STRIPE_PUBLISHABLE_KEY` so the checkout page can load Stripe.js and the card form.
+- Backend uses `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY`.
+- Frontend container automatically gets the publishable key from `STRIPE_PUBLISHABLE_KEY` (so you don’t need `VITE_STRIPE_PUBLISHABLE_KEY` in root `.env` unless you want to override it).
 
 Restart after changing env:
 
@@ -59,7 +58,7 @@ Backend can still get keys from root `.env` via Docker. For the frontend:
 - Add to **`eventpro-frontend/.env.local`**:
 
 ```bash
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxx
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 ```
 
 Restart the frontend dev server after changing.

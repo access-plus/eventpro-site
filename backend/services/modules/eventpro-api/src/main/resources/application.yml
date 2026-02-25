@@ -43,8 +43,8 @@ aws:
 
 stripe:
   secretKey: ${STRIPE_SECRET_KEY}
-  publishableKey: ${STRIPE_PUBLISHABLE_KEY}
-  webhookSecret: ${STRIPE_WEBHOOK_SECRET}
+  publishableKey: ${STRIPE_PUBLISHABLE_KEY:}
+  webhookSecret: ${STRIPE_WEBHOOK_SECRET:}
 
 # Ticket reservation expiry: release reserved tickets after this many minutes if not purchased.
 # Use 10 for high-demand sales (one winner, rest rejected instantly via atomic reserve).

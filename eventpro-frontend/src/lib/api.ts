@@ -156,17 +156,17 @@ class ApiService {
   }
 
   async updateCartItem(ticketId: string, data: UpdateCartRequest): Promise<CartResponse> {
-    const response = await this.api.put<ApiResponse<CartResponse>>(`/api/v1/cart/${ticketId}`, data);
+    const response = await this.api.patch<ApiResponse<CartResponse>>(`/api/v1/cart/update/${ticketId}`, data);
     return response.data.data;
   }
 
   async removeFromCart(ticketId: string): Promise<CartResponse> {
-    const response = await this.api.delete<ApiResponse<CartResponse>>(`/api/v1/cart/${ticketId}`);
+    const response = await this.api.delete<ApiResponse<CartResponse>>(`/api/v1/cart/delete/${ticketId}`);
     return response.data.data;
   }
 
   async clearCart(): Promise<void> {
-    await this.api.delete("/api/v1/cart");
+    await this.api.delete("/api/v1/cart/clear");
   }
 
   // Order endpoints (backend returns paginated { content: [...] }; shape may use amount/orderItems)
@@ -198,6 +198,12 @@ class ApiService {
       { items }
     );
     return response.data.data;
+  }
+
+  /** Get payment config (Stripe publishable key). Public – no auth. */
+  async getPaymentConfig(): Promise<{ stripePublishableKey: string }> {
+    const response = await this.api.get<ApiResponse<{ stripePublishableKey: string }>>("/api/v1/payments/config");
+    return response.data.data ?? { stripePublishableKey: "" };
   }
 
   /** Create Stripe payment intent (amount in dollars). Public – works for guest. */

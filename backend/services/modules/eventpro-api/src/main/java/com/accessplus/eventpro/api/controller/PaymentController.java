@@ -39,8 +39,20 @@ public class PaymentController extends BaseController {
     @Value("${eventpro.ticket.reservation-expiry-minutes:15}")
     private int reservationExpiryMinutes;
 
+    @Value("${stripe.publishableKey:}")
+    private String stripePublishableKey;
+
     private final PaymentService paymentService;
     private final OrderService orderService;
+
+    @GetMapping("/config")
+    @Operation(summary = "Payment config (public)", description = "Returns Stripe publishable key for the frontend card form. No auth required.")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getPaymentConfig() {
+        Map<String, String> config = new HashMap<>();
+        String key = stripePublishableKey != null ? stripePublishableKey.trim() : "";
+        config.put("stripePublishableKey", key);
+        return ResponseEntity.ok(ApiResponse.success(config, null));
+    }
 
     @PostMapping("/create-intent")
     @Operation(summary = "Create payment intent", description = "Creates a Stripe payment intent for the specified amount. Available to all (guest and authenticated).")

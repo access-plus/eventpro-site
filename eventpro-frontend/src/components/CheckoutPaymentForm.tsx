@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { apiService } from "@/lib/api";
 
 const STRIPE_SCRIPT_URL = "https://js.stripe.com/v3/";
 
@@ -50,12 +51,12 @@ function StripeNotConfigured() {
       <CardHeader>
         <CardTitle>Payment</CardTitle>
         <CardDescription>
-          Set VITE_STRIPE_PUBLISHABLE_KEY in your environment to enable card payments.
+          Set STRIPE_PUBLISHABLE_KEY in your backend .env (project root) to enable card payments.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">
-          Guest checkout is supported on the backend. Configure Stripe to collect payment here.
+          Restart the backend after updating .env, then refresh this page.
         </p>
       </CardContent>
     </Card>
@@ -64,19 +65,35 @@ function StripeNotConfigured() {
 
 export function CheckoutPaymentForm(props: CheckoutPaymentFormProps) {
   const { clientSecret, onSuccess, onError, guestConfirm, authenticatedConfirm, isGuest } = props;
+  const [stripeKey, setStripeKey] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const cardMountRef = useRef<HTMLDivElement>(null);
   const cardInstanceRef = useRef<{ unmount: () => void } | null>(null);
+  const stripeInstanceRef = useRef<ReturnType<NonNullable<typeof window.Stripe>> | null>(null);
 
-  const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY?.trim?.();
-
+  // Fetch Stripe publishable key from backend (no frontend env needed)
   useEffect(() => {
-    if (!key) {
-      setError("no-key");
+    const envKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY?.trim?.();
+    if (envKey) {
+      setStripeKey(envKey);
       return;
     }
+    apiService
+      .getPaymentConfig()
+      .then((config) => {
+        const k = config?.stripePublishableKey?.trim?.();
+        setStripeKey(k || null);
+        if (!k) setError("no-key");
+      })
+      .catch(() => setError("no-key"));
+  }, []);
+
+  const key = stripeKey ?? "";
+
+  useEffect(() => {
+    if (!key) return;
     let cancelled = false;
     let mountTimeout: ReturnType<typeof setTimeout> | null = null;
     loadScript(STRIPE_SCRIPT_URL)
@@ -86,6 +103,7 @@ export function CheckoutPaymentForm(props: CheckoutPaymentFormProps) {
           return;
         }
         const stripe = window.Stripe(key);
+        stripeInstanceRef.current = stripe;
         const elements = stripe.elements({ clientSecret });
         const card = elements.create("card", {
           style: { base: { fontSize: "16px", color: "hsl(var(--foreground))" } },
@@ -112,18 +130,19 @@ export function CheckoutPaymentForm(props: CheckoutPaymentFormProps) {
       if (mountTimeout) clearTimeout(mountTimeout);
       cardInstanceRef.current?.unmount?.();
       cardInstanceRef.current = null;
+      stripeInstanceRef.current = null;
     };
   }, [key, clientSecret]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!key || !window.Stripe || !cardInstanceRef.current) {
+    const stripe = stripeInstanceRef.current;
+    if (!stripe || !cardInstanceRef.current) {
       onError("Payment form not ready");
       return;
     }
     setIsSubmitting(true);
     try {
-      const stripe = window.Stripe(key);
       const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: { card: cardInstanceRef.current },
       });
@@ -151,7 +170,16 @@ export function CheckoutPaymentForm(props: CheckoutPaymentFormProps) {
     }
   };
 
-  if (error) {
+  if (stripeKey === null && !error) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-sm text-muted-foreground">Loading payment form…</p>
+        </CardContent>
+      </Card>
+    );
+  }
+  if (error || !key) {
     return <StripeNotConfigured />;
   }
 

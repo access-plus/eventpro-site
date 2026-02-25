@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { apiService } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import type { CartResponse, CartItemResponse } from "@/types/api";
+import type { CartResponse, CartItemResponse, TicketTypeEnum } from "@/types/api";
 
 interface CartItem {
   id: string;
@@ -91,7 +91,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         for (const item of localItems) {
           try {
             await apiService.addToCart({
-              id: item.ticketTypeId,
+              eventIdType: item.eventId,
+              ticketType: item.ticketTypeId as TicketTypeEnum,
               quantity: item.quantity,
             });
           } catch (error) {
@@ -116,7 +117,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const cartData = await apiService.getCart();
       const mappedItems: CartItem[] = cartData.tickets.map((ticket: CartItemResponse) => ({
         id: ticket.id,
-        ticketTypeId: ticket.id,
+        ticketTypeId: ticket.ticketType ?? ticket.id,
         ticketTypeName: ticket.name,
         eventName: ticket.name,
         eventId: ticket.eventIdType || "",
@@ -131,14 +132,16 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addItem = (item: Omit<CartItem, "id">) => {
+  const addItem = async (item: Omit<CartItem, "id">) => {
     const newItem: CartItem = {
       ...item,
       id: `${item.ticketTypeId}-${Date.now()}`,
     };
 
-    const existingIndex = items.findIndex((i) => i.ticketTypeId === item.ticketTypeId);
-    
+    const existingIndex = items.findIndex(
+      (i) => i.eventId === item.eventId && i.ticketTypeId === item.ticketTypeId
+    );
+
     if (existingIndex >= 0) {
       const updated = [...items];
       updated[existingIndex].quantity += item.quantity;
@@ -150,16 +153,52 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!isAuthenticated) saveLocalCart(updated);
     }
 
+    if (isAuthenticated) {
+      try {
+        await apiService.addToCart({
+          eventIdType: item.eventId,
+          ticketType: item.ticketTypeId as TicketTypeEnum,
+          quantity: item.quantity,
+        });
+        await refreshCart();
+      } catch (error) {
+        console.error("Failed to add to cart:", error);
+        await refreshCart(); // revert to server state
+        toast({
+          title: "Could not add to cart",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     toast({
       title: "Added to cart",
       description: `${item.ticketTypeName} added to your cart`,
     });
   };
 
-  const removeItem = (itemId: string) => {
+  const removeItem = async (itemId: string) => {
     const updated = items.filter((item) => item.id !== itemId);
     setItems(updated);
-    if (!isAuthenticated) saveLocalCart(updated);
+    if (!isAuthenticated) {
+      saveLocalCart(updated);
+    } else {
+      try {
+        await apiService.removeFromCart(itemId);
+        await refreshCart();
+      } catch (error) {
+        console.error("Failed to remove from cart:", error);
+        await refreshCart();
+        toast({
+          title: "Could not remove item",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
 
     toast({
       title: "Removed from cart",
@@ -167,9 +206,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const updateQuantity = (itemId: string, quantity: number) => {
+  const updateQuantity = async (itemId: string, quantity: number) => {
     if (quantity <= 0) {
-      removeItem(itemId);
+      await removeItem(itemId);
       return;
     }
 
@@ -177,7 +216,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       item.id === itemId ? { ...item, quantity } : item
     );
     setItems(updated);
-    if (!isAuthenticated) saveLocalCart(updated);
+    if (!isAuthenticated) {
+      saveLocalCart(updated);
+    } else {
+      try {
+        await apiService.updateCartItem(itemId, { quantity });
+        await refreshCart();
+      } catch (error) {
+        console.error("Failed to update quantity:", error);
+        await refreshCart();
+        toast({
+          title: "Could not update quantity",
+          description: "Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   const clearCart = () => {

@@ -15,6 +15,7 @@ import com.accessplus.eventpro.order.order.model.GuestOrderItem;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
 import com.accessplus.eventpro.shared.entity.OrderItemEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
+import com.accessplus.eventpro.order.order.repository.OrderItemRepository;
 import com.accessplus.eventpro.order.order.repository.OrderRepository;
 import com.accessplus.eventpro.order.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +57,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final CartService cartService;
     private final UserRepository userRepository;
     private final TicketService ticketService;
@@ -89,7 +91,7 @@ public class OrderServiceImpl implements OrderService {
         // Generate unique order number
         String orderNumber = generateOrderNumber();
 
-        // Create order entity
+        // Create order entity (no items yet - order must be saved first to get ID)
         OrderEntity order = new OrderEntity();
         order.setOrderNumber(orderNumber);
         order.setTotalAmount(totalAmount);
@@ -98,7 +100,8 @@ public class OrderServiceImpl implements OrderService {
         order.setUserId(user.getId()); // Use UUID instead of relationship
         order.setOrderItems(new ArrayList<>());
 
-        // Convert cart items to order items
+        // Build order items list (do not add to order yet - orderId is required and we don't have it until order is saved)
+        List<OrderItemEntity> orderItems = new ArrayList<>();
         for (CartEntity cartItem : cartItems) {
             TicketEntity ticket = cartItem.getTicket();
             if (ticket == null) {
@@ -111,28 +114,25 @@ public class OrderServiceImpl implements OrderService {
             orderItem.setPrice(ticket.getPrice()); // Store price at time of order
             orderItem.setTicketId(ticket.getId()); // Set UUID
             orderItem.setTicket(ticket); // Set relationship for JPA (optional, for lazy loading)
-
-            order.getOrderItems().add(orderItem);
+            orderItems.add(orderItem);
         }
 
         // Validate order has items
-        if (order.getOrderItems().isEmpty()) {
+        if (orderItems.isEmpty()) {
             throw new ValidationException("Cannot create order with no valid items");
         }
 
-        // Save order (cascade will save order items)
-        // After save, order will have an ID, then we can set orderId on order items
-        OrderEntity savedOrder = orderRepository.save(order);
-        
-        // Update order items with order ID (in case they weren't set by cascade)
-        for (OrderItemEntity orderItem : savedOrder.getOrderItems()) {
-            if (orderItem.getOrderId() == null) {
-                orderItem.setOrderId(savedOrder.getId());
-                orderItem.setOrder(savedOrder); // Set relationship for JPA
-            }
+        // Save order first so it gets an ID (required for order_items.order_id)
+        OrderEntity savedOrder = orderRepository.saveAndFlush(order);
+        // Set orderId and persist each item explicitly (cascade can insert with null order_id in some setups)
+        for (OrderItemEntity orderItem : orderItems) {
+            orderItem.setOrderId(savedOrder.getId());
+            orderItem.setOrder(savedOrder);
+            orderItemRepository.saveAndFlush(orderItem);
+            savedOrder.getOrderItems().add(orderItem);
         }
-        log.info("Created order: orderId={}, orderNumber={}, totalAmount={}, itemCount={}", 
-                savedOrder.getId(), orderNumber, totalAmount, order.getOrderItems().size());
+        log.info("Created order: orderId={}, orderNumber={}, totalAmount={}, itemCount={}",
+                savedOrder.getId(), orderNumber, totalAmount, orderItems.size());
 
         // Publish order to SQS queue
         try {
@@ -216,9 +216,9 @@ public class OrderServiceImpl implements OrderService {
         for (OrderItemEntity oi : orderItems) {
             oi.setOrderId(savedOrder.getId());
             oi.setOrder(savedOrder);
+            orderItemRepository.saveAndFlush(oi);
             savedOrder.getOrderItems().add(oi);
         }
-        orderRepository.save(savedOrder);
         log.info("Created guest order: orderId={}, orderNumber={}, guestEmail={}", savedOrder.getId(), orderNumber, guestEmail);
         try {
             publishOrderToSQS(savedOrder);
@@ -310,9 +310,9 @@ public class OrderServiceImpl implements OrderService {
         for (OrderItemEntity oi : orderItems) {
             oi.setOrderId(savedOrder.getId());
             oi.setOrder(savedOrder);
+            orderItemRepository.saveAndFlush(oi);
             savedOrder.getOrderItems().add(oi);
         }
-        orderRepository.save(savedOrder);
         log.info("Created guest order from reserved tickets: orderId={}, orderNumber={}", savedOrder.getId(), orderNumber);
         try {
             publishOrderToSQS(savedOrder);

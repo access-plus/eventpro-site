@@ -50,7 +50,7 @@ public class OrderEntity extends BaseEntity {
 
     @NotNull(message = "Order status is required")
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "order_status")
+    @Column(name = "status", nullable = false, length = 50)
     private OrderStatus status;
 
     @NotNull(message = "Order date is required")
