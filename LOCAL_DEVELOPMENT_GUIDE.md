@@ -1293,6 +1293,32 @@ export SERVICES_IMAGE_TAG=sha-123456789012
 <details>
 <summary>frontend only</summary>
 
+*build and deploy*
+
+```bash
+./scripts/pipeline-deploy.sh --env-file .env --only frontend --apply
+```
+
+*preview terraform changes only (no S3 sync / CloudFront invalidation in plan mode)*
+
+```bash
+./scripts/pipeline-deploy.sh --env-file .env --only frontend --plan
+```
+
+*deploy frontend infra/build, but skip asset sync and/or invalidation (apply mode)*
+
+```bash
+./scripts/pipeline-deploy.sh \
+  --env-file .env \
+  --only frontend \
+  --no-frontend-sync \
+  --no-frontend-invalidate \
+  --apply
+```
+
+Notes:
+- `DOMAIN_NAME` is required (loaded from `.env` via `--env-file .env`).
+- `VITE_API_BASE_URL` is optional; if omitted the script uses `https://<workspace>-api.$DOMAIN_NAME`.
 
 
 </details>
@@ -1302,7 +1328,64 @@ export SERVICES_IMAGE_TAG=sha-123456789012
 <details>
 <summary>lambdas only</summary>
 
+*build and deploy all lambdas*
 
+```bash
+./scripts/pipeline-deploy.sh --env-file .env --only lambdas --apply
+```
+
+*deploy only specific lambdas*
+
+```bash
+./scripts/pipeline-deploy.sh \
+  --env-file .env \
+  --only lambdas \
+  --lambdas order-processor,payment-processor \
+  --apply
+```
+
+*deploy existing images (all lambdas)*
+
+Make sure the images already exist in ECR and the image tags are set in your environment (or `.env`).
+
+```bash
+export ORDER_PROCESSOR_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
+export ORDER_PROCESSOR_IMAGE_NAME=eventpro-order-processor
+export ORDER_PROCESSOR_IMAGE_TAG=sha-123456789012
+
+export PAYMENT_PROCESSOR_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
+export PAYMENT_PROCESSOR_IMAGE_NAME=eventpro-payment-processor
+export PAYMENT_PROCESSOR_IMAGE_TAG=sha-123456789012
+
+export NOTIFICATION_SENDER_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
+export NOTIFICATION_SENDER_IMAGE_NAME=eventpro-notification-sender
+export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
+```
+
+```bash
+./scripts/pipeline-deploy.sh \
+  --env-file .env \
+  --only lambdas \
+  --lambdas-image-source existing \
+  --apply
+```
+
+*mix build + existing image sources per lambda (example)*
+
+```bash
+./scripts/pipeline-deploy.sh \
+  --env-file .env \
+  --only lambdas \
+  --order-processor-image-source existing \
+  --payment-processor-image-source build \
+  --notification-sender-image-source build \
+  --apply
+```
+
+Notes:
+- `payment-processor` requires `STRIPE_SECRET_KEY`.
+- `notification-sender` uses `SES_SENDER_EMAIL` when set.
+- `--lambdas` accepts: `order-processor`, `payment-processor`, `notification-sender`.
 
 </details>
 
