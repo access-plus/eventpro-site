@@ -60,6 +60,7 @@ help:
 	@echo "  make local-up       - Step 3: Start Backend + Frontend"
 	@echo "  make local-down     - Stop all services"
 	@echo "  make local-restart  - Restart Backend + Frontend"
+	@echo "  make backend-rebuild - Clean backend build and restart (use after changing shared/migrations)"
 	@echo "  make local-reset    - Reset containers (fixes conflicts)"
 	@echo "  make local-clean    - Clean everything (containers + Terraform)"
 	@echo "  make local-logs    - View all logs"
@@ -353,6 +354,16 @@ local-restart:
 	@echo "Restarting application services..."
 	@docker compose  restart backend frontend
 	@echo "Services restarted!"
+
+# Force backend to recompile from source (clean + restart). Use after changing shared/ or migrations.
+backend-rebuild:
+	@echo "Stopping backend..."
+	@docker compose stop backend
+	@echo "Cleaning backend build (shared + eventpro-api)..."
+	@docker compose run --rm backend sh -c "cd /app/backend/services && chmod +x ./gradlew && ./gradlew clean --no-daemon"
+	@echo "Starting backend (full recompile on boot)..."
+	@docker compose up -d backend
+	@echo "Backend rebuild done. Watch logs with: make backend-logs"
 
 backend-logs:
 	@docker compose  logs -f backend

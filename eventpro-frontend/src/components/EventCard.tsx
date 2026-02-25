@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,7 @@ function safeFormatDate(value: string | undefined, formatStr: string, fallback: 
 
 export const EventCard = ({ event, index = 0 }: EventCardProps) => {
   const navigate = useNavigate();
+  const [imgError, setImgError] = useState(false);
   const startRaw = event.startTime ?? event.startDateTime;
 
   const getStatusColor = (status: Event["status"]) => {
@@ -68,11 +70,12 @@ export const EventCard = ({ event, index = 0 }: EventCardProps) => {
       >
         {/* Image Section with Overlay */}
         <div className="relative h-52 overflow-hidden">
-          {event.imageUrl ? (
+          {event.imageUrl && !imgError ? (
             <img
               src={getEventImageUrl(event.imageUrl) ?? ""}
               alt={event.name}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              onError={() => setImgError(true)}
             />
           ) : (
             <div className={`w-full h-full bg-gradient-to-br ${getCategoryColor(event.categoryName || event.category)} flex items-center justify-center`}>

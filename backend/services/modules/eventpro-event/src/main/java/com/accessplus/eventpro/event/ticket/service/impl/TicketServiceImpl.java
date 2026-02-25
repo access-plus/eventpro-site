@@ -14,6 +14,7 @@ import com.accessplus.eventpro.event.ticket.service.QRCodeService;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -51,6 +53,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional
 public class TicketServiceImpl implements TicketService {
+
+    @Value("${eventpro.ticket.reservation-expiry-minutes:15}")
+    private int reservationExpiryMinutes;
 
     private final TicketRepository ticketRepository;
     private final EventRepository eventRepository;
@@ -279,43 +284,39 @@ public class TicketServiceImpl implements TicketService {
 
     /**
      * Marks a ticket as sold and generates QR code.
+     * For guest orders, purchaserId may be null.
      */
     @Override
     public TicketEntity markTicketAsSold(UUID ticketId, UUID purchaserId) throws IOException {
         log.debug("Marking ticket as sold: ticketId={}, purchaserId={}", ticketId, purchaserId);
 
-        // Fetch ticket
         TicketEntity ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket", ticketId.toString()));
 
-        // Validate ticket is available or reserved
         if (ticket.getTicketStatus() == TicketStatus.SOLD) {
             throw new IllegalStateException("Ticket is already sold");
         }
 
-        // Fetch purchaser
-        UserEntity purchaser = userRepository.findById(purchaserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", purchaserId.toString()));
-
-        // Update ticket status and purchaser
         ticket.setTicketStatus(TicketStatus.SOLD);
-        ticket.setPurchaserId(purchaser.getId());
+        ticket.setReservedUntil(null);
+        if (purchaserId != null) {
+            UserEntity purchaser = userRepository.findById(purchaserId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User", purchaserId.toString()));
+            ticket.setPurchaserId(purchaser.getId());
+        } else {
+            ticket.setPurchaserId(null);
+        }
 
-        // Generate and upload QR code
         try {
             String qrCodeUrl = qrCodeService.generateAndUploadQRCode(ticketId);
             ticket.setQrCode(qrCodeUrl);
             log.info("QR code generated and uploaded for ticket: ticketId={}, qrCodeUrl={}", ticketId, qrCodeUrl);
         } catch (IOException e) {
             log.error("Failed to generate QR code for ticket: ticketId={}, error={}", ticketId, e.getMessage(), e);
-            // Continue with ticket sale even if QR code generation fails
-            // QR code can be generated later if needed
         }
 
-        // Save updated ticket
         TicketEntity savedTicket = ticketRepository.save(ticket);
         log.info("Successfully marked ticket as sold: ticketId={}, purchaserId={}", ticketId, purchaserId);
-
         return savedTicket;
     }
 
@@ -336,11 +337,12 @@ public class TicketServiceImpl implements TicketService {
                     String.format("Ticket is not available. Current status: %s", ticket.getTicketStatus()));
         }
 
-        // Update ticket status
+        // Update ticket status and set reservation expiry (e.g. 15 min)
         ticket.setTicketStatus(TicketStatus.RESERVED);
+        ticket.setReservedUntil(java.time.LocalDateTime.now().plusMinutes(reservationExpiryMinutes));
         ticketRepository.save(ticket);
 
-        log.info("Successfully marked ticket as reserved: ticketId={}", ticketId);
+        log.info("Successfully marked ticket as reserved: ticketId={}, expires at {}", ticketId, ticket.getReservedUntil());
     }
 
     /**
@@ -361,7 +363,8 @@ public class TicketServiceImpl implements TicketService {
 
         // Update ticket status
         ticket.setTicketStatus(TicketStatus.AVAILABLE);
-        ticket.setPurchaserId(null); // Clear purchaser if set
+        ticket.setPurchaserId(null);
+        ticket.setReservedUntil(null);
         ticketRepository.save(ticket);
 
         log.info("Successfully marked ticket as available: ticketId={}", ticketId);
@@ -387,6 +390,45 @@ public class TicketServiceImpl implements TicketService {
         // For now, we'll just log the check-in
         // In a production system, you'd add a checkedIn boolean field and checkedInAt timestamp
         log.info("Ticket checked in: ticketId={}, purchaserId={}", ticketId, ticket.getPurchaserId());
+    }
+
+    @Override
+    @Transactional
+    public Optional<UUID> reserveOneTicketAtomic(UUID eventId, TicketType ticketType) {
+        LocalDateTime reservedUntil = LocalDateTime.now().plusMinutes(reservationExpiryMinutes);
+        return ticketRepository.reserveOneTicketAtomic(eventId, ticketType, reservedUntil);
+    }
+
+    @Override
+    @Transactional
+    public List<UUID> findAndReserveAvailableTickets(UUID eventId, TicketType ticketType, int count) {
+        if (count <= 0) {
+            return List.of();
+        }
+        // Use atomic reserve-one in a loop so under high contention one request wins, rest fail fast
+        List<UUID> reserved = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            Optional<UUID> id = reserveOneTicketAtomic(eventId, ticketType);
+            if (id.isEmpty()) break;
+            reserved.add(id.get());
+        }
+        return reserved;
+    }
+
+    @Override
+    @Transactional
+    public int releaseExpiredReservations() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        List<TicketEntity> expired = ticketRepository.findReservedWithExpiredHold(now);
+        for (TicketEntity t : expired) {
+            t.setTicketStatus(TicketStatus.AVAILABLE);
+            t.setReservedUntil(null);
+            ticketRepository.save(t);
+        }
+        if (!expired.isEmpty()) {
+            log.info("Released {} expired reservation(s)", expired.size());
+        }
+        return expired.size();
     }
 }
 

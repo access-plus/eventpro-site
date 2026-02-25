@@ -21,6 +21,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { apiService } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Event, EventAddon } from "@/types/api";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -55,8 +56,13 @@ const EventEnhancements = () => {
   });
 
   useEffect(() => {
-    if (eventId) loadData();
-  }, [eventId]);
+    if (!eventId) return;
+    if (user && !canUseAddons(user.subscriptionTier)) {
+      setIsLoading(false);
+      return;
+    }
+    loadData();
+  }, [eventId, user?.subscriptionTier]);
 
   const loadData = async () => {
     if (!eventId) return;
@@ -178,6 +184,44 @@ const EventEnhancements = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (user && !canUseAddons(user.subscriptionTier)) {
+    return (
+      <div className="min-h-screen py-8">
+        <div className="container mx-auto px-4 max-w-md">
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/organizer">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5" />
+                Merchandise & add-ons
+              </CardTitle>
+              <CardDescription>
+                Sell merchandise, add-ons, and upgrades at checkout. This feature is available on Pro and Enterprise plans.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Upgrade to Pro to unlock add-ons and increase your revenue per event.
+              </p>
+              <div className="flex gap-2">
+                <Button asChild>
+                  <Link to="/pricing">View plans</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/organizer">Back to Dashboard</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.event.service.AWSS3ImageService;
+import com.accessplus.eventpro.event.service.ImageAccessDeniedException;
 import com.accessplus.eventpro.event.service.S3ObjectContent;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -42,20 +43,31 @@ public class ImageProxyController extends BaseController {
         }
         try {
             String decoded = URLDecoder.decode(keyOrUrl.trim(), StandardCharsets.UTF_8);
+            // Strip query string so it's not part of the S3 key
+            int q = decoded.indexOf('?');
+            if (q > 0) {
+                decoded = decoded.substring(0, q);
+            }
             // Only allow keys that look like our event/profile paths (security)
             if (!isAllowedKeyOrUrl(decoded)) {
                 log.warn("Image proxy rejected disallowed key/url: {}", decoded);
                 return ResponseEntity.status(403).build();
             }
+            log.debug("Image proxy fetching: url={}", decoded);
             S3ObjectContent content = s3ImageService.getObject(decoded);
+            log.debug("Image proxy served: url={}", decoded);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(content.getContentType()));
             headers.setCacheControl("public, max-age=3600");
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(content.getContent());
+        } catch (ImageAccessDeniedException e) {
+            log.warn("Image proxy access denied for url={}: {}", keyOrUrl, e.getMessage());
+            return ResponseEntity.status(403).build();
         } catch (IOException e) {
-            log.debug("Image proxy failed: {}", e.getMessage());
+            log.warn("Image proxy failed for url={}: {} (cause: {})", keyOrUrl, e.getMessage(),
+                    e.getCause() != null ? e.getCause().getMessage() : "none");
             return ResponseEntity.notFound().build();
         }
     }

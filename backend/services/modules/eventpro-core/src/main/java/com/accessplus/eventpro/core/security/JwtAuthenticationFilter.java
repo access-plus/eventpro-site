@@ -25,6 +25,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
 
+    /** Skip this filter entirely for public paths so they never require or validate a token. */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return isPublicEndpoint(request.getRequestURI(), request.getMethod());
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
@@ -105,6 +111,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (path.equals("/api/v1/auth/signup") ||
                 path.equals("/api/v1/auth/login") ||
                 path.equals("/api/v1/auth/send-reset-email")) {
+                return true;
+            }
+            // Guest payment endpoints - no auth required (with or without trailing slash)
+            if (path.equals("/api/v1/payments/create-intent") || path.equals("/api/v1/payments/create-intent/") ||
+                path.equals("/api/v1/payments/guest/confirm") || path.equals("/api/v1/payments/guest/confirm/") ||
+                path.equals("/api/v1/payments/guest-reserve") || path.equals("/api/v1/payments/guest-reserve/")) {
                 return true;
             }
         }

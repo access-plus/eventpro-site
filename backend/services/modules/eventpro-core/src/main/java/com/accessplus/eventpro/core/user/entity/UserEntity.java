@@ -47,6 +47,10 @@ public class UserEntity extends BaseEntity {
     @Column(name = "role", length = 50)
     private String role;
 
+    /** Subscription/plan tier: BASIC, PRO, ENTERPRISE. Gates features per pricing page. */
+    @Column(name = "subscription_tier", length = 20, nullable = false)
+    private String subscriptionTier = "BASIC";
+
     // Relationships will be added in future phases when related entities are created
     // For now, we'll use lazy initialization to avoid circular dependencies
     

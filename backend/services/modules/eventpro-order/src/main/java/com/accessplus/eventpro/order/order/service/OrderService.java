@@ -1,10 +1,13 @@
 package com.accessplus.eventpro.order.order.service;
 
+import com.accessplus.eventpro.order.order.model.GuestOrderItem;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -71,5 +74,39 @@ public interface OrderService {
      * @return unique order number string
      */
     String generateOrderNumber();
+
+    /**
+     * Creates an order for a guest (no user account).
+     * Reserves tickets, creates order with guest email/name, and publishes to SQS.
+     *
+     * @param guestEmail guest email
+     * @param guestFirstName guest first name
+     * @param guestLastName guest last name
+     * @param items line items (eventId, ticketType name, quantity)
+     * @param totalAmount expected total (validated against sum of reserved ticket prices)
+     * @return created order
+     */
+    OrderEntity createOrderForGuest(String guestEmail, String guestFirstName, String guestLastName,
+                                    List<GuestOrderItem> items, BigDecimal totalAmount);
+
+    /**
+     * Same as createOrderForGuest but uses pre-reserved ticket IDs (from reserveTicketsForGuest).
+     * Use when guest already reserved tickets at "Proceed to Payment".
+     */
+    OrderEntity createOrderForGuestWithReservedTickets(String guestEmail, String guestFirstName, String guestLastName,
+                                                       List<GuestOrderItem> items, BigDecimal totalAmount,
+                                                       List<UUID> reservedTicketIds);
+
+    /**
+     * Marks all tickets in the order as SOLD (reduces available count).
+     * Called after payment is confirmed. For guest orders, purchaserId is null.
+     */
+    void markOrderTicketsAsSold(OrderEntity order);
+
+    /**
+     * Reserves tickets for a guest (lock) so they are held while the guest completes payment.
+     * Returns the reserved ticket IDs in order (item1 qty N then item2 qty M, etc.).
+     */
+    List<UUID> reserveTicketsForGuest(List<GuestOrderItem> items);
 }
 

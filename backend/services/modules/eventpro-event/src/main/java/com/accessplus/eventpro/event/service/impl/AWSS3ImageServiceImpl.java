@@ -3,6 +3,7 @@ package com.accessplus.eventpro.event.service.impl;
 import com.accessplus.eventpro.event.config.S3AclConfig.S3AclProperties;
 import com.accessplus.eventpro.event.config.S3Properties;
 import com.accessplus.eventpro.event.service.AWSS3ImageService;
+import com.accessplus.eventpro.event.service.ImageAccessDeniedException;
 import com.accessplus.eventpro.event.service.S3ObjectContent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -174,9 +175,11 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
             throw new IllegalArgumentException("S3 key cannot be null or empty");
         }
         String actualKey = extractKeyFromUrl(key);
+        String bucketName = s3Properties.getBucketName();
+        log.debug("S3 getObject: bucket={}, key={}", bucketName, actualKey);
         try {
             GetObjectRequest req = GetObjectRequest.builder()
-                    .bucket(s3Properties.getBucketName())
+                    .bucket(bucketName)
                     .key(actualKey)
                     .build();
             try (ResponseInputStream<GetObjectResponse> stream = s3Client.getObject(req)) {
@@ -189,6 +192,15 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
             log.warn("S3 object not found: {}", actualKey);
             throw new IOException("Image not found: " + actualKey, e);
         } catch (S3Exception e) {
+            boolean accessDenied = e.statusCode() == 403
+                    || (e.awsErrorDetails() != null
+                    && (e.awsErrorDetails().errorCode() != null
+                    && (e.awsErrorDetails().errorCode().contains("AccessDenied")
+                    || e.awsErrorDetails().errorCode().contains("Forbidden"))));
+            if (accessDenied) {
+                log.warn("S3 access denied for key={}: {}", actualKey, e.getMessage());
+                throw new ImageAccessDeniedException("Access denied: " + actualKey, e);
+            }
             log.error("Failed to get S3 object: key={}, error={}", actualKey, e.getMessage(), e);
             throw new IOException("Failed to get image from S3: " + e.getMessage(), e);
         }
@@ -262,30 +274,49 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
     }
 
     private String extractKeyFromUrl(String urlOrKey) {
+        // Strip query string so ?... is never part of the key
+        String input = urlOrKey;
+        int queryStart = urlOrKey.indexOf('?');
+        if (queryStart > 0) {
+            input = urlOrKey.substring(0, queryStart);
+        }
         // If it's already a key (no http/https), return as-is
-        if (!urlOrKey.startsWith("http://") && !urlOrKey.startsWith("https://")) {
-            return urlOrKey;
+        if (!input.startsWith("http://") && !input.startsWith("https://")) {
+            return input;
         }
 
         // Extract key from URL
         // Format: https://{bucket}.s3.{region}.amazonaws.com/{key}
-        // or: http://localhost:4566/{bucket}/{key}
+        // or: http://localhost:4566/{bucket}/{key} (LocalStack path-style)
         try {
             String bucketName = s3Properties.getBucketName();
-            if (urlOrKey.contains("/" + bucketName + "/")) {
-                int keyStartIndex = urlOrKey.indexOf("/" + bucketName + "/") + bucketName.length() + 1;
-                return urlOrKey.substring(keyStartIndex);
-            } else if (urlOrKey.contains(".s3.")) {
+            if (input.contains("/" + bucketName + "/")) {
+                int idx = input.indexOf("/" + bucketName + "/");
+                int keyStartIndex = idx + 1 + bucketName.length() + 1; // skip "/bucket/"
+                if (keyStartIndex <= input.length()) {
+                    return input.substring(keyStartIndex);
+                }
+            }
+            // LocalStack path-style fallback: path is /bucket/key - take everything after first path segment (bucket)
+            if (input.contains(":4566/")) {
+                int pathStart = input.indexOf(":4566/") + 6; // after ":4566/"
+                String path = input.substring(pathStart);
+                int firstSlash = path.indexOf('/');
+                if (firstSlash >= 0 && firstSlash < path.length() - 1) {
+                    return path.substring(firstSlash + 1); // key after bucket name
+                }
+            }
+            if (input.contains(".s3.")) {
                 // AWS format: https://bucket.s3.region.amazonaws.com/key
-                int keyStartIndex = urlOrKey.indexOf(".s3.") + 4;
-                keyStartIndex = urlOrKey.indexOf("/", keyStartIndex) + 1;
-                return urlOrKey.substring(keyStartIndex);
+                int keyStartIndex = input.indexOf(".s3.") + 4;
+                keyStartIndex = input.indexOf("/", keyStartIndex) + 1;
+                return input.substring(keyStartIndex);
             }
         } catch (Exception e) {
             log.warn("Failed to extract key from URL: {}, using as-is", urlOrKey, e);
         }
 
-        return urlOrKey;
+        return input;
     }
 }
 

@@ -69,9 +69,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     } catch (error: any) {
       console.error("Login failed:", error);
+      const isNetworkError =
+        error?.code === "ERR_NETWORK" ||
+        error?.code === "ECONNRESET" ||
+        error?.message === "Network Error" ||
+        (error?.isAxiosError && !error?.response);
+      const description = isNetworkError
+        ? "Cannot reach the server. Check that the backend is running (e.g. http://localhost:8080) and try again."
+        : error?.response?.data?.message || error?.message || "Invalid credentials. Please check your email and password.";
       toast({
         title: "Login failed",
-        description: error.message || "Invalid credentials. Please check your email and password.",
+        description,
         variant: "destructive",
       });
       throw error;

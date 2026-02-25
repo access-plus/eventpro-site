@@ -24,9 +24,15 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { apiService } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { Event, TicketType } from "@/types/api";
 import axios from "axios";
 import { Badge } from "@/components/ui/badge";
+
+function canUseAddons(tier: string | undefined): boolean {
+  const t = (tier ?? "BASIC").toUpperCase();
+  return t === "PRO" || t === "ENTERPRISE";
+}
 
 type TicketFormData = {
   ticketType: "VIP" | "REGULAR" | "EARLY_BIRD";
@@ -37,6 +43,7 @@ type TicketFormData = {
 const EventTickets = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [tickets, setTickets] = useState<TicketType[]>([]);
@@ -153,10 +160,17 @@ const EventTickets = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Link to="/organizer" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Link>
+          <div className="flex items-center justify-between mb-4">
+            <Link to="/organizer" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Link>
+            {id && canUseAddons(user?.subscriptionTier) && (
+              <Link to={`/organizer/events/${id}/enhancements`} className="text-sm text-muted-foreground hover:text-foreground">
+                Enhance (add-ons)
+              </Link>
+            )}
+          </div>
 
           {/* Event Info Header */}
           <Card className="mb-6">

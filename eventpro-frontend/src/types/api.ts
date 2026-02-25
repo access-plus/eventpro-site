@@ -2,6 +2,9 @@ export type UserRole = "ADMIN" | "ORGANIZER" | "USER";
 
 export type UserStatus = "ACTIVE" | "SUSPENDED" | "PENDING_VERIFICATION";
 
+/** Plan tier from pricing page: Basic (free), Pro, Enterprise. Used for feature gating. */
+export type SubscriptionTier = "BASIC" | "PRO" | "ENTERPRISE";
+
 export interface User {
   id: string;
   email: string;
@@ -13,6 +16,8 @@ export interface User {
   location?: string;
   role: UserRole;
   status: UserStatus;
+  /** Plan tier for feature gating (add-ons, early payouts, custom domain, etc.). Defaults to BASIC. */
+  subscriptionTier?: SubscriptionTier;
   createdAt: string;
   updatedAt: string;
 }
@@ -193,4 +198,21 @@ export interface RevenueData {
   date: string;
   revenue: number;
   ticketsSold: number;
+}
+
+/** Request to create a Stripe payment intent (amount in dollars). */
+export interface CreatePaymentIntentRequest {
+  amount: number;
+}
+
+/** Guest checkout: confirm payment and create order (no account). */
+export interface GuestConfirmPaymentRequest {
+  paymentIntentId: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  items: { eventId: string; ticketType: string; quantity: number }[];
+  totalAmount: number;
+  /** Ticket IDs from guest-reserve (lock). Send when you called guest-reserve before payment. */
+  reservedTicketIds?: string[];
 }

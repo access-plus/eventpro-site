@@ -230,14 +230,16 @@ class AWSS3ImageServiceImplTest {
     // Helper method to create mock MultipartFile
     private MultipartFile createMockFile(String filename, String contentType, long size) {
         MultipartFile file = mock(MultipartFile.class);
+        byte[] bytes = new byte[(int) size];
         when(file.getOriginalFilename()).thenReturn(filename);
         when(file.getContentType()).thenReturn(contentType);
         when(file.getSize()).thenReturn(size);
         when(file.isEmpty()).thenReturn(size == 0);
         try {
-            when(file.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[(int) size]));
+            when(file.getInputStream()).thenReturn(new ByteArrayInputStream(bytes));
+            when(file.getBytes()).thenReturn(bytes);
         } catch (IOException e) {
-            // Should not happen in tests
+            throw new RuntimeException(e);
         }
         return file;
     }

@@ -46,6 +46,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/*/addons").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/category/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/images/proxy").permitAll()
+                // Payment config (Stripe publishable key for frontend) - public
+                .requestMatchers(HttpMethod.GET, "/api/v1/payments/config").permitAll()
+                // Guest checkout: no auth required (endpoint exists in PaymentController)
+                .requestMatchers(HttpMethod.POST,
+                    "/api/v1/payments/create-intent", "/api/v1/payments/create-intent/",
+                    "/api/v1/payments/guest/confirm", "/api/v1/payments/guest/confirm/",
+                    "/api/v1/payments/guest-reserve", "/api/v1/payments/guest-reserve/").permitAll()
                 .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
