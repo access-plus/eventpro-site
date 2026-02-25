@@ -1288,6 +1288,26 @@ export SERVICES_IMAGE_TAG=sha-123456789012
 
 </details>
 
+---
+
+<details>
+<summary>frontend only</summary>
+
+
+
+</details>
+
+---
+
+<details>
+<summary>lambdas only</summary>
+
+
+
+</details>
+
+---
+
 </details>
 
 ---
