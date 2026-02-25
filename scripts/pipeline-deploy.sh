@@ -17,6 +17,7 @@ ONLY_COMPONENTS=""
 SKIP_COMPONENTS=""
 
 SERVICES_IMAGE_SOURCE="${SERVICES_IMAGE_SOURCE:-build}"  # build|existing
+SERVICES_IMAGE_PLATFORMS="${SERVICES_IMAGE_PLATFORMS:-${SERVICES_IMAGE_PLATFORM:-linux/amd64,linux/arm64}}"
 LAMBDAS_IMAGE_SOURCE="${LAMBDAS_IMAGE_SOURCE:-build}"    # build|existing
 ORDER_PROCESSOR_IMAGE_SOURCE="${ORDER_PROCESSOR_IMAGE_SOURCE:-}"
 PAYMENT_PROCESSOR_IMAGE_SOURCE="${PAYMENT_PROCESSOR_IMAGE_SOURCE:-}"
@@ -115,6 +116,10 @@ Optional env vars passed to Terraform when set:
   JWT_PUBLIC_KEY_FILE, JWT_PRIVATE_KEY_FILE   (script reads file content into JWT_* vars)
   SES_SENDER_EMAIL
   VITE_API_BASE_URL
+
+Build behavior env vars:
+  SERVICES_IMAGE_PLATFORMS  Docker build platforms for services image in build mode (default: linux/amd64,linux/arm64)
+  SERVICES_IMAGE_PLATFORM   Legacy alias for single-platform builds (fallback only)
 
 Notes:
   - Frontend Terraform backend config is intentionally hardcoded to match CI.
@@ -473,25 +478,52 @@ build_service_image() {
   local extra_tag="${2:-}"
   local repo_name="eventpro-api"
   local primary_ref="${ECR_REGISTRY}/${repo_name}:${primary_tag}"
+  local build_platform_for_local_load="${SERVICES_IMAGE_PLATFORMS}"
 
   require_cmd docker
-  log "${GREEN}Building services API image:${NC} ${primary_ref}"
-  (
-    cd "$ROOT_DIR"
-    docker image build -f backend/services/Dockerfile -t "$primary_ref" backend
-  )
+  if [ "$PUSH_IMAGES" = true ]; then
+    docker buildx version >/dev/null 2>&1 || die "docker buildx is required for multi-platform services image builds"
+    login_ecr_if_needed
 
-  if [ -n "$extra_tag" ]; then
-    docker image tag "$primary_ref" "${ECR_REGISTRY}/${repo_name}:${extra_tag}"
+    log "${GREEN}Building & pushing services API image:${NC} ${primary_ref} (platforms=${SERVICES_IMAGE_PLATFORMS})"
+    (
+      cd "$ROOT_DIR"
+      if [ -n "$extra_tag" ]; then
+        docker buildx build \
+          --platform "$SERVICES_IMAGE_PLATFORMS" \
+          -f backend/services/Dockerfile \
+          -t "$primary_ref" \
+          -t "${ECR_REGISTRY}/${repo_name}:${extra_tag}" \
+          backend \
+          --push
+      else
+        docker buildx build \
+          --platform "$SERVICES_IMAGE_PLATFORMS" \
+          -f backend/services/Dockerfile \
+          -t "$primary_ref" \
+          backend \
+          --push
+      fi
+    )
+  else
+    if [[ "$build_platform_for_local_load" == *,* ]]; then
+      build_platform_for_local_load="${build_platform_for_local_load%%,*}"
+      build_platform_for_local_load="$(trim_csv_item "$build_platform_for_local_load")"
+      warn "PUSH_IMAGES=false cannot load a multi-platform manifest locally; building only ${build_platform_for_local_load}"
+    fi
+
+    log "${GREEN}Building services API image:${NC} ${primary_ref} (platform=${build_platform_for_local_load})"
+    (
+      cd "$ROOT_DIR"
+      docker image build --platform "$build_platform_for_local_load" -f backend/services/Dockerfile -t "$primary_ref" backend
+    )
+
+    if [ -n "$extra_tag" ]; then
+      docker image tag "$primary_ref" "${ECR_REGISTRY}/${repo_name}:${extra_tag}"
+    fi
   fi
 
-  if [ "$PUSH_IMAGES" = true ]; then
-    login_ecr_if_needed
-    docker image push "$primary_ref"
-    if [ -n "$extra_tag" ]; then
-      docker image push "${ECR_REGISTRY}/${repo_name}:${extra_tag}"
-    fi
-  else
+  if [ "$PUSH_IMAGES" = false ]; then
     warn "Skipping push for services image (PUSH_IMAGES=false)"
   fi
 
@@ -848,6 +880,9 @@ print_plan() {
   if need_any_image_build; then
     log "  ECR registry: ${ECR_REGISTRY:-<auto>}"
     log "  Push images: $PUSH_IMAGES"
+    if [ "$RUN_SERVICES" = true ] && [ "$SERVICES_IMAGE_SOURCE" = "build" ]; then
+      log "  Services image platforms: $SERVICES_IMAGE_PLATFORMS"
+    fi
   fi
   if [ "$RUN_FRONTEND" = true ]; then
     log "  Frontend sync: $FRONTEND_SYNC"

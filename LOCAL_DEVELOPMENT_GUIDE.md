@@ -1265,7 +1265,7 @@ This guide covers:
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only services --apply
+./scripts/pipeline-deploy.sh --env-file .env --only services --apply --image-tag abc1.0.0
 ```
 
 *deploy existing image*
@@ -1275,7 +1275,7 @@ Make sure the image is in the ECR registry and the image tag is set in the .env 
 ```bash
 export SERVICES_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
 export SERVICES_IMAGE_NAME=eventpro-api
-export SERVICES_IMAGE_TAG=sha-123456789012
+export SERVICES_IMAGE_TAG=abc1.0.0
 ```
 
 ```bash
@@ -1296,7 +1296,7 @@ export SERVICES_IMAGE_TAG=sha-123456789012
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only frontend --apply
+./scripts/pipeline-deploy.sh --env-file .env --only frontend --apply --image-tag abc1.0.0
 ```
 
 *preview terraform changes only (no S3 sync / CloudFront invalidation in plan mode)*
@@ -1320,7 +1320,6 @@ Notes:
 - `DOMAIN_NAME` is required (loaded from `.env` via `--env-file .env`).
 - `VITE_API_BASE_URL` is optional; if omitted the script uses `https://<workspace>-api.$DOMAIN_NAME`.
 
-
 </details>
 
 ---
@@ -1331,7 +1330,7 @@ Notes:
 *build and deploy all lambdas*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only lambdas --apply
+./scripts/pipeline-deploy.sh --env-file .env --only lambdas --apply --image-tag abc1.0.0
 ```
 
 *deploy only specific lambdas*
@@ -1341,7 +1340,7 @@ Notes:
   --env-file .env \
   --only lambdas \
   --lambdas order-processor,payment-processor \
-  --apply
+  --apply --image-tag abc1.0.0
 ```
 
 *deploy existing images (all lambdas)*
@@ -1367,7 +1366,7 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
   --env-file .env \
   --only lambdas \
   --lambdas-image-source existing \
-  --apply
+  --apply --image-tag abc1.0.0
 ```
 
 *mix build + existing image sources per lambda (example)*
@@ -1379,7 +1378,7 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
   --order-processor-image-source existing \
   --payment-processor-image-source build \
   --notification-sender-image-source build \
-  --apply
+  --apply --image-tag abc1.0.0
 ```
 
 Notes:
