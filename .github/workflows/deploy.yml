@@ -3,10 +3,10 @@ name: Deploy
 on:
   push:
     branches:
-      - main
+      - mainx
   pull_request:
     branches:
-      - main
+      - mainx
 
 jobs:
   detect-changes:
