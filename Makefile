@@ -257,19 +257,19 @@ docker-analytics:
 # Lambda Docker Images
 lambda-build:
 	@echo "Building all Lambda Docker images..."
-	@./scripts/build-lambda-images.sh all latest
+	@./scripts/build-lambda-local.sh all latest
 
 lambda-build-payment:
 	@echo "Building payment-processor Lambda Docker image..."
-	@./scripts/build-lambda-images.sh payment-processor latest
+	@./scripts/build-lambda-local.sh payment-processor latest
 
 lambda-build-notification:
 	@echo "Building notification-sender Lambda Docker image..."
-	@./scripts/build-lambda-images.sh notification-sender latest
+	@./scripts/build-lambda-local.sh notification-sender latest
 
 lambda-build-order:
 	@echo "Building order-processor Lambda Docker image..."
-	@./scripts/build-lambda-images.sh order-processor latest
+	@./scripts/build-lambda-local.sh order-processor latest
 
 jwt-keys:
 	@echo "Ensuring JWT PEM files exist and updating .env..."
@@ -415,11 +415,11 @@ local-infra:
 		echo "PAYMENT_QUEUE_URL=$$PAYMENT_QUEUE_URL" >> .env && \
 		echo "NOTIFICATION_QUEUE_URL=$$NOTIFICATION_QUEUE_URL" >> .env && \
 		VITE_STRIPE_PUBLISHABLE_KEY=$$(grep '^VITE_STRIPE_PUBLISHABLE_KEY=' .env 2>/dev/null | cut -d'=' -f2- | tr -d ' ' || echo "") && \
-		echo "VITE_API_BASE_URL=http://localhost:8080" > frontend/.env.local && \
-		echo "VITE_AWS_REGION=us-east-1" >> frontend/.env.local && \
-		echo "VITE_S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> frontend/.env.local && \
+		echo "VITE_API_BASE_URL=http://localhost:8080" > eventpro-frontend/.env.local && \
+		echo "VITE_AWS_REGION=us-east-1" >> eventpro-frontend/.env.local && \
+		echo "VITE_S3_BUCKET_NAME=$$S3_BUCKET_NAME" >> eventpro-frontend/.env.local && \
 		if [ -n "$$VITE_STRIPE_PUBLISHABLE_KEY" ]; then \
-			echo "VITE_STRIPE_PUBLISHABLE_KEY=$$VITE_STRIPE_PUBLISHABLE_KEY" >> frontend/.env.local; \
+			echo "VITE_STRIPE_PUBLISHABLE_KEY=$$VITE_STRIPE_PUBLISHABLE_KEY" >> eventpro-frontend/.env.local; \
 		fi
 	@echo "Environment files created"
 
@@ -450,7 +450,7 @@ local-down:
 	@echo "Stopping services..."
 	@cd infrastructure/environments/local && terraform destroy -auto-approve || true
 	cd ../../../
-	@rm -f .env frontend/.env.local
+	@rm -f .env eventpro-frontend/.env.local
 	@docker compose  down backend frontend postgres -v
 
 local-restart:
@@ -478,7 +478,7 @@ frontend-logs:
 local-clean:
 	@cd infrastructure/environments/local && terraform destroy -auto-approve || true
 	@docker compose  down -v
-	@rm -f .env frontend/.env.local
+	@rm -f .env eventpro-frontend/.env.local
 	@echo "Everything cleaned up"
 
 start-pg-and-localstack:
@@ -494,7 +494,7 @@ start-backend:
 
 start-frontend:
 	@echo "Starting frontend..."
-	@docker compose  --env-file frontend/.env.local up -d frontend
+	@docker compose  --env-file eventpro-frontend/.env.local up -d frontend
 	@echo "   Frontend UI: http://localhost:5173"
 
 start-localstack:
@@ -509,7 +509,7 @@ destroy-infrastructure:
 	@echo "Destroying infrastructure..."
 	cd infrastructure/environments/local && terraform destroy -auto-approve || true
 	cd ../../../
-	@rm -f .env frontend/.env.local
+	@rm -f .env eventpro-frontend/.env.local
 	@echo "Infrastructure destroyed"
 
 # Lambda verification targets

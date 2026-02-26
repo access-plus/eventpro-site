@@ -11,8 +11,7 @@ import com.accessplus.eventpro.order.repository.OrderRepository;
 import com.accessplus.eventpro.order.repository.TicketRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,10 +19,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class OrderProcessorService {
-
-    private static final Logger LOG = LoggerFactory.getLogger(OrderProcessorService.class);
 
     private final OrderRepository orderRepository;
     private final TicketRepository ticketRepository;
@@ -44,12 +42,12 @@ public class OrderProcessorService {
             JsonNode rootNode = objectMapper.readTree(messageBody);
             JsonNode payloadNode = rootNode.get("payload");
             if (payloadNode == null) {
-                LOG.debug("No 'payload' field found, attempting direct OrderMessage parsing");
+                log.debug("No 'payload' field found, attempting direct OrderMessage parsing");
                 payloadNode = rootNode;
             }
 
             OrderMessage orderMessage = objectMapper.treeToValue(payloadNode, OrderMessage.class);
-            LOG.info("Processing order: {} (Order ID: {})", orderMessage.getOrderNumber(), orderMessage.getOrderId());
+            log.info("Processing order: {} (Order ID: {})", orderMessage.getOrderNumber(), orderMessage.getOrderId());
 
             OrderEntity order = orderRepository.findByIdWithItems(orderMessage.getOrderId())
                     .orElseThrow(() -> new OrderProcessingException("Order not found: " + orderMessage.getOrderId()));
@@ -65,16 +63,16 @@ public class OrderProcessorService {
                 PaymentMessage paymentMessage = createPaymentMessage(order);
                 sqsPublisher.publishPaymentMessage(paymentMessage);
 
-                LOG.info("Order {} validated and published to payment queue", order.getOrderNumber());
+                log.info("Order {} validated and published to payment queue", order.getOrderNumber());
             } catch (Exception e) {
-                LOG.error("Error after ticket reservation, rolling back tickets for order: {}", order.getOrderNumber(), e);
+                log.error("Error after ticket reservation, rolling back tickets for order: {}", order.getOrderNumber(), e);
                 releaseTickets(reservedTicketIds);
                 throw new OrderProcessingException("Failed to process order after ticket reservation", e);
             }
         } catch (OrderProcessingException e) {
             throw e;
         } catch (Exception e) {
-            LOG.error("Unexpected error processing order message", e);
+            log.error("Unexpected error processing order message", e);
             throw new OrderProcessingException("Unexpected error processing order", e);
         }
     }
@@ -89,7 +87,7 @@ public class OrderProcessorService {
         if (order.getStatus() != null && order.getStatus() != OrderStatus.PENDING) {
             throw new OrderProcessingException("Order already processed with status: " + order.getStatus());
         }
-        LOG.debug("Order validation passed: {}", order.getOrderNumber());
+        log.debug("Order validation passed: {}", order.getOrderNumber());
     }
 
     private List<UUID> reserveTickets(OrderEntity order) throws OrderProcessingException {
@@ -111,10 +109,10 @@ public class OrderProcessorService {
             ticketRepository.saveAndFlush(ticket);
             reservedTicketIds.add(ticketId);
 
-            LOG.debug("Reserved ticket {} for order {} (quantity: {})", ticketId, order.getOrderNumber(), quantity);
+            log.debug("Reserved ticket {} for order {} (quantity: {})", ticketId, order.getOrderNumber(), quantity);
         }
 
-        LOG.info("Reserved {} tickets for order {}", reservedTicketIds.size(), order.getOrderNumber());
+        log.info("Reserved {} tickets for order {}", reservedTicketIds.size(), order.getOrderNumber());
         return reservedTicketIds;
     }
 
@@ -122,9 +120,9 @@ public class OrderProcessorService {
         for (UUID ticketId : ticketIds) {
             try {
                 ticketRepository.releaseTicket(ticketId);
-                LOG.debug("Released ticket: {}", ticketId);
+                log.debug("Released ticket: {}", ticketId);
             } catch (Exception e) {
-                LOG.error("Error releasing ticket: {}", ticketId, e);
+                log.error("Error releasing ticket: {}", ticketId, e);
             }
         }
     }

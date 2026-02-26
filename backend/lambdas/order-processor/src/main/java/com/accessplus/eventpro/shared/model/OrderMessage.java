@@ -3,11 +3,14 @@ package com.accessplus.eventpro.shared.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.UUID;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import java.math.BigDecimal;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class OrderMessage {
 
     @JsonProperty("orderId")
@@ -20,6 +23,6 @@ public class OrderMessage {
     private UUID userId;
 
     @JsonProperty("totalAmount")
-    private java.math.BigDecimal totalAmount;
+    private BigDecimal totalAmount;
 
 }
