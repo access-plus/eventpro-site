@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Lock, ShieldCheck } from "lucide-react";
 import { apiService } from "@/lib/api";
 
 const STRIPE_SCRIPT_URL = "https://js.stripe.com/v3/";
@@ -184,15 +185,31 @@ export function CheckoutPaymentForm(props: CheckoutPaymentFormProps) {
   }
 
   return (
-    <Card>
+    <Card className="rounded-xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px] shadow-[0_0_24px_rgba(147,51,234,0.12)]">
       <CardHeader>
-        <CardTitle>Payment</CardTitle>
-        <CardDescription>Enter your card details to complete the order.</CardDescription>
+        <div className="flex items-center gap-2">
+          <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
+            <Lock className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <CardTitle>Secure Payment</CardTitle>
+            <CardDescription>Enter your card details. Encrypted and PCI DSS compliant.</CardDescription>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div ref={cardMountRef} className="rounded-md border border-input bg-background p-3 min-h-[40px]" />
-          <Button type="submit" className="w-full" size="lg" disabled={!ready || isSubmitting}>
+          <div ref={cardMountRef} className="rounded-xl border border-white/20 bg-background/80 p-4 min-h-[48px]" />
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span>Card data is secured by Stripe and never stored on our servers.</span>
+          </div>
+          <Button
+            type="submit"
+            className="w-full bg-gradient-to-r from-primary via-primary to-orange-500 text-white border-0 shadow-lg hover:shadow-[0_0_20px_hsl(var(--primary)_/_0.4)]"
+            size="lg"
+            disabled={!ready || isSubmitting}
+          >
             {isSubmitting ? "Processing…" : "Pay now"}
           </Button>
         </form>

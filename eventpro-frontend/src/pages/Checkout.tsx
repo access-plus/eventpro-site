@@ -8,8 +8,13 @@ import { GuestCheckoutForm } from "@/components/GuestCheckoutForm";
 import { MerchandiseAddons, type MerchandiseItem } from "@/components/MerchandiseAddons";
 import { CheckoutPaymentForm } from "@/components/CheckoutPaymentForm";
 import { ReservationCountdown } from "@/components/ReservationCountdown";
+import { PostPurchaseCelebration } from "@/components/PostPurchaseCelebration";
 import { apiService } from "@/lib/api";
-import { Ticket, Trash2, ArrowLeft, User, LogIn, CheckCircle } from "lucide-react";
+import { HOW_DID_YOU_HEAR_OPTIONS } from "@/types/api";
+import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -51,6 +56,10 @@ const Checkout = () => {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isStartingPayment, setIsStartingPayment] = useState(false);
+  const [howDidYouHear, setHowDidYouHear] = useState<string>("__");
+  const [receiveTicketViaWhatsApp, setReceiveTicketViaWhatsApp] = useState(false);
+  const [receiveTicketViaSMS, setReceiveTicketViaSMS] = useState(false);
+  const [successEventName, setSuccessEventName] = useState<string | null>(null);
 
   const eventIds = useMemo(() => [...new Set(items.map((i) => i.eventId).filter(Boolean))], [items]);
 
@@ -66,6 +75,17 @@ const Checkout = () => {
       })
       .catch(() => setAddonsByEvent([]));
   }, [eventIds.join(",")]);
+
+  // For signed-in users: cart tickets are already reserved; get expiry for countdown
+  useEffect(() => {
+    if (!isAuthenticated || items.length === 0) return;
+    apiService
+      .getCart()
+      .then((cart) => {
+        if (cart.reservedUntil) setReservedUntil(cart.reservedUntil);
+      })
+      .catch(() => {});
+  }, [isAuthenticated, items.length]);
 
   const merchTotal = selectedMerch.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -83,7 +103,7 @@ const Checkout = () => {
     setPaymentError(null);
     setIsStartingPayment(true);
     setReservedTicketIds(null);
-    setReservedUntil(null);
+    if (!isAuthenticated) setReservedUntil(null);
     try {
       const amount = Number(grandTotal.toFixed(2));
       if (amount <= 0) {
@@ -139,10 +159,14 @@ const Checkout = () => {
       })),
       totalAmount: grandTotal,
       reservedTicketIds: reservedTicketIds ?? undefined,
+      howDidYouHear: howDidYouHear && howDidYouHear !== "__" ? howDidYouHear : undefined,
+      receiveTicketViaWhatsApp: receiveTicketViaWhatsApp || undefined,
+      receiveTicketViaSMS: receiveTicketViaSMS || undefined,
     });
   };
 
   const handlePaymentSuccess = (id: string) => {
+    setSuccessEventName(items[0]?.eventName ?? null);
     setOrderId(id);
     setPaymentStep("success");
     clearCart();
@@ -168,36 +192,32 @@ const Checkout = () => {
 
   if (paymentStep === "success") {
     return (
-      <div className="min-h-screen flex items-center justify-center py-12 px-4">
-        <Card className="p-8 text-center max-w-md">
-          <CheckCircle className="h-16 w-16 mx-auto mb-4 text-green-500" />
-          <h2 className="text-2xl font-bold mb-2">Thank you!</h2>
-          <p className="text-muted-foreground mb-4">
-            Your order has been placed. {orderId && `Order #${orderId.slice(0, 8)}`}
-          </p>
-          <div className="flex gap-2 justify-center">
-            <Button variant="outline" onClick={() => navigate("/events")}>Browse more events</Button>
-            <Button onClick={() => navigate("/")}>Back to home</Button>
-          </div>
-        </Card>
-      </div>
+      <PostPurchaseCelebration
+        orderId={orderId}
+        eventName={successEventName ?? undefined}
+      />
     );
   }
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4">
+    <div className="min-h-screen py-8 relative overflow-hidden">
+      {/* Subtle background for vibrant one-page feel */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-[28rem] h-[28rem] rounded-full bg-primary/6 blur-3xl" />
+        <div className="absolute top-1/2 -left-32 w-80 h-80 rounded-full bg-primary-glow/5 blur-3xl" />
+      </div>
+      <div className="container relative mx-auto px-4">
         <div className="flex items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
             Checkout
           </h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
+          {/* Main Content - one-page vibrant */}
           <div className="lg:col-span-2 space-y-6">
             {/* Customer Info Section */}
             {!isAuthenticated && !guestInfo && (
@@ -206,7 +226,7 @@ const Checkout = () => {
                 animate={{ opacity: 1, y: 0 }}
               >
                 {checkoutMode === "select" && (
-                  <Card>
+                  <Card className="rounded-xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px]">
                     <CardHeader>
                       <CardTitle>How would you like to check out?</CardTitle>
                       <CardDescription>
@@ -255,7 +275,7 @@ const Checkout = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <Card>
+                <Card className="rounded-xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px]">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <User className="h-5 w-5" />
@@ -285,7 +305,7 @@ const Checkout = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <Card>
+                <Card className="rounded-xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px]">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <User className="h-5 w-5" />
@@ -336,7 +356,7 @@ const Checkout = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <Card>
+                    <Card className="rounded-xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px]">
                       <CardContent className="p-4 flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className="font-semibold">{item.ticketTypeName}</h3>
@@ -381,7 +401,7 @@ const Checkout = () => {
 
           {/* Order Summary */}
           <div>
-            <Card className="sticky top-24">
+            <Card className="sticky top-24 rounded-xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px]">
               <CardHeader>
                 <CardTitle>Order Summary</CardTitle>
                 <CardDescription>Review your order before payment</CardDescription>
@@ -430,6 +450,55 @@ const Checkout = () => {
                   </div>
                 </div>
 
+                {/* How did you hear (cultural taxonomy) */}
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    How did you hear about this event?
+                  </Label>
+                  <Select value={howDidYouHear} onValueChange={setHowDidYouHear}>
+                    <SelectTrigger className="rounded-lg border-primary/20 bg-background/80">
+                      <SelectValue placeholder="Select (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HOW_DID_YOU_HEAR_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value || "opt"} value={opt.value === "" ? "__" : opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Receive ticket via WhatsApp / SMS */}
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    Receive ticket via
+                  </Label>
+                  <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4 text-primary" />
+                      <span className="text-sm">WhatsApp</span>
+                    </div>
+                    <Switch
+                      checked={receiveTicketViaWhatsApp}
+                      onCheckedChange={setReceiveTicketViaWhatsApp}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="h-4 w-4 text-primary" />
+                      <span className="text-sm">SMS</span>
+                    </div>
+                    <Switch
+                      checked={receiveTicketViaSMS}
+                      onCheckedChange={setReceiveTicketViaSMS}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    We’ll send your digital ticket to your phone. Great for the diaspora.
+                  </p>
+                </div>
+
                 {paymentStep === "review" && (
                   <>
                     {reservedUntil && (
@@ -445,7 +514,7 @@ const Checkout = () => {
                     )}
                     <Button
                       type="button"
-                      className="w-full bg-gradient-primary"
+                      className="w-full bg-gradient-to-r from-primary via-primary to-orange-500 text-white shadow-lg hover:shadow-[0_0_20px_hsl(var(--primary)_/_0.4)]"
                       size="lg"
                       disabled={(!isAuthenticated && !guestInfo) || isStartingPayment}
                       onClick={(e) => handleProceedToPayment(e)}

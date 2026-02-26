@@ -59,7 +59,7 @@ export const GuestCheckoutForm = ({ onSubmit, onLoginClick }: GuestCheckoutFormP
   };
 
   return (
-    <Card>
+    <Card className="rounded-xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <User className="h-5 w-5" />

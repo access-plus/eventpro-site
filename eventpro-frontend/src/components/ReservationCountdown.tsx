@@ -46,7 +46,7 @@ export function ReservationCountdown({ reservedUntil, onExpired, className = "" 
   if (expired || secondsLeft <= 0) {
     return (
       <div
-        className={`flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive ${className}`}
+        className={`flex items-center gap-2 rounded-xl border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive ${className}`}
       >
         <Clock className="h-4 w-4 shrink-0" />
         <span>Reservation expired. Tickets have been released. Please go back and try again.</span>
@@ -56,13 +56,28 @@ export function ReservationCountdown({ reservedUntil, onExpired, className = "" 
 
   return (
     <div
-      className={`flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200 ${className}`}
+      className={`flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm reservation-timer-glow ${className}`}
     >
-      <Clock className="h-4 w-4 shrink-0" />
-      <span>
-        Your tickets are held for <strong>{formatRemaining(secondsLeft)}</strong>. Complete payment before they’re
-        released back.
-      </span>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/20">
+        <Clock className="h-5 w-5 text-primary" />
+      </div>
+      <div>
+        <p className="font-medium text-foreground">
+          Tickets held for <span className="tabular-nums font-bold text-primary">{formatRemaining(secondsLeft)}</span>
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Complete payment before they’re released back to the pool.
+        </p>
+      </div>
+      <style>{`
+        .reservation-timer-glow {
+          animation: reservation-pulse 2s ease-in-out infinite;
+        }
+        @keyframes reservation-pulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(147, 51, 234, 0.2); }
+          50% { box-shadow: 0 0 28px rgba(147, 51, 234, 0.35); }
+        }
+      `}</style>
     </div>
   );
 }

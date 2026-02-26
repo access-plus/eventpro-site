@@ -39,4 +39,13 @@ public class GuestConfirmPaymentRequest {
 
     /** Optional: ticket IDs from guest-reserve (lock). When set, order uses these instead of reserving again. */
     private List<UUID> reservedTicketIds;
+
+    /** Optional: attribution for cultural taxonomy / discovery (e.g. "Social media", "Friend", "Search"). */
+    private String howDidYouHear;
+
+    /** Optional: send ticket via WhatsApp when true. */
+    private Boolean receiveTicketViaWhatsApp;
+
+    /** Optional: send ticket via SMS when true. */
+    private Boolean receiveTicketViaSMS;
 }

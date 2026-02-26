@@ -46,13 +46,14 @@ export const Navigation = () => {
           <div className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => {
               const Icon = link.icon;
+              const active = isActive(link.path);
               return (
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                    isActive(link.path)
-                      ? "bg-primary text-primary-foreground"
+                  className={`relative flex items-center gap-2 px-3 py-2 pb-4 rounded-lg transition-colors ${
+                    active
+                      ? "text-primary font-semibold after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:h-[3px] after:w-8 after:rounded-full after:bg-gradient-to-r after:from-primary after:to-primary-glow after:shadow-[0_0_10px_hsl(var(--primary)_/_0.8)] before:absolute before:bottom-[-5px] before:left-1/2 before:-translate-x-1/2 before:h-1.5 before:w-1.5 before:rounded-full before:bg-primary before:shadow-[0_0_6px_hsl(var(--primary)_/_0.9)]"
                       : "hover:bg-secondary"
                   }`}
                 >
@@ -102,14 +103,15 @@ export const Navigation = () => {
             <div className="container mx-auto px-4 py-4 flex flex-col gap-2">
               {navLinks.map((link) => {
                 const Icon = link.icon;
+                const active = isActive(link.path);
                 return (
                   <Link
                     key={link.path}
                     to={link.path}
                     onClick={() => setIsOpen(false)}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive(link.path)
-                        ? "bg-primary text-primary-foreground"
+                      active
+                        ? "text-primary font-semibold bg-primary/10 border-l-4 border-primary"
                         : "hover:bg-secondary"
                     }`}
                   >

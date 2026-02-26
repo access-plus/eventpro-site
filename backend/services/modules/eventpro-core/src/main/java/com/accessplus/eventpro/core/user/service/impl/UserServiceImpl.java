@@ -92,21 +92,27 @@ public class UserServiceImpl implements UserService {
                     return new ResourceNotFoundException("User", userId.toString());
                 });
 
-        return updateUserFields(user, firstName, lastName, phoneNumber, null, null, null);
+        return updateUserFields(user, firstName, lastName, phoneNumber, null, null, null, null);
     }
 
     @Override
     public UserEntity updateUserProfile(UUID userId, String firstName, String lastName, String phoneNumber,
                                         String bio, String location, String profilePictureUrl) {
+        return updateUserProfile(userId, firstName, lastName, phoneNumber, bio, location, profilePictureUrl, null);
+    }
+
+    @Override
+    public UserEntity updateUserProfile(UUID userId, String firstName, String lastName, String phoneNumber,
+                                        String bio, String location, String profilePictureUrl, String culturalNiche) {
         log.debug("Updating user profile with extended fields: userId={}", userId);
 
         UserEntity user = getUserById(userId);
-        return updateUserFields(user, firstName, lastName, phoneNumber, bio, location, profilePictureUrl);
+        return updateUserFields(user, firstName, lastName, phoneNumber, bio, location, profilePictureUrl, culturalNiche);
     }
 
     /**
      * Updates user fields if provided (non-null values).
-     * 
+     *
      * @param user User entity to update
      * @param firstName New first name (optional, null to skip)
      * @param lastName New last name (optional, null to skip)
@@ -114,10 +120,11 @@ public class UserServiceImpl implements UserService {
      * @param bio New bio (optional, null to skip)
      * @param location New location (optional, null to skip)
      * @param profilePictureUrl New profile picture URL (optional, null to skip)
+     * @param culturalNiche New cultural niche (optional, null to skip)
      * @return Updated UserEntity
      */
     private UserEntity updateUserFields(UserEntity user, String firstName, String lastName, String phoneNumber,
-                                       String bio, String location, String profilePictureUrl) {
+                                       String bio, String location, String profilePictureUrl, String culturalNiche) {
         boolean updated = false;
 
         if (firstName != null && !firstName.equals(user.getFirstName())) {
@@ -154,6 +161,12 @@ public class UserServiceImpl implements UserService {
             user.setProfilePictureUrl(profilePictureUrl);
             updated = true;
             log.debug("Updated profilePictureUrl for user: {}", user.getId());
+        }
+
+        if (culturalNiche != null && !culturalNiche.equals(user.getCulturalNiche())) {
+            user.setCulturalNiche(culturalNiche);
+            updated = true;
+            log.debug("Updated culturalNiche for user: {}", user.getId());
         }
 
         if (updated) {

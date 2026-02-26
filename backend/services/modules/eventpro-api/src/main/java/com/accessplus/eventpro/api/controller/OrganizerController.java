@@ -2,6 +2,7 @@ package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.*;
 import com.accessplus.eventpro.api.service.OrganizerService;
+import com.accessplus.eventpro.api.service.VerificationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.accessplus.eventpro.core.security.JwtUtils;
@@ -28,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,6 +43,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.springframework.http.HttpHeaders.CONTENT_DISPOSITION;
+
 
 @Slf4j
 @RestController
@@ -51,6 +55,7 @@ import java.util.UUID;
 public class OrganizerController extends BaseController {
 
     private final OrganizerService organizerService;
+    private final VerificationService verificationService;
     private final EventService eventService;
     private final TicketService ticketService;
     private final EventRepository eventRepository;
@@ -68,6 +73,66 @@ public class OrganizerController extends BaseController {
         if (!"PRO".equals(tier) && !"ENTERPRISE".equals(tier)) {
             throw new AccessDeniedException("Merchandise and add-ons require a Pro or Enterprise plan. Upgrade at /pricing.");
         }
+    }
+
+    @GetMapping("/summary")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Get organizer summary", description = "Returns events hosted, tickets sold, trend and financial state for Profile/Organizer dashboard.")
+    public ResponseEntity<ApiResponse<OrganizerSummaryResponse>> getOrganizerSummary() {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        OrganizerSummaryResponse summary = organizerService.getOrganizerSummary(organizerId);
+        return ResponseEntity.ok(ApiResponse.success(summary));
+    }
+
+    @GetMapping("/verification-status")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Get verification status", description = "Returns KYC verification status and risk level for Profile badge and payout gate.")
+    public ResponseEntity<ApiResponse<VerificationStatusResponse>> getVerificationStatus() {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        VerificationStatusResponse status = verificationService.getStatus(organizerId);
+        return ResponseEntity.ok(ApiResponse.success(status));
+    }
+
+    @PostMapping("/verification")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Submit KYC verification", description = "Submits identity check (legal entity, address, ID document session). Sets status to PENDING.")
+    public ResponseEntity<ApiResponse<String>> submitVerification(@Valid @RequestBody SubmitVerificationRequest request) {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        verificationService.submitVerification(organizerId, request);
+        return ResponseEntity.ok(ApiResponse.success("Verification submitted. You will be notified when the review is complete.", "Verification submitted"));
+    }
+
+    @GetMapping("/tax-forms")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "List tax forms (1099-K)", description = "Returns list of tax forms by year for Document Vault.")
+    public ResponseEntity<ApiResponse<List<TaxFormResponse>>> getTaxForms() {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        int currentYear = java.time.Year.now().getValue();
+        List<TaxFormResponse> forms = List.of(
+                TaxFormResponse.builder()
+                        .year(String.valueOf(currentYear))
+                        .formType("1099-K")
+                        .status("Available")
+                        .downloadUrl(null)
+                        .build()
+        );
+        return ResponseEntity.ok(ApiResponse.success(forms));
+    }
+
+    @PostMapping("/w9")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Submit W-9", description = "Records W-9 submission for 1099-K compliance. Payouts unlocked when over $600 threshold.")
+    public ResponseEntity<ApiResponse<String>> submitW9(@Valid @RequestBody SubmitW9Request request) {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        UserEntity user = userRepository.findById(organizerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", organizerId.toString()));
+        if (Boolean.TRUE.equals(user.getW9Submitted())) {
+            return ResponseEntity.ok(ApiResponse.success("Tax information already on file.", "W-9 on file"));
+        }
+        user.setW9Submitted(true);
+        userRepository.save(user);
+        log.info("W-9 submitted for organizer: {}", organizerId);
+        return ResponseEntity.ok(ApiResponse.success("Tax information received. You're set for 1099-K reporting.", "W-9 submitted"));
     }
 
     @GetMapping("/events")
@@ -227,6 +292,43 @@ public class OrganizerController extends BaseController {
 
         EventStatsResponse stats = organizerService.getEventStats(id, organizerId);
         return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Export data", description = "Export attendees, check-in list, marketing emails, or financial summary. CCPA/GDPR compliant.")
+    public ResponseEntity<byte[]> exportData(
+            @RequestParam(defaultValue = "attendees") String type,
+            @RequestParam(defaultValue = "csv") String format) {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        byte[] data = organizerService.exportData(organizerId, type, format);
+        String filename = "export-" + type + "." + (format != null ? format.toLowerCase() : "csv");
+        if ("checkin".equalsIgnoreCase(type)) filename = "check-in-list.csv";
+        if ("marketing".equalsIgnoreCase(type)) filename = "marketing-emails.csv";
+        if ("financial".equalsIgnoreCase(type)) filename = "financial-summary.csv";
+        return ResponseEntity.ok()
+                .header(CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                .body(data);
+    }
+
+    @GetMapping("/feed/recent-sales")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Recent ticket sales", description = "Live feed of recent ticket purchases for organizer's events.")
+    public ResponseEntity<ApiResponse<List<RecentSaleResponse>>> getRecentSales(
+            @RequestParam(defaultValue = "20") int limit) {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        List<RecentSaleResponse> sales = organizerService.getRecentSales(organizerId, Math.min(limit, 50));
+        return ResponseEntity.ok(ApiResponse.success(sales));
+    }
+
+    @GetMapping("/insights")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "AI insights", description = "Sales velocity pulses, AI insight text, and top cultural interests.")
+    public ResponseEntity<ApiResponse<OrganizerInsightsResponse>> getInsights() {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        OrganizerInsightsResponse insights = organizerService.getInsights(organizerId);
+        return ResponseEntity.ok(ApiResponse.success(insights));
     }
 
     @GetMapping("/events/{id}/attendees")

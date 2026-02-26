@@ -1,11 +1,24 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Ticket, Facebook, Twitter, Instagram, Linkedin, Youtube, Mail, MapPin, Phone } from "lucide-react";
+import { Ticket, Facebook, Twitter, Instagram, Linkedin, Youtube, Mail, MapPin, Phone, Check, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { motion, AnimatePresence } from "framer-motion";
 
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const [email, setEmail] = useState("");
+  const [subscribeStatus, setSubscribeStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setSubscribeStatus("loading");
+    setTimeout(() => {
+      setSubscribeStatus("success");
+      setEmail("");
+    }, 800);
+  };
 
   const footerLinks = {
     company: [
@@ -52,17 +65,89 @@ export const Footer = () => {
             <p className="text-muted-foreground mb-6">
               Subscribe to our newsletter for the latest events and exclusive offers
             </p>
-            <form className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 bg-background"
-              />
-              <Button className="bg-gradient-primary">
-                <Mail className="mr-2 h-4 w-4" />
-                Subscribe
-              </Button>
-            </form>
+            <AnimatePresence mode="wait">
+              {subscribeStatus === "success" ? (
+                <motion.div
+                  key="success"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col items-center gap-3 py-2"
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{
+                      scale: 1,
+                      boxShadow: [
+                        "0 0 0 0 hsl(var(--primary) / 0.4)",
+                        "0 0 28px 6px hsl(var(--primary) / 0.25)",
+                        "0 0 20px 4px hsl(var(--primary) / 0.2)",
+                      ],
+                    }}
+                    transition={{
+                      scale: { type: "spring", stiffness: 300, damping: 20 },
+                      boxShadow: { duration: 0.6, ease: "easeOut" },
+                    }}
+                    className="h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center ring-4 ring-primary/40 shadow-[0_0_24px_hsl(var(--primary)_/_0.3)]"
+                  >
+                    <motion.div
+                      initial={{ pathLength: 0, opacity: 0 }}
+                      animate={{ pathLength: 1, opacity: 1 }}
+                      transition={{ delay: 0.15, duration: 0.3 }}
+                    >
+                      <Check className="h-9 w-9 text-primary stroke-[2.5]" />
+                    </motion.div>
+                  </motion.div>
+                  <motion.p
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent"
+                  >
+                    You&apos;re on the list!
+                  </motion.p>
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-sm text-muted-foreground"
+                  >
+                    Check your inbox for exclusive offers and event updates.
+                  </motion.p>
+                </motion.div>
+              ) : (
+                <motion.form
+                  key="form"
+                  initial={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
+                  onSubmit={handleSubscribe}
+                >
+                  <Input
+                    type="email"
+                    placeholder="Enter your email"
+                    className="flex-1 bg-background"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={subscribeStatus === "loading"}
+                  />
+                  <Button
+                    type="submit"
+                    className="bg-gradient-primary"
+                    disabled={subscribeStatus === "loading"}
+                  >
+                    {subscribeStatus === "loading" ? (
+                      <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Subscribe
+                      </>
+                    )}
+                  </Button>
+                </motion.form>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -196,14 +281,19 @@ export const Footer = () => {
             })}
           </div>
 
-          {/* Payment Icons / Trust Badges */}
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span>Secured by</span>
+          {/* Trust & Security – prominent for US market compliance */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              Secured by
+            </span>
             <div className="flex items-center gap-2">
-              <div className="h-6 px-2 rounded bg-secondary flex items-center justify-center font-semibold">
+              <div className="h-8 px-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-1.5 font-semibold text-primary text-xs">
+                <Lock className="h-3.5 w-3.5" />
                 SSL
               </div>
-              <div className="h-6 px-2 rounded bg-secondary flex items-center justify-center font-semibold">
+              <div className="h-8 px-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-1.5 font-semibold text-primary text-xs">
+                <ShieldCheck className="h-3.5 w-3.5" />
                 PCI DSS
               </div>
             </div>

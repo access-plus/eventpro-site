@@ -65,7 +65,8 @@ public class UserController extends BaseController {
                 request.getPhoneNumber(),
                 request.getBio(),
                 request.getLocation(),
-                null // profilePictureUrl is updated via separate endpoint
+                null, // profilePictureUrl is updated via separate endpoint
+                request.getCulturalNiche()
         );
         UserResponse response = UserResponse.fromEntity(updatedUser);
 

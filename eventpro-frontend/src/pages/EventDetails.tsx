@@ -46,13 +46,13 @@ const EventDetails = () => {
       setEvent(eventData);
       setTicketTypes(ticketsData);
 
-      // Add to recently viewed
+      // Add to recently viewed (full event; ensure date fields survive JSON round-trip)
       addRecentlyViewed({
-        id: eventData.id,
-        name: eventData.name,
-        imageUrl: eventData.imageUrl,
-        startDateTime: eventData.startDateTime,
-        venue: eventData.venue,
+        ...eventData,
+        startTime: eventData.startTime ?? eventData.startDateTime ?? "",
+        endTime: eventData.endTime ?? eventData.endDateTime ?? "",
+        startDateTime: eventData.startDateTime ?? eventData.startTime,
+        endDateTime: eventData.endDateTime ?? eventData.endTime,
       });
     } catch (error) {
       console.error("Failed to load event:", error);

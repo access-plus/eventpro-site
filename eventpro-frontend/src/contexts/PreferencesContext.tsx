@@ -1,16 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-
-interface RecentlyViewedEvent {
-  id: string;
-  name: string;
-  imageUrl?: string;
-  startDateTime: string;
-  venue?: string;
-}
+import type { Event } from "@/types/api";
 
 interface PreferencesContextType {
-  recentlyViewed: RecentlyViewedEvent[];
-  addRecentlyViewed: (event: RecentlyViewedEvent) => void;
+  recentlyViewed: Event[];
+  addRecentlyViewed: (event: Event) => void;
   clearRecentlyViewed: () => void;
 }
 
@@ -19,20 +12,26 @@ const PreferencesContext = createContext<PreferencesContextType | undefined>(und
 const MAX_RECENTLY_VIEWED = 10;
 
 export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedEvent[]>([]);
+  const [recentlyViewed, setRecentlyViewed] = useState<Event[]>([]);
 
   useEffect(() => {
     const stored = localStorage.getItem("eventpro_recently_viewed");
     if (stored) {
       try {
-        setRecentlyViewed(JSON.parse(stored));
+        const parsed = JSON.parse(stored) as (Event & { startDateTime?: string; endDateTime?: string })[];
+        const normalized: Event[] = parsed.map((e) => ({
+          ...e,
+          startTime: e.startTime ?? e.startDateTime ?? "",
+          endTime: e.endTime ?? e.endDateTime ?? "",
+        }));
+        setRecentlyViewed(normalized);
       } catch (error) {
         console.error("Failed to parse recently viewed:", error);
       }
     }
   }, []);
 
-  const addRecentlyViewed = (event: RecentlyViewedEvent) => {
+  const addRecentlyViewed = (event: Event) => {
     setRecentlyViewed((prev) => {
       const filtered = prev.filter((e) => e.id !== event.id);
       const updated = [event, ...filtered].slice(0, MAX_RECENTLY_VIEWED);
