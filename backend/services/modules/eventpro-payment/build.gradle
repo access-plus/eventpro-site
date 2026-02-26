@@ -21,9 +21,6 @@ dependencies {
     implementation project(':eventpro-core')
     implementation project(':eventpro-order')
     
-    // Shared module (framework-agnostic entities, enums, exceptions, utilities)
-    implementation 'com.accessplus.eventpro:eventpro-shared:1.0.0'
-    
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

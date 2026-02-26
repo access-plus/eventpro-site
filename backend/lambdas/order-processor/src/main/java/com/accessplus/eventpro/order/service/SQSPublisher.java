@@ -2,33 +2,26 @@ package com.accessplus.eventpro.order.service;
 
 import com.accessplus.eventpro.order.config.SQSConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import org.jboss.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
-/**
- * Service for publishing messages to AWS SQS queues.
- */
-@ApplicationScoped
+@Service
 public class SQSPublisher {
 
-    private static final Logger LOG = Logger.getLogger(SQSPublisher.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SQSPublisher.class);
 
-    @Inject
-    SqsClient sqsClient;
-
-    @Inject
-    SQSConfig sqsConfig;
-
+    private final SqsClient sqsClient;
+    private final SQSConfig sqsConfig;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /**
-     * Publishes a payment message to the payment queue.
-     * 
-     * @param message the payment message object (will be serialized to JSON)
-     */
+    public SQSPublisher(SqsClient sqsClient, SQSConfig sqsConfig) {
+        this.sqsClient = sqsClient;
+        this.sqsConfig = sqsConfig;
+    }
+
     public void publishPaymentMessage(Object message) {
         try {
             String messageBody = objectMapper.writeValueAsString(message);
@@ -39,17 +32,14 @@ public class SQSPublisher {
                 return;
             }
 
-            SendMessageRequest request = SendMessageRequest.builder()
+            sqsClient.sendMessage(SendMessageRequest.builder()
                     .queueUrl(queueUrl)
                     .messageBody(messageBody)
-                    .build();
-
-            sqsClient.sendMessage(request);
-            LOG.infof("Payment message published to queue: %s", queueUrl);
+                    .build());
+            LOG.info("Payment message published to queue: {}", queueUrl);
         } catch (Exception e) {
-            LOG.errorf(e, "Error publishing payment message to queue: %s", sqsConfig.getPaymentQueueUrl());
+            LOG.error("Error publishing payment message to queue: {}", sqsConfig.getPaymentQueueUrl(), e);
             throw new RuntimeException("Failed to publish payment message", e);
         }
     }
 }
-

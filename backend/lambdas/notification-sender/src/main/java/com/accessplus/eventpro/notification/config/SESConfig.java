@@ -1,26 +1,15 @@
 package com.accessplus.eventpro.notification.config;
 
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Produces;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import software.amazon.awssdk.services.ses.SesClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 
-/**
- * Configuration for AWS SES Client.
- */
-@ApplicationScoped
+@Configuration
 public class SESConfig {
 
-    @ConfigProperty(name = "ses.sender.email", defaultValue = "noreply@eventpro.com")
-    String senderEmail;
-
-    @Produces
-    public SesClient sesClient() {
-        return SesClient.builder().build();
-    }
+    @Value("${ses.sender.email:noreply@eventpro.com}")
+    private String senderEmail;
 
     public String getSenderEmail() {
         return senderEmail;
     }
 }
-

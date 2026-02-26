@@ -1,8 +1,5 @@
 rootProject.name = 'services'
 
-// Include shared module as composite build
-includeBuild '../shared'
-
 // Modular Monolith Modules
 include 'eventpro-core'
 include 'eventpro-event'

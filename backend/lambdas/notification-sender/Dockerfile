@@ -1,28 +1,18 @@
-# Multi-stage Dockerfile for Quarkus Notification Sender Lambda (JVM)
-# This builds a container image for AWS Lambda
-# Build context: backend/ directory
+# Multi-stage Dockerfile for Spring Boot Notification Sender Lambda
+# Build context: backend/
 
-# Build stage
-FROM gradle:9.2.1-jdk21-corretto AS build
+FROM gradle:9.2.1-jdk25-corretto AS build
 WORKDIR /app
 
-# Copy entire lambda directory structure
 COPY lambdas/notification-sender ./lambdas/notification-sender
 
-# Copy shared module (for composite build)
-COPY shared ./shared
-
-# Build the Quarkus application
 WORKDIR /app/lambdas/notification-sender
-RUN ./gradlew build --no-daemon -x test
+RUN ./gradlew bootJar --no-daemon -x test
 
-# Runtime stage - Use AWS Lambda Java base image
-FROM public.ecr.aws/lambda/java:21
+FROM public.ecr.aws/lambda/java:25
 
-# Copy the Quarkus runner JAR and dependencies
-COPY --from=build /app/lambdas/notification-sender/build/quarkus-app/lib/ /var/task/lib/
-COPY --from=build /app/lambdas/notification-sender/build/*-runner.jar /var/task/lib/quarkus-lambda.jar
+COPY --from=build /app/lambdas/notification-sender/build/libs/*.jar /var/task/
 
-# Set the handler
-CMD ["io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"]
-
+# Handler: FunctionInvoker::handleRequest
+# Set Lambda env: spring_cloud_function_definition=sendNotification
+CMD ["org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest"]

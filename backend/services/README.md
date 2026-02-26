@@ -35,7 +35,7 @@ java -jar modules/eventpro-api/build/libs/eventpro-api-1.0.0.jar
 ## Building Docker Image
 
 ```bash
-docker build -t eventpro-api:latest .
+docker image build -t eventpro-api:latest .
 ```
 
 ## Module Structure

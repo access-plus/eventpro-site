@@ -1,27 +1,27 @@
 package com.accessplus.eventpro.notification.service.impl;
 
 import com.accessplus.eventpro.notification.service.SMSService;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import org.jboss.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.SnsException;
 
-/**
- * Implementation of SMSService using AWS SNS.
- */
-@ApplicationScoped
+@Service
 public class SMSServiceImpl implements SMSService {
 
-    private static final Logger LOG = Logger.getLogger(SMSServiceImpl.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SMSServiceImpl.class);
 
-    @Inject
-    SnsClient snsClient;
+    private final SnsClient snsClient;
+
+    public SMSServiceImpl(SnsClient snsClient) {
+        this.snsClient = snsClient;
+    }
 
     @Override
     public void sendSMS(String phoneNumber, String message) {
-        LOG.debugf("Sending SMS to: %s", phoneNumber);
+        LOG.debug("Sending SMS to: {}", phoneNumber);
 
         try {
             PublishRequest publishRequest = PublishRequest.builder()
@@ -30,11 +30,10 @@ public class SMSServiceImpl implements SMSService {
                     .build();
 
             snsClient.publish(publishRequest);
-            LOG.infof("SMS sent successfully to: %s", phoneNumber);
+            LOG.info("SMS sent successfully to: {}", phoneNumber);
         } catch (SnsException e) {
-            LOG.errorf(e, "Failed to send SMS to %s: %s", phoneNumber, e.getMessage());
+            LOG.error("Failed to send SMS to {}: {}", phoneNumber, e.getMessage(), e);
             throw new RuntimeException("Failed to send SMS: " + e.getMessage(), e);
         }
     }
 }
-

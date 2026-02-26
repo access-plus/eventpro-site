@@ -2,7 +2,6 @@ package com.accessplus.eventpro.event.ticket.repository;
 
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
-import com.accessplus.eventpro.shared.enums.TicketType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

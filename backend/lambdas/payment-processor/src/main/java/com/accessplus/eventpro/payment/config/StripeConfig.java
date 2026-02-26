@@ -2,24 +2,18 @@ package com.accessplus.eventpro.payment.config;
 
 import com.stripe.Stripe;
 import jakarta.annotation.PostConstruct;
-import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jboss.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 
-/**
- * Configuration for Stripe API.
- * Reads Stripe secret key from environment variable (STRIPE_SECRET_KEY).
- * 
- * For consistency with ECS application, Stripe secrets are passed as environment variables
- * from Terraform variables, not from Secrets Manager.
- */
-@ApplicationScoped
+@Configuration
 public class StripeConfig {
 
-    private static final Logger LOG = Logger.getLogger(StripeConfig.class);
+    private static final Logger LOG = LoggerFactory.getLogger(StripeConfig.class);
 
-    @ConfigProperty(name = "stripe.secret.key", defaultValue = "")
-    String stripeSecretKey;
+    @Value("${stripe.secret.key:}")
+    private String stripeSecretKey;
 
     @PostConstruct
     public void init() {
@@ -31,4 +25,3 @@ public class StripeConfig {
         }
     }
 }
-

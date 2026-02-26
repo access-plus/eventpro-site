@@ -1,7 +1,5 @@
 package com.accessplus.eventpro.api.dto;
 
-import com.accessplus.eventpro.shared.enums.TicketStatus;
-import com.accessplus.eventpro.shared.enums.TicketType;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -11,7 +11,6 @@ import com.accessplus.eventpro.shared.enums.TicketType;
 import com.accessplus.eventpro.order.cart.entity.CartEntity;
 import com.accessplus.eventpro.order.cart.service.CartService;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
-import com.accessplus.eventpro.shared.entity.OrderItemEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
 import com.accessplus.eventpro.order.order.repository.OrderItemRepository;
 import com.accessplus.eventpro.order.order.repository.OrderRepository;
@@ -35,7 +34,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**

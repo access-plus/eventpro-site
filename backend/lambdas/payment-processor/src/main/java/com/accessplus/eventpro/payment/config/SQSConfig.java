@@ -1,19 +1,15 @@
 package com.accessplus.eventpro.payment.config;
 
-import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 
-/**
- * Configuration for SQS queue URLs.
- */
-@ApplicationScoped
+@Configuration
 public class SQSConfig {
 
-    @ConfigProperty(name = "sqs.notification.queue.url")
-    String notificationQueueUrl;
+    @Value("${sqs.notification.queue.url:}")
+    private String notificationQueueUrl;
 
     public String getNotificationQueueUrl() {
         return notificationQueueUrl;
     }
 }
-

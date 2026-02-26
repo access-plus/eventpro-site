@@ -2,29 +2,33 @@ package com.accessplus.eventpro.notification.service.impl;
 
 import com.accessplus.eventpro.notification.config.SESConfig;
 import com.accessplus.eventpro.notification.service.EmailService;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import org.jboss.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.ses.SesClient;
-import software.amazon.awssdk.services.ses.model.*;
+import software.amazon.awssdk.services.ses.model.Body;
+import software.amazon.awssdk.services.ses.model.Content;
+import software.amazon.awssdk.services.ses.model.Destination;
+import software.amazon.awssdk.services.ses.model.Message;
+import software.amazon.awssdk.services.ses.model.SendEmailRequest;
+import software.amazon.awssdk.services.ses.model.SesException;
 
-/**
- * Implementation of EmailService using AWS SES.
- */
-@ApplicationScoped
+@Service
 public class EmailServiceImpl implements EmailService {
 
-    private static final Logger LOG = Logger.getLogger(EmailServiceImpl.class);
+    private static final Logger LOG = LoggerFactory.getLogger(EmailServiceImpl.class);
 
-    @Inject
-    SesClient sesClient;
+    private final SesClient sesClient;
+    private final SESConfig sesConfig;
 
-    @Inject
-    SESConfig sesConfig;
+    public EmailServiceImpl(SesClient sesClient, SESConfig sesConfig) {
+        this.sesClient = sesClient;
+        this.sesConfig = sesConfig;
+    }
 
     @Override
     public void sendEmail(String to, String subject, String htmlBody, String textBody) {
-        LOG.debugf("Sending email to: %s, subject: %s", to, subject);
+        LOG.debug("Sending email to: {}, subject: {}", to, subject);
 
         try {
             SendEmailRequest sendEmailRequest = SendEmailRequest.builder()
@@ -40,11 +44,10 @@ public class EmailServiceImpl implements EmailService {
                     .build();
 
             sesClient.sendEmail(sendEmailRequest);
-            LOG.infof("Email sent successfully to: %s", to);
+            LOG.info("Email sent successfully to: {}", to);
         } catch (SesException e) {
-            LOG.errorf(e, "Failed to send email to %s: %s", to, e.getMessage());
+            LOG.error("Failed to send email to {}: {}", to, e.getMessage(), e);
             throw new RuntimeException("Failed to send email: " + e.getMessage(), e);
         }
     }
 }
-

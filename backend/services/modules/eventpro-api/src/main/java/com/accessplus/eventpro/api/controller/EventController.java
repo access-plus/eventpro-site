@@ -20,7 +20,6 @@ import com.accessplus.eventpro.event.event.service.EventService;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.EventStatus;
-import com.accessplus.eventpro.shared.enums.TicketStatus;
 import com.accessplus.eventpro.shared.enums.TicketType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;

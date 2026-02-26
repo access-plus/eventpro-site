@@ -1,0 +1,84 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - mainx
+  pull_request:
+    branches:
+      - mainx
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ci_shared: ${{ steps.filter.outputs.ci_shared }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      services: ${{ steps.filter.outputs.services }}
+      order_processor: ${{ steps.filter.outputs.order_processor }}
+      payment_processor: ${{ steps.filter.outputs.payment_processor }}
+      notification_sender: ${{ steps.filter.outputs.notification_sender }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ci_shared:
+              - '.github/actions/**'
+              - '.github/workflows/*.yml'
+            frontend:
+              - 'eventpro-frontend/**'
+            services:
+              - 'backend/services/**'
+            order_processor:
+              - 'backend/lambdas/order-processor/**'
+            payment_processor:
+              - 'backend/lambdas/payment-processor/**'
+            notification_sender:
+              - 'backend/lambdas/notification-sender/**'
+
+  services:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.services == 'true' }}
+    uses: ./.github/workflows/services.yml
+    with:
+      workspace: dev
+      run_deploy: ${{ github.event_name == 'push' }}
+    secrets: inherit
+
+  frontend:
+    needs: [detect-changes, services]
+    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.frontend == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
+    uses: ./.github/workflows/frontend.yml
+    with:
+      workspace: dev
+      run_deploy: ${{ github.event_name == 'push' }}
+    secrets: inherit
+
+  order_processor:
+    needs: [detect-changes, services]
+    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.order_processor == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
+    uses: ./.github/workflows/order-processor.yml
+    with:
+      workspace: dev
+      run_deploy: ${{ github.event_name == 'push' }}
+    secrets: inherit
+
+  payment_processor:
+    needs: [detect-changes, services]
+    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.payment_processor == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
+    uses: ./.github/workflows/payment-processor.yml
+    with:
+      workspace: dev
+      run_deploy: ${{ github.event_name == 'push' }}
+    secrets: inherit
+
+  notification_sender:
+    needs: [detect-changes, services]
+    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.notification_sender == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
+    uses: ./.github/workflows/notification-sender.yml
+    with:
+      workspace: dev
+      run_deploy: ${{ github.event_name == 'push' }}
+    secrets: inherit
