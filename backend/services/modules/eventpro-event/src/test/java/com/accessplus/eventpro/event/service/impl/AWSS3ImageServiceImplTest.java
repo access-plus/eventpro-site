@@ -13,6 +13,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import java.util.function.Consumer;
 
@@ -204,13 +205,13 @@ class AWSS3ImageServiceImplTest {
         PresignedGetObjectRequest presignedRequest = mock(PresignedGetObjectRequest.class);
         URL mockUrl = new java.net.URI("https://test-bucket.s3.us-east-1.amazonaws.com/events/test-image.jpg?signature=test").toURL();
         when(presignedRequest.url()).thenReturn(mockUrl);
-        when(s3Presigner.presignGetObject(any(Consumer.class))).thenReturn(presignedRequest);
+        when(s3Presigner.presignGetObject(org.mockito.ArgumentMatchers.<Consumer<GetObjectPresignRequest.Builder>>any())).thenReturn(presignedRequest);
 
         String result = imageService.getPresignedUrl(TEST_KEY, 60);
 
         assertNotNull(result);
         assertTrue(result.contains(TEST_KEY));
-        verify(s3Presigner, times(1)).presignGetObject(any(Consumer.class));
+        verify(s3Presigner, times(1)).presignGetObject(org.mockito.ArgumentMatchers.<Consumer<GetObjectPresignRequest.Builder>>any());
     }
 
     @Test
@@ -233,11 +234,12 @@ class AWSS3ImageServiceImplTest {
         when(file.getSize()).thenReturn(size);
         when(file.isEmpty()).thenReturn(size == 0);
         try {
-            when(file.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[(int) size]));
+            byte[] content = new byte[(int) size];
+            when(file.getBytes()).thenReturn(content);
+            when(file.getInputStream()).thenReturn(new ByteArrayInputStream(content));
         } catch (IOException e) {
             // Should not happen in tests
         }
         return file;
     }
 }
-

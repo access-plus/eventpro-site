@@ -28,7 +28,7 @@ public class EmailServiceImpl implements EmailService {
         if (sesClient == null) {
             sesClient = SesClient.builder()
                     .region(Region.of(awsRegion))
-                    .credentialsProvider(DefaultCredentialsProvider.create())
+                    .credentialsProvider(DefaultCredentialsProvider.builder().build())
                     .build();
         }
         return sesClient;
@@ -92,4 +92,3 @@ public class EmailServiceImpl implements EmailService {
         }
     }
 }
-
