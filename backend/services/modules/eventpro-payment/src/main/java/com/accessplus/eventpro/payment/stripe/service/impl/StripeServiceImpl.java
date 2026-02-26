@@ -27,7 +27,11 @@ public class StripeServiceImpl implements StripeService {
     
     @PostConstruct
     public void init() {
-        Stripe.apiKey = stripeSecretKey;
+        String key = stripeSecretKey != null ? stripeSecretKey.trim() : "";
+        if (key.isEmpty() || "sk_test_local".equals(key)) {
+            log.warn("Stripe secret key is missing or still the placeholder (sk_test_local). Set STRIPE_SECRET_KEY in .env and restart. Payment intents will fail until then.");
+        }
+        Stripe.apiKey = key;
         log.info("Stripe API key initialized");
     }
     

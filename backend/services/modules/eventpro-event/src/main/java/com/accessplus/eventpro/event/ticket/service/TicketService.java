@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface TicketService {
@@ -49,5 +50,32 @@ public interface TicketService {
     void checkInTicket(UUID ticketId);
 
     void markTicketAsAvailable(UUID ticketId);
+
+    /**
+     * Atomically reserves exactly one ticket for the given event and type. Uses DB row lock
+     * (FOR UPDATE SKIP LOCKED) so one request wins and all others get nothing instantly—no thundering herd.
+     *
+     * @param eventId    event
+     * @param ticketType ticket type
+     * @return reserved ticket ID, or empty if none available (instant rejection for high contention)
+     */
+    Optional<UUID> reserveOneTicketAtomic(UUID eventId, TicketType ticketType);
+
+    /**
+     * Finds up to {@code count} available tickets for the given event and type,
+     * marks them as RESERVED (with expiry), and returns their IDs.
+     * Prefer {@link #reserveOneTicketAtomic} in a loop for high-contention (one winner, rest rejected fast).
+     *
+     * @return list of reserved ticket IDs (may be fewer than count if not enough available)
+     */
+    List<UUID> findAndReserveAvailableTickets(UUID eventId, TicketType ticketType, int count);
+
+    /**
+     * Releases tickets that are RESERVED and past their reserved_until time back to AVAILABLE.
+     * Call periodically (e.g. every minute) via a scheduled task.
+     *
+     * @return number of tickets released
+     */
+    int releaseExpiredReservations();
 }
 

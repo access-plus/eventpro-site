@@ -9,11 +9,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface TicketRepository extends JpaRepository<TicketEntity, UUID> {
+public interface TicketRepository extends JpaRepository<TicketEntity, UUID>, TicketRepositoryCustom {
 
     @Query("SELECT t FROM TicketEntity t WHERE t.eventId = :eventId")
     Page<TicketEntity> findByEventId(@Param("eventId") UUID eventId, Pageable pageable);
@@ -29,9 +30,16 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID> {
     @Query("SELECT t FROM TicketEntity t WHERE t.eventId = :eventId AND t.ticketStatus = 'AVAILABLE'")
     List<TicketEntity> findAvailableTicketsByEventId(@Param("eventId") UUID eventId);
 
+    @Query("SELECT t FROM TicketEntity t WHERE t.eventId = :eventId AND t.ticketType = :ticketType AND t.ticketStatus = 'AVAILABLE'")
+    List<TicketEntity> findAvailableByEventIdAndType(@Param("eventId") UUID eventId, @Param("ticketType") TicketType ticketType, Pageable pageable);
+
     @Query("SELECT COUNT(t) FROM TicketEntity t WHERE t.eventId = :eventId AND t.ticketStatus = :status")
     long countByEventIdAndStatus(@Param("eventId") UUID eventId, @Param("status") TicketStatus status);
 
     long countByTicketStatus(TicketStatus status);
+
+    /** RESERVED tickets whose reserved_until is before the given time (expired). */
+    @Query("SELECT t FROM TicketEntity t WHERE t.ticketStatus = 'RESERVED' AND t.reservedUntil IS NOT NULL AND t.reservedUntil < :before")
+    List<TicketEntity> findReservedWithExpiredHold(@Param("before") LocalDateTime before);
 }
 

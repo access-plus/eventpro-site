@@ -65,6 +65,9 @@ export const CartMenu = () => {
             </div>
             <DropdownMenuSeparator />
             <div className="p-2">
+              <p className="text-xs text-muted-foreground mb-2">
+                At checkout, tickets are held for 15 minutes to complete payment.
+              </p>
               <div className="flex justify-between items-center mb-2">
                 <span className="font-medium">Total:</span>
                 <span className="font-bold">${totalAmount.toFixed(2)}</span>

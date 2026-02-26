@@ -177,7 +177,12 @@ const EventFormNew = () => {
       const token = localStorage.getItem("accessToken");
 
       if (isEditMode && id) {
-        // UPDATE MODE - PUT organizer endpoint (supports optional image)
+        // UPDATE MODE - JSON PUT; upload image first if present, then update with URL
+        let imageUrl: string | undefined;
+        if (imageFile) {
+          const upload = await apiService.uploadEventImage(imageFile);
+          imageUrl = upload?.url;
+        }
         const requestPayload = {
           name: values.name,
           description: values.description,
@@ -186,21 +191,9 @@ const EventFormNew = () => {
           category: values.category,
           marketingEnabled: values.marketingEnabled,
           address: values.address,
+          ...(imageUrl && { imageUrl }),
         };
-
-        const formData = new FormData();
-        formData.append("request", JSON.stringify(requestPayload));
-        if (imageFile) {
-          formData.append("imageFile", imageFile);
-        }
-
-        await axios.put(`${baseUrl}/api/v1/organizer/events/${id}`, formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
-        });
-
+        await apiService.updateOrganizerEvent(id, requestPayload);
         toast.success("Event updated successfully!");
         navigate("/organizer");
       } else {

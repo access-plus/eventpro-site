@@ -7,22 +7,17 @@ import org.springframework.context.annotation.Profile;
 @Configuration
 public class S3AclConfig {
 
-    @Configuration
+    @Bean
     @Profile("local")
-    static class LocalStackAclConfig {
-        @Bean
-        public S3AclProperties s3AclProperties() {
-            return new S3AclProperties(false);
-        }
+    public S3AclProperties s3AclPropertiesLocal() {
+        // Use ACL so uploads set PUBLIC_READ; proxy and direct URLs can then read the object
+        return new S3AclProperties(true);
     }
 
-    @Configuration
+    @Bean
     @Profile("!local")
-    static class AwsAclConfig {
-        @Bean
-        public S3AclProperties s3AclProperties() {
-            return new S3AclProperties(true);
-        }
+    public S3AclProperties s3AclPropertiesAws() {
+        return new S3AclProperties(true);
     }
 
     public static class S3AclProperties {

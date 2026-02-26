@@ -5,6 +5,8 @@ import com.accessplus.eventpro.api.service.OrganizerService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.accessplus.eventpro.core.security.JwtUtils;
+import com.accessplus.eventpro.core.user.entity.UserEntity;
+import com.accessplus.eventpro.core.user.repository.UserRepository;
 import com.accessplus.eventpro.event.category.entity.CategoryEntity;
 import com.accessplus.eventpro.event.category.repository.CategoryRepository;
 import com.accessplus.eventpro.event.addon.entity.EventAddonEntity;
@@ -27,6 +29,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -55,6 +58,17 @@ public class OrganizerController extends BaseController {
     private final CategoryRepository categoryRepository;
     private final AWSS3ImageService imageService;
     private final ObjectMapper objectMapper;
+    private final UserRepository userRepository;
+
+    /** Merchandise & add-ons require Pro or Enterprise per pricing page. */
+    private void requireAddonsEligible() {
+        UUID userId = JwtUtils.getCurrentUserId();
+        UserEntity user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+        String tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier().toUpperCase() : "BASIC";
+        if (!"PRO".equals(tier) && !"ENTERPRISE".equals(tier)) {
+            throw new AccessDeniedException("Merchandise and add-ons require a Pro or Enterprise plan. Upgrade at /pricing.");
+        }
+    }
 
     @GetMapping("/events")
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
@@ -143,6 +157,9 @@ public class OrganizerController extends BaseController {
         eventUpdate.setStartTime(request.getStartTime());
         eventUpdate.setEndTime(request.getEndTime());
         eventUpdate.setMarketingEnabled(request.getMarketingEnabled() != null ? request.getMarketingEnabled() : false);
+        if (request.getImageUrl() != null) {
+            eventUpdate.setImageUrl(request.getImageUrl());
+        }
 
         // Set address if provided
         if (request.getAddress() != null) {
@@ -155,12 +172,12 @@ public class OrganizerController extends BaseController {
             categoryId = resolveCategoryId(request.getCategory());
         }
 
-        // Update event (with optional new image)
+        // Update event (no image in this JSON-only endpoint; use POST /events/upload-image to change image)
         EventEntity updatedEvent = eventService.updateEvent(
                 id,
                 eventUpdate,
                 categoryId,
-                null // imageFile - handled separately
+                null
         );
         
         EventResponse response = EventResponse.fromEntity(updatedEvent);
@@ -228,8 +245,9 @@ public class OrganizerController extends BaseController {
     @GetMapping("/events/{eventId}/addons")
     @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
-    @Operation(summary = "List event add-ons", description = "Returns add-ons (enhancements) for an event. Requires ORGANIZER or ADMIN role.")
+    @Operation(summary = "List event add-ons", description = "Returns add-ons for an event. Requires Pro or Enterprise plan.")
     public ResponseEntity<ApiResponse<List<EventAddonResponse>>> getEventAddons(@PathVariable UUID eventId) {
+        requireAddonsEligible();
         log.debug("Getting add-ons for event: {}", eventId);
         UUID organizerId = JwtUtils.getCurrentUserId();
         EventEntity event = eventRepository.findByIdWithOrganizer(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
@@ -244,10 +262,11 @@ public class OrganizerController extends BaseController {
     @PostMapping("/events/{eventId}/addons")
     @Transactional
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
-    @Operation(summary = "Create event add-on", description = "Creates an add-on (enhancement) for an event. Requires ORGANIZER or ADMIN role.")
+    @Operation(summary = "Create event add-on", description = "Creates an add-on for an event. Requires Pro or Enterprise plan.")
     public ResponseEntity<ApiResponse<EventAddonResponse>> createEventAddon(
             @PathVariable UUID eventId,
             @Valid @RequestBody CreateEventAddonRequest request) throws JsonProcessingException {
+        requireAddonsEligible();
         log.debug("Creating add-on for event: {}", eventId);
         UUID organizerId = JwtUtils.getCurrentUserId();
         EventEntity event = eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
@@ -273,11 +292,12 @@ public class OrganizerController extends BaseController {
     @PutMapping("/events/{eventId}/addons/{addonId}")
     @Transactional
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
-    @Operation(summary = "Update event add-on", description = "Updates an add-on. Requires ORGANIZER or ADMIN role.")
+    @Operation(summary = "Update event add-on", description = "Updates an add-on. Requires Pro or Enterprise plan.")
     public ResponseEntity<ApiResponse<EventAddonResponse>> updateEventAddon(
             @PathVariable UUID eventId,
             @PathVariable UUID addonId,
             @Valid @RequestBody UpdateEventAddonRequest request) throws JsonProcessingException {
+        requireAddonsEligible();
         log.debug("Updating add-on: {}", addonId);
         UUID organizerId = JwtUtils.getCurrentUserId();
         EventEntity event = eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
@@ -305,8 +325,9 @@ public class OrganizerController extends BaseController {
     @DeleteMapping("/events/{eventId}/addons/{addonId}")
     @Transactional
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
-    @Operation(summary = "Delete event add-on", description = "Deletes an add-on. Requires ORGANIZER or ADMIN role.")
+    @Operation(summary = "Delete event add-on", description = "Deletes an add-on. Requires Pro or Enterprise plan.")
     public ResponseEntity<ApiResponse<Void>> deleteEventAddon(@PathVariable UUID eventId, @PathVariable UUID addonId) {
+        requireAddonsEligible();
         log.debug("Deleting add-on: {}", addonId);
         UUID organizerId = JwtUtils.getCurrentUserId();
         EventEntity event = eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
