@@ -17,14 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Ticket entity representing individual tickets for events.
- * Framework-agnostic entity that works with both Spring Boot and Quarkus.
- *
- * <p>Note: Uses UUID references for cross-module relationships (event, user)
- * to maintain framework independence. Backend modules can add entity relationships
- * via @ManyToOne if needed for their specific use cases.
- */
+
 @Entity
 @Table(name = "tickets", indexes = {
     @Index(name = "idx_ticket_event", columnList = "event_id"),
@@ -93,4 +86,12 @@ public class TicketEntity extends BaseEntity {
     @Column(name = "creator_id", nullable = false)
     @JdbcTypeCode(SqlTypes.UUID)
     private UUID creatorId;
+
+    /**
+     * When this reservation expires (for RESERVED tickets). After this time the ticket
+     * is released back to AVAILABLE if still RESERVED. Null for non-reserved or sold.
+     */
+    @Column(name = "reserved_until")
+    private java.time.LocalDateTime reservedUntil;
 }
+
