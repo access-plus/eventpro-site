@@ -13,6 +13,8 @@ import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { getEventImageUrl } from "@/lib/utils";
 import { SeatingMap, generateSampleSeats, Seat } from "@/components/SeatingMap";
+import { ShareActionsContainer } from "@/components/ShareActions";
+import { LiveAttendanceBadge, useSimulatedViewers } from "@/components/LiveAttendanceBadge";
 
 const EventDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +31,18 @@ const EventDetails = () => {
 
   // Generate sample seats for demo
   const sampleSeats = useMemo(() => generateSampleSeats(), []);
+
+  // Live badge: simulated viewers; ticket stats for urgency/sold copy
+  const viewers = useSimulatedViewers(id ?? "", 8, 32);
+  const { ticketsLeft, ticketsSold } = useMemo(() => {
+    let left = 0;
+    let sold = 0;
+    ticketTypes.forEach((t) => {
+      left += t.availableQuantity ?? 0;
+      sold += (t.totalQuantity ?? 0) - (t.availableQuantity ?? 0);
+    });
+    return { ticketsLeft: left, ticketsSold: sold };
+  }, [ticketTypes]);
 
   useEffect(() => {
     if (id) {
@@ -152,7 +166,7 @@ const EventDetails = () => {
             <div>
               <div className="flex items-start justify-between gap-4 mb-4">
                 <h1 className="text-4xl font-bold">{event.name}</h1>
-                <Badge className="bg-primary">{event.status}</Badge>
+                <Badge className="bg-primary flex-shrink-0">{event.status}</Badge>
               </div>
 
               <div className="flex flex-wrap gap-4 text-muted-foreground mb-6">
@@ -191,13 +205,47 @@ const EventDetails = () => {
                   <p>{event.description}</p>
                 </div>
               )}
+
+              {/* Share — Vibrant Bento tile with tracking */}
+              <div className="mt-6">
+                <ShareActionsContainer
+                  variant="bento"
+                  url={typeof window !== "undefined" ? `${window.location.origin}/events/${event.id}` : `/events/${event.id}`}
+                  title={event.name}
+                  description={event.description ?? undefined}
+                  eventDate={(() => {
+                    const raw = event.startTime ?? event.startDateTime;
+                    const d = raw ? new Date(raw) : null;
+                    if (!d || Number.isNaN(d.getTime())) return undefined;
+                    return format(d, "EEEE, MMM d 'at' p");
+                  })()}
+                />
+              </div>
             </div>
           </div>
 
           {/* Ticket Selection */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <h2 className="text-2xl font-bold">Tickets</h2>
+              {/* Live badge — nudge next to CTA area */}
+              <LiveAttendanceBadge
+                placement="details"
+                variant={
+                  ticketTypes.length > 0 && ticketsLeft > 0 && ticketsLeft <= 15
+                    ? "urgency"
+                    : ticketTypes.length > 0 && ticketsSold > 0
+                      ? "sold"
+                      : "viewing"
+                }
+                count={
+                  ticketTypes.length > 0 && ticketsLeft > 0 && ticketsLeft <= 15
+                    ? ticketsLeft
+                    : ticketTypes.length > 0 && ticketsSold > 0
+                      ? ticketsSold
+                      : viewers
+                }
+              />
             </div>
 
             {/* Tabs for General Admission vs Seating */}

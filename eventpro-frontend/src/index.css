@@ -178,3 +178,21 @@ All colors MUST be HSL.
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
 }
+
+/* Pay button shimmer (Vibrant checkout) */
+@keyframes pay-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.pay-button-shimmer:hover {
+  background-size: 200% 100%;
+  background-image: linear-gradient(
+    90deg,
+    hsl(250 85% 55%) 0%,
+    hsl(270 75% 65%) 25%,
+    hsl(35 95% 55%) 50%,
+    hsl(270 75% 65%) 75%,
+    hsl(250 85% 55%) 100%
+  );
+  animation: pay-shimmer 2s linear infinite;
+}

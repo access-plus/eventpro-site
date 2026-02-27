@@ -4,14 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { GuestCheckoutForm } from "@/components/GuestCheckoutForm";
+import { GuestCheckoutFormBento } from "@/components/GuestCheckoutFormBento";
 import { MerchandiseAddons, type MerchandiseItem } from "@/components/MerchandiseAddons";
 import { CheckoutPaymentForm } from "@/components/CheckoutPaymentForm";
 import { ReservationCountdown } from "@/components/ReservationCountdown";
-import { PostPurchaseCelebration } from "@/components/PostPurchaseCelebration";
+import { SuccessTicketReveal } from "@/components/SuccessTicketReveal";
+import { TicketPreview } from "@/components/TicketPreview";
 import { apiService } from "@/lib/api";
 import { HOW_DID_YOU_HEAR_OPTIONS } from "@/types/api";
-import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone } from "lucide-react";
+import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone, CreditCard } from "lucide-react";
+import { CommunityImpactTile } from "@/components/CommunityImpactTile";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -60,6 +62,10 @@ const Checkout = () => {
   const [receiveTicketViaWhatsApp, setReceiveTicketViaWhatsApp] = useState(false);
   const [receiveTicketViaSMS, setReceiveTicketViaSMS] = useState(false);
   const [successEventName, setSuccessEventName] = useState<string | null>(null);
+  const [successAttendeeName, setSuccessAttendeeName] = useState<string>("");
+  const [successTicketType, setSuccessTicketType] = useState<string>("");
+  /** Live form values for ticket preview (guest only, before submit). */
+  const [previewGuest, setPreviewGuest] = useState({ firstName: "", lastName: "", email: "" });
 
   const eventIds = useMemo(() => [...new Set(items.map((i) => i.eventId).filter(Boolean))], [items]);
 
@@ -92,6 +98,30 @@ const Checkout = () => {
     0
   );
   const grandTotal = totalAmount + merchTotal;
+
+  /** Attendee name for ticket preview: from user, guestInfo, or live preview. */
+  const attendeeName =
+    isAuthenticated && user
+      ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
+      : guestInfo
+        ? `${guestInfo.firstName} ${guestInfo.lastName}`.trim()
+        : `${previewGuest.firstName} ${previewGuest.lastName}`.trim();
+
+  /** Ticket type label for preview (first item or "X tickets"). */
+  const ticketLabel =
+    items.length === 0
+      ? "Ticket"
+      : items.length === 1
+        ? items[0].ticketTypeName
+        : `${items.length} tickets`;
+
+  /** Form valid: logged in, or guest info submitted, or live guest form valid (name + email). */
+  const isFormValid =
+    isAuthenticated ||
+    !!guestInfo ||
+    (previewGuest.firstName.trim() !== "" &&
+      previewGuest.lastName.trim() !== "" &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(previewGuest.email));
 
   const handleGuestSubmit = (info: typeof guestInfo & { acceptTerms: boolean }) => {
     setGuestInfo(info);
@@ -167,6 +197,14 @@ const Checkout = () => {
 
   const handlePaymentSuccess = (id: string) => {
     setSuccessEventName(items[0]?.eventName ?? null);
+    setSuccessAttendeeName(
+      isAuthenticated && user
+        ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim()
+        : guestInfo
+          ? `${guestInfo.firstName} ${guestInfo.lastName}`.trim()
+          : `${previewGuest.firstName} ${previewGuest.lastName}`.trim()
+    );
+    setSuccessTicketType(ticketLabel);
     setOrderId(id);
     setPaymentStep("success");
     clearCart();
@@ -192,9 +230,11 @@ const Checkout = () => {
 
   if (paymentStep === "success") {
     return (
-      <PostPurchaseCelebration
+      <SuccessTicketReveal
         orderId={orderId}
-        eventName={successEventName ?? undefined}
+        eventName={successEventName ?? "Event"}
+        attendeeName={successAttendeeName}
+        ticketType={successTicketType}
       />
     );
   }
@@ -216,6 +256,55 @@ const Checkout = () => {
           </h1>
         </div>
 
+        {/* Payment step: single centered glass card */}
+        {paymentStep === "payment" && clientSecret ? (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-lg mx-auto"
+          >
+            <div className="rounded-2xl border border-white/10 bg-[rgba(255,255,255,0.06)] backdrop-blur-[15px] shadow-[0_0_40px_rgba(147,51,234,0.15)] p-6 sm:p-8 space-y-6">
+              {reservedUntil && (
+                <ReservationCountdown
+                  reservedUntil={reservedUntil}
+                  onExpired={() => {
+                    setReservedUntil(null);
+                    setReservedTicketIds(null);
+                    setPaymentStep("review");
+                    toast.warning("Reservation expired. Tickets were released. Please try again.");
+                  }}
+                />
+              )}
+              <div className="flex items-baseline justify-between gap-4 border-b border-white/10 pb-4">
+                <span className="text-sm text-muted-foreground uppercase tracking-wider">Order total</span>
+                <span className="text-3xl sm:text-4xl font-bold tabular-nums tracking-tight text-foreground">
+                  ${grandTotal.toFixed(2)}
+                </span>
+              </div>
+              <CheckoutPaymentForm
+                clientSecret={clientSecret}
+                amount={grandTotal}
+                isGuest={!isAuthenticated && !!guestInfo}
+                guestConfirm={!isAuthenticated && guestInfo ? buildGuestConfirm : undefined}
+                authenticatedConfirm={isAuthenticated ? (id) => apiService.confirmPayment(id) : undefined}
+                onSuccess={handlePaymentSuccess}
+                onError={(msg) => { setPaymentError(msg); toast.error(msg); }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground"
+                onClick={() => { setPaymentStep("review"); setPaymentError(null); setReservedUntil(null); }}
+              >
+                ← Back to review
+              </Button>
+              {paymentError && (
+                <p className="text-sm text-destructive text-center">{paymentError}</p>
+              )}
+            </div>
+          </motion.div>
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content - one-page vibrant */}
           <div className="lg:col-span-2 space-y-6">
@@ -261,10 +350,34 @@ const Checkout = () => {
                 )}
 
                 {checkoutMode === "guest" && (
-                  <GuestCheckoutForm
-                    onSubmit={handleGuestSubmit}
-                    onLoginClick={() => navigate("/login", { state: { from: { pathname: "/checkout" } } })}
-                  />
+                  <>
+                    {/* One-tap at top — same width as form */}
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                      <button
+                        type="button"
+                        className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/10 py-3 px-4 text-sm font-medium text-primary hover:bg-primary/20 transition-all disabled:opacity-50"
+                        disabled
+                        title="Enable in Stripe for one-tap checkout"
+                      >
+                        <CreditCard className="h-5 w-5" />
+                        Apple Pay
+                      </button>
+                      <button
+                        type="button"
+                        className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/10 py-3 px-4 text-sm font-medium text-primary hover:bg-primary/20 transition-all disabled:opacity-50"
+                        disabled
+                        title="Enable in Stripe for one-tap checkout"
+                      >
+                        <Smartphone className="h-5 w-5" />
+                        Google Pay
+                      </button>
+                    </div>
+                    <GuestCheckoutFormBento
+                      onSubmit={handleGuestSubmit}
+                      onLoginClick={() => navigate("/login", { state: { from: { pathname: "/checkout" } } })}
+                      onFormChange={setPreviewGuest}
+                    />
+                  </>
                 )}
               </motion.div>
             )}
@@ -399,8 +512,21 @@ const Checkout = () => {
             )}
           </div>
 
-          {/* Order Summary */}
-          <div>
+          {/* Right column: Ticket Preview + Community Impact + Order Summary */}
+          <div className="space-y-6">
+            <CommunityImpactTile
+              attendeeCount={0}
+              eventName={items[0]?.eventName}
+              className="w-full"
+            />
+            {/* Interactive Ticket Preview — reacts to form state */}
+            <TicketPreview
+              eventName={items[0]?.eventName ?? "Event"}
+              attendeeName={attendeeName}
+              ticketType={ticketLabel}
+              totalAmount={grandTotal}
+              isUnlocked={isFormValid}
+            />
             <Card className="sticky top-24 rounded-xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px]">
               <CardHeader>
                 <CardTitle>Order Summary</CardTitle>
@@ -444,9 +570,11 @@ const Checkout = () => {
                       <span>${merchTotal.toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-bold text-lg pt-2 border-t">
-                    <span>Total</span>
-                    <span>${grandTotal.toFixed(2)}</span>
+                  <div className="flex justify-between items-baseline pt-2 border-t">
+                    <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total</span>
+                    <span className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight text-foreground">
+                      ${grandTotal.toFixed(2)}
+                    </span>
                   </div>
                 </div>
 
@@ -514,51 +642,22 @@ const Checkout = () => {
                     )}
                     <Button
                       type="button"
-                      className="w-full bg-gradient-to-r from-primary via-primary to-orange-500 text-white shadow-lg hover:shadow-[0_0_20px_hsl(var(--primary)_/_0.4)]"
+                      className={
+                        isFormValid
+                          ? "w-full rounded-xl bg-gradient-to-r from-primary via-primary to-orange-500 text-white shadow-[0_4px_20px_rgba(147,51,234,0.4)] hover:shadow-[0_6px_28px_rgba(147,51,234,0.5),0_0_0_1px_rgba(251,146,60,0.3)] hover:scale-[1.02] transition-all duration-200 pay-button-shimmer"
+                          : "w-full rounded-xl bg-muted text-muted-foreground cursor-not-allowed"
+                      }
                       size="lg"
                       disabled={(!isAuthenticated && !guestInfo) || isStartingPayment}
                       onClick={(e) => handleProceedToPayment(e)}
                     >
-                      {isStartingPayment ? "Starting payment…" : "Proceed to Payment"}
+                      {isStartingPayment ? "Starting payment…" : isFormValid ? "Proceed to Payment" : "Complete your details above"}
                     </Button>
                     {paymentError && (
                       <p className="text-sm text-destructive text-center mt-2">{paymentError}</p>
                     )}
                   </>
                 )}
-                {paymentStep === "payment" && clientSecret && (
-                  <div className="space-y-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setPaymentStep("review"); setPaymentError(null); setReservedUntil(null); }}
-                    >
-                      ← Back to review
-                    </Button>
-                    {reservedUntil && (
-                      <ReservationCountdown
-                        reservedUntil={reservedUntil}
-                        onExpired={() => {
-                          setReservedUntil(null);
-                          setReservedTicketIds(null);
-                          setPaymentStep("review");
-                          toast.warning("Reservation expired. Tickets were released. Please try again.");
-                        }}
-                      />
-                    )}
-                    <CheckoutPaymentForm
-                      clientSecret={clientSecret}
-                      amount={grandTotal}
-                      isGuest={!isAuthenticated && !!guestInfo}
-                      guestConfirm={!isAuthenticated && guestInfo ? buildGuestConfirm : undefined}
-                      authenticatedConfirm={isAuthenticated ? (id) => apiService.confirmPayment(id) : undefined}
-                      onSuccess={handlePaymentSuccess}
-                      onError={(msg) => { setPaymentError(msg); toast.error(msg); }}
-                    />
-                  </div>
-                )}
-
                 {!isAuthenticated && !guestInfo && paymentStep === "review" && (
                   <p className="text-xs text-muted-foreground text-center">
                     Please provide your information above to continue
@@ -572,6 +671,7 @@ const Checkout = () => {
             </Card>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

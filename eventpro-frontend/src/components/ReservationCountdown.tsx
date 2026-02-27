@@ -63,7 +63,7 @@ export function ReservationCountdown({ reservedUntil, onExpired, className = "" 
       </div>
       <div>
         <p className="font-medium text-foreground">
-          Tickets held for <span className="tabular-nums font-bold text-primary">{formatRemaining(secondsLeft)}</span>
+          Tickets reserved for <span className="tabular-nums font-bold text-primary">{formatRemaining(secondsLeft)}</span>
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
           Complete payment before they’re released back to the pool.

@@ -7,6 +7,8 @@ import { Calendar, MapPin, Ticket, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { getEventImageUrl } from "@/lib/utils";
+import { ShareButtonsBar } from "@/components/ShareActions";
+import { LiveAttendanceBadge, useSimulatedViewers } from "@/components/LiveAttendanceBadge";
 import type { Event } from "@/types/api";
 
 interface EventCardProps {
@@ -39,6 +41,7 @@ function safeFormatDate(value: string | number | undefined | unknown, formatStr:
 export const EventCard = ({ event, index = 0 }: EventCardProps) => {
   const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
+  const viewers = useSimulatedViewers(event.id);
   const startRaw = event.startTime ?? event.startDateTime ?? (event as { start_time?: string }).start_time ?? "";
 
   const getStatusColor = (status: Event["status"]) => {
@@ -113,6 +116,11 @@ export const EventCard = ({ event, index = 0 }: EventCardProps) => {
             </div>
           )}
 
+          {/* Live Attendance Badge — top-right below status, overlapping image */}
+          <div className="absolute top-12 right-3">
+            <LiveAttendanceBadge variant="viewing" count={viewers} placement="card" />
+          </div>
+
           {/* Category Badge - glassmorphism */}
           {(event.categoryName || event.category) && (
             <div className="absolute top-3 left-3">
@@ -141,11 +149,11 @@ export const EventCard = ({ event, index = 0 }: EventCardProps) => {
           </div>
         </div>
 
-        {/* Content Section */}
-        <div className="flex-1 min-h-0 flex flex-col p-5 space-y-4">
-          {/* Title */}
-          <h3 className="text-xl font-bold line-clamp-2 group-hover:text-primary transition-colors duration-300">
-            {event.name}
+        {/* Content Section — scrollable so share + button are never clipped */}
+        <div className="flex-1 min-h-0 flex flex-col p-5 space-y-4 overflow-y-auto">
+          {/* Title — flex-shrink-0 so name is never clipped; support name or title from API */}
+          <h3 className="flex-shrink-0 text-xl font-bold line-clamp-2 group-hover:text-primary transition-colors duration-300 min-h-[1.5em]">
+            {event.name || event.title || "Event"}
           </h3>
 
           {/* Description */}
@@ -192,6 +200,17 @@ export const EventCard = ({ event, index = 0 }: EventCardProps) => {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Share — compact row so it’s visible without scrolling; stops card click */}
+          <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Share
+            </p>
+            <ShareButtonsBar
+              url={typeof window !== "undefined" ? `${window.location.origin}/events/${event.id}` : `/events/${event.id}`}
+              title={event.name}
+            />
           </div>
 
           {/* CTA Button - gradient, glow + 5% scale on hover; press state shrinks + darkens */}

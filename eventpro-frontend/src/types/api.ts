@@ -36,6 +36,8 @@ export interface User {
 export interface Event {
   id: string;
   name: string;
+  /** Some endpoints may return title instead of name; card displays name || title. */
+  title?: string;
   description?: string;
   imageUrl?: string;
   marketingEnabled?: boolean;

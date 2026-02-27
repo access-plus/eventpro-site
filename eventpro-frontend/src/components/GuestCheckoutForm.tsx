@@ -17,9 +17,11 @@ interface GuestInfo {
 interface GuestCheckoutFormProps {
   onSubmit: (guestInfo: GuestInfo) => void;
   onLoginClick: () => void;
+  /** Optional: called on every change for live ticket preview sync. */
+  onFormChange?: (data: { firstName: string; lastName: string; email: string }) => void;
 }
 
-export const GuestCheckoutForm = ({ onSubmit, onLoginClick }: GuestCheckoutFormProps) => {
+export const GuestCheckoutForm = ({ onSubmit, onLoginClick, onFormChange }: GuestCheckoutFormProps) => {
   const [guestInfo, setGuestInfo] = useState<GuestInfo>({
     firstName: "",
     lastName: "",
@@ -51,6 +53,16 @@ export const GuestCheckoutForm = ({ onSubmit, onLoginClick }: GuestCheckoutFormP
     return Object.keys(newErrors).length === 0;
   };
 
+  const updateGuest = (next: Partial<GuestInfo>) => {
+    const nextState = { ...guestInfo, ...next };
+    setGuestInfo(nextState);
+    onFormChange?.({
+      firstName: nextState.firstName,
+      lastName: nextState.lastName,
+      email: nextState.email,
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
@@ -78,7 +90,7 @@ export const GuestCheckoutForm = ({ onSubmit, onLoginClick }: GuestCheckoutFormP
                 id="firstName"
                 placeholder="John"
                 value={guestInfo.firstName}
-                onChange={(e) => setGuestInfo({ ...guestInfo, firstName: e.target.value })}
+                onChange={(e) => updateGuest({ firstName: e.target.value })}
                 className={errors.firstName ? "border-destructive" : ""}
               />
               {errors.firstName && (
@@ -91,7 +103,7 @@ export const GuestCheckoutForm = ({ onSubmit, onLoginClick }: GuestCheckoutFormP
                 id="lastName"
                 placeholder="Doe"
                 value={guestInfo.lastName}
-                onChange={(e) => setGuestInfo({ ...guestInfo, lastName: e.target.value })}
+                onChange={(e) => updateGuest({ lastName: e.target.value })}
                 className={errors.lastName ? "border-destructive" : ""}
               />
               {errors.lastName && (
@@ -110,7 +122,7 @@ export const GuestCheckoutForm = ({ onSubmit, onLoginClick }: GuestCheckoutFormP
               type="email"
               placeholder="john@example.com"
               value={guestInfo.email}
-              onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
+              onChange={(e) => updateGuest({ email: e.target.value })}
               className={errors.email ? "border-destructive" : ""}
             />
             {errors.email && (
@@ -131,7 +143,7 @@ export const GuestCheckoutForm = ({ onSubmit, onLoginClick }: GuestCheckoutFormP
               type="tel"
               placeholder="+1 (555) 123-4567"
               value={guestInfo.phone}
-              onChange={(e) => setGuestInfo({ ...guestInfo, phone: e.target.value })}
+              onChange={(e) => updateGuest({ phone: e.target.value })}
             />
           </div>
 
@@ -140,7 +152,7 @@ export const GuestCheckoutForm = ({ onSubmit, onLoginClick }: GuestCheckoutFormP
               id="terms"
               checked={guestInfo.acceptTerms}
               onCheckedChange={(checked) =>
-                setGuestInfo({ ...guestInfo, acceptTerms: checked as boolean })
+                updateGuest({ acceptTerms: checked as boolean })
               }
             />
             <div className="grid gap-1.5 leading-none">
