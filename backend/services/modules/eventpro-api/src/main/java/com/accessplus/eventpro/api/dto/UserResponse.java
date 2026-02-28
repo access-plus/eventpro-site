@@ -28,6 +28,14 @@ public class UserResponse {
     private String role;
     /** Plan tier: BASIC, PRO, ENTERPRISE. Used for feature gating. */
     private String subscriptionTier;
+    /** True when tax/ID and risk check passed; gates payouts for organizers. */
+    private Boolean isVerified;
+    /** KYC workflow: NOT_STARTED, PENDING, IN_PROGRESS, VERIFIED, REJECTED. */
+    private String verificationStatus;
+    /** Risk level: LOW, MEDIUM, HIGH. */
+    private String riskLevel;
+    /** Organizer cultural niche / focus; feeds search taxonomy. */
+    private String culturalNiche;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
@@ -66,6 +74,10 @@ public class UserResponse {
                 .status(entity.getStatus())
                 .role(entity.getRole())
                 .subscriptionTier(entity.getSubscriptionTier() != null ? entity.getSubscriptionTier() : "BASIC")
+                .isVerified(entity.getIsVerified() != null ? entity.getIsVerified() : false)
+                .verificationStatus(entity.getVerificationStatus() != null ? entity.getVerificationStatus() : "NOT_STARTED")
+                .riskLevel(entity.getRiskLevel() != null ? entity.getRiskLevel() : "LOW")
+                .culturalNiche(entity.getCulturalNiche())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .accountNonExpired(true)

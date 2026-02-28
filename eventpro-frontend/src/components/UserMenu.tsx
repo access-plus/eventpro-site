@@ -28,7 +28,7 @@ export const UserMenu = () => {
         <Button variant="ghost" className="relative h-9 w-9 rounded-full">
           <Avatar className="h-9 w-9">
             <AvatarImage src={user?.profilePictureUrl} alt={user?.firstName || "User"} />
-            <AvatarFallback className="bg-primary text-primary-foreground">
+            <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-primary-foreground shadow-md shadow-primary/30 ring-2 ring-primary/40 ring-offset-2 ring-offset-background">
               {getInitials()}
             </AvatarFallback>
           </Avatar>

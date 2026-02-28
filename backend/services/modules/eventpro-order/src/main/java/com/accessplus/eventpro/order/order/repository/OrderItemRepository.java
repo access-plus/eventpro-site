@@ -20,5 +20,11 @@ public interface OrderItemRepository extends JpaRepository<OrderItemEntity, UUID
 
     @Query("SELECT COUNT(oi) FROM OrderItemEntity oi WHERE oi.orderId = :orderId")
     long countByOrderId(@Param("orderId") UUID orderId);
+
+    /**
+     * Finds all order items for tickets in the given list.
+     */
+    @Query("SELECT oi FROM OrderItemEntity oi WHERE oi.ticketId IN :ticketIds")
+    List<OrderItemEntity> findByTicketIdIn(@Param("ticketIds") List<UUID> ticketIds);
 }
 

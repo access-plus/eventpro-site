@@ -14,6 +14,13 @@ import type {
   LoginRequest,
   AuthResponse,
   GuestConfirmPaymentRequest,
+  OrganizerSummary,
+  VerificationStatusResponse,
+  SubmitVerificationRequest,
+  TaxFormEntry,
+  SubmitW9Request as SubmitW9RequestType,
+  RecentSale,
+  OrganizerInsights,
 } from "@/types/api";
 
 class ApiService {
@@ -245,6 +252,42 @@ class ApiService {
   }
 
   // Organizer endpoints
+  async getOrganizerSummary(): Promise<OrganizerSummary> {
+    const response = await this.api.get<ApiResponse<OrganizerSummary>>("/api/v1/organizer/summary");
+    const d = response.data.data;
+    const toNum = (v: unknown) =>
+      typeof v === "number" && !Number.isNaN(v) ? v : typeof v === "string" ? parseFloat(v) || 0 : 0;
+    return {
+      eventsHosted: d.eventsHosted ?? 0,
+      ticketsSold: d.ticketsSold ?? 0,
+      ticketsSoldTrendPercent: d.ticketsSoldTrendPercent ?? null,
+      totalRevenue: toNum(d.totalRevenue),
+      availableBalance: toNum(d.availableBalance),
+      pendingBalance: toNum(d.pendingBalance),
+      riskFlagged: Boolean(d.riskFlagged),
+      riskLevel: d.riskLevel ?? "LOW",
+      w9Submitted: Boolean(d.w9Submitted),
+    };
+  }
+
+  async getOrganizerTaxForms(): Promise<TaxFormEntry[]> {
+    const response = await this.api.get<ApiResponse<TaxFormEntry[]>>("/api/v1/organizer/tax-forms");
+    return response.data.data ?? [];
+  }
+
+  async submitW9(data: SubmitW9RequestType): Promise<void> {
+    await this.api.post<ApiResponse<string>>("/api/v1/organizer/w9", data);
+  }
+
+  async getVerificationStatus(): Promise<VerificationStatusResponse> {
+    const response = await this.api.get<ApiResponse<VerificationStatusResponse>>("/api/v1/organizer/verification-status");
+    return response.data.data;
+  }
+
+  async submitVerification(data: SubmitVerificationRequest): Promise<void> {
+    await this.api.post<ApiResponse<string>>("/api/v1/organizer/verification", data);
+  }
+
   async getOrganizerEvents(): Promise<Event[]> {
     const response = await this.api.get<ApiResponse<Event[]>>("/api/v1/organizer/events");
     return response.data.data;
@@ -277,6 +320,31 @@ class ApiService {
   async publishEvent(eventId: string): Promise<Event> {
     const response = await this.api.post<ApiResponse<Event>>(`/api/v1/events/${eventId}/publish`);
     return response.data.data;
+  }
+
+  /** Export data (attendees, checkin, marketing, financial). Triggers file download. */
+  async exportOrganizerData(type: "attendees" | "checkin" | "marketing" | "financial", format = "csv"): Promise<void> {
+    const response = await this.api.get<Blob>(`/api/v1/organizer/export?type=${type}&format=${format}`, {
+      responseType: "blob",
+    });
+    const blob = response.data;
+    const name = type === "checkin" ? "check-in-list.csv" : type === "marketing" ? "marketing-emails.csv" : type === "financial" ? "financial-summary.csv" : "export-attendees.csv";
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async getOrganizerRecentSales(limit = 20): Promise<RecentSale[]> {
+    const response = await this.api.get<ApiResponse<RecentSale[]>>(`/api/v1/organizer/feed/recent-sales?limit=${limit}`);
+    return response.data.data ?? [];
+  }
+
+  async getOrganizerInsights(): Promise<OrganizerInsights> {
+    const response = await this.api.get<ApiResponse<OrganizerInsights>>("/api/v1/organizer/insights");
+    return response.data.data ?? { aiInsight: "", eventPulses: [], topCulturalInterests: [] };
   }
 }
 

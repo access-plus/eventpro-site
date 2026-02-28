@@ -51,6 +51,26 @@ public class UserEntity extends BaseEntity {
     @Column(name = "subscription_tier", length = 20, nullable = false)
     private String subscriptionTier = "BASIC";
 
+    /** True when tax/ID provided and risk check passed; gates early/instant payouts. */
+    @Column(name = "is_verified", nullable = false)
+    private Boolean isVerified = false;
+
+    /** KYC workflow: NOT_STARTED, PENDING, IN_PROGRESS, VERIFIED, REJECTED. */
+    @Column(name = "verification_status", length = 30, nullable = false)
+    private String verificationStatus = "NOT_STARTED";
+
+    /** Risk level for payouts/limits: LOW, MEDIUM, HIGH. */
+    @Column(name = "risk_level", length = 20, nullable = false)
+    private String riskLevel = "LOW";
+
+    /** Organizer focus e.g. West African Cultural Events; feeds cultural taxonomy search. */
+    @Column(name = "cultural_niche", length = 255)
+    private String culturalNiche;
+
+    /** True when W-9 (TIN) submitted for 1099-K; required once gross payments approach $600. */
+    @Column(name = "w9_submitted", nullable = false)
+    private Boolean w9Submitted = false;
+
     // Relationships will be added in future phases when related entities are created
     // For now, we'll use lazy initialization to avoid circular dependencies
     

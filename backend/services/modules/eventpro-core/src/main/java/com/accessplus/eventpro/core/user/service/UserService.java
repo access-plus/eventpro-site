@@ -22,6 +22,9 @@ public interface UserService {
     UserEntity updateUserProfile(UUID userId, String firstName, String lastName, String phoneNumber,
                                  String bio, String location, String profilePictureUrl);
 
+    UserEntity updateUserProfile(UUID userId, String firstName, String lastName, String phoneNumber,
+                                 String bio, String location, String profilePictureUrl, String culturalNiche);
+
     UserEntity updateUserStatus(UUID userId, String status);
 
     UserEntity updateUserRole(UUID userId, String role);

@@ -20,11 +20,13 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class CartResponse {
-    
+
     private UUID id;
     private Set<CartItemResponse> tickets;
     private Integer quantity;
     private BigDecimal totalCost;
+    /** When the cart reservation expires (ISO-8601). Earliest reservedUntil of any ticket in cart. For countdown. */
+    private String reservedUntil;
     private String message;
     
     public static CartResponse fromCartEntities(List<CartEntity> cartItems, UUID userId, BigDecimal totalCost) {
@@ -65,12 +67,22 @@ public class CartResponse {
         int totalQuantity = cartItems.stream()
                 .mapToInt(CartEntity::getQuantity)
                 .sum();
-        
+
+        // Earliest reservation expiry among all tickets (for countdown)
+        java.time.Instant reservedUntil = cartItems.stream()
+                .map(ci -> ci.getTicket() != null ? ci.getTicket().getReservedUntil() : null)
+                .filter(java.util.Objects::nonNull)
+                .map(ldt -> ldt.atZone(java.time.ZoneOffset.UTC).toInstant())
+                .min(java.util.Comparator.naturalOrder())
+                .orElse(null);
+        String reservedUntilStr = reservedUntil != null ? reservedUntil.toString() : null;
+
         return CartResponse.builder()
                 .id(userId)
                 .tickets(ticketResponses)
                 .quantity(totalQuantity)
                 .totalCost(totalCost)
+                .reservedUntil(reservedUntilStr)
                 .build();
     }
 }

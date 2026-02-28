@@ -27,5 +27,8 @@ public class UpdateUserRequest {
     
     @Size(max = 255, message = "Location must not exceed 255 characters")
     private String location;
+
+    @Size(max = 255, message = "Cultural niche must not exceed 255 characters")
+    private String culturalNiche;
 }
 

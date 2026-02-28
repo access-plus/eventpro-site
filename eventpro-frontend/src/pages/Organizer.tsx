@@ -6,11 +6,16 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { apiService } from "@/lib/api";
-import { Event } from "@/types/api";
+import { Event, EventPulse, OrganizerInsights } from "@/types/api";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { getEventImageUrl } from "@/lib/utils";
+import { FinancialHub } from "@/components/FinancialHub";
+import { TaxCenter } from "@/components/TaxCenter";
+import { ExportCenter } from "@/components/ExportCenter";
+import { OrganizerInsightsSection } from "@/components/OrganizerInsightsSection";
+import { LiveTicketFeed } from "@/components/LiveTicketFeed";
 
 /** Merchandise & add-ons are Pro and Enterprise only per pricing page. */
 function canUseAddons(tier: string | undefined): boolean {
@@ -23,11 +28,16 @@ const Organizer = () => {
   const showEnhance = canUseAddons(user?.subscriptionTier);
   const [draftEvents, setDraftEvents] = useState<Event[]>([]);
   const [publishedEvents, setPublishedEvents] = useState<Event[]>([]);
+  const [insights, setInsights] = useState<OrganizerInsights | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [publishingEventId, setPublishingEventId] = useState<string | null>(null);
 
   useEffect(() => {
     loadEvents();
+  }, []);
+
+  useEffect(() => {
+    apiService.getOrganizerInsights().then(setInsights).catch(() => setInsights(null));
   }, []);
 
   const loadEvents = async () => {
@@ -60,10 +70,23 @@ const Organizer = () => {
     }
   };
 
+  const pulseByEventId = new Map<string, EventPulse>(
+    (insights?.eventPulses ?? []).map((p) => [p.eventId, p])
+  );
+
   const EventCard = ({ event, isDraft = false }: { event: Event; isDraft?: boolean }) => {
     const [imgError, setImgError] = useState(false);
+    const pulse = pulseByEventId.get(event.id);
     const displayUrl = getEventImageUrl(event.imageUrl);
     const showImage = event.imageUrl && displayUrl && !imgError;
+    const pulseStyle =
+      pulse?.velocity === "trending_up"
+        ? "bg-emerald-500/90 text-white shadow-[0_0_10px_rgba(34,197,94,0.5)]"
+        : pulse?.velocity === "slowing"
+          ? "bg-amber-500/90 text-white shadow-[0_0_10px_rgba(245,158,11,0.4)]"
+          : pulse
+            ? "bg-blue-500/90 text-white shadow-[0_0_10px_rgba(59,130,246,0.4)]"
+            : "";
     return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       <div className="relative h-48 bg-gradient-to-br from-primary/10 to-primary/5">
@@ -83,6 +106,11 @@ const Organizer = () => {
           <Badge className="absolute top-2 right-2" variant="secondary">
             <Clock className="h-3 w-3 mr-1" />
             Draft
+          </Badge>
+        )}
+        {!isDraft && pulse && (
+          <Badge className={`absolute top-2 left-2 text-xs ${pulseStyle}`} title={pulse.label}>
+            {pulse.label}
           </Badge>
         )}
       </div>
@@ -152,8 +180,13 @@ const Organizer = () => {
   };
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4">
+    <div className="min-h-screen py-8 relative overflow-hidden">
+      {/* Subtle mesh background for vibrant theme */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-[28rem] h-[28rem] rounded-full bg-primary/6 blur-3xl" />
+        <div className="absolute top-1/2 -left-32 w-80 h-80 rounded-full bg-primary-glow/5 blur-3xl" />
+      </div>
+      <div className="container relative mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-lg bg-gradient-primary flex items-center justify-center">
@@ -184,6 +217,43 @@ const Organizer = () => {
             </Link>
           </div>
         </div>
+
+        {/* Financial Hub (bento: Total Revenue, Available for Payout, Pending + Instant Payout) */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <FinancialHub />
+        </motion.div>
+
+        {/* 1099-K Tax Center (Compliance Status, Document Vault, W-9) */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.05 }}
+        >
+          <TaxCenter />
+        </motion.div>
+
+        {/* Data & AI Command Center: Export, Insights, Live feed */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.08 }}
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
+        >
+          <ExportCenter />
+          <OrganizerInsightsSection />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="mb-8"
+        >
+          <LiveTicketFeed />
+        </motion.div>
 
         {/* Stats Cards */}
         <motion.div

@@ -143,7 +143,8 @@ public class AdminController extends BaseController {
                 request.getPhoneNumber(),
                 request.getBio(),
                 request.getLocation(),
-                null // profilePictureUrl not updated via this endpoint
+                null, // profilePictureUrl not updated via this endpoint
+                request.getCulturalNiche()
         );
 
         UserResponse response = UserResponse.fromEntity(updatedUser);
