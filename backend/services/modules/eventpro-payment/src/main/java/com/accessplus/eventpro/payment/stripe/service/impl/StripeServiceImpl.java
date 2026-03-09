@@ -34,9 +34,18 @@ public class StripeServiceImpl implements StripeService {
         Stripe.apiKey = key;
         log.info("Stripe API key initialized");
     }
+
+    private void ensureStripeConfigured() {
+        String key = stripeSecretKey != null ? stripeSecretKey.trim() : "";
+        if (key.isEmpty() || "sk_test_local".equals(key)) {
+            throw new IllegalStateException(
+                "Payment is not configured. Add STRIPE_SECRET_KEY=sk_test_... to a .env file in the project root and restart the backend. Get a key from https://dashboard.stripe.com/test/apikeys");
+        }
+    }
     
     @Override
     public String createPaymentIntent(BigDecimal amount, String currency) throws StripeException {
+        ensureStripeConfigured();
         log.debug("Creating payment intent: amount={}, currency={}", amount, currency);
         
         // Convert amount to cents (Stripe uses smallest currency unit)
@@ -61,6 +70,7 @@ public class StripeServiceImpl implements StripeService {
     
     @Override
     public PaymentIntent confirmPayment(String paymentIntentId) throws StripeException {
+        ensureStripeConfigured();
         log.debug("Confirming payment intent: id={}", paymentIntentId);
         
         PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId);
@@ -79,6 +89,7 @@ public class StripeServiceImpl implements StripeService {
     
     @Override
     public String refundPayment(String paymentIntentId) throws StripeException {
+        ensureStripeConfigured();
         log.debug("Refunding payment intent: id={}", paymentIntentId);
         
         PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId);

@@ -7,10 +7,15 @@ import com.accessplus.eventpro.api.dto.GuestConfirmPaymentRequest;
 import com.accessplus.eventpro.api.dto.GuestOrderItemRequest;
 import com.accessplus.eventpro.api.dto.GuestReserveRequest;
 import com.accessplus.eventpro.api.dto.OrderResponse;
+import com.accessplus.eventpro.core.notification.service.NotificationService;
 import com.accessplus.eventpro.core.security.JwtUtils;
+import com.accessplus.eventpro.core.user.service.UserService;
+import com.accessplus.eventpro.event.event.service.EventService;
 import com.accessplus.eventpro.order.order.model.GuestOrderItem;
 import com.accessplus.eventpro.order.order.service.OrderService;
 import com.accessplus.eventpro.payment.service.PaymentService;
+import com.accessplus.eventpro.shared.entity.OrderItemEntity;
+import com.accessplus.eventpro.shared.entity.TicketEntity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,6 +49,9 @@ public class PaymentController extends BaseController {
 
     private final PaymentService paymentService;
     private final OrderService orderService;
+    private final NotificationService notificationService;
+    private final EventService eventService;
+    private final UserService userService;
 
     @GetMapping("/config")
     @Operation(summary = "Payment config (public)", description = "Returns Stripe publishable key for the frontend card form. No auth required.")
@@ -70,8 +78,10 @@ public class PaymentController extends BaseController {
         } catch (Exception e) {
             log.error("Failed to create payment intent: {}", e.getMessage(), e);
             String message = e.getMessage() != null ? e.getMessage() : "";
-            if (message.contains("Invalid API Key") || message.contains("sk_test_*") || message.contains("sk_test_local")) {
-                message = "Payment is not configured. Set STRIPE_SECRET_KEY in your .env with a Stripe test key from https://dashboard.stripe.com/test/apikeys";
+            if (message.contains("Payment is not configured") || message.contains("Invalid API Key") || message.contains("empty string") || message.contains("sk_test_*") || message.contains("sk_test_local")) {
+                if (!message.contains("Payment is not configured")) {
+                    message = "Payment is not configured. Add STRIPE_SECRET_KEY=sk_test_... to a .env file in the project root (same folder as docker-compose.yml) and restart the backend. Get a key from https://dashboard.stripe.com/test/apikeys";
+                }
             } else {
                 message = "Failed to create payment intent: " + message;
             }
@@ -92,6 +102,8 @@ public class PaymentController extends BaseController {
             UUID userId = JwtUtils.getCurrentUserId();
             var order = paymentService.processPayment(userId, request.getPaymentIntentId());
             OrderResponse response = OrderResponse.fromEntity(order);
+
+            sendOrderConfirmationNotification(order, userId, null);
 
             return ResponseEntity.ok(ApiResponse.success(response, "Payment confirmed and order created successfully"));
         } catch (Exception e) {
@@ -143,11 +155,53 @@ public class PaymentController extends BaseController {
                     request.getReservedTicketIds());
             OrderResponse response = OrderResponse.fromEntity(order);
 
+            sendOrderConfirmationNotification(order, null, request.getEmail());
+
             return ResponseEntity.ok(ApiResponse.success(response, "Payment confirmed and order created successfully"));
         } catch (Exception e) {
             log.error("Failed to confirm guest payment: {}", e.getMessage(), e);
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Failed to confirm payment: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Sends order confirmation email to the purchaser (user or guest).
+     * Resolves event name from first order item; does not fail the request if notification fails.
+     */
+    private void sendOrderConfirmationNotification(com.accessplus.eventpro.shared.entity.OrderEntity order,
+                                                   UUID userId, String guestEmail) {
+        try {
+            String toEmail;
+            String recipientName;
+            if (userId != null) {
+                var user = userService.getUserById(userId);
+                toEmail = user != null ? user.getEmail() : null;
+                recipientName = user != null && user.getFirstName() != null ? user.getFirstName() : "Guest";
+            } else {
+                toEmail = order.getGuestEmail();
+                recipientName = order.getGuestFirstName() != null ? order.getGuestFirstName() : "Guest";
+            }
+            String eventName = null;
+            if (order.getOrderItems() != null && !order.getOrderItems().isEmpty()) {
+                OrderItemEntity first = order.getOrderItems().get(0);
+                TicketEntity ticket = first.getTicket();
+                if (ticket != null && ticket.getEventId() != null) {
+                    try {
+                        eventName = eventService.getEventById(ticket.getEventId()).getName();
+                    } catch (Exception e) {
+                        log.debug("Could not resolve event name for notification: {}", e.getMessage());
+                    }
+                }
+            }
+            notificationService.sendOrderConfirmationEmail(
+                    toEmail,
+                    recipientName,
+                    order.getOrderNumber(),
+                    eventName,
+                    order.getTotalAmount());
+        } catch (Exception e) {
+            log.warn("Failed to send order confirmation notification: orderId={}, error={}", order.getId(), e.getMessage());
         }
     }
 }

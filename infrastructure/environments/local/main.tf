@@ -110,6 +110,13 @@ resource "aws_sqs_queue" "notification_queue" {
   }
 }
 
+# SES Email Identity (provisioned in LocalStack - required for sending mail)
+# Use this address as aws.ses.fromEmail in local env (e.g. noreply@eventpro.com)
+resource "aws_ses_email_identity" "sender" {
+  provider = aws.localstack
+  email    = "noreply@eventpro.com"
+}
+
 # S3 Bucket for Event Images (provisioned in LocalStack)
 resource "aws_s3_bucket" "images" {
   provider = aws.localstack
