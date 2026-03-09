@@ -57,6 +57,9 @@ This configuration creates the following resources in LocalStack:
 ### S3 Buckets
 - `eventpro-images-local` - Event images storage (with CORS enabled for localhost)
 
+### SES (Email)
+- Verified sender identity: `noreply@eventpro.com` (for order confirmation and other emails)
+
 ### Secrets Manager
 - `eventpro-db-secret` - Database credentials
 - `eventpro-jwt-secret` - JWT signing key
@@ -98,6 +101,7 @@ The application should use these LocalStack endpoints:
 
 - **SQS**: `http://localhost:4566`
 - **S3**: `http://localhost:4566`
+- **SES**: `http://localhost:4566`
 - **Secrets Manager**: `http://localhost:4566`
 
 ### Application Configuration

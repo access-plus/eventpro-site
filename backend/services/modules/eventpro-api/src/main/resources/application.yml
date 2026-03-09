@@ -36,6 +36,8 @@ aws:
     notificationQueueUrl: ${NOTIFICATION_QUEUE_URL}
   ses:
     region: ${AWS_REGION:us-east-1}
+    endpoint: ${SES_ENDPOINT:${AWS_ENDPOINT_URL:}} # Optional: for LocalStack (e.g. http://localhost:4566)
+    fromEmail: ${SES_FROM_EMAIL:noreply@eventpro.com}
   sns:
     region: ${AWS_REGION:us-east-1}
   secrets-manager:
@@ -51,6 +53,9 @@ stripe:
 eventpro:
   ticket:
     reservation-expiry-minutes: ${EVENTPRO_RESERVATION_EXPIRY_MINUTES:15}
+  # Send order confirmation email after successful payment (set false if SES not configured locally)
+  notifications:
+    order-confirmation-enabled: ${EVENTPRO_ORDER_CONFIRMATION_EMAIL_ENABLED:true}
   # In-memory per-IP rate limit for public/sensitive endpoints (login, signup, guest-reserve, create-intent)
   rate-limit:
     enabled: ${EVENTPRO_RATE_LIMIT_ENABLED:true}
