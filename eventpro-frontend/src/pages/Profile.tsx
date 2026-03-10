@@ -25,12 +25,18 @@ import {
   ShieldQuestion,
   Lock,
   ChevronRight,
+  Key,
+  Copy,
+  Trash2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { apiService } from "@/lib/api";
-import type { OrganizerSummary } from "@/types/api";
+import type { ApiKey, CreateApiKeyResponse, OrganizerSummary, TeamMember } from "@/types/api";
 import { IdentityCheckModal } from "@/components/IdentityCheckModal";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 const VERIFIED_CELEBRATION_KEY = "profile_verified_celebration_shown";
 
@@ -42,6 +48,21 @@ const Profile = () => {
   const [identityModalOpen, setIdentityModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [showVerifiedCelebration, setShowVerifiedCelebration] = useState(false);
+  const [riskRefreshing, setRiskRefreshing] = useState(false);
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [apiKeysLoading, setApiKeysLoading] = useState(false);
+  const [newKeyResult, setNewKeyResult] = useState<CreateApiKeyResponse | null>(null);
+  const [createKeyName, setCreateKeyName] = useState("");
+  const [createKeySubmitting, setCreateKeySubmitting] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"ADMIN" | "EDITOR" | "VIEWER">("EDITOR");
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [brandingLogoUrl, setBrandingLogoUrl] = useState(user?.brandingLogoUrl ?? "");
+  const [brandingPrimaryColor, setBrandingPrimaryColor] = useState(user?.brandingPrimaryColor ?? "");
+  const [brandingHidePlatform, setBrandingHidePlatform] = useState(user?.brandingHidePlatform ?? false);
+  const [brandingSaving, setBrandingSaving] = useState(false);
 
   const fetchSummary = useCallback(() => {
     if (!hasRole("ORGANIZER")) {
@@ -59,6 +80,142 @@ const Profile = () => {
   useEffect(() => {
     fetchSummary();
   }, [fetchSummary]);
+
+  const fetchApiKeys = useCallback(() => {
+    if (user?.subscriptionTier !== "ENTERPRISE") return;
+    setApiKeysLoading(true);
+    apiService
+      .listApiKeys()
+      .then(setApiKeys)
+      .catch(() => setApiKeys([]))
+      .finally(() => setApiKeysLoading(false));
+  }, [user?.subscriptionTier]);
+
+  useEffect(() => {
+    if (user?.subscriptionTier === "ENTERPRISE") fetchApiKeys();
+  }, [user?.subscriptionTier, fetchApiKeys]);
+
+  const isProOrEnterprise = user?.subscriptionTier === "PRO" || user?.subscriptionTier === "ENTERPRISE";
+  const fetchTeamMembers = useCallback(() => {
+    if (!isProOrEnterprise) return;
+    setTeamLoading(true);
+    apiService
+      .listTeamMembers()
+      .then(setTeamMembers)
+      .catch(() => setTeamMembers([]))
+      .finally(() => setTeamLoading(false));
+  }, [isProOrEnterprise]);
+
+  useEffect(() => {
+    if (isProOrEnterprise) fetchTeamMembers();
+  }, [isProOrEnterprise, fetchTeamMembers]);
+
+  useEffect(() => {
+    setBrandingLogoUrl(user?.brandingLogoUrl ?? "");
+    setBrandingPrimaryColor(user?.brandingPrimaryColor ?? "");
+    setBrandingHidePlatform(user?.brandingHidePlatform ?? false);
+  }, [user?.brandingLogoUrl, user?.brandingPrimaryColor, user?.brandingHidePlatform]);
+
+  const handleSaveBranding = useCallback(() => {
+    setBrandingSaving(true);
+    apiService
+      .updateUser({
+        brandingLogoUrl: brandingLogoUrl.trim() || null,
+        brandingPrimaryColor: brandingPrimaryColor.trim() || null,
+        brandingHidePlatform,
+      })
+      .then(() => {
+        refreshUser();
+        toast.success("Branding saved. It will appear on your event pages.");
+      })
+      .catch(() => toast.error("Failed to save branding"))
+      .finally(() => setBrandingSaving(false));
+  }, [brandingLogoUrl, brandingPrimaryColor, brandingHidePlatform, refreshUser]);
+
+  const handleInviteTeamMember = useCallback(() => {
+    const email = inviteEmail.trim();
+    if (!email) {
+      toast.error("Enter an email address");
+      return;
+    }
+    setInviteSubmitting(true);
+    apiService
+      .inviteTeamMember(email, inviteRole)
+      .then((member) => {
+        setTeamMembers((prev) => [...prev, member]);
+        setInviteEmail("");
+        toast.success(`${member.email ?? email} added to your team`);
+      })
+      .catch((err: { response?: { data?: { message?: string } } }) => {
+        toast.error(err?.response?.data?.message ?? "Failed to add team member");
+      })
+      .finally(() => setInviteSubmitting(false));
+  }, [inviteEmail, inviteRole]);
+
+  const handleRemoveTeamMember = useCallback(
+    (userId: string) => {
+      if (!confirm("Remove this team member? They will lose access to your events.")) return;
+      apiService
+        .removeTeamMember(userId)
+        .then(() => {
+          setTeamMembers((prev) => prev.filter((m) => m.userId !== userId));
+          toast.success("Team member removed");
+        })
+        .catch(() => toast.error("Failed to remove team member"));
+    },
+    []
+  );
+
+  const handleUpdateTeamMemberRole = useCallback((userId: string, role: "ADMIN" | "EDITOR" | "VIEWER") => {
+    apiService
+      .updateTeamMemberRole(userId, role)
+      .then((updated) => {
+        setTeamMembers((prev) => prev.map((m) => (m.userId === userId ? updated : m)));
+        toast.success("Role updated");
+      })
+      .catch(() => toast.error("Failed to update role"));
+  }, []);
+
+  const handleCreateApiKey = useCallback(() => {
+    const name = createKeyName.trim();
+    if (!name) {
+      toast.error("Enter a name for the API key");
+      return;
+    }
+    setCreateKeySubmitting(true);
+    apiService
+      .createApiKey(name)
+      .then((result) => {
+        setNewKeyResult(result);
+        setCreateKeyName("");
+        fetchApiKeys();
+        toast.success("API key created. Copy it now — it won't be shown again.");
+      })
+      .catch((err: { response?: { data?: { message?: string } } }) => {
+        toast.error(err?.response?.data?.message ?? "Failed to create API key");
+      })
+      .finally(() => setCreateKeySubmitting(false));
+  }, [createKeyName, fetchApiKeys]);
+
+  const handleCopyKey = useCallback((key: string) => {
+    navigator.clipboard.writeText(key);
+    toast.success("API key copied to clipboard");
+  }, []);
+
+  const handleRevokeApiKey = useCallback(
+    (id: string) => {
+      if (!confirm("Revoke this API key? It will stop working immediately.")) return;
+      apiService
+        .revokeApiKey(id)
+        .then(() => {
+          fetchApiKeys();
+          if (newKeyResult?.id === id) setNewKeyResult(null);
+          toast.success("API key revoked");
+        })
+        .catch(() => toast.error("Failed to revoke API key"));
+    },
+    [fetchApiKeys, newKeyResult?.id]
+  );
 
   // Real-time: refetch organizer stats when window regains focus (e.g. after ticket sale in another tab)
   useEffect(() => {
@@ -112,6 +269,18 @@ const Profile = () => {
   const riskLevel = user?.riskLevel ?? summary?.riskLevel ?? "LOW";
   const isHighRisk = riskLevel === "HIGH";
   const payoutBalance = summary?.availableBalance ?? 0;
+
+  const handleRecalculateRisk = useCallback(() => {
+    if (!hasRole("ORGANIZER")) return;
+    setRiskRefreshing(true);
+    apiService
+      .recalculateRiskScore()
+      .then(() => {
+        refreshUser();
+        fetchSummary();
+      })
+      .finally(() => setRiskRefreshing(false));
+  }, [hasRole, refreshUser, fetchSummary]);
 
   return (
     <div className="min-h-screen py-8 relative overflow-hidden">
@@ -294,6 +463,34 @@ const Profile = () => {
             </CardContent>
           </Card>
 
+          {/* Payout risk + eligibility (organizers only) */}
+          {hasRole("ORGANIZER") && (
+            <Card className="rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
+              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Payout risk</p>
+                    <p className="font-medium capitalize">{riskLevel.toLowerCase()}</p>
+                    {summary?.payoutEligibility?.label && (
+                      <p className="text-sm text-muted-foreground mt-0.5">{summary.payoutEligibility.label}</p>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRecalculateRisk}
+                  disabled={riskRefreshing}
+                >
+                  {riskRefreshing ? "Updating…" : "Refresh"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Current Tier (Hybrid Pricing Model) */}
           {hasRole("ORGANIZER") && (
             <Card className="rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md md:col-span-2">
@@ -351,38 +548,244 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Enterprise-only tiles */}
+          {/* Pro/Enterprise: Team Management card with list + invite */}
+          {isProOrEnterprise && (
+            <Card className="md:col-span-3 rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
+                  <Users className="h-5 w-5 text-primary" />
+                  Team Management
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Invite team members by email (they must have an account). They can manage your events based on their role.
+                </p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <Input
+                    type="email"
+                    placeholder="teammate@example.com"
+                    className="max-w-xs"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleInviteTeamMember()}
+                  />
+                  <select
+                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as "ADMIN" | "EDITOR" | "VIEWER")}
+                  >
+                    <option value="VIEWER">Viewer</option>
+                    <option value="EDITOR">Editor</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                  <Button
+                    type="button"
+                    onClick={handleInviteTeamMember}
+                    disabled={inviteSubmitting || !inviteEmail.trim()}
+                  >
+                    {inviteSubmitting ? "Adding…" : "Add member"}
+                  </Button>
+                </div>
+                {teamLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading team…
+                  </div>
+                ) : teamMembers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No team members yet. Add one above.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {teamMembers.map((m) => (
+                      <li
+                        key={m.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2"
+                      >
+                        <div>
+                          <span className="font-medium">
+                            {[m.firstName, m.lastName].filter(Boolean).join(" ") || m.email || "—"}
+                          </span>
+                          {m.email && <span className="text-muted-foreground text-sm ml-2">{m.email}</span>}
+                          <Badge variant="secondary" className="ml-2 text-xs">
+                            {m.role}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <select
+                            className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+                            value={m.role}
+                            onChange={(e) => handleUpdateTeamMemberRole(m.userId, e.target.value as "ADMIN" | "EDITOR" | "VIEWER")}
+                          >
+                            <option value="VIEWER">Viewer</option>
+                            <option value="EDITOR">Editor</option>
+                            <option value="ADMIN">Admin</option>
+                          </select>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleRemoveTeamMember(m.userId)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pro/Enterprise: White-Label / custom branding */}
+          {isProOrEnterprise && (
+            <Card className="md:col-span-3 rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
+                  <Palette className="h-5 w-5 text-primary" />
+                  White-Label Branding
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Custom logo and colors appear on your event pages. Optionally hide &quot;Powered by Access Plus&quot;.
+                </p>
+                <div className="space-y-4 max-w-md">
+                  <div>
+                    <Label htmlFor="branding-logo">Logo URL</Label>
+                    <Input
+                      id="branding-logo"
+                      type="url"
+                      placeholder="https://example.com/logo.png"
+                      value={brandingLogoUrl}
+                      onChange={(e) => setBrandingLogoUrl(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="branding-color">Primary color (hex)</Label>
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        id="branding-color"
+                        type="color"
+                        value={brandingPrimaryColor.startsWith("#") ? brandingPrimaryColor : "#6366f1"}
+                        onChange={(e) => setBrandingPrimaryColor(e.target.value)}
+                        className="h-10 w-14 rounded border cursor-pointer"
+                      />
+                      <Input
+                        placeholder="#6366f1"
+                        value={brandingPrimaryColor}
+                        onChange={(e) => setBrandingPrimaryColor(e.target.value)}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="branding-hide"
+                      type="checkbox"
+                      checked={brandingHidePlatform}
+                      onChange={(e) => setBrandingHidePlatform(e.target.checked)}
+                      className="rounded border-input"
+                    />
+                    <Label htmlFor="branding-hide" className="cursor-pointer">Hide &quot;Powered by Access Plus&quot; on my event pages</Label>
+                  </div>
+                  <Button type="button" onClick={handleSaveBranding} disabled={brandingSaving}>
+                    {brandingSaving ? "Saving…" : "Save branding"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* API keys (Enterprise only) */}
           {isEnterprise && (
-            <>
-              <Card
-                className="rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
-                onClick={() => navigate("/organizer")}
-              >
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <Users className="h-5 w-5 text-primary" />
+            <Card className="md:col-span-3 rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
+                  <Key className="h-5 w-5 text-primary" />
+                  API keys
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Use API keys for programmatic access. Send the key in the <code className="rounded bg-muted px-1 text-xs">X-Api-Key</code> header.
+                </p>
+
+                {newKeyResult && (
+                  <div className="mb-6 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200 mb-2">Your new API key (copy now — it won&apos;t be shown again)</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <code className="flex-1 min-w-0 break-all rounded bg-muted px-2 py-1.5 text-sm font-mono">
+                        {newKeyResult.key}
+                      </code>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleCopyKey(newKeyResult.key)}
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copy
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setNewKeyResult(null)}>
+                        Dismiss
+                      </Button>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Team Management</p>
-                    <p className="font-medium text-sm">Manage team access</p>
+                )}
+
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <Label htmlFor="api-key-name" className="sr-only">Key name</Label>
+                  <Input
+                    id="api-key-name"
+                    placeholder="e.g. Production API"
+                    className="max-w-xs"
+                    value={createKeyName}
+                    onChange={(e) => setCreateKeyName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateApiKey()}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleCreateApiKey}
+                    disabled={createKeySubmitting || !createKeyName.trim()}
+                  >
+                    {createKeySubmitting ? "Creating…" : "Create API key"}
+                  </Button>
+                </div>
+
+                {apiKeysLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading keys…
                   </div>
-                </CardContent>
-              </Card>
-              <Card
-                className="rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
-                onClick={() => navigate("/organizer")}
-              >
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <Palette className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">White-Label</p>
-                    <p className="font-medium text-sm">Custom branding</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
+                ) : apiKeys.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No API keys yet. Create one above.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {apiKeys.map((k) => (
+                      <li
+                        key={k.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2"
+                      >
+                        <div>
+                          <span className="font-medium">{k.name}</span>
+                          <span className="text-muted-foreground text-sm ml-2 font-mono">{k.keyPrefix}…</span>
+                          <span className="text-muted-foreground text-xs ml-2">
+                            {k.createdAt ? format(new Date(k.createdAt), "MMM d, yyyy") : ""}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleRevokeApiKey(k.id)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Revoke
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {/* Your Impact - Organizer only */}

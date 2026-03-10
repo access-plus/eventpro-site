@@ -57,10 +57,10 @@ These match `eventpro-frontend/src/pages/Pricing.tsx`. All implementation and ga
 
 | Focus area | Pricing-page alignment | Features to implement | Status |
 |------------|------------------------|------------------------|--------|
-| **Risk management** | Enables Pro (50% early) and Enterprise (100% instant) | Automated risk scoring: score organizers by history, ticket price, event type, KYC. Used to offer / limit early payouts. | 🔴 Not started |
-| **Payout expansion** | Basic: T+2 only. Pro: 50% early. Enterprise: 100% instant. | Tiered payouts: 50% early (Pro), 100% instant (Enterprise only). Tie to risk score for automation. | 🔴 Not started |
-| **Customization** | Basic: “Basic color theming”. Pro: “Full HTML/CSS” + custom domain. | **Basic (all tiers):** Pre-set event templates + promotional video/YouTube embed on event page. **Pro+:** Custom domain + full HTML/CSS (Iteration 2). | 🔴 Not started |
-| **Data utility** | Pro/Enterprise: “Email ticket holders” / marketing. | Basic Organizer CRM: organizers can email their ticket holders from the platform (Pro/Enterprise). Basic keeps export only. | 🔴 Not started |
+| **Risk management** | Enables Pro (50% early) and Enterprise (100% instant) | Automated risk scoring: score organizers by history, ticket price, KYC. Risk level (LOW/MEDIUM/HIGH) stored on user; recalc via POST /organizer/risk-score/recalculate and on KYC submit. | 🟢 Risk scoring done |
+| **Payout expansion** | Basic: T+2 only. Pro: 50% early. Enterprise: 100% instant. | Tiered payout eligibility in organizer summary: Basic = T+2 only; Pro = 50% early (LOW/MEDIUM risk); Enterprise = instant (LOW) or 50% early (MEDIUM). Shown on Profile. Actual payout execution still placeholder. | 🟢 Eligibility done |
+| **Customization** | Basic: “Basic color theming”. Pro: “Full HTML/CSS” + custom domain. | **Basic (all tiers):** Pre-set event templates + promotional video/YouTube embed on event page. **Pro+:** Custom domain + full HTML/CSS (Iteration 2). | 🟢 Basic theming done (templates + video embed) |
+| **Data utility** | Pro/Enterprise: “Email ticket holders” / marketing. | Basic Organizer CRM: organizers can email their ticket holders from the platform (Pro/Enterprise). Basic keeps export only. | 🟢 Email attendees done (Pro/Enterprise gated) |
 
 ### Iteration 1 – Implementation order (tier-aware)
 
@@ -92,23 +92,31 @@ These match `eventpro-frontend/src/pages/Pricing.tsx`. All implementation and ga
 
 | Focus area | Pricing-page alignment | Features to implement | Status |
 |------------|------------------------|------------------------|--------|
-| **White-label / Pro** | Pro: “Custom domain mapping”. Enterprise: “Full white-label branding”. | Custom domain mapping (e.g. `tickets.churchname.org`) for Pro and Enterprise. | 🔴 Not started |
-| **Vertical expansion** | Pro/Enterprise: “Merchandise & add-on sales”, “Donations & fundraising”. | Add-ons (merchandise, etc.) + donations/fundraising at checkout. **Gating:** Pro and Enterprise only; Basic cannot use add-ons or fundraising. | 🟢 Add-ons in progress |
-| **Data integration** | Enterprise: “API access for integrations”. | API access (beta) for Enterprise: sync sales/order data to client systems. **Gating:** Enterprise only. | 🔴 Not started |
+| **White-label / Pro** | Pro: “Custom domain mapping”. Enterprise: “Full white-label branding”. | Custom domain field on event (Pro/Enterprise), stored and returned in API. | 🟢 Custom domain field done |
+| **Vertical expansion** | Pro/Enterprise: “Merchandise & add-on sales”, “Donations & fundraising”. | Add-ons gated. Donations: event.donationsEnabled (Pro/Enterprise), optional amount at checkout, stored on order. | 🟢 Donations done |
+| **Data integration** | Enterprise: “API access for integrations”. | API keys (create/list/revoke), X-Api-Key auth. **Gating:** Enterprise only. | 🟢 API keys done |
 
 ### Current implementation vs pricing
 
 - **Merchandise & add-ons**  
   - **Done (MVP):** Event add-ons (merchandise, add-on, upgrade); organizer CRUD; checkout “Enhance Your Experience” from API.  
-  - **TODO:**  
-    - **Gate by plan:** Only Pro and Enterprise organizers can create add-ons or see add-ons at checkout; Basic organizers see no add-on UI and checkout shows no add-ons.  
-    - **Donations & fundraising:** Add donation/fundraising option (e.g. add-on type or dedicated “Donate” at checkout) and gate to Pro + Enterprise.
+  - **Done:** **Gate by plan:** Only Pro and Enterprise organizers can create add-ons (OrganizerController + frontend); public GET `/api/v1/events/{id}/addons` returns empty for Basic-organizer events so checkout shows no add-ons; Basic organizers see “Enhance (Pro)” link to /pricing and no add-on management UI.  
+  - **Done:** Donations: event.donationsEnabled (Pro/Enterprise), optional donation at checkout; order.donation_amount stored.
 
 - **Custom domain**  
-  - Not started. Implement for Pro (and Enterprise) when launching subscription/Pro tier.
+  - **Done:** Event.customDomain (Pro/Enterprise), create/update via organizer/event APIs; frontend form field (Pro/Enterprise only).
 
 - **API access**  
-  - Not started. Implement for Enterprise only; gate by plan and API key / scope.
+  - **Done:** API keys table, create/list/revoke (Enterprise only); X-Api-Key header authenticates as that user.
+
+- **Team management (Pro/Enterprise)**  
+  - **Done:** `organizer_team_members` table; invite by email (user must exist), roles (ADMIN/EDITOR/VIEWER), list/remove/update role. Organizer dashboard returns events the user owns or is a team member of; all organizer event actions (edit, attendees, add-ons, etc.) allow access for team members.
+
+- **Reserved seating (Pro/Enterprise)**  
+  - **Done:** Event flag `reservedSeatingEnabled`; tickets can have `seat_section`, `seat_row`, `seat_number`. Organizer: enable "Reserved seating" on event (create/update), then create seat map via "Seat map" section on event edit (sections: name, row count, seats per row, price). Public event page: "Select Seats" tab shows real seat map when reserved seating is enabled and seat map exists; add-by-ticket-id to cart. **Flow:** Enable reserved seating → Save event → Create seat map → Event page shows seating and allows seat selection and add to cart.
+
+- **Full white-label / custom branding (Pro/Enterprise)**  
+  - **Done:** User branding fields: `branding_logo_url`, `branding_primary_color`, `branding_hide_platform`. Profile UI to set logo, color, and “hide platform branding”. Event response includes organizer branding; public event page shows custom logo, applies primary color, and hides “Powered by Access Plus” when set.
 
 ---
 
@@ -116,7 +124,7 @@ These match `eventpro-frontend/src/pages/Pricing.tsx`. All implementation and ga
 
 Before release, ensure:
 
-- [ ] **Basic:** No custom domain, no add-ons, no fundraising, no early payouts, no “email attendees”, no reserved seating (if we add it), no full HTML/CSS.
+- [x] **Basic:** No custom domain, no add-ons, no fundraising, no early payouts, no “email attendees”, no reserved seating, no full HTML/CSS.
 - [ ] **Pro:** Add-ons + fundraising allowed; 50% early payout allowed; custom domain allowed; email attendees allowed; reserved seating allowed; no 100% instant payout, no API access, no white-label.
 - [ ] **Enterprise:** Everything in Pro + 100% instant payout, API access, white-label, and other Enterprise-only features from the pricing page.
 - [ ] **Risk scoring:** Used only to decide eligibility for 50% / 100% early payout within Pro/Enterprise; not a separate “tier” on the pricing page.

@@ -87,7 +87,7 @@ public interface OrderService {
      * @return created order
      */
     OrderEntity createOrderForGuest(String guestEmail, String guestFirstName, String guestLastName,
-                                    List<GuestOrderItem> items, BigDecimal totalAmount);
+                                    List<GuestOrderItem> items, BigDecimal totalAmount, BigDecimal donationAmount);
 
     /**
      * Same as createOrderForGuest but uses pre-reserved ticket IDs (from reserveTicketsForGuest).
@@ -95,7 +95,7 @@ public interface OrderService {
      */
     OrderEntity createOrderForGuestWithReservedTickets(String guestEmail, String guestFirstName, String guestLastName,
                                                        List<GuestOrderItem> items, BigDecimal totalAmount,
-                                                       List<UUID> reservedTicketIds);
+                                                       List<UUID> reservedTicketIds, BigDecimal donationAmount);
 
     /**
      * Marks all tickets in the order as SOLD (reduces available count).

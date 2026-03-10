@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,6 +37,9 @@ public interface EventRepository extends JpaRepository<EventEntity, UUID> {
 
     @Query("SELECT e FROM EventEntity e WHERE e.organizer.id = :organizerId")
     Page<EventEntity> findByOrganizerId(@Param("organizerId") UUID organizerId, Pageable pageable);
+
+    @Query("SELECT e FROM EventEntity e WHERE e.organizer.id IN :organizerIds")
+    Page<EventEntity> findByOrganizerIdIn(@Param("organizerIds") Collection<UUID> organizerIds, Pageable pageable);
 
     @Query("SELECT e FROM EventEntity e WHERE LOWER(e.name) LIKE LOWER(CONCAT('%', :name, '%'))")
     Page<EventEntity> findByNameContainingIgnoreCase(@Param("name") String name, Pageable pageable);

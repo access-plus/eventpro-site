@@ -19,10 +19,39 @@ import {
   Shield,
   Clock
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiService } from "@/lib/api";
+import { toast } from "sonner";
 
 const Pricing = () => {
   const [isAnnual, setIsAnnual] = useState(true);
+  const { user, refreshUser } = useAuth();
+  const navigate = useNavigate();
+  const [upgradingTier, setUpgradingTier] = useState<string | null>(null);
+
+  const handleUpgrade = async (tier: "PRO" | "ENTERPRISE") => {
+    try {
+      setUpgradingTier(tier);
+      await apiService.upgradeSubscription(tier);
+      await refreshUser();
+      toast.success(`You're now on ${tier}. New features are unlocked.`);
+      navigate("/organizer");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Upgrade failed";
+      toast.error(msg);
+    } finally {
+      setUpgradingTier(null);
+    }
+  };
+
+  const canUpgradeTo = (tierName: string): boolean => {
+    const current = (user?.subscriptionTier ?? "BASIC").toUpperCase();
+    if (tierName === "Basic") return false;
+    if (tierName === "Pro") return current === "BASIC";
+    if (tierName === "Enterprise") return current === "BASIC" || current === "PRO";
+    return false;
+  };
 
   const tiers = [
     {
@@ -258,16 +287,28 @@ const Pricing = () => {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <Button 
-                    className="w-full" 
-                    variant={tier.ctaVariant}
-                    size="lg"
-                    asChild
-                  >
-                    <Link to={tier.name === "Enterprise" ? "/contact" : "/signup"}>
-                      {tier.cta}
-                    </Link>
-                  </Button>
+                  {tier.name !== "Basic" && user && canUpgradeTo(tier.name) ? (
+                    <Button
+                      className="w-full"
+                      variant={tier.ctaVariant}
+                      size="lg"
+                      disabled={!!upgradingTier}
+                      onClick={() => handleUpgrade(tier.name.toUpperCase() as "PRO" | "ENTERPRISE")}
+                    >
+                      {upgradingTier === tier.name ? "Upgrading…" : tier.name === "Pro" ? "Upgrade to Pro" : "Upgrade to Enterprise"}
+                    </Button>
+                  ) : (
+                    <Button 
+                      className="w-full" 
+                      variant={tier.ctaVariant}
+                      size="lg"
+                      asChild
+                    >
+                      <Link to={tier.name === "Enterprise" ? "/contact" : "/signup"}>
+                        {tier.cta}
+                      </Link>
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             );

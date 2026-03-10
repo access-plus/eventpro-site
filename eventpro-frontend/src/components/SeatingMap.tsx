@@ -246,16 +246,26 @@ export const SeatingMap = ({
                                 {seat.number}
                               </motion.button>
                             </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="text-sm">
-                                <p className="font-semibold">
-                                  {section} - Row {seat.row}, Seat {seat.number}
+                            <TooltipContent
+                              side="top"
+                              className="max-w-[220px] p-4 text-left"
+                            >
+                              <div className="space-y-2 text-base">
+                                <p className="font-semibold text-base leading-tight">
+                                  {section} — Row {seat.row}, Seat {seat.number}
                                 </p>
-                                <p className="text-muted-foreground capitalize">
-                                  {seat.type} • ${seat.price}
+                                <p className="text-muted-foreground capitalize text-sm">
+                                  {seat.type} • ${seat.price.toFixed(2)}
                                 </p>
-                                {status === "sold" && <p className="text-destructive">Sold Out</p>}
-                                {status === "reserved" && <p className="text-amber-500">Reserved</p>}
+                                {status === "sold" && (
+                                  <p className="text-destructive font-medium text-sm">Sold Out</p>
+                                )}
+                                {status === "reserved" && (
+                                  <p className="text-amber-500 font-medium text-sm">Reserved</p>
+                                )}
+                                {status === "available" && (
+                                  <p className="text-green-600 dark:text-green-400 text-sm">Available</p>
+                                )}
                               </div>
                             </TooltipContent>
                           </Tooltip>

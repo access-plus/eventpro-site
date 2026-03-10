@@ -161,7 +161,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderEntity createOrderForGuest(String guestEmail, String guestFirstName, String guestLastName,
-                                           List<GuestOrderItem> items, BigDecimal totalAmount) {
+                                           List<GuestOrderItem> items, BigDecimal totalAmount, BigDecimal donationAmount) {
         log.debug("Creating guest order: email={}, itemCount={}", guestEmail, items != null ? items.size() : 0);
         if (guestEmail == null || guestEmail.isBlank()) {
             throw new ValidationException("Guest email is required");
@@ -175,20 +175,23 @@ public class OrderServiceImpl implements OrderService {
             if (item.quantity() <= 0) {
                 throw new ValidationException("Quantity must be greater than 0 for each item");
             }
-            TicketType type;
-            try {
-                type = TicketType.valueOf(item.ticketType().toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new ValidationException("Invalid ticket type: " + item.ticketType());
-            }
-            List<UUID> reservedTicketIds = ticketService.findAndReserveAvailableTickets(item.eventId(), type, item.quantity());
-            if (reservedTicketIds.size() < item.quantity()) {
-                throw new ValidationException("Not enough tickets available for event " + item.eventId() + " type " + item.ticketType());
-            }
-            TicketEntity firstTicket = ticketService.getTicketById(reservedTicketIds.get(0));
-            BigDecimal price = firstTicket.getPrice();
-            for (UUID ticketId : reservedTicketIds) {
+            String ticketTypeStr = item.ticketType();
+            if (ticketTypeStr != null) ticketTypeStr = ticketTypeStr.trim();
+            if (isUuid(ticketTypeStr)) {
+                // Reserved seating: ticketType is the specific seat ticket ID; quantity must be 1
+                if (item.quantity() != 1) {
+                    throw new ValidationException("Reserved seat items must have quantity 1");
+                }
+                UUID ticketId = UUID.fromString(ticketTypeStr);
                 TicketEntity ticket = ticketService.getTicketById(ticketId);
+                if (!ticket.getEventId().equals(item.eventId())) {
+                    throw new ValidationException("Ticket does not belong to event " + item.eventId());
+                }
+                try {
+                    ticketService.markTicketAsReserved(ticketId);
+                } catch (Exception e) {
+                    throw new ValidationException("Seat not available: " + e.getMessage());
+                }
                 OrderItemEntity orderItem = new OrderItemEntity();
                 orderItem.setQuantity(1);
                 orderItem.setPrice(ticket.getPrice());
@@ -196,15 +199,40 @@ public class OrderServiceImpl implements OrderService {
                 orderItem.setTicket(ticket);
                 orderItems.add(orderItem);
                 calculatedTotal = calculatedTotal.add(ticket.getPrice());
+            } else {
+                TicketType type;
+                try {
+                    type = TicketType.valueOf(ticketTypeStr.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    throw new ValidationException("Invalid ticket type: " + item.ticketType());
+                }
+                List<UUID> reservedTicketIds = ticketService.findAndReserveAvailableTickets(item.eventId(), type, item.quantity());
+                if (reservedTicketIds.size() < item.quantity()) {
+                    throw new ValidationException("Not enough tickets available for event " + item.eventId() + " type " + item.ticketType());
+                }
+                for (UUID tid : reservedTicketIds) {
+                    TicketEntity ticket = ticketService.getTicketById(tid);
+                    OrderItemEntity orderItem = new OrderItemEntity();
+                    orderItem.setQuantity(1);
+                    orderItem.setPrice(ticket.getPrice());
+                    orderItem.setTicketId(ticket.getId());
+                    orderItem.setTicket(ticket);
+                    orderItems.add(orderItem);
+                    calculatedTotal = calculatedTotal.add(ticket.getPrice());
+                }
             }
         }
-        if (totalAmount == null || calculatedTotal.compareTo(totalAmount) != 0) {
+        // Allow totalAmount >= calculatedTotal (tickets) so add-ons amount is accepted; reject if paying less than tickets
+        if (totalAmount == null || totalAmount.compareTo(calculatedTotal) < 0) {
             throw new ValidationException("Order total does not match calculated amount");
         }
+        BigDecimal orderTotal = totalAmount;
         String orderNumber = generateOrderNumber();
+        BigDecimal donation = donationAmount != null && donationAmount.compareTo(BigDecimal.ZERO) >= 0 ? donationAmount : BigDecimal.ZERO;
         OrderEntity order = new OrderEntity();
         order.setOrderNumber(orderNumber);
-        order.setTotalAmount(calculatedTotal);
+        order.setTotalAmount(orderTotal);
+        order.setDonationAmount(donation);
         order.setStatus(OrderStatus.PENDING);
         order.setOrderDate(LocalDateTime.now());
         order.setUserId(null);
@@ -228,6 +256,19 @@ public class OrderServiceImpl implements OrderService {
         return savedOrder;
     }
 
+    /**
+     * Returns true if the string is a valid UUID (used to detect reserved-seat ticket ID vs GA ticket type name).
+     */
+    private static boolean isUuid(String s) {
+        if (s == null || s.isBlank()) return false;
+        try {
+            UUID.fromString(s.trim());
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     @Override
     @Transactional
     public List<UUID> reserveTicketsForGuest(List<GuestOrderItem> items) {
@@ -237,24 +278,53 @@ public class OrderServiceImpl implements OrderService {
         List<UUID> allIds = new ArrayList<>();
         for (GuestOrderItem item : items) {
             if (item.quantity() <= 0) continue;
-            TicketType type;
-            try {
-                type = TicketType.valueOf(item.ticketType().toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new ValidationException("Invalid ticket type: " + item.ticketType());
-            }
-            List<UUID> reserved = ticketService.findAndReserveAvailableTickets(item.eventId(), type, item.quantity());
-            if (reserved.size() < item.quantity()) {
-                for (UUID id : allIds) {
-                    try {
-                        ticketService.markTicketAsAvailable(id);
-                    } catch (Exception e) {
-                        log.warn("Failed to release ticket {} on partial reserve failure: {}", id, e.getMessage());
+            String ticketTypeStr = item.ticketType() != null ? item.ticketType().trim() : "";
+            if (isUuid(ticketTypeStr)) {
+                // Reserved seating: ticketType is the specific seat ticket ID
+                if (item.quantity() != 1) {
+                    for (UUID id : allIds) {
+                        try { ticketService.markTicketAsAvailable(id); } catch (Exception e) { log.warn("Failed to release ticket {}: {}", id, e.getMessage()); }
                     }
+                    throw new ValidationException("Reserved seat items must have quantity 1");
                 }
-                throw new ValidationException("Not enough tickets available for event " + item.eventId() + " type " + item.ticketType());
+                UUID ticketId = UUID.fromString(ticketTypeStr.trim());
+                TicketEntity ticket = ticketService.getTicketById(ticketId);
+                if (!ticket.getEventId().equals(item.eventId())) {
+                    for (UUID id : allIds) {
+                        try { ticketService.markTicketAsAvailable(id); } catch (Exception e) { log.warn("Failed to release ticket {}: {}", id, e.getMessage()); }
+                    }
+                    throw new ValidationException("Ticket does not belong to event " + item.eventId());
+                }
+                try {
+                    ticketService.markTicketAsReserved(ticketId);
+                } catch (Exception e) {
+                    for (UUID id : allIds) {
+                        try { ticketService.markTicketAsAvailable(id); } catch (Exception ex) { log.warn("Failed to release ticket {}: {}", id, ex.getMessage()); }
+                    }
+                    throw new ValidationException("Seat not available: " + e.getMessage());
+                }
+                allIds.add(ticketId);
+            } else {
+                // General admission: ticketType is enum name (e.g. REGULAR, VIP, EARLY_BIRD)
+                TicketType type;
+                try {
+                    type = TicketType.valueOf(ticketTypeStr.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    throw new ValidationException("Invalid ticket type: " + ticketTypeStr);
+                }
+                List<UUID> reserved = ticketService.findAndReserveAvailableTickets(item.eventId(), type, item.quantity());
+                if (reserved.size() < item.quantity()) {
+                    for (UUID id : allIds) {
+                        try {
+                            ticketService.markTicketAsAvailable(id);
+                        } catch (Exception e) {
+                            log.warn("Failed to release ticket {} on partial reserve failure: {}", id, e.getMessage());
+                        }
+                    }
+                    throw new ValidationException("Not enough tickets available for event " + item.eventId() + " type " + ticketTypeStr);
+                }
+                allIds.addAll(reserved);
             }
-            allIds.addAll(reserved);
         }
         return allIds;
     }
@@ -262,9 +332,9 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderEntity createOrderForGuestWithReservedTickets(String guestEmail, String guestFirstName, String guestLastName,
                                                               List<GuestOrderItem> items, BigDecimal totalAmount,
-                                                              List<UUID> reservedTicketIds) {
+                                                              List<UUID> reservedTicketIds, BigDecimal donationAmount) {
         if (reservedTicketIds == null || reservedTicketIds.isEmpty()) {
-            return createOrderForGuest(guestEmail, guestFirstName, guestLastName, items, totalAmount);
+            return createOrderForGuest(guestEmail, guestFirstName, guestLastName, items, totalAmount, donationAmount);
         }
         int expectedCount = items.stream().mapToInt(GuestOrderItem::quantity).sum();
         if (reservedTicketIds.size() != expectedCount) {
@@ -280,7 +350,11 @@ public class OrderServiceImpl implements OrderService {
                 if (ticket.getTicketStatus() != TicketStatus.RESERVED) {
                     throw new ValidationException("Ticket " + ticketId + " is not reserved");
                 }
-                if (!ticket.getEventId().equals(item.eventId()) || !ticket.getTicketType().name().equalsIgnoreCase(item.ticketType())) {
+                boolean matches = ticket.getEventId().equals(item.eventId())
+                        && (isUuid(item.ticketType())
+                                ? ticket.getId().equals(UUID.fromString(item.ticketType().trim()))
+                                : ticket.getTicketType().name().equalsIgnoreCase(item.ticketType()));
+                if (!matches) {
                     throw new ValidationException("Reserved ticket does not match item");
                 }
                 OrderItemEntity oi = new OrderItemEntity();
@@ -292,13 +366,17 @@ public class OrderServiceImpl implements OrderService {
                 calculatedTotal = calculatedTotal.add(ticket.getPrice());
             }
         }
-        if (totalAmount == null || calculatedTotal.compareTo(totalAmount) != 0) {
+        // Allow totalAmount >= calculatedTotal (tickets) so add-ons amount is accepted; reject if paying less than tickets
+        if (totalAmount == null || totalAmount.compareTo(calculatedTotal) < 0) {
             throw new ValidationException("Order total does not match calculated amount");
         }
+        BigDecimal donation = donationAmount != null && donationAmount.compareTo(BigDecimal.ZERO) >= 0 ? donationAmount : BigDecimal.ZERO;
+        BigDecimal orderTotal = totalAmount;
         String orderNumber = generateOrderNumber();
         OrderEntity order = new OrderEntity();
         order.setOrderNumber(orderNumber);
-        order.setTotalAmount(calculatedTotal);
+        order.setTotalAmount(orderTotal);
+        order.setDonationAmount(donation);
         order.setStatus(OrderStatus.PENDING);
         order.setOrderDate(LocalDateTime.now());
         order.setUserId(null);

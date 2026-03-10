@@ -1,14 +1,20 @@
 package com.accessplus.eventpro.api.controller;
 
+import com.accessplus.eventpro.api.apikey.service.ApiKeyService;
+import com.accessplus.eventpro.api.dto.ApiKeyResponse;
 import com.accessplus.eventpro.api.dto.ApiResponse;
+import com.accessplus.eventpro.api.dto.CreateApiKeyRequest;
 import com.accessplus.eventpro.api.dto.PromoteUserRequest;
 import com.accessplus.eventpro.api.dto.UpdateUserRequest;
+import com.accessplus.eventpro.api.dto.UpgradeSubscriptionRequest;
 import com.accessplus.eventpro.api.dto.UserResponse;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.event.service.AWSS3ImageService;
+import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
+import org.springframework.security.access.AccessDeniedException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,6 +45,16 @@ public class UserController extends BaseController {
 
     private final UserService userService;
     private final AWSS3ImageService imageService;
+    private final ApiKeyService apiKeyService;
+
+    private void requireEnterprise() {
+        UUID userId = JwtUtils.getCurrentUserId();
+        UserEntity user = userService.getUserById(userId);
+        String tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier().toUpperCase() : "BASIC";
+        if (!"ENTERPRISE".equals(tier)) {
+            throw new AccessDeniedException("API access is available on Enterprise plan only.");
+        }
+    }
 
     @GetMapping("/me")
     @Operation(summary = "Get current user profile", description = "Returns the profile of the currently authenticated user.")
@@ -66,11 +82,64 @@ public class UserController extends BaseController {
                 request.getBio(),
                 request.getLocation(),
                 null, // profilePictureUrl is updated via separate endpoint
-                request.getCulturalNiche()
+                request.getCulturalNiche(),
+                request.getBrandingLogoUrl(),
+                request.getBrandingPrimaryColor(),
+                request.getBrandingHidePlatform()
         );
         UserResponse response = UserResponse.fromEntity(updatedUser);
 
         return ResponseEntity.ok(ApiResponse.success(response, "Profile updated successfully"));
+    }
+
+    @PostMapping("/me/api-keys")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Create API key (Enterprise)", description = "Creates an API key for programmatic access. Enterprise only. The key is shown once in the response.")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createApiKey(@Valid @RequestBody CreateApiKeyRequest request) {
+        requireEnterprise();
+        UUID userId = JwtUtils.getCurrentUserId();
+        ApiKeyService.CreateApiKeyResult result = apiKeyService.createKey(userId, request.getName());
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", result.id());
+        data.put("name", result.name());
+        data.put("keyPrefix", result.keyPrefix());
+        data.put("key", result.key());
+        return ResponseEntity.ok(ApiResponse.success(data, "API key created. Store the key securely; it will not be shown again."));
+    }
+
+    @GetMapping("/me/api-keys")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "List API keys (Enterprise)", description = "Returns API keys for the current user (key values are not returned). Enterprise only.")
+    public ResponseEntity<ApiResponse<java.util.List<ApiKeyResponse>>> listApiKeys() {
+        requireEnterprise();
+        UUID userId = JwtUtils.getCurrentUserId();
+        var keys = apiKeyService.listKeys(userId).stream().map(ApiKeyResponse::fromEntity).toList();
+        return ResponseEntity.ok(ApiResponse.success(keys));
+    }
+
+    @DeleteMapping("/me/api-keys/{id}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Revoke API key (Enterprise)", description = "Revokes an API key. Enterprise only.")
+    public ResponseEntity<ApiResponse<Void>> revokeApiKey(@PathVariable UUID id) {
+        requireEnterprise();
+        UUID userId = JwtUtils.getCurrentUserId();
+        apiKeyService.revoke(id, userId);
+        return ResponseEntity.ok(ApiResponse.success(null, "API key revoked"));
+    }
+
+    @PutMapping("/me/subscription-tier")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Upgrade subscription", description = "Upgrades the current user's plan to Pro or Enterprise. Only allows upgrading (Basic → Pro → Enterprise).")
+    public ResponseEntity<ApiResponse<UserResponse>> upgradeSubscription(
+            @Valid @RequestBody UpgradeSubscriptionRequest request) {
+        UUID userId = JwtUtils.getCurrentUserId();
+        try {
+            UserEntity updated = userService.updateSubscriptionTier(userId, request.getTier().trim().toUpperCase());
+            UserResponse response = UserResponse.fromEntity(updated);
+            return ResponseEntity.ok(ApiResponse.success(response, "Plan updated to " + request.getTier() + "."));
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException(e.getMessage());
+        }
     }
 
     @PostMapping("/upload-profile-picture")

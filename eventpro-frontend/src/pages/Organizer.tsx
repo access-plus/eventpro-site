@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { Calendar, Plus, Edit, CheckCircle, Clock, BarChart, Ticket, RefreshCw, ShoppingBag } from "lucide-react";
+import { Calendar, Plus, Edit, CheckCircle, Clock, BarChart, Ticket, RefreshCw, ShoppingBag, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -16,6 +16,7 @@ import { TaxCenter } from "@/components/TaxCenter";
 import { ExportCenter } from "@/components/ExportCenter";
 import { OrganizerInsightsSection } from "@/components/OrganizerInsightsSection";
 import { LiveTicketFeed } from "@/components/LiveTicketFeed";
+import { EmailAttendeesDialog } from "@/components/EmailAttendeesDialog";
 
 /** Merchandise & add-ons are Pro and Enterprise only per pricing page. */
 function canUseAddons(tier: string | undefined): boolean {
@@ -23,14 +24,22 @@ function canUseAddons(tier: string | undefined): boolean {
   return t === "PRO" || t === "ENTERPRISE";
 }
 
+/** Email ticket holders is Pro and Enterprise only. */
+function canEmailAttendees(tier: string | undefined): boolean {
+  const t = (tier ?? "BASIC").toUpperCase();
+  return t === "PRO" || t === "ENTERPRISE";
+}
+
 const Organizer = () => {
   const { user } = useAuth();
   const showEnhance = canUseAddons(user?.subscriptionTier);
+  const showEmailAttendees = canEmailAttendees(user?.subscriptionTier);
   const [draftEvents, setDraftEvents] = useState<Event[]>([]);
   const [publishedEvents, setPublishedEvents] = useState<Event[]>([]);
   const [insights, setInsights] = useState<OrganizerInsights | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [publishingEventId, setPublishingEventId] = useState<string | null>(null);
+  const [emailAttendeesEvent, setEmailAttendeesEvent] = useState<Event | null>(null);
 
   useEffect(() => {
     loadEvents();
@@ -77,6 +86,7 @@ const Organizer = () => {
   const EventCard = ({ event, isDraft = false }: { event: Event; isDraft?: boolean }) => {
     const [imgError, setImgError] = useState(false);
     const pulse = pulseByEventId.get(event.id);
+    const showEmailBtn = showEmailAttendees && !isDraft;
     const displayUrl = getEventImageUrl(event.imageUrl);
     const showImage = event.imageUrl && displayUrl && !imgError;
     const pulseStyle =
@@ -163,6 +173,25 @@ const Organizer = () => {
               </Link>
             </Button>
           )}
+          {showEmailBtn ? (
+            <Button
+              variant="outline"
+              className="flex-1 min-w-[100px]"
+              onClick={() => setEmailAttendeesEvent(event)}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Email attendees
+            </Button>
+          ) : (
+            !isDraft && (
+              <Button variant="outline" className="flex-1 min-w-[100px]" asChild>
+                <Link to="/pricing" title="Email ticket holders is available on Pro and Enterprise">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Email (Pro)
+                </Link>
+              </Button>
+            )
+          )}
         </div>
         {isDraft && (
           <Button
@@ -180,7 +209,17 @@ const Organizer = () => {
   };
 
   return (
-    <div className="min-h-screen py-8 relative overflow-hidden">
+    <>
+      {/* Email attendees dialog (Pro/Enterprise) */}
+      {emailAttendeesEvent && (
+        <EmailAttendeesDialog
+          open={!!emailAttendeesEvent}
+          onOpenChange={(open) => !open && setEmailAttendeesEvent(null)}
+          eventId={emailAttendeesEvent.id}
+          eventName={emailAttendeesEvent.name}
+        />
+      )}
+      <div className="min-h-screen py-8 relative overflow-hidden">
       {/* Subtle mesh background for vibrant theme */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-40 -right-40 w-[28rem] h-[28rem] rounded-full bg-primary/6 blur-3xl" />
@@ -356,6 +395,7 @@ const Organizer = () => {
         </motion.div>
       </div>
     </div>
+    </>
   );
 };
 

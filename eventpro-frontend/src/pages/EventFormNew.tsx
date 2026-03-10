@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar, Upload, X, ArrowLeft } from "lucide-react";
+import { Calendar, Upload, X, ArrowLeft, Grid3X3, Plus, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,8 +20,10 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import axios from "axios";
+import { useAuth } from "@/contexts/AuthContext";
 import { apiService } from "@/lib/api";
 import { getEventImageUrl } from "@/lib/utils";
+import type { SeatResponse } from "@/types/api";
 import {
   Form,
   FormControl,
@@ -46,6 +48,11 @@ const eventFormSchema = z.object({
   endTime: z.string().min(1, "End time is required"),
   category: z.string().min(1, "Category is required"),
   marketingEnabled: z.boolean().default(false),
+  promotionalVideoUrl: z.string().max(500).optional(),
+  eventPageTemplate: z.enum(["DEFAULT", "MINIMAL", "VIBRANT"]).default("DEFAULT"),
+  donationsEnabled: z.boolean().default(false),
+  customDomain: z.string().max(255).optional(),
+  reservedSeatingEnabled: z.boolean().default(false),
   address: addressSchema,
 }).refine((data) => {
   const start = new Date(data.startTime);
@@ -58,16 +65,28 @@ const eventFormSchema = z.object({
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
+function canUseAddons(tier: string | undefined): boolean {
+  const t = (tier ?? "BASIC").toUpperCase();
+  return t === "PRO" || t === "ENTERPRISE";
+}
+
 const EventFormNew = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const isEditMode = Boolean(id);
+  const showProFeatures = canUseAddons(user?.subscriptionTier);
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
+  const [eventSeats, setEventSeats] = useState<SeatResponse[]>([]);
+  const [isSeatMapSubmitting, setIsSeatMapSubmitting] = useState(false);
+  const [seatMapSections, setSeatMapSections] = useState<Array<{ name: string; rowCount: number; seatsPerRow: number; price: number }>>([
+    { name: "", rowCount: 1, seatsPerRow: 1, price: 0 },
+  ]);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
@@ -78,6 +97,11 @@ const EventFormNew = () => {
       endTime: "",
       category: "",
       marketingEnabled: false,
+      promotionalVideoUrl: "",
+      eventPageTemplate: "DEFAULT",
+      donationsEnabled: false,
+      customDomain: "",
+      reservedSeatingEnabled: false,
       address: {
         street: "",
         city: "",
@@ -118,6 +142,11 @@ const EventFormNew = () => {
         endTime: formatDateTime(endRaw),
         category: event.categoryName || event.category || "",
         marketingEnabled: event.marketingEnabled || false,
+        promotionalVideoUrl: event.promotionalVideoUrl || "",
+        eventPageTemplate: (event.eventPageTemplate as "DEFAULT" | "MINIMAL" | "VIBRANT") || "DEFAULT",
+        donationsEnabled: event.donationsEnabled || false,
+        customDomain: event.customDomain || "",
+        reservedSeatingEnabled: event.reservedSeatingEnabled || false,
         address: {
           street: event.addressStreet || "",
           city: event.addressCity || "",
@@ -131,6 +160,12 @@ const EventFormNew = () => {
         const displayUrl = getEventImageUrl(event.imageUrl) ?? event.imageUrl;
         setExistingImageUrl(event.imageUrl);
         setImagePreview(displayUrl);
+      }
+      if (event.reservedSeatingEnabled) {
+        const seats = await apiService.getEventSeats(eventId);
+        setEventSeats(seats);
+      } else {
+        setEventSeats([]);
       }
     } catch (error: any) {
       console.error("Failed to load event:", error);
@@ -191,6 +226,11 @@ const EventFormNew = () => {
           category: values.category,
           marketingEnabled: values.marketingEnabled,
           address: values.address,
+          ...(values.promotionalVideoUrl?.trim() && { promotionalVideoUrl: values.promotionalVideoUrl.trim() }),
+          ...(values.eventPageTemplate && { eventPageTemplate: values.eventPageTemplate }),
+          donationsEnabled: values.donationsEnabled,
+          ...(values.customDomain?.trim() && { customDomain: values.customDomain.trim() }),
+          reservedSeatingEnabled: values.reservedSeatingEnabled,
           ...(imageUrl && { imageUrl }),
         };
         await apiService.updateOrganizerEvent(id, requestPayload);
@@ -208,6 +248,11 @@ const EventFormNew = () => {
           category: values.category,
           marketingEnabled: values.marketingEnabled,
           address: values.address,
+          ...(values.promotionalVideoUrl?.trim() && { promotionalVideoUrl: values.promotionalVideoUrl.trim() }),
+          ...(values.eventPageTemplate && { eventPageTemplate: values.eventPageTemplate }),
+          donationsEnabled: values.donationsEnabled,
+          ...(values.customDomain?.trim() && { customDomain: values.customDomain.trim() }),
+          reservedSeatingEnabled: values.reservedSeatingEnabled,
         };
 
         formData.append("request", JSON.stringify(requestPayload));
@@ -370,6 +415,100 @@ const EventFormNew = () => {
                     )}
                   />
 
+                  {/* Promotional video URL (YouTube/Vimeo) — Basic theming, all tiers */}
+                  <FormField
+                    control={form.control}
+                    name="promotionalVideoUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Promotional video (optional)</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..."
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Event page template */}
+                  <FormField
+                    control={form.control}
+                    name="eventPageTemplate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Event page style</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose style" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="DEFAULT">Default</SelectItem>
+                            <SelectItem value="MINIMAL">Minimal</SelectItem>
+                            <SelectItem value="VIBRANT">Vibrant</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Donations & custom domain (Pro/Enterprise) */}
+                  {showProFeatures && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="donationsEnabled"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                              <FormLabel>Accept donations at checkout</FormLabel>
+                              <p className="text-sm text-muted-foreground">Let attendees add an optional donation</p>
+                            </div>
+                            <FormControl>
+                              <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="customDomain"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Custom domain (optional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="tickets.yourvenue.org"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="reservedSeatingEnabled"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                              <FormLabel>Reserved seating</FormLabel>
+                              <p className="text-sm text-muted-foreground">Sell by specific seat (section, row, number). After saving, create a seat map below.</p>
+                            </div>
+                            <FormControl>
+                              <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
+
                   {/* Category */}
                   <FormField
                     control={form.control}
@@ -531,6 +670,142 @@ const EventFormNew = () => {
                       </FormItem>
                     )}
                   />
+
+                  {/* Seat map (edit only, Pro/Enterprise, when reserved seating enabled) */}
+                  {isEditMode && id && showProFeatures && form.watch("reservedSeatingEnabled") && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Grid3X3 className="h-5 w-5" />
+                          Seat map
+                        </CardTitle>
+                        <CardDescription>
+                          {eventSeats.length > 0
+                            ? `${eventSeats.length} seats created. Attendees can select specific seats on the event page.`
+                            : "Define sections (e.g. Orchestra, Balcony). Save the event first, then add sections and create the seat map."}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {eventSeats.length > 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            Seat map is set up. View the event page to see the seating chart.
+                          </p>
+                        ) : (
+                          <>
+                            <div className="space-y-3">
+                              {seatMapSections.map((section, idx) => (
+                                <div key={idx} className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
+                                  <Input
+                                    placeholder="Section name (e.g. Orchestra)"
+                                    value={section.name}
+                                    onChange={(e) =>
+                                      setSeatMapSections((prev) =>
+                                        prev.map((s, i) => (i === idx ? { ...s, name: e.target.value } : s))
+                                      )
+                                    }
+                                    className="max-w-[180px]"
+                                  />
+                                  <div className="flex items-center gap-1">
+                                    <Label className="text-xs whitespace-nowrap">Rows</Label>
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      value={section.rowCount}
+                                      onChange={(e) =>
+                                        setSeatMapSections((prev) =>
+                                          prev.map((s, i) => (i === idx ? { ...s, rowCount: Math.max(1, parseInt(e.target.value, 10) || 1) } : s))
+                                        )
+                                      }
+                                      className="w-16"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Label className="text-xs whitespace-nowrap">Seats/row</Label>
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      value={section.seatsPerRow}
+                                      onChange={(e) =>
+                                        setSeatMapSections((prev) =>
+                                          prev.map((s, i) => (i === idx ? { ...s, seatsPerRow: Math.max(1, parseInt(e.target.value, 10) || 1) } : s))
+                                        )
+                                      }
+                                      className="w-16"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Label className="text-xs whitespace-nowrap">Price $</Label>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step={0.01}
+                                      value={section.price}
+                                      onChange={(e) =>
+                                        setSeatMapSections((prev) =>
+                                          prev.map((s, i) => (i === idx ? { ...s, price: parseFloat(e.target.value) || 0 } : s))
+                                        )
+                                      }
+                                      className="w-20"
+                                    />
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setSeatMapSections((prev) => prev.filter((_, i) => i !== idx))}
+                                    disabled={seatMapSections.length <= 1}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() =>
+                                setSeatMapSections((prev) => [...prev, { name: "", rowCount: 1, seatsPerRow: 1, price: 0 }])
+                              }
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add section
+                            </Button>
+                            <Button
+                              type="button"
+                              className="bg-gradient-primary"
+                              disabled={
+                                isSeatMapSubmitting ||
+                                seatMapSections.some((s) => !s.name?.trim() || s.price < 0)
+                              }
+                              onClick={async () => {
+                                if (!id) return;
+                                const sections = seatMapSections
+                                  .filter((s) => s.name?.trim())
+                                  .map((s) => ({ name: s.name.trim(), rowCount: s.rowCount, seatsPerRow: s.seatsPerRow, price: s.price }));
+                                if (sections.length === 0) {
+                                  toast.error("Add at least one section with a name");
+                                  return;
+                                }
+                                setIsSeatMapSubmitting(true);
+                                try {
+                                  const result = await apiService.createEventSeatMap(id, { sections });
+                                  toast.success(`Seat map created: ${result.seatsCreated} seats`);
+                                  const seats = await apiService.getEventSeats(id);
+                                  setEventSeats(seats);
+                                } catch (err: any) {
+                                  toast.error(err.response?.data?.message || "Failed to create seat map");
+                                } finally {
+                                  setIsSeatMapSubmitting(false);
+                                }
+                              }}
+                            >
+                              {isSeatMapSubmitting ? "Creating..." : "Create seat map"}
+                            </Button>
+                          </>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Submit Button */}
                   <div className="flex gap-4">

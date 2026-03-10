@@ -30,5 +30,16 @@ public class UpdateUserRequest {
 
     @Size(max = 255, message = "Cultural niche must not exceed 255 characters")
     private String culturalNiche;
+
+    /** White-label: custom logo URL (Pro/Enterprise). */
+    @Size(max = 500)
+    private String brandingLogoUrl;
+
+    /** White-label: primary color hex e.g. #1a1a2e (Pro/Enterprise). */
+    @Size(max = 20)
+    private String brandingPrimaryColor;
+
+    /** White-label: hide platform branding on event pages (Pro/Enterprise). */
+    private Boolean brandingHidePlatform;
 }
 

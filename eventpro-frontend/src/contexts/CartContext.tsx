@@ -155,11 +155,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isAuthenticated) {
       try {
-        await apiService.addToCart({
-          eventIdType: item.eventId,
-          ticketType: item.ticketTypeId as TicketTypeEnum,
-          quantity: item.quantity,
-        });
+        const isTicketId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.ticketTypeId);
+        await apiService.addToCart(
+          isTicketId
+            ? { id: item.ticketTypeId, quantity: item.quantity }
+            : { eventIdType: item.eventId, ticketType: item.ticketTypeId as TicketTypeEnum, quantity: item.quantity }
+        );
         await refreshCart();
       } catch (error) {
         console.error("Failed to add to cart:", error);

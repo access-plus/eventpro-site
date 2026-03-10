@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, MapPin, Clock, Ticket, Minus, Plus, Grid3X3 } from "lucide-react";
 import { apiService } from "@/lib/api";
-import type { Event, TicketType } from "@/types/api";
+import type { Event, TicketType, SeatResponse } from "@/types/api";
 import { useCart } from "@/contexts/CartContext";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import { getEventImageUrl } from "@/lib/utils";
+import { getEventImageUrl, getPromotionalVideoEmbedUrl } from "@/lib/utils";
 import { SeatingMap, generateSampleSeats, Seat } from "@/components/SeatingMap";
 import { ShareActionsContainer } from "@/components/ShareActions";
 import { LiveAttendanceBadge, useSimulatedViewers } from "@/components/LiveAttendanceBadge";
@@ -21,15 +21,38 @@ const EventDetails = () => {
   const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
+  const [seatResponses, setSeatResponses] = useState<SeatResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [imgError, setImgError] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [ticketMode, setTicketMode] = useState<"general" | "seating">("general");
+  // Default to seating tab when event has reserved seating (with seats) and no GA types
+  useEffect(() => {
+    if (event?.reservedSeatingEnabled && seatResponses.length > 0 && ticketTypes.length === 0) {
+      setTicketMode("seating");
+    }
+  }, [event?.reservedSeatingEnabled, seatResponses.length, ticketTypes.length]);
   const { addItem } = useCart();
   const { addRecentlyViewed } = usePreferences();
 
-  // Generate sample seats for demo
+  // Reserved seating: map API seats to SeatingMap Seat format
+  const seatsFromApi = useMemo(() => {
+    return seatResponses.map((s): Seat => ({
+      id: s.id,
+      section: s.section,
+      row: s.row,
+      number: s.seatNumber,
+      price: typeof s.price === "number" ? s.price : Number(s.price),
+      status: (s.status === "AVAILABLE" ? "available" : s.status === "SOLD" ? "sold" : "reserved") as Seat["status"],
+      type: "standard",
+    }));
+  }, [seatResponses]);
+
+  const hasReservedSeating = Boolean(event?.reservedSeatingEnabled && seatsFromApi.length > 0);
+  /** Event has reserved seating enabled but organizer hasn't created a seat map yet */
+  const reservedSeatingPending = Boolean(event?.reservedSeatingEnabled && seatsFromApi.length === 0);
+  const showSeatingTab = hasReservedSeating || reservedSeatingPending;
   const sampleSeats = useMemo(() => generateSampleSeats(), []);
 
   // Live badge: simulated viewers; ticket stats for urgency/sold copy
@@ -41,8 +64,14 @@ const EventDetails = () => {
       left += t.availableQuantity ?? 0;
       sold += (t.totalQuantity ?? 0) - (t.availableQuantity ?? 0);
     });
+    if (hasReservedSeating) {
+      seatsFromApi.forEach((s) => {
+        if (s.status === "available") left += 1;
+        else if (s.status === "sold") sold += 1;
+      });
+    }
     return { ticketsLeft: left, ticketsSold: sold };
-  }, [ticketTypes]);
+  }, [ticketTypes, hasReservedSeating, seatsFromApi]);
 
   useEffect(() => {
     if (id) {
@@ -53,12 +82,14 @@ const EventDetails = () => {
   const loadEventDetails = async () => {
     try {
       setIsLoading(true);
-      const [eventData, ticketsData] = await Promise.all([
+      const [eventData, ticketsData, seatsData] = await Promise.all([
         apiService.getEvent(id!),
         apiService.getTicketTypes(id!),
+        apiService.getEventSeats(id!).catch(() => []),
       ]);
       setEvent(eventData);
       setTicketTypes(ticketsData);
+      setSeatResponses(Array.isArray(seatsData) ? seatsData : []);
 
       // Add to recently viewed (full event; ensure date fields survive JSON round-trip)
       addRecentlyViewed({
@@ -107,7 +138,7 @@ const EventDetails = () => {
       selectedSeats.forEach((seat) => {
         addItem({
           ticketTypeId: seat.id,
-          ticketTypeName: `${seat.section} - Row ${seat.row}, Seat ${seat.number} (${seat.type})`,
+          ticketTypeName: `${seat.section} - Row ${seat.row}, Seat ${seat.number}`,
           eventName: event.name,
           eventId: event.id,
           quantity: 1,
@@ -138,16 +169,65 @@ const EventDetails = () => {
     );
   }
 
+  const template = (event.eventPageTemplate ?? "DEFAULT").toUpperCase();
+  const isMinimal = template === "MINIMAL";
+  const isVibrant = template === "VIBRANT";
+  const primaryColor = event.organizerBrandingPrimaryColor || undefined;
+  const showOrganizerLogo = Boolean(event.organizerBrandingLogoUrl);
+  const hidePlatformBranding = Boolean(event.organizerBrandingHidePlatform);
+
+  // Convert hex to HSL "H S% L%" for theme --primary (so buttons/badges use organizer color)
+  const primaryHsl = primaryColor && /^#[0-9A-Fa-f]{6}$/.test(primaryColor)
+    ? (() => {
+        const r = parseInt(primaryColor.slice(1, 3), 16) / 255;
+        const g = parseInt(primaryColor.slice(3, 5), 16) / 255;
+        const b = parseInt(primaryColor.slice(5, 7), 16) / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h = 0, s = 0, l = (max + min) / 2;
+        if (max !== min) {
+          const d = max - min;
+          s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+          if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+          else if (max === g) h = ((b - r) / d + 2) / 6;
+          else h = ((r - g) / d + 4) / 6;
+        }
+        h = Math.round(h * 360);
+        s = Math.round(s * 100);
+        l = Math.round(l * 100);
+        return `${h} ${s}% ${l}%`;
+      })()
+    : undefined;
+
+  const brandingStyle: React.CSSProperties | undefined =
+    primaryHsl ? { ["--primary"]: primaryHsl, ["--ring"]: primaryHsl } as React.CSSProperties : undefined;
+
   return (
-    <div className="min-h-screen py-8">
+    <div
+      className="min-h-screen py-8"
+      data-event-template={template}
+      style={brandingStyle}
+    >
+      {showOrganizerLogo && (
+        <div className="container mx-auto px-4 pb-4 flex justify-center">
+          <img
+            src={event.organizerBrandingLogoUrl!}
+            alt="Organizer logo"
+            className="h-10 object-contain"
+          />
+        </div>
+      )}
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+          className={`grid grid-cols-1 lg:grid-cols-3 gap-8 ${isVibrant ? "lg:gap-10" : ""}`}
         >
-          {/* Event Details */}
-          <div className="lg:col-span-2 space-y-6">
+          {/* Event Details — template affects layout (MINIMAL: more whitespace; VIBRANT: accent) */}
+          <div
+            className={`lg:col-span-2 space-y-6 ${
+              isMinimal ? "space-y-8 max-w-2xl" : ""
+            } ${isVibrant ? "rounded-2xl p-4 md:p-6 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/5" : ""}`}
+          >
             {(event.imageUrl && !imgError) ? (
               <div className="rounded-xl overflow-hidden h-64 md:h-96">
                 <img
@@ -206,6 +286,19 @@ const EventDetails = () => {
                 </div>
               )}
 
+              {/* Promotional video (YouTube/Vimeo embed) — Basic theming, all tiers */}
+              {event.promotionalVideoUrl && getPromotionalVideoEmbedUrl(event.promotionalVideoUrl) && (
+                <div className="rounded-xl overflow-hidden bg-muted/50 aspect-video max-w-2xl">
+                  <iframe
+                    title={`Promotional video for ${event.name}`}
+                    src={getPromotionalVideoEmbedUrl(event.promotionalVideoUrl)!}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              )}
+
               {/* Share — Vibrant Bento tile with tracking */}
               <div className="mt-6">
                 <ShareActionsContainer
@@ -248,17 +341,21 @@ const EventDetails = () => {
               />
             </div>
 
-            {/* Tabs for General Admission vs Seating */}
+            {/* Tabs: General Admission and/or Select Seats (when event has reserved seating) */}
             <Tabs value={ticketMode} onValueChange={(v) => setTicketMode(v as "general" | "seating")}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="general" className="flex items-center gap-2">
-                  <Ticket className="h-4 w-4" />
-                  General Admission
-                </TabsTrigger>
-                <TabsTrigger value="seating" className="flex items-center gap-2">
-                  <Grid3X3 className="h-4 w-4" />
-                  Select Seats
-                </TabsTrigger>
+              <TabsList className={ticketTypes.length > 0 && showSeatingTab ? "grid w-full grid-cols-2" : ""}>
+                {(ticketTypes.length > 0 || !showSeatingTab) && (
+                  <TabsTrigger value="general" className="flex items-center gap-2">
+                    <Ticket className="h-4 w-4" />
+                    General Admission
+                  </TabsTrigger>
+                )}
+                {showSeatingTab && (
+                  <TabsTrigger value="seating" className="flex items-center gap-2">
+                    <Grid3X3 className="h-4 w-4" />
+                    Select Seats
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               {/* General Admission Tab */}
@@ -328,16 +425,23 @@ const EventDetails = () => {
                 )}
               </TabsContent>
 
-              {/* Seating Map Tab */}
+              {/* Seating Map Tab - real seats when reserved seating, else sample or "coming soon" */}
               <TabsContent value="seating" className="mt-4">
-                <SeatingMap
-                  seats={sampleSeats}
-                  onSeatSelect={handleSeatSelect}
-                  maxSeats={8}
-                  venueName={event?.venue || "Main Venue"}
-                />
+                {reservedSeatingPending ? (
+                  <Card className="p-6 text-center">
+                    <Grid3X3 className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-muted-foreground">Seat map is being set up. Check back soon.</p>
+                  </Card>
+                ) : (
+                  <SeatingMap
+                    seats={hasReservedSeating ? seatsFromApi : sampleSeats}
+                    onSeatSelect={handleSeatSelect}
+                    maxSeats={8}
+                    venueName={event?.venue || "Main Venue"}
+                  />
+                )}
                 
-                {selectedSeats.length > 0 && (
+                {hasReservedSeating && selectedSeats.length > 0 && (
                   <Button
                     className="w-full mt-4 bg-gradient-primary"
                     size="lg"
@@ -353,6 +457,11 @@ const EventDetails = () => {
           </div>
         </motion.div>
       </div>
+      {!hidePlatformBranding && (
+        <p className="text-center text-muted-foreground text-sm mt-8 pb-4">
+          Powered by Access Plus
+        </p>
+      )}
     </div>
   );
 };

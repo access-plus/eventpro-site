@@ -30,7 +30,25 @@ public class CreateEventRequest {
     
     @Builder.Default
     private Boolean marketingEnabled = false;
-    
+
+    /** Optional promotional video URL (e.g. YouTube/Vimeo) for event detail page. All tiers. */
+    private String promotionalVideoUrl;
+
+    /** Event page template: DEFAULT, MINIMAL, VIBRANT. Defaults to DEFAULT. All tiers. */
+    @Builder.Default
+    private String eventPageTemplate = "DEFAULT";
+
+    /** Pro/Enterprise only: enable optional donation at checkout. */
+    @Builder.Default
+    private Boolean donationsEnabled = false;
+
+    /** Pro/Enterprise only: custom domain hostname (e.g. tickets.churchname.org). */
+    private String customDomain;
+
+    /** Pro/Enterprise only: enable reserved seating (seat map). */
+    @Builder.Default
+    private Boolean reservedSeatingEnabled = false;
+
     @NotNull(message = "Category is required")
     private String category; // Can be UUID or category name
     

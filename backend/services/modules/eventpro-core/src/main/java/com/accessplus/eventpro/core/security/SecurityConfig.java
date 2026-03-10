@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/*/ticket-types").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/events/*/seats").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/*/addons").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/category/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/images/proxy").permitAll()

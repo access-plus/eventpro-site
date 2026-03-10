@@ -10,8 +10,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -42,5 +44,13 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID>, Tic
     /** RESERVED tickets whose reserved_until is before the given time (expired). */
     @Query("SELECT t FROM TicketEntity t WHERE t.ticketStatus = 'RESERVED' AND t.reservedUntil IS NOT NULL AND t.reservedUntil < :before")
     List<TicketEntity> findReservedWithExpiredHold(@Param("before") LocalDateTime before);
+
+    /** Max ticket price across the given event IDs (for risk scoring). Returns empty if list is empty or no tickets. */
+    @Query("SELECT MAX(t.price) FROM TicketEntity t WHERE t.eventId IN :eventIds")
+    Optional<BigDecimal> findMaxPriceByEventIds(@Param("eventIds") List<UUID> eventIds);
+
+    /** Reserved seating: all tickets for event that have a seat (section/row/number). Ordered for seat map display. */
+    @Query("SELECT t FROM TicketEntity t WHERE t.eventId = :eventId AND t.seatSection IS NOT NULL ORDER BY t.seatSection, t.seatRow, t.seatNumber")
+    List<TicketEntity> findByEventIdWithSeats(@Param("eventId") UUID eventId);
 }
 

@@ -77,5 +77,21 @@ public interface TicketService {
      * @return number of tickets released
      */
     int releaseExpiredReservations();
+
+    /**
+     * Returns all tickets for the event that have seat assignment (for reserved seating seat map).
+     */
+    List<TicketEntity> getSeatsForEvent(UUID eventId);
+
+    /**
+     * Creates a seat map for an event: one ticket per seat with section/row/number.
+     * Event must have reservedSeatingEnabled. Pro/Enterprise only.
+     *
+     * @return number of seat tickets created
+     */
+    int createSeatMap(UUID eventId, UUID creatorId, List<SeatSectionSpec> sections);
+
+    /** Spec for one section in a seat map. */
+    record SeatSectionSpec(String name, int rowCount, int seatsPerRow, java.math.BigDecimal price) {}
 }
 
