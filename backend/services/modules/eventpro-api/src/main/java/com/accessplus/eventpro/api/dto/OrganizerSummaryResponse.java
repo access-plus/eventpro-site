@@ -21,12 +21,18 @@ public class OrganizerSummaryResponse {
     private long ticketsSold;
     /** Percent change in tickets sold this week vs last week; null if not computed. */
     private Integer ticketsSoldTrendPercent;
-    /** Life-to-date total revenue from paid orders for organizer's events. */
+    /** Life-to-date total revenue from paid orders for organizer's events (gross). */
     private BigDecimal totalRevenue;
-    /** Available for payout (cleared risk scoring). */
+    /** Platform fees withheld from ticket sales (tier-based: Basic 3.5%+$0.99, Pro 2.9%+$0.79, Enterprise 2.5%+$0.49). */
+    private BigDecimal platformFeesWithheld;
+    /** Fee rate for current plan, e.g. "2.9% + $0.79 per ticket (Pro)". */
+    private String platformFeeRateLabel;
+    /** Available for payout (gross revenue minus platform fees). */
     private BigDecimal availableBalance;
-    /** Pending balance in 1–3 day holding window. */
+    /** Pending balance (net from sales in the hold window). */
     private BigDecimal pendingBalance;
+    /** Hold window in days (e.g. 3); revenue from last N days is "pending". */
+    private Integer pendingHoldDays;
     /** When true, show "Review Required" and disable payouts (risk scoring). */
     private boolean riskFlagged;
     /** Risk level: LOW, MEDIUM, HIGH (for "High Risk" warning on Profile). */

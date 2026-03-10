@@ -35,16 +35,16 @@ This document tracks remaining work to make the KYC (Know Your Customer) / Compl
 
 ## 3. Approval / Rejection Flow
 
-**Status:** Not started  
+**Status:** Implemented  
 **Priority:** High
 
-- [ ] Add **admin (or internal) API** to list pending/in-progress KYC submissions (e.g. `GET /api/v1/admin/verification-pending`).
-- [ ] Add **approve** action: set submission status to VERIFIED, set `user.verification_status = 'VERIFIED'`, set `user.is_verified = true` (and optionally set `user.risk_level`).
-- [ ] Add **reject** action: set submission status to REJECTED, set `user.verification_status = 'REJECTED'`, set `rejection_reason` on the submission.
+- [x] Add **admin API** to list pending KYC submissions: `GET /api/v1/admin/verification-pending?limit=50`.
+- [x] Add **approve** action: `POST /api/v1/admin/verification/{submissionId}/approve` — sets submission to VERIFIED, `user.verification_status = 'VERIFIED'`, `user.is_verified = true`.
+- [x] Add **reject** action: `POST /api/v1/admin/verification/{submissionId}/reject` with optional body `{ "reason": "..." }` — sets submission to REJECTED, `user.verification_status = 'REJECTED'`, stores `rejection_reason`.
 - [ ] Optionally: automated approval path when risk checks (§2) pass; automated rejection when they fail.
 - [ ] Optionally: notify the user (email/in-app) when verified or rejected.
 
-**Notes:** Without this, no one can ever become Verified and "Manage Payouts" will never unlock.
+**Notes:** Admins can now approve or reject PENDING submissions; Profile already shows REJECTED state and "Resubmit verification".
 
 ---
 

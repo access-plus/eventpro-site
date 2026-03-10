@@ -156,9 +156,18 @@ export interface Order {
   id: string;
   userId: string;
   totalAmount: number;
+  taxAmount?: number;
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "REFUNDED";
   createdAt: string;
   tickets: Ticket[];
+}
+
+/** Subtotal, tax, and total for checkout. Use total for payment intent when tax is enabled. */
+export interface CheckoutTotals {
+  subtotal: number;
+  taxRatePercent: number;
+  tax: number;
+  total: number;
 }
 
 /** Attendee row from organizer event attendees list. */
@@ -284,8 +293,14 @@ export interface OrganizerSummary {
   ticketsSold: number;
   ticketsSoldTrendPercent: number | null;
   totalRevenue: number;
+  /** Platform fees withheld (tier-based). */
+  platformFeesWithheld?: number;
+  /** e.g. "2.9% + $0.79 per ticket (Pro)". */
+  platformFeeRateLabel?: string;
   availableBalance: number;
   pendingBalance: number;
+  /** Hold window in days; revenue from last N days is "pending". */
+  pendingHoldDays?: number;
   riskFlagged: boolean;
   riskLevel?: RiskLevel;
   /** True when W-9 submitted for 1099-K. */
@@ -398,6 +413,12 @@ export interface GuestConfirmPaymentRequest {
   receiveTicketViaWhatsApp?: boolean;
   /** Optional: send ticket via SMS. */
   receiveTicketViaSMS?: boolean;
+  /** Optional: buyer state (e.g. CA, NY) for sales tax. */
+  state?: string;
+  /** Optional: buyer country (e.g. US). */
+  country?: string;
+  /** Optional: tax amount when state/country was used at checkout. */
+  taxAmount?: number;
 }
 
 /** Options for "How did you hear about this event?" (cultural taxonomy). */

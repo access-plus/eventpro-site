@@ -11,9 +11,12 @@ import com.accessplus.eventpro.shared.enums.TicketType;
 import com.accessplus.eventpro.order.cart.entity.CartEntity;
 import com.accessplus.eventpro.order.cart.service.CartService;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
+import com.accessplus.eventpro.shared.entity.OrderItemEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
+import com.accessplus.eventpro.order.order.config.PlatformFeeProvider;
 import com.accessplus.eventpro.order.order.repository.OrderItemRepository;
 import com.accessplus.eventpro.order.order.repository.OrderRepository;
+import com.accessplus.eventpro.event.ticket.service.TicketService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,7 +61,12 @@ class OrderServiceImplTest {
     @Mock
     private SQSMessagePublisher sqsMessagePublisher;
 
-    @InjectMocks
+    @Mock
+    private TicketService ticketService;
+
+    @Mock
+    private PlatformFeeProvider platformFeeProvider;
+
     private OrderServiceImpl orderService;
 
     private UUID userId;
@@ -102,6 +110,11 @@ class OrderServiceImplTest {
         order.setOrderDate(LocalDateTime.now());
         order.setUserId(user.getId());
         order.setOrderItems(new ArrayList<>());
+
+        orderService = new OrderServiceImpl(orderRepository, orderItemRepository, cartService, userRepository,
+                ticketService, sqsMessagePublisher, Optional.of(platformFeeProvider));
+        when(platformFeeProvider.getFeePercent()).thenReturn(0.0);
+        when(platformFeeProvider.getFeePerTicket()).thenReturn(java.math.BigDecimal.ZERO);
     }
 
     // ========== createOrderFromCart Tests ==========
@@ -116,11 +129,12 @@ class OrderServiceImplTest {
         when(cartService.getUserCart(userId)).thenReturn(cartItems);
         when(cartService.calculateCartTotal(userId)).thenReturn(new BigDecimal("100.00"));
         when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
-        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(invocation -> {
+        when(orderRepository.saveAndFlush(any(OrderEntity.class))).thenAnswer(invocation -> {
             OrderEntity savedOrder = invocation.getArgument(0);
             savedOrder.setId(orderId);
             return savedOrder;
         });
+        when(orderItemRepository.saveAndFlush(any(OrderItemEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
         doNothing().when(sqsMessagePublisher).publishOrderMessage(any());
         doNothing().when(cartService).clearCart(userId);
 
@@ -138,7 +152,7 @@ class OrderServiceImplTest {
         verify(userRepository).findById(userId);
         verify(cartService).getUserCart(userId);
         verify(cartService).calculateCartTotal(userId);
-        verify(orderRepository).save(any(OrderEntity.class));
+        verify(orderRepository).saveAndFlush(any(OrderEntity.class));
         verify(sqsMessagePublisher).publishOrderMessage(any());
         verify(cartService).clearCart(userId);
     }
@@ -152,7 +166,7 @@ class OrderServiceImplTest {
         assertThrows(ResourceNotFoundException.class, () -> 
                 orderService.createOrderFromCart(userId));
         verify(cartService, never()).getUserCart(any());
-        verify(orderRepository, never()).save(any());
+        verify(orderRepository, never()).saveAndFlush(any(OrderEntity.class));
     }
 
     @Test
@@ -164,7 +178,7 @@ class OrderServiceImplTest {
         // When/Then
         assertThrows(ValidationException.class, () -> 
                 orderService.createOrderFromCart(userId));
-        verify(orderRepository, never()).save(any());
+        verify(orderRepository, never()).saveAndFlush(any(OrderEntity.class));
     }
 
     @Test
@@ -180,7 +194,7 @@ class OrderServiceImplTest {
         // When/Then
         assertThrows(ValidationException.class, () -> 
                 orderService.createOrderFromCart(userId));
-        verify(orderRepository, never()).save(any());
+        verify(orderRepository, never()).saveAndFlush(any(OrderEntity.class));
     }
 
     @Test
@@ -193,11 +207,12 @@ class OrderServiceImplTest {
         when(cartService.getUserCart(userId)).thenReturn(cartItems);
         when(cartService.calculateCartTotal(userId)).thenReturn(new BigDecimal("100.00"));
         when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
-        when(orderRepository.save(any(OrderEntity.class))).thenAnswer(invocation -> {
+        when(orderRepository.saveAndFlush(any(OrderEntity.class))).thenAnswer(invocation -> {
             OrderEntity savedOrder = invocation.getArgument(0);
             savedOrder.setId(orderId);
             return savedOrder;
         });
+        when(orderItemRepository.saveAndFlush(any(OrderItemEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
         doThrow(new RuntimeException("SQS error")).when(sqsMessagePublisher).publishOrderMessage(any());
         doNothing().when(cartService).clearCart(userId);
 
@@ -206,7 +221,7 @@ class OrderServiceImplTest {
 
         // Then - Order should still be created even if SQS publish fails
         assertNotNull(result);
-        verify(orderRepository).save(any(OrderEntity.class));
+        verify(orderRepository).saveAndFlush(any(OrderEntity.class));
         verify(cartService).clearCart(userId);
     }
 
@@ -329,7 +344,7 @@ class OrderServiceImplTest {
         // When/Then
         assertThrows(ResourceNotFoundException.class, () -> 
                 orderService.updateOrderStatus(orderId, OrderStatus.PAID));
-        verify(orderRepository, never()).save(any());
+        verify(orderRepository, never()).saveAndFlush(any(OrderEntity.class));
     }
 
     @Test
@@ -341,7 +356,7 @@ class OrderServiceImplTest {
         // When/Then
         assertThrows(IllegalStateException.class, () -> 
                 orderService.updateOrderStatus(orderId, OrderStatus.REFUNDED));
-        verify(orderRepository, never()).save(any());
+        verify(orderRepository, never()).saveAndFlush(any(OrderEntity.class));
     }
 
     @Test
@@ -353,7 +368,7 @@ class OrderServiceImplTest {
         // When/Then
         assertThrows(IllegalStateException.class, () -> 
                 orderService.updateOrderStatus(orderId, OrderStatus.CANCELLED));
-        verify(orderRepository, never()).save(any());
+        verify(orderRepository, never()).saveAndFlush(any(OrderEntity.class));
     }
 
     @Test
@@ -365,7 +380,7 @@ class OrderServiceImplTest {
         // When/Then
         assertThrows(IllegalStateException.class, () -> 
                 orderService.updateOrderStatus(orderId, OrderStatus.PAID));
-        verify(orderRepository, never()).save(any());
+        verify(orderRepository, never()).saveAndFlush(any(OrderEntity.class));
     }
 
     @Test
@@ -377,7 +392,7 @@ class OrderServiceImplTest {
         // When/Then
         assertThrows(IllegalStateException.class, () -> 
                 orderService.updateOrderStatus(orderId, OrderStatus.PAID));
-        verify(orderRepository, never()).save(any());
+        verify(orderRepository, never()).saveAndFlush(any(OrderEntity.class));
     }
 
     @Test

@@ -52,4 +52,13 @@ public class GuestConfirmPaymentRequest {
 
     /** Optional: send ticket via SMS when true. */
     private Boolean receiveTicketViaSMS;
+
+    /** Optional: buyer state (e.g. CA, NY) for sales tax jurisdiction. */
+    private String state;
+
+    /** Optional: buyer country (e.g. US). */
+    private String country;
+
+    /** Optional: tax amount when state/country was used at checkout (so order stores it). */
+    private BigDecimal taxAmount;
 }

@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.ApiResponse;
+import com.accessplus.eventpro.api.dto.CheckoutTotalsResponse;
 import com.accessplus.eventpro.api.dto.ConfirmPaymentRequest;
 import com.accessplus.eventpro.api.dto.CreatePaymentIntentRequest;
 import com.accessplus.eventpro.api.dto.GuestConfirmPaymentRequest;
@@ -11,6 +12,8 @@ import com.accessplus.eventpro.core.notification.service.NotificationService;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.event.event.service.EventService;
+import com.accessplus.eventpro.api.config.TaxProperties;
+import com.accessplus.eventpro.order.cart.service.CartService;
 import com.accessplus.eventpro.order.order.model.GuestOrderItem;
 import com.accessplus.eventpro.order.order.service.OrderService;
 import com.accessplus.eventpro.payment.service.PaymentService;
@@ -25,8 +28,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -47,11 +54,54 @@ public class PaymentController extends BaseController {
     @Value("${stripe.publishableKey:}")
     private String stripePublishableKey;
 
+    private final TaxProperties taxProperties;
+
     private final PaymentService paymentService;
     private final OrderService orderService;
+    private final CartService cartService;
     private final NotificationService notificationService;
     private final EventService eventService;
     private final UserService userService;
+
+    @GetMapping("/checkout-totals")
+    @Operation(summary = "Checkout totals with tax", description = "Returns subtotal, tax rate, tax amount, and total. Pass state (e.g. CA) and country (e.g. US) for jurisdiction-based tax; otherwise uses default rate. Use total for create-intent when tax > 0.")
+    public ResponseEntity<ApiResponse<CheckoutTotalsResponse>> getCheckoutTotals(
+            @RequestParam(required = false) BigDecimal subtotal,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String country) {
+        BigDecimal sub = subtotal;
+        if (sub == null || sub.compareTo(BigDecimal.ZERO) < 0) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && auth.getPrincipal() != null && !(auth.getPrincipal() instanceof String)) {
+                try {
+                    UUID userId = JwtUtils.getCurrentUserId();
+                    sub = cartService.calculateCartTotal(userId);
+                    if (sub == null) sub = BigDecimal.ZERO;
+                } catch (Exception e) {
+                    sub = BigDecimal.ZERO;
+                }
+            }
+        }
+        if (sub == null || sub.compareTo(BigDecimal.ZERO) < 0) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Subtotal required when not authenticated. Pass ?subtotal= amount or log in."));
+        }
+        // Jurisdiction-based rate: use buyer state when country is US (or omitted); else default rate
+        boolean useStateRate = country == null || country.isBlank() || "US".equalsIgnoreCase(country.trim());
+        double ratePercent = useStateRate ? taxProperties.getRateForState(state) : taxProperties.getDefaultRate();
+        BigDecimal tax = BigDecimal.ZERO;
+        if (ratePercent > 0) {
+            tax = sub.multiply(BigDecimal.valueOf(ratePercent)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
+        BigDecimal total = sub.add(tax);
+        CheckoutTotalsResponse body = CheckoutTotalsResponse.builder()
+                .subtotal(sub)
+                .taxRatePercent(ratePercent)
+                .tax(tax)
+                .total(total)
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(body, null));
+    }
 
     @GetMapping("/config")
     @Operation(summary = "Payment config (public)", description = "Returns Stripe publishable key for the frontend card form. No auth required.")
@@ -93,14 +143,27 @@ public class PaymentController extends BaseController {
     @PostMapping("/confirm")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "Confirm payment (authenticated)", description = "Confirms a Stripe payment and creates an order from the user's cart.")
+    @Operation(summary = "Confirm payment (authenticated)", description = "Confirms a Stripe payment and creates an order from the user's cart. Optional state/country for jurisdiction-based sales tax.")
     public ResponseEntity<ApiResponse<OrderResponse>> confirmPayment(
             @Valid @RequestBody ConfirmPaymentRequest request) {
         log.debug("Confirming payment: paymentIntentId={}", request.getPaymentIntentId());
 
         try {
             UUID userId = JwtUtils.getCurrentUserId();
-            var order = paymentService.processPayment(userId, request.getPaymentIntentId());
+            String state = request.getState() != null && !request.getState().isBlank() ? request.getState().trim() : null;
+            String country = request.getCountry() != null && !request.getCountry().isBlank() ? request.getCountry().trim() : null;
+            BigDecimal taxAmount = null;
+            if (state != null || country != null) {
+                BigDecimal cartTotal = cartService.calculateCartTotal(userId);
+                if (cartTotal != null && cartTotal.compareTo(BigDecimal.ZERO) > 0) {
+                    boolean useStateRate = country == null || "US".equalsIgnoreCase(country);
+                    double rate = useStateRate ? taxProperties.getRateForState(state) : taxProperties.getDefaultRate();
+                    if (rate > 0) {
+                        taxAmount = cartTotal.multiply(BigDecimal.valueOf(rate)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                    }
+                }
+            }
+            var order = paymentService.processPayment(userId, request.getPaymentIntentId(), taxAmount, state, country);
             OrderResponse response = OrderResponse.fromEntity(order);
 
             sendOrderConfirmationNotification(order, userId, null);
@@ -145,6 +208,8 @@ public class PaymentController extends BaseController {
             List<GuestOrderItem> items = request.getItems().stream()
                     .map(i -> new GuestOrderItem(i.getEventId(), i.getTicketType(), i.getQuantity()))
                     .collect(Collectors.toList());
+            String state = request.getState() != null && !request.getState().isBlank() ? request.getState().trim() : null;
+            String country = request.getCountry() != null && !request.getCountry().isBlank() ? request.getCountry().trim() : null;
             var order = paymentService.processGuestPayment(
                     request.getPaymentIntentId(),
                     request.getEmail(),
@@ -153,7 +218,10 @@ public class PaymentController extends BaseController {
                     items,
                     request.getTotalAmount(),
                     request.getReservedTicketIds(),
-                    request.getDonationAmount());
+                    request.getDonationAmount(),
+                    request.getTaxAmount(),
+                    state,
+                    country);
             OrderResponse response = OrderResponse.fromEntity(order);
 
             sendOrderConfirmationNotification(order, null, request.getEmail());

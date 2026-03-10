@@ -115,8 +115,8 @@ These match `eventpro-frontend/src/pages/Pricing.tsx`. All implementation and ga
 - **Reserved seating (Pro/Enterprise)**  
   - **Done:** Event flag `reservedSeatingEnabled`; tickets can have `seat_section`, `seat_row`, `seat_number`. Organizer: enable "Reserved seating" on event (create/update), then create seat map via "Seat map" section on event edit (sections: name, row count, seats per row, price). Public event page: "Select Seats" tab shows real seat map when reserved seating is enabled and seat map exists; add-by-ticket-id to cart. **Flow:** Enable reserved seating → Save event → Create seat map → Event page shows seating and allows seat selection and add to cart.
 
-- **Full white-label / custom branding (Pro/Enterprise)**  
-  - **Done:** User branding fields: `branding_logo_url`, `branding_primary_color`, `branding_hide_platform`. Profile UI to set logo, color, and “hide platform branding”. Event response includes organizer branding; public event page shows custom logo, applies primary color, and hides “Powered by Access Plus” when set.
+- **Full white-label / custom branding (Enterprise only)**  
+  - **Done:** User branding fields; Profile UI and backend updates gated to Enterprise. Event response includes organizer branding; public event page shows custom logo, primary color, and hides "Powered by Access Plus" when set. Fields: `branding_logo_url`, `branding_primary_color`, `branding_hide_platform`, color, and “hide platform branding”. Event response includes organizer branding; public event page shows custom logo, applies primary color, and hides “Powered by Access Plus” when set.
 
 ---
 
@@ -125,9 +125,18 @@ These match `eventpro-frontend/src/pages/Pricing.tsx`. All implementation and ga
 Before release, ensure:
 
 - [x] **Basic:** No custom domain, no add-ons, no fundraising, no early payouts, no “email attendees”, no reserved seating, no full HTML/CSS.
-- [ ] **Pro:** Add-ons + fundraising allowed; 50% early payout allowed; custom domain allowed; email attendees allowed; reserved seating allowed; no 100% instant payout, no API access, no white-label.
-- [ ] **Enterprise:** Everything in Pro + 100% instant payout, API access, white-label, and other Enterprise-only features from the pricing page.
-- [ ] **Risk scoring:** Used only to decide eligibility for 50% / 100% early payout within Pro/Enterprise; not a separate “tier” on the pricing page.
+- [x] **Pro:** Add-ons + fundraising allowed; 50% early payout allowed; custom domain allowed; email attendees allowed; reserved seating allowed; no 100% instant payout, no API access, no white-label.
+- [x] **Enterprise:** Everything in Pro + 100% instant payout, API access, white-label, and other Enterprise-only features from the pricing page.
+- [x] **Risk scoring:** Used only to decide eligibility for 50% / 100% early payout within Pro/Enterprise; not a separate “tier” on the pricing page.
+
+---
+
+## Taxes (current scope)
+
+- **1099-K tax compliance reports**  
+  Per pricing page: **Enterprise only**. Document Vault (list + download 1099-K PDF) is gated to Enterprise; Basic/Pro see an upgrade prompt. W-9 submission and $600 threshold progress remain available to all tiers (needed for payout unlock).
+- **Sales tax / VAT on ticket sales**  
+  **Implemented (default off).** Default rate is 0% (`eventpro.tax.default-rate` / `EVENTPRO_TAX_DEFAULT_RATE`). When set to a value > 0, tax is calculated at checkout (GET `/payments/checkout-totals`), shown on checkout, and order total = subtotal + tax. Tax amount is stored on the order. Jurisdiction-based rates and remittance are not yet implemented.
 
 ---
 
@@ -147,3 +156,26 @@ Before release, ensure:
 3. **API access (beta)** for Enterprise only.
 
 Use this doc as the single source of truth; keep the **Status** column and checklist updated as work completes.
+
+---
+
+## What’s left to implement
+
+**Payouts & identity**
+
+- **Bank account & real payouts:** Collect payout bank account (e.g. via Stripe Connect), store securely, and execute real payouts. Currently “Request Payout” is a placeholder; `availableBalance` / `pendingBalance` are computed from orders but no money is sent.
+- **ID verification:** Integrate Stripe Identity or Persona for ID document capture; pass session/verification ID in KYC submission; backend to verify session and drive VERIFIED/REJECTED.
+- **Risk/OFAC:** When KYC is submitted, run OFAC (or similar) check and ID verification result; set verification_status IN_PROGRESS → VERIFIED/REJECTED; optionally notify user on approval/rejection.
+- **Rejection UX:** When verification_status is REJECTED, show “Verification declined” and “Resubmit” on Profile; display rejection reason when provided.
+
+**Tax & compliance**
+
+- **Sales tax:** Jurisdiction-based rates and remittance are not fully automated (config-based state rates exist; optional: TaxJar/Avalara/Stripe Tax).
+- **1099-K:** Document Vault and gating are done; actual 1099-K generation/filing is out of scope for MVP.
+
+**Product / pricing**
+
+- **Tiered payouts execution:** Wire 50% early (Pro) and 100% instant (Enterprise) to real payout flow once bank and risk are in place.
+- **Dynamic pricing, multi-currency, SLA, on-premise:** Per pricing page, these are Enterprise; not yet implemented.
+
+See also: `docs/TODO-identity-check-and-verification.md` for the full KYC checklist.

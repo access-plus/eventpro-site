@@ -12,4 +12,6 @@ import java.util.UUID;
 public interface OrganizerKycSubmissionRepository extends JpaRepository<OrganizerKycSubmissionEntity, UUID> {
 
     List<OrganizerKycSubmissionEntity> findByUserIdOrderBySubmittedAtDesc(UUID userId, Pageable pageable);
+
+    List<OrganizerKycSubmissionEntity> findByStatusOrderBySubmittedAtDesc(String status, Pageable pageable);
 }

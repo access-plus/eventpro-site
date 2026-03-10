@@ -11,6 +11,7 @@ import { Wallet, Zap } from "lucide-react";
 import { apiService } from "@/lib/api";
 import type { OrganizerSummary } from "@/types/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const POLL_INTERVAL_MS = 30_000; // 30 seconds for near real-time
 
@@ -32,6 +33,7 @@ export function FinancialHub() {
   const { user } = useAuth();
   const [summary, setSummary] = useState<OrganizerSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [requestingPayout, setRequestingPayout] = useState(false);
 
   const fetchFinancials = useCallback(async () => {
     try {
@@ -60,6 +62,7 @@ export function FinancialHub() {
   }, [fetchFinancials]);
 
   const totalRevenue = summary ? toNumber(summary.totalRevenue) : 0;
+  const platformFeesWithheld = summary ? toNumber(summary.platformFeesWithheld) : 0;
   const availableBalance = summary ? toNumber(summary.availableBalance) : 0;
   const pendingBalance = summary ? toNumber(summary.pendingBalance) : 0;
   const w9Submitted = Boolean(summary?.w9Submitted);
@@ -80,29 +83,40 @@ export function FinancialHub() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {/* Tile 1: Total Revenue (life-to-date) */}
+        {/* Tile 1: Total Revenue (life-to-date, gross) */}
         <div className={tileBase}>
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">
             Total Revenue
           </p>
-          <p className="text-xs text-muted-foreground/80 mb-2">Life-to-date</p>
+          <p className="text-xs text-muted-foreground/80 mb-2">Life-to-date (gross sales)</p>
           {loading ? (
             <Skeleton className="h-10 w-32 bg-white/10" />
           ) : (
-            <p className="text-3xl font-bold font-heading tabular-nums text-foreground">
-              {usdFormat.format(totalRevenue)}
-            </p>
+            <>
+              <p className="text-3xl font-bold font-heading tabular-nums text-foreground">
+                {usdFormat.format(totalRevenue)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {platformFeesWithheld > 0 ? (
+                  <>Platform fees ({summary?.platformFeeRateLabel ?? "per your plan"}): −{usdFormat.format(platformFeesWithheld)}</>
+                ) : (
+                  <>Platform fees: {usdFormat.format(0)} {summary?.platformFeeRateLabel && `(${summary.platformFeeRateLabel})`}</>
+                )}
+              </p>
+            </>
           )}
         </div>
 
-        {/* Tile 2: Available for Payout (most prominent, purple glow) */}
+        {/* Tile 2: Available for Payout (gross minus platform fees) */}
         <div
           className={`${tileBase} ring-1 ring-primary/20 shadow-[0_0_20px_rgba(147,51,234,0.25)] dark:shadow-[0_0_24px_rgba(147,51,234,0.3)]`}
         >
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">
             Available for Payout
           </p>
-          <p className="text-xs text-muted-foreground/80 mb-2">Cleared risk scoring</p>
+          <p className="text-xs text-muted-foreground/80 mb-2">
+            {platformFeesWithheld > 0 ? "After platform fees" : "Cleared risk scoring"}
+          </p>
           {loading ? (
             <Skeleton className="h-10 w-32 bg-white/10" />
           ) : (
@@ -112,18 +126,27 @@ export function FinancialHub() {
           )}
         </div>
 
-        {/* Tile 3: Pending (subtle) */}
+        {/* Tile 3: Pending (net from sales in last N days) */}
         <div className={tileBase}>
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">
             Pending
           </p>
-          <p className="text-xs text-muted-foreground/80 mb-2">1–3 business day hold</p>
+          <p className="text-xs text-muted-foreground/80 mb-2">
+            {summary?.pendingHoldDays
+              ? `Last ${summary.pendingHoldDays} day hold (net from recent sales)`
+              : "1–3 business day hold"}
+          </p>
           {loading ? (
             <Skeleton className="h-8 w-24 bg-white/10" />
           ) : (
-            <p className="text-2xl font-semibold tabular-nums text-muted-foreground">
-              {usdFormat.format(pendingBalance)}
-            </p>
+            <>
+              <p className="text-2xl font-semibold tabular-nums text-muted-foreground">
+                {usdFormat.format(pendingBalance)}
+              </p>
+              {pendingBalance === 0 && totalRevenue > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">No sales in the hold window yet</p>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -146,18 +169,28 @@ export function FinancialHub() {
             <TooltipTrigger asChild>
               <span className="inline-block">
                 <Button
-                  disabled={!canPayout}
+                  disabled={!canPayout || requestingPayout}
                   className={`bg-gradient-to-r from-primary via-primary to-orange-500 text-white border-0 shadow-lg hover:shadow-[0_0_20px_hsl(var(--primary)_/_0.4)] transition-all ${
                     !canPayout ? "opacity-50 cursor-not-allowed" : ""
                   }`}
-                  onClick={() => {
-                    if (canPayout) {
-                      /* Navigate to payout flow or open modal when implemented */
+                  onClick={async () => {
+                    if (!canPayout || requestingPayout || availableBalance <= 0) return;
+                    setRequestingPayout(true);
+                    try {
+                      await apiService.requestPayout(availableBalance);
+                      toast.success("Payout requested. You will be notified when it is processed.");
+                      window.dispatchEvent(new Event("organizer-summary-invalidate"));
+                      fetchFinancials();
+                    } catch (e: unknown) {
+                      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Request failed";
+                      toast.error(msg);
+                    } finally {
+                      setRequestingPayout(false);
                     }
                   }}
                 >
                   <Zap className="h-4 w-4 mr-2" />
-                  {payoutsPausedByTax ? "Payouts Paused: Tax Info Required" : "Instant Payout"}
+                  {requestingPayout ? "Requesting…" : payoutsPausedByTax ? "Payouts Paused: Tax Info Required" : "Instant Payout"}
                 </Button>
               </span>
             </TooltipTrigger>

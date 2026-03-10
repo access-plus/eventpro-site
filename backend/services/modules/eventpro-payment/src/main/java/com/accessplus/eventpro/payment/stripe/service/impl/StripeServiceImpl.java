@@ -1,12 +1,15 @@
 package com.accessplus.eventpro.payment.stripe.service.impl;
 
+import com.accessplus.eventpro.payment.stripe.model.StripeBillingAddress;
 import com.accessplus.eventpro.payment.stripe.service.StripeService;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.PaymentMethod;
 import com.stripe.model.Refund;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.PaymentIntentConfirmParams;
+import com.stripe.param.PaymentIntentRetrieveParams;
 import com.stripe.param.RefundCreateParams;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -111,6 +114,42 @@ public class StripeServiceImpl implements StripeService {
                 paymentIntentId, refund.getId());
         
         return refund.getId();
+    }
+
+    @Override
+    public StripeBillingAddress getBillingAddressFromPaymentIntent(String paymentIntentId) throws StripeException {
+        ensureStripeConfigured();
+        PaymentIntentRetrieveParams params = PaymentIntentRetrieveParams.builder()
+                .addExpand("payment_method")
+                .build();
+        PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId, params, null);
+        Object pmObj = paymentIntent.getPaymentMethod();
+        if (pmObj == null) {
+            return null;
+        }
+        PaymentMethod pm;
+        if (pmObj instanceof PaymentMethod) {
+            pm = (PaymentMethod) pmObj;
+        } else if (pmObj instanceof com.stripe.model.ExpandableField) {
+            @SuppressWarnings("unchecked")
+            com.stripe.model.ExpandableField<PaymentMethod> field = (com.stripe.model.ExpandableField<PaymentMethod>) pmObj;
+            if (!field.isExpanded()) {
+                return null;
+            }
+            pm = field.getExpanded();
+        } else {
+            return null;
+        }
+        if (pm == null || pm.getBillingDetails() == null || pm.getBillingDetails().getAddress() == null) {
+            return null;
+        }
+        com.stripe.model.Address addr = pm.getBillingDetails().getAddress();
+        String state = addr.getState() != null && !addr.getState().isBlank() ? addr.getState().trim() : null;
+        String country = addr.getCountry() != null && !addr.getCountry().isBlank() ? addr.getCountry().trim() : null;
+        if (state == null && country == null) {
+            return null;
+        }
+        return new StripeBillingAddress(state, country);
     }
 }
 

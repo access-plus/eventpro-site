@@ -126,6 +126,21 @@ DB_SECRET_ARN=arn:aws:secretsmanager:us-east-1:000000000000:secret:eventpro-db-s
 STRIPE_SECRET_ARN=arn:aws:secretsmanager:us-east-1:000000000000:secret:eventpro-stripe-keys
 ```
 
+### Platform fees (by tier; match Pricing page)
+
+Fees are **tier-based** and configured in `application.yml` under `eventpro.platform.tiers` (Basic 3.5% + $0.99, Pro 2.9% + $0.79, Enterprise 2.5% + $0.49 per ticket). No env vars are required; override in yml if you need to change rates.
+
+### Payout and tax (optional)
+
+```env
+# Number of days revenue is held as "pending" before becoming "available" for payout (default: 3)
+EVENTPRO_PAYOUT_PENDING_HOLD_DAYS=3
+
+# Default sales tax rate when no state is provided (0 = no tax). Jurisdiction-based: pass state/country at checkout for state-specific rates (see eventpro.tax.rates-by-state in application.yml).
+EVENTPRO_TAX_DEFAULT_RATE=0
+```
+Rates per state are in `application.yml` under `eventpro.tax.rates-by-state` (e.g. CA: 7.25, NY: 8.875). Override or extend there; no env var for the map.
+
 ### Spring Profile
 
 ```env

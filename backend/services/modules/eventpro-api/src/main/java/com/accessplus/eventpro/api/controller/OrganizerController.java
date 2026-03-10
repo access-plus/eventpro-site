@@ -1,7 +1,11 @@
 package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.*;
+import com.accessplus.eventpro.api.payout.dto.PayoutRequestResponse;
+import com.accessplus.eventpro.api.payout.dto.RequestPayoutRequest;
+import com.accessplus.eventpro.api.payout.service.PayoutRequestService;
 import com.accessplus.eventpro.api.service.OrganizerService;
+import com.accessplus.eventpro.api.service.TaxFormPdfService;
 import com.accessplus.eventpro.api.team.service.OrganizerTeamService;
 import com.accessplus.eventpro.api.service.RiskScoringService;
 import com.accessplus.eventpro.api.service.VerificationService;
@@ -69,6 +73,8 @@ public class OrganizerController extends BaseController {
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
     private final OrganizerTeamService organizerTeamService;
+    private final TaxFormPdfService taxFormPdfService;
+    private final PayoutRequestService payoutRequestService;
 
     /** Merchandise & add-ons require Pro or Enterprise per pricing page. */
     private void requireAddonsEligible() {
@@ -166,6 +172,24 @@ public class OrganizerController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(summary));
     }
 
+    @PostMapping("/payouts/request")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Request payout", description = "Submit a payout request for the given amount. Validates available balance and eligibility (verified, W-9 if $600+). Actual transfer is processed separately.")
+    public ResponseEntity<ApiResponse<PayoutRequestResponse>> requestPayout(@Valid @RequestBody RequestPayoutRequest request) {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        PayoutRequestResponse response = payoutRequestService.requestPayout(organizerId, request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Payout requested. You will be notified when it is processed."));
+    }
+
+    @GetMapping("/payouts")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "List payout requests", description = "Returns the organizer's payout requests (pending and completed).")
+    public ResponseEntity<ApiResponse<Page<PayoutRequestResponse>>> getPayoutRequests(Pageable pageable) {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        Page<PayoutRequestResponse> page = payoutRequestService.getPayoutRequests(organizerId, pageable);
+        return ResponseEntity.ok(ApiResponse.success(page));
+    }
+
     @GetMapping("/verification-status")
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
     @Operation(summary = "Get verification status", description = "Returns KYC verification status and risk level for Profile badge and payout gate.")
@@ -195,19 +219,69 @@ public class OrganizerController extends BaseController {
 
     @GetMapping("/tax-forms")
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
-    @Operation(summary = "List tax forms (1099-K)", description = "Returns list of tax forms by year for Document Vault.")
+    @Operation(summary = "List tax forms (1099-K)", description = "Returns list of tax forms by year for Document Vault. Enterprise only per pricing. 1099-K for a year is available after IRS deadline (Jan 31 of following year).")
     public ResponseEntity<ApiResponse<List<TaxFormResponse>>> getTaxForms() {
         UUID organizerId = JwtUtils.getCurrentUserId();
+        UserEntity user = userRepository.findById(organizerId).orElseThrow(() -> new ResourceNotFoundException("User", organizerId.toString()));
+        if (!"ENTERPRISE".equalsIgnoreCase(user.getSubscriptionTier())) {
+            return ResponseEntity.ok(ApiResponse.success(java.util.Collections.emptyList()));
+        }
         int currentYear = java.time.Year.now().getValue();
-        List<TaxFormResponse> forms = List.of(
-                TaxFormResponse.builder()
-                        .year(String.valueOf(currentYear))
-                        .formType("1099-K")
-                        .status("Available")
-                        .downloadUrl(null)
-                        .build()
-        );
+        java.time.LocalDate now = java.time.LocalDate.now();
+        // IRS: 1099-K for year Y is due to recipient by Jan 31 of year Y+1. So e.g. 2025 form is "Available" from Feb 1, 2026.
+        java.time.LocalDate deadlinePriorYear = java.time.LocalDate.of(currentYear, 1, 31);
+        java.util.List<TaxFormResponse> forms = new java.util.ArrayList<>();
+        if (now.isAfter(deadlinePriorYear)) {
+            forms.add(TaxFormResponse.builder()
+                    .year(String.valueOf(currentYear - 1))
+                    .formType("1099-K")
+                    .status("Available")
+                    .downloadUrl("/api/v1/organizer/tax-forms/" + (currentYear - 1) + "/download")
+                    .build());
+        }
+        // Current year form: show as pending until next year's deadline
+        forms.add(TaxFormResponse.builder()
+                .year(String.valueOf(currentYear))
+                .formType("1099-K")
+                .status("Available after Jan 31, " + (currentYear + 1))
+                .downloadUrl(null)
+                .build());
         return ResponseEntity.ok(ApiResponse.success(forms));
+    }
+
+    @GetMapping("/tax-forms/{year}/download")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Download 1099-K PDF", description = "Generates and returns 1099-K PDF for the given tax year. Enterprise only. Available only for years past IRS deadline (Jan 31 of following year).")
+    public ResponseEntity<byte[]> downloadTaxFormPdf(@PathVariable int year) {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        UserEntity user = userRepository.findById(organizerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", organizerId.toString()));
+        if (!"ENTERPRISE".equalsIgnoreCase(user.getSubscriptionTier())) {
+            throw new AccessDeniedException("1099-K reports are available on the Enterprise plan.");
+        }
+        int currentYear = java.time.Year.now().getValue();
+        java.time.LocalDate now = java.time.LocalDate.now();
+        java.time.LocalDate deadline = java.time.LocalDate.of(year + 1, 1, 31);
+        if (year >= currentYear || !now.isAfter(deadline)) {
+            throw new ValidationException("1099-K for " + year + " is not available for download until after Jan 31, " + (year + 1));
+        }
+        java.math.BigDecimal grossAmount = organizerService.getOrganizerRevenueForYear(organizerId, year);
+        java.math.BigDecimal feesWithheld = organizerService.getOrganizerFeesForYear(organizerId, year);
+        java.math.BigDecimal subscriptionPaymentsForYear = organizerService.getOrganizerSubscriptionPaymentsForYear(organizerId, year);
+        String recipientName = (user.getFirstName() != null ? user.getFirstName() + " " : "") + (user.getLastName() != null ? user.getLastName() : "").trim();
+        if (recipientName.isBlank()) recipientName = user.getEmail();
+        if (recipientName == null) recipientName = "—";
+        try {
+            byte[] pdfBytes = taxFormPdfService.generate1099KPdf(recipientName, user.getEmail(), year, grossAmount, feesWithheld, subscriptionPaymentsForYear);
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "1099-K-" + year + ".pdf");
+            headers.setContentLength(pdfBytes.length);
+            return ResponseEntity.ok().headers(headers).body(pdfBytes);
+        } catch (java.io.IOException e) {
+            log.error("Failed to generate 1099-K PDF: year={}, error={}", year, e.getMessage(), e);
+            throw new ValidationException("Failed to generate PDF: " + e.getMessage());
+        }
     }
 
     @PostMapping("/w9")

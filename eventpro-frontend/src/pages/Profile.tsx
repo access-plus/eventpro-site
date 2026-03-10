@@ -269,6 +269,7 @@ const Profile = () => {
   const riskLevel = user?.riskLevel ?? summary?.riskLevel ?? "LOW";
   const isHighRisk = riskLevel === "HIGH";
   const payoutBalance = summary?.availableBalance ?? 0;
+  const platformFeesWithheld = summary ? Number(summary.platformFeesWithheld ?? 0) : 0;
 
   const handleRecalculateRisk = useCallback(() => {
     if (!hasRole("ORGANIZER")) return;
@@ -636,8 +637,8 @@ const Profile = () => {
             </Card>
           )}
 
-          {/* Pro/Enterprise: White-Label / custom branding */}
-          {isProOrEnterprise && (
+          {/* Enterprise only: White-Label (per pricing page) */}
+          {isEnterprise && (
             <Card className="md:col-span-3 rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
               <CardContent className="p-6">
                 <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
@@ -796,10 +797,19 @@ const Profile = () => {
                   <span className="w-2 h-8 rounded-full bg-gradient-to-b from-primary to-primary-glow" />
                   Your Impact
                 </h2>
-                {/* Payout balance (real-time) */}
+                {/* Payout balance (after platform fees) */}
                 {!summaryLoading && (
                   <div className="mb-4 rounded-xl bg-white/80 dark:bg-white/10 px-4 py-3 border border-primary/10 flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">Available for payout</span>
+                    <div>
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Available for payout{platformFeesWithheld > 0 ? " (after platform fees)" : ""}
+                      </span>
+                      {platformFeesWithheld > 0 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Platform fees withheld: ${platformFeesWithheld.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
                     <span className="text-xl font-bold text-foreground">
                       ${typeof payoutBalance === "number" ? payoutBalance.toFixed(2) : "0.00"}
                     </span>

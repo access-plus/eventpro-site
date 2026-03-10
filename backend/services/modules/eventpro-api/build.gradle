@@ -37,6 +37,9 @@ dependencies {
     // Spring Boot DevTools (for hot reload in development)
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     
+    // PDF generation (1099-K)
+    implementation 'org.apache.pdfbox:pdfbox:2.0.29'
+
     // Lombok
     compileOnly "org.projectlombok:lombok:${project.ext.lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${project.ext.lombokVersion}"

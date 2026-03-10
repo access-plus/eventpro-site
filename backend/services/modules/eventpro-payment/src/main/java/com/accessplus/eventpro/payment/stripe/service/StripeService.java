@@ -1,5 +1,6 @@
 package com.accessplus.eventpro.payment.stripe.service;
 
+import com.accessplus.eventpro.payment.stripe.model.StripeBillingAddress;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 
@@ -37,5 +38,14 @@ public interface StripeService {
      * @throws StripeException if Stripe API call fails
      */
     String refundPayment(String paymentIntentId) throws StripeException;
+
+    /**
+     * Retrieves billing address from the PaymentIntent's payment method (card).
+     * Stripe validates this with the address on the user's card (AVS). Use for tax jurisdiction and order record.
+     *
+     * @param paymentIntentId Stripe payment intent ID (must be already confirmed so payment_method is set)
+     * @return billing address (state, country) if present, or null if not collected/expanded
+     */
+    StripeBillingAddress getBillingAddressFromPaymentIntent(String paymentIntentId) throws StripeException;
 }
 

@@ -6,6 +6,11 @@ import { apiService } from "@/lib/api";
 
 const STRIPE_SCRIPT_URL = "https://js.stripe.com/v3/";
 
+export interface BillingDetailsForStripe {
+  state?: string;
+  country?: string;
+}
+
 export interface CheckoutPaymentFormProps {
   clientSecret: string;
   amount: number;
@@ -14,6 +19,8 @@ export interface CheckoutPaymentFormProps {
   guestConfirm?: (paymentIntentId: string) => Promise<{ id: string }>;
   authenticatedConfirm?: (paymentIntentId: string) => Promise<{ id: string }>;
   isGuest: boolean;
+  /** Billing address from checkout form; sent to Stripe so it can validate with the card (AVS). */
+  billingDetails?: BillingDetailsForStripe;
 }
 
 declare global {
@@ -25,7 +32,12 @@ declare global {
       };
       confirmCardPayment: (
         clientSecret: string,
-        opts: { payment_method: { card: unknown } }
+        opts: {
+          payment_method: {
+            card: unknown;
+            billing_details?: { address?: { state?: string; country?: string } };
+          };
+        }
       ) => Promise<{ error?: { message?: string }; paymentIntent?: { status: string; id: string } }>;
     };
   }
@@ -65,7 +77,7 @@ function StripeNotConfigured() {
 }
 
 export function CheckoutPaymentForm(props: CheckoutPaymentFormProps) {
-  const { clientSecret, onSuccess, onError, guestConfirm, authenticatedConfirm, isGuest } = props;
+  const { clientSecret, onSuccess, onError, guestConfirm, authenticatedConfirm, isGuest, billingDetails } = props;
   const [stripeKey, setStripeKey] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -144,8 +156,20 @@ export function CheckoutPaymentForm(props: CheckoutPaymentFormProps) {
     }
     setIsSubmitting(true);
     try {
+      const paymentMethodPayload: {
+        card: unknown;
+        billing_details?: { address: { state?: string; country?: string } };
+      } = { card: cardInstanceRef.current };
+      if (billingDetails && (billingDetails.state || billingDetails.country)) {
+        paymentMethodPayload.billing_details = {
+          address: {
+            ...(billingDetails.state && { state: billingDetails.state }),
+            ...(billingDetails.country && { country: billingDetails.country }),
+          },
+        };
+      }
       const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: cardInstanceRef.current },
+        payment_method: paymentMethodPayload,
       });
       if (confirmError) {
         onError(confirmError.message ?? "Payment failed");

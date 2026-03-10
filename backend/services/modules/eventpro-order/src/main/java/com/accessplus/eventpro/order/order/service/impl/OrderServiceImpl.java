@@ -15,11 +15,13 @@ import com.accessplus.eventpro.order.order.model.GuestOrderItem;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
 import com.accessplus.eventpro.shared.entity.OrderItemEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
+import com.accessplus.eventpro.order.order.config.PlatformFeeProvider;
 import com.accessplus.eventpro.order.order.repository.OrderItemRepository;
 import com.accessplus.eventpro.order.order.repository.OrderRepository;
 import com.accessplus.eventpro.order.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,12 +29,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -62,14 +66,49 @@ public class OrderServiceImpl implements OrderService {
     private final UserRepository userRepository;
     private final TicketService ticketService;
     private final SQSMessagePublisher sqsMessagePublisher;
+    private final Optional<PlatformFeeProvider> platformFeeProvider;
+
+    @Value("${eventpro.tax.default-rate:0}")
+    private double taxDefaultRate;
 
     private static final DateTimeFormatter ORDER_NUMBER_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-    /**
-     * Creates an order from the user's cart.
-     */
+    private BigDecimal computeTax(BigDecimal subtotal) {
+        if (subtotal == null || subtotal.compareTo(BigDecimal.ZERO) <= 0 || taxDefaultRate <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return subtotal.multiply(BigDecimal.valueOf(taxDefaultRate)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal computePlatformFee(BigDecimal totalAmount, int totalTicketQuantity) {
+        if (platformFeeProvider.isEmpty()) return BigDecimal.ZERO;
+        PlatformFeeProvider provider = platformFeeProvider.get();
+        BigDecimal fee = BigDecimal.ZERO;
+        if (totalAmount != null && totalAmount.compareTo(BigDecimal.ZERO) > 0) {
+            double pct = provider.getFeePercent();
+            if (pct > 0) {
+                fee = fee.add(totalAmount.multiply(BigDecimal.valueOf(pct)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
+            }
+        }
+        if (totalTicketQuantity > 0) {
+            java.math.BigDecimal perTicket = provider.getFeePerTicket();
+            if (perTicket != null && perTicket.compareTo(BigDecimal.ZERO) > 0) {
+                fee = fee.add(perTicket.multiply(BigDecimal.valueOf(totalTicketQuantity)).setScale(2, RoundingMode.HALF_UP));
+            }
+        }
+        return fee;
+    }
+
     @Override
     public OrderEntity createOrderFromCart(UUID userId) {
+        return createOrderFromCart(userId, null, null, null);
+    }
+
+    /**
+     * Creates an order from the user's cart. When overrideTaxAmount is provided, uses it and stores buyer state/country for jurisdiction-based tax.
+     */
+    @Override
+    public OrderEntity createOrderFromCart(UUID userId, BigDecimal overrideTaxAmount, String buyerState, String buyerCountry) {
         log.debug("Creating order from cart: userId={}", userId);
 
         // Validate and fetch user
@@ -82,7 +121,7 @@ public class OrderServiceImpl implements OrderService {
             throw new ValidationException("Cannot create order from empty cart");
         }
 
-        // Calculate total amount
+        // Calculate total amount (subtotal)
         BigDecimal totalAmount = cartService.calculateCartTotal(userId);
         if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ValidationException("Order total must be greater than 0");
@@ -91,16 +130,7 @@ public class OrderServiceImpl implements OrderService {
         // Generate unique order number
         String orderNumber = generateOrderNumber();
 
-        // Create order entity (no items yet - order must be saved first to get ID)
-        OrderEntity order = new OrderEntity();
-        order.setOrderNumber(orderNumber);
-        order.setTotalAmount(totalAmount);
-        order.setStatus(OrderStatus.PENDING);
-        order.setOrderDate(LocalDateTime.now());
-        order.setUserId(user.getId()); // Use UUID instead of relationship
-        order.setOrderItems(new ArrayList<>());
-
-        // Build order items list (do not add to order yet - orderId is required and we don't have it until order is saved)
+        // Build order items list first (so we can compute totalTickets for platform fee)
         List<OrderItemEntity> orderItems = new ArrayList<>();
         for (CartEntity cartItem : cartItems) {
             TicketEntity ticket = cartItem.getTicket();
@@ -121,6 +151,23 @@ public class OrderServiceImpl implements OrderService {
         if (orderItems.isEmpty()) {
             throw new ValidationException("Cannot create order with no valid items");
         }
+
+        int totalTickets = orderItems.stream().mapToInt(OrderItemEntity::getQuantity).sum();
+
+        BigDecimal taxAmount = overrideTaxAmount != null ? overrideTaxAmount : computeTax(totalAmount);
+        BigDecimal orderTotal = totalAmount.add(taxAmount);
+        // Create order entity (no items yet - order must be saved first to get ID)
+        OrderEntity order = new OrderEntity();
+        order.setOrderNumber(orderNumber);
+        order.setTotalAmount(orderTotal);
+        order.setTaxAmount(taxAmount);
+        if (buyerState != null && !buyerState.isBlank()) order.setBuyerState(buyerState.trim().toUpperCase());
+        if (buyerCountry != null && !buyerCountry.isBlank()) order.setBuyerCountry(buyerCountry.trim().toUpperCase());
+        order.setPlatformFee(computePlatformFee(orderTotal, totalTickets));
+        order.setStatus(OrderStatus.PENDING);
+        order.setOrderDate(LocalDateTime.now());
+        order.setUserId(user.getId()); // Use UUID instead of relationship
+        order.setOrderItems(new ArrayList<>());
 
         // Save order first so it gets an ID (required for order_items.order_id)
         OrderEntity savedOrder = orderRepository.saveAndFlush(order);
@@ -162,6 +209,13 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderEntity createOrderForGuest(String guestEmail, String guestFirstName, String guestLastName,
                                            List<GuestOrderItem> items, BigDecimal totalAmount, BigDecimal donationAmount) {
+        return createOrderForGuest(guestEmail, guestFirstName, guestLastName, items, totalAmount, donationAmount, null, null, null);
+    }
+
+    @Override
+    public OrderEntity createOrderForGuest(String guestEmail, String guestFirstName, String guestLastName,
+                                           List<GuestOrderItem> items, BigDecimal totalAmount, BigDecimal donationAmount,
+                                           BigDecimal taxAmount, String buyerState, String buyerCountry) {
         log.debug("Creating guest order: email={}, itemCount={}", guestEmail, items != null ? items.size() : 0);
         if (guestEmail == null || guestEmail.isBlank()) {
             throw new ValidationException("Guest email is required");
@@ -226,13 +280,19 @@ public class OrderServiceImpl implements OrderService {
         if (totalAmount == null || totalAmount.compareTo(calculatedTotal) < 0) {
             throw new ValidationException("Order total does not match calculated amount");
         }
-        BigDecimal orderTotal = totalAmount;
+        BigDecimal tax = taxAmount != null ? taxAmount : computeTax(totalAmount);
+        BigDecimal orderTotal = taxAmount != null ? totalAmount : totalAmount.add(tax); // When tax from request, totalAmount is already final
         String orderNumber = generateOrderNumber();
+        int totalTickets = orderItems.stream().mapToInt(OrderItemEntity::getQuantity).sum();
         BigDecimal donation = donationAmount != null && donationAmount.compareTo(BigDecimal.ZERO) >= 0 ? donationAmount : BigDecimal.ZERO;
         OrderEntity order = new OrderEntity();
         order.setOrderNumber(orderNumber);
         order.setTotalAmount(orderTotal);
+        order.setTaxAmount(tax);
+        if (buyerState != null && !buyerState.isBlank()) order.setBuyerState(buyerState.trim().toUpperCase());
+        if (buyerCountry != null && !buyerCountry.isBlank()) order.setBuyerCountry(buyerCountry.trim().toUpperCase());
         order.setDonationAmount(donation);
+        order.setPlatformFee(computePlatformFee(orderTotal, totalTickets));
         order.setStatus(OrderStatus.PENDING);
         order.setOrderDate(LocalDateTime.now());
         order.setUserId(null);
@@ -333,8 +393,16 @@ public class OrderServiceImpl implements OrderService {
     public OrderEntity createOrderForGuestWithReservedTickets(String guestEmail, String guestFirstName, String guestLastName,
                                                               List<GuestOrderItem> items, BigDecimal totalAmount,
                                                               List<UUID> reservedTicketIds, BigDecimal donationAmount) {
+        return createOrderForGuestWithReservedTickets(guestEmail, guestFirstName, guestLastName, items, totalAmount, reservedTicketIds, donationAmount, null, null, null);
+    }
+
+    @Override
+    public OrderEntity createOrderForGuestWithReservedTickets(String guestEmail, String guestFirstName, String guestLastName,
+                                                              List<GuestOrderItem> items, BigDecimal totalAmount,
+                                                              List<UUID> reservedTicketIds, BigDecimal donationAmount,
+                                                              BigDecimal taxAmount, String buyerState, String buyerCountry) {
         if (reservedTicketIds == null || reservedTicketIds.isEmpty()) {
-            return createOrderForGuest(guestEmail, guestFirstName, guestLastName, items, totalAmount, donationAmount);
+            return createOrderForGuest(guestEmail, guestFirstName, guestLastName, items, totalAmount, donationAmount, taxAmount, buyerState, buyerCountry);
         }
         int expectedCount = items.stream().mapToInt(GuestOrderItem::quantity).sum();
         if (reservedTicketIds.size() != expectedCount) {
@@ -370,13 +438,19 @@ public class OrderServiceImpl implements OrderService {
         if (totalAmount == null || totalAmount.compareTo(calculatedTotal) < 0) {
             throw new ValidationException("Order total does not match calculated amount");
         }
+        BigDecimal tax = taxAmount != null ? taxAmount : computeTax(totalAmount);
+        BigDecimal orderTotal = taxAmount != null ? totalAmount : totalAmount.add(tax);
         BigDecimal donation = donationAmount != null && donationAmount.compareTo(BigDecimal.ZERO) >= 0 ? donationAmount : BigDecimal.ZERO;
-        BigDecimal orderTotal = totalAmount;
         String orderNumber = generateOrderNumber();
+        int totalTickets = orderItems.stream().mapToInt(OrderItemEntity::getQuantity).sum();
         OrderEntity order = new OrderEntity();
         order.setOrderNumber(orderNumber);
         order.setTotalAmount(orderTotal);
+        order.setTaxAmount(tax);
+        if (buyerState != null && !buyerState.isBlank()) order.setBuyerState(buyerState.trim().toUpperCase());
+        if (buyerCountry != null && !buyerCountry.isBlank()) order.setBuyerCountry(buyerCountry.trim().toUpperCase());
         order.setDonationAmount(donation);
+        order.setPlatformFee(computePlatformFee(orderTotal, totalTickets));
         order.setStatus(OrderStatus.PENDING);
         order.setOrderDate(LocalDateTime.now());
         order.setUserId(null);
