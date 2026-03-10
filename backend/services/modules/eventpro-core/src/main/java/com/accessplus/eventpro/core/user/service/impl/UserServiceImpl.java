@@ -92,7 +92,7 @@ public class UserServiceImpl implements UserService {
                     return new ResourceNotFoundException("User", userId.toString());
                 });
 
-        return updateUserFields(user, firstName, lastName, phoneNumber, null, null, null, null);
+        return updateUserFields(user, firstName, lastName, phoneNumber, null, null, null, null, null, null, null);
     }
 
     @Override
@@ -104,10 +104,17 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserEntity updateUserProfile(UUID userId, String firstName, String lastName, String phoneNumber,
                                         String bio, String location, String profilePictureUrl, String culturalNiche) {
-        log.debug("Updating user profile with extended fields: userId={}", userId);
+        return updateUserProfile(userId, firstName, lastName, phoneNumber, bio, location, profilePictureUrl, culturalNiche, null, null, null);
+    }
 
+    @Override
+    public UserEntity updateUserProfile(UUID userId, String firstName, String lastName, String phoneNumber,
+                                        String bio, String location, String profilePictureUrl, String culturalNiche,
+                                        String brandingLogoUrl, String brandingPrimaryColor, Boolean brandingHidePlatform) {
+        log.debug("Updating user profile with extended fields: userId={}", userId);
         UserEntity user = getUserById(userId);
-        return updateUserFields(user, firstName, lastName, phoneNumber, bio, location, profilePictureUrl, culturalNiche);
+        return updateUserFields(user, firstName, lastName, phoneNumber, bio, location, profilePictureUrl, culturalNiche,
+                brandingLogoUrl, brandingPrimaryColor, brandingHidePlatform);
     }
 
     /**
@@ -124,7 +131,8 @@ public class UserServiceImpl implements UserService {
      * @return Updated UserEntity
      */
     private UserEntity updateUserFields(UserEntity user, String firstName, String lastName, String phoneNumber,
-                                       String bio, String location, String profilePictureUrl, String culturalNiche) {
+                                       String bio, String location, String profilePictureUrl, String culturalNiche,
+                                       String brandingLogoUrl, String brandingPrimaryColor, Boolean brandingHidePlatform) {
         boolean updated = false;
 
         if (firstName != null && !firstName.equals(user.getFirstName())) {
@@ -168,6 +176,18 @@ public class UserServiceImpl implements UserService {
             updated = true;
             log.debug("Updated culturalNiche for user: {}", user.getId());
         }
+        if (brandingLogoUrl != null && !brandingLogoUrl.equals(user.getBrandingLogoUrl())) {
+            user.setBrandingLogoUrl(brandingLogoUrl.isEmpty() ? null : brandingLogoUrl);
+            updated = true;
+        }
+        if (brandingPrimaryColor != null && !brandingPrimaryColor.equals(user.getBrandingPrimaryColor())) {
+            user.setBrandingPrimaryColor(brandingPrimaryColor.isEmpty() ? null : brandingPrimaryColor);
+            updated = true;
+        }
+        if (brandingHidePlatform != null && !brandingHidePlatform.equals(user.getBrandingHidePlatform())) {
+            user.setBrandingHidePlatform(brandingHidePlatform);
+            updated = true;
+        }
 
         if (updated) {
             UserEntity savedUser = userRepository.save(user);
@@ -205,5 +225,29 @@ public class UserServiceImpl implements UserService {
         log.info("Updated user role: id={}, role={}", savedUser.getId(), savedUser.getRole());
 
         return savedUser;
+    }
+
+    @Override
+    public UserEntity updateSubscriptionTier(UUID userId, String tier) {
+        log.debug("Updating subscription tier: userId={}, tier={}", userId, tier);
+        if (tier == null || tier.isBlank()) {
+            throw new IllegalArgumentException("Tier is required");
+        }
+        String normalizedTier = tier.trim().toUpperCase();
+        if (!"PRO".equals(normalizedTier) && !"ENTERPRISE".equals(normalizedTier)) {
+            throw new IllegalArgumentException("Tier must be PRO or ENTERPRISE");
+        }
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+        String current = user.getSubscriptionTier() != null ? user.getSubscriptionTier().toUpperCase() : "BASIC";
+        int currentOrder = "ENTERPRISE".equals(current) ? 2 : "PRO".equals(current) ? 1 : 0;
+        int requestedOrder = "ENTERPRISE".equals(normalizedTier) ? 2 : 1;
+        if (requestedOrder <= currentOrder) {
+            throw new IllegalArgumentException("Cannot downgrade or set same tier. Current: " + current + ", requested: " + normalizedTier);
+        }
+        user.setSubscriptionTier(normalizedTier);
+        UserEntity saved = userRepository.save(user);
+        log.info("Updated subscription tier: id={}, tier={}", saved.getId(), saved.getSubscriptionTier());
+        return saved;
     }
 }

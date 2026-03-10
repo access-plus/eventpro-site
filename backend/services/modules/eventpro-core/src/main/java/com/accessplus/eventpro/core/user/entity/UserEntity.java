@@ -71,6 +71,18 @@ public class UserEntity extends BaseEntity {
     @Column(name = "w9_submitted", nullable = false)
     private Boolean w9Submitted = false;
 
+    /** White-label: custom logo URL for event pages and emails (Pro/Enterprise). */
+    @Column(name = "branding_logo_url", length = 500)
+    private String brandingLogoUrl;
+
+    /** White-label: primary brand color hex e.g. #1a1a2e (Pro/Enterprise). */
+    @Column(name = "branding_primary_color", length = 20)
+    private String brandingPrimaryColor;
+
+    /** White-label: when true, hide platform name on event pages (Pro/Enterprise). */
+    @Column(name = "branding_hide_platform", nullable = false)
+    private Boolean brandingHidePlatform = false;
+
     // Relationships will be added in future phases when related entities are created
     // For now, we'll use lazy initialization to avoid circular dependencies
     

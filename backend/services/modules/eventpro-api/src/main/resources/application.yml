@@ -56,6 +56,7 @@ eventpro:
   # Send order confirmation email after successful payment (set false if SES not configured locally)
   notifications:
     order-confirmation-enabled: ${EVENTPRO_ORDER_CONFIRMATION_EMAIL_ENABLED:true}
+    organizer-email-attendees-enabled: ${EVENTPRO_ORGANIZER_EMAIL_ATTENDEES_ENABLED:true}
   # In-memory per-IP rate limit for public/sensitive endpoints (login, signup, guest-reserve, create-intent)
   rate-limit:
     enabled: ${EVENTPRO_RATE_LIMIT_ENABLED:true}

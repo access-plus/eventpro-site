@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -97,6 +98,15 @@ public interface EventService {
      * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if organizer not found
      */
     Page<EventEntity> getEventsByOrganizer(UUID organizerId, Pageable pageable);
+
+    /**
+     * Retrieves events by multiple organizers (e.g. for team members).
+     *
+     * @param organizerIds set of organizer user IDs
+     * @param pageable pagination and sorting parameters
+     * @return Page of EventEntity for any of the given organizers
+     */
+    Page<EventEntity> getEventsByOrganizerIds(Set<UUID> organizerIds, Pageable pageable);
 
     /**
      * Retrieves events with marketing enabled.

@@ -19,6 +19,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -186,6 +187,24 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
     }
     
+    /**
+     * Handle 404 when no controller matches the request (Spring Boot 3.2+).
+     * If you see this for /api/v1/organizer/team, rebuild the backend and ensure migrations V20/V21 have run.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(
+            NoResourceFoundException ex, WebRequest request) {
+        logger.warn("No resource found: {} {}", ex.getHttpMethod(), ex.getResourcePath());
+        String path = extractPath(request);
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .message("Not found: no endpoint for " + ex.getResourcePath())
+                .path(path)
+                .timestamp(Instant.now())
+                .detail(ex.getMessage())
+                .build();
+        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex, WebRequest request) {

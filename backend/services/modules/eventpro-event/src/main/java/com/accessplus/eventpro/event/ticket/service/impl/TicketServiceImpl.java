@@ -430,5 +430,53 @@ public class TicketServiceImpl implements TicketService {
         }
         return expired.size();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TicketEntity> getSeatsForEvent(UUID eventId) {
+        return ticketRepository.findByEventIdWithSeats(eventId);
+    }
+
+    @Override
+    @Transactional
+    public int createSeatMap(UUID eventId, UUID creatorId, List<TicketService.SeatSectionSpec> sections) {
+        EventEntity event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        UserEntity creator = userRepository.findById(creatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", creatorId.toString()));
+        if (!Boolean.TRUE.equals(event.getReservedSeatingEnabled())) {
+            throw new ValidationException("Event must have reserved seating enabled before creating a seat map");
+        }
+        List<TicketEntity> tickets = new ArrayList<>();
+        for (TicketService.SeatSectionSpec spec : sections) {
+            if (spec.rowCount() <= 0 || spec.seatsPerRow() <= 0 || spec.price() == null || spec.price().compareTo(BigDecimal.ZERO) < 0) {
+                throw new ValidationException("Section must have rowCount, seatsPerRow and price > 0");
+            }
+            for (int r = 0; r < spec.rowCount(); r++) {
+                String rowLabel = rowIndexToLabel(r);
+                for (int num = 1; num <= spec.seatsPerRow(); num++) {
+                    TicketEntity t = new TicketEntity();
+                    t.setName(String.format("%s - %s %s-%d", event.getName(), spec.name(), rowLabel, num));
+                    t.setPrice(spec.price());
+                    t.setTicketType(TicketType.REGULAR);
+                    t.setTicketStatus(TicketStatus.AVAILABLE);
+                    t.setEventId(eventId);
+                    t.setCreatorId(creatorId);
+                    t.setSeatSection(spec.name());
+                    t.setSeatRow(rowLabel);
+                    t.setSeatNumber(num);
+                    tickets.add(t);
+                }
+            }
+        }
+        ticketRepository.saveAll(tickets);
+        log.info("Created seat map for event {}: {} seats", eventId, tickets.size());
+        return tickets.size();
+    }
+
+    private static String rowIndexToLabel(int index) {
+        if (index < 26) return String.valueOf((char) ('A' + index));
+        return String.valueOf((char) ('A' + (index / 26) - 1)) + (char) ('A' + (index % 26));
+    }
 }
 

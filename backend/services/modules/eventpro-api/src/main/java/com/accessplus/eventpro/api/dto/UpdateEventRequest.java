@@ -20,7 +20,12 @@ public class UpdateEventRequest {
     private String name;
     private String description;
     private String imageUrl;
+    private String promotionalVideoUrl;
+    private String eventPageTemplate;
     private Boolean marketingEnabled;
+    private Boolean donationsEnabled;
+    private String customDomain;
+    private Boolean reservedSeatingEnabled;
     private EventStatus status;
     private LocalDateTime startTime;
     private LocalDateTime endTime;

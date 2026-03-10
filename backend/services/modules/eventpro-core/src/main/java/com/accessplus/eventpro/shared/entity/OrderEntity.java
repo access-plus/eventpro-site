@@ -47,6 +47,10 @@ public class OrderEntity extends BaseEntity {
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount;
 
+    /** Optional donation amount included in total (Pro/Enterprise events with donations enabled). */
+    @Column(name = "donation_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal donationAmount = BigDecimal.ZERO;
+
     @NotNull(message = "Order status is required")
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)

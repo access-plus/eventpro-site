@@ -25,7 +25,18 @@ public interface UserService {
     UserEntity updateUserProfile(UUID userId, String firstName, String lastName, String phoneNumber,
                                  String bio, String location, String profilePictureUrl, String culturalNiche);
 
+    /** Same as above plus white-label branding fields (Pro/Enterprise). */
+    UserEntity updateUserProfile(UUID userId, String firstName, String lastName, String phoneNumber,
+                                 String bio, String location, String profilePictureUrl, String culturalNiche,
+                                 String brandingLogoUrl, String brandingPrimaryColor, Boolean brandingHidePlatform);
+
     UserEntity updateUserStatus(UUID userId, String status);
 
     UserEntity updateUserRole(UUID userId, String role);
+
+    /**
+     * Updates the user's subscription tier (e.g. for upgrade flow).
+     * Valid tiers: PRO, ENTERPRISE. Only allows upgrading (BASIC -> PRO -> ENTERPRISE).
+     */
+    UserEntity updateSubscriptionTier(UUID userId, String tier);
 }

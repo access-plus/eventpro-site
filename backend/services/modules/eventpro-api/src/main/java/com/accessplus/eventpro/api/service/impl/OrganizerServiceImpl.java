@@ -6,8 +6,10 @@ import com.accessplus.eventpro.api.dto.EventPulseResponse;
 import com.accessplus.eventpro.api.dto.EventStatsResponse;
 import com.accessplus.eventpro.api.dto.OrganizerInsightsResponse;
 import com.accessplus.eventpro.api.dto.OrganizerSummaryResponse;
+import com.accessplus.eventpro.api.dto.PayoutEligibilityDto;
 import com.accessplus.eventpro.api.dto.RecentSaleResponse;
 import com.accessplus.eventpro.api.service.OrganizerService;
+import com.accessplus.eventpro.core.notification.service.NotificationService;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.UserRepository;
 import com.accessplus.eventpro.event.event.entity.EventEntity;
@@ -52,6 +54,7 @@ public class OrganizerServiceImpl implements OrganizerService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Override
     public OrganizerSummaryResponse getOrganizerSummary(UUID organizerId) {
@@ -80,7 +83,9 @@ public class OrganizerServiceImpl implements OrganizerService {
         }
         UserEntity user = userRepository.findById(organizerId).orElse(null);
         String riskLevel = user != null && user.getRiskLevel() != null ? user.getRiskLevel() : "LOW";
+        String tier = user != null && user.getSubscriptionTier() != null ? user.getSubscriptionTier().toUpperCase() : "BASIC";
         boolean w9Submitted = user != null && Boolean.TRUE.equals(user.getW9Submitted());
+        PayoutEligibilityDto payoutEligibility = computePayoutEligibility(tier, riskLevel);
         return OrganizerSummaryResponse.builder()
                 .eventsHosted(eventsHosted)
                 .ticketsSold(ticketsSold)
@@ -91,6 +96,35 @@ public class OrganizerServiceImpl implements OrganizerService {
                 .riskFlagged(false)
                 .riskLevel(riskLevel)
                 .w9Submitted(w9Submitted)
+                .payoutEligibility(payoutEligibility)
+                .build();
+    }
+
+    /**
+     * Tiered payout eligibility: Basic = T+2 only; Pro = 50% early if LOW/MEDIUM risk;
+     * Enterprise = 100% instant if LOW risk, else 50% early if MEDIUM.
+     */
+    private PayoutEligibilityDto computePayoutEligibility(String tier, String riskLevel) {
+        boolean standardT2 = true;
+        boolean early50 = false;
+        boolean instant100 = false;
+        String label = "Standard (T+2)";
+        if ("ENTERPRISE".equals(tier) && "LOW".equalsIgnoreCase(riskLevel)) {
+            early50 = true;
+            instant100 = true;
+            label = "Instant payout available";
+        } else if ("ENTERPRISE".equals(tier) && "MEDIUM".equalsIgnoreCase(riskLevel)) {
+            early50 = true;
+            label = "50% early available";
+        } else if ("PRO".equals(tier) && ("LOW".equalsIgnoreCase(riskLevel) || "MEDIUM".equalsIgnoreCase(riskLevel))) {
+            early50 = true;
+            label = "50% early available";
+        }
+        return PayoutEligibilityDto.builder()
+                .standardT2(standardT2)
+                .early50Percent(early50)
+                .instant100(instant100)
+                .label(label)
                 .build();
     }
 
@@ -206,6 +240,30 @@ public class OrganizerServiceImpl implements OrganizerService {
         }
         
         return attendees;
+    }
+
+    @Override
+    public int emailEventAttendees(UUID eventId, UUID organizerId, String subject, String body) {
+        List<AttendeeResponse> attendees = getEventAttendees(eventId, organizerId);
+        Set<String> emails = attendees.stream()
+                .map(AttendeeResponse::getEmail)
+                .filter(e -> e != null && !e.trim().isEmpty())
+                .map(String::trim)
+                .collect(Collectors.toSet());
+        if (emails.isEmpty()) {
+            log.info("No attendee emails to send to for event: {}", eventId);
+            return 0;
+        }
+        String bodyHtml = body == null ? "" : "<html><body><p>" + body.replace("\n", "<br>") + "</p></body></html>";
+        String bodyText = body != null ? body : "";
+        String subj = subject != null && !subject.trim().isEmpty() ? subject.trim() : "Update from your event organizer";
+        int sent = 0;
+        for (String email : emails) {
+            notificationService.sendOrganizerBroadcastEmail(email, subj, bodyText, bodyHtml);
+            sent++;
+        }
+        log.info("Organizer broadcast sent to {} recipients for event: {}", sent, eventId);
+        return sent;
     }
 
     @Override

@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -132,6 +133,21 @@ public class EventServiceImpl implements EventService {
         }
         if (eventUpdate.getImageUrl() != null) {
             existingEvent.setImageUrl(eventUpdate.getImageUrl());
+        }
+        if (eventUpdate.getPromotionalVideoUrl() != null) {
+            existingEvent.setPromotionalVideoUrl(eventUpdate.getPromotionalVideoUrl().trim().isEmpty() ? null : eventUpdate.getPromotionalVideoUrl().trim());
+        }
+        if (eventUpdate.getEventPageTemplate() != null && !eventUpdate.getEventPageTemplate().trim().isEmpty()) {
+            existingEvent.setEventPageTemplate(eventUpdate.getEventPageTemplate().trim());
+        }
+        if (eventUpdate.getDonationsEnabled() != null) {
+            existingEvent.setDonationsEnabled(eventUpdate.getDonationsEnabled());
+        }
+        if (eventUpdate.getCustomDomain() != null) {
+            existingEvent.setCustomDomain(eventUpdate.getCustomDomain().trim().isEmpty() ? null : eventUpdate.getCustomDomain().trim());
+        }
+        if (eventUpdate.getReservedSeatingEnabled() != null) {
+            existingEvent.setReservedSeatingEnabled(eventUpdate.getReservedSeatingEnabled());
         }
 
         // Update category if provided
@@ -286,6 +302,16 @@ public class EventServiceImpl implements EventService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", organizerId.toString()));
         
         return eventRepository.findByOrganizerId(organizerId, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<EventEntity> getEventsByOrganizerIds(Set<UUID> organizerIds, Pageable pageable) {
+        if (organizerIds == null || organizerIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        log.debug("Retrieving events by organizer ids: count={}", organizerIds.size());
+        return eventRepository.findByOrganizerIdIn(organizerIds, pageable);
     }
 
     /**

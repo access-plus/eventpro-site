@@ -36,6 +36,12 @@ public class UserResponse {
     private String riskLevel;
     /** Organizer cultural niche / focus; feeds search taxonomy. */
     private String culturalNiche;
+    /** White-label: custom logo URL (Pro/Enterprise). */
+    private String brandingLogoUrl;
+    /** White-label: primary color hex (Pro/Enterprise). */
+    private String brandingPrimaryColor;
+    /** White-label: hide platform branding on event pages (Pro/Enterprise). */
+    private Boolean brandingHidePlatform;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
@@ -78,6 +84,9 @@ public class UserResponse {
                 .verificationStatus(entity.getVerificationStatus() != null ? entity.getVerificationStatus() : "NOT_STARTED")
                 .riskLevel(entity.getRiskLevel() != null ? entity.getRiskLevel() : "LOW")
                 .culturalNiche(entity.getCulturalNiche())
+                .brandingLogoUrl(entity.getBrandingLogoUrl())
+                .brandingPrimaryColor(entity.getBrandingPrimaryColor())
+                .brandingHidePlatform(entity.getBrandingHidePlatform() != null ? entity.getBrandingHidePlatform() : false)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .accountNonExpired(true)

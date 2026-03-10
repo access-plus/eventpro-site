@@ -2,6 +2,7 @@ package com.accessplus.eventpro.api.service.impl;
 
 import com.accessplus.eventpro.api.dto.SubmitVerificationRequest;
 import com.accessplus.eventpro.api.dto.VerificationStatusResponse;
+import com.accessplus.eventpro.api.service.RiskScoringService;
 import com.accessplus.eventpro.api.service.VerificationService;
 import com.accessplus.eventpro.core.user.entity.OrganizerKycSubmissionEntity;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
@@ -26,6 +27,7 @@ public class VerificationServiceImpl implements VerificationService {
 
     private final UserRepository userRepository;
     private final OrganizerKycSubmissionRepository kycSubmissionRepository;
+    private final RiskScoringService riskScoringService;
 
     @Override
     @Transactional(readOnly = true)
@@ -92,6 +94,7 @@ public class VerificationServiceImpl implements VerificationService {
 
         user.setVerificationStatus("PENDING");
         userRepository.save(user);
+        riskScoringService.computeAndUpdateRiskScore(organizerId);
         log.info("KYC submitted for organizer: {}", organizerId);
     }
 }

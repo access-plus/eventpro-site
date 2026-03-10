@@ -158,6 +158,34 @@ public class EmailServiceImpl implements EmailService {
         }
     }
 
+    @Override
+    public void sendCustomEmail(String toEmail, String subject, String bodyText, String bodyHtml) throws Exception {
+        if (toEmail == null || toEmail.isBlank()) {
+            throw new IllegalArgumentException("Recipient email is required");
+        }
+        String text = bodyText != null ? bodyText : "";
+        String html = bodyHtml != null && !bodyHtml.isBlank() ? bodyHtml : "<html><body><pre>" + escapeHtml(text) + "</pre></body></html>";
+        String subj = subject != null && !subject.isBlank() ? subject : "Message from EventPro";
+        try {
+            SendEmailRequest request = SendEmailRequest.builder()
+                    .source(fromEmail)
+                    .destination(Destination.builder().toAddresses(toEmail).build())
+                    .message(Message.builder()
+                            .subject(Content.builder().data(subj).charset("UTF-8").build())
+                            .body(Body.builder()
+                                    .text(Content.builder().data(text).charset("UTF-8").build())
+                                    .html(Content.builder().data(html).charset("UTF-8").build())
+                                    .build())
+                            .build())
+                    .build();
+            getSesClient().sendEmail(request);
+            log.info("Custom email sent: to={}, subject={}", toEmail, subj);
+        } catch (SesException e) {
+            log.error("Failed to send custom email: {}", e.getMessage(), e);
+            throw new Exception("Failed to send email: " + e.getMessage(), e);
+        }
+    }
+
     private static String escapeHtml(String s) {
         if (s == null) return "";
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");

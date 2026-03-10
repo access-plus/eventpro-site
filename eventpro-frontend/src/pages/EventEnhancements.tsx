@@ -32,9 +32,15 @@ const CATEGORIES = [
   { value: "upgrade", label: "Upgrade" },
 ];
 
+function canUseAddons(tier: string | undefined): boolean {
+  const t = (tier ?? "BASIC").toUpperCase();
+  return t === "PRO" || t === "ENTERPRISE";
+}
+
 const EventEnhancements = () => {
   const navigate = useNavigate();
   const { id: eventId } = useParams<{ id: string }>();
+  const { user } = useAuth();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [addons, setAddons] = useState<EventAddon[]>([]);

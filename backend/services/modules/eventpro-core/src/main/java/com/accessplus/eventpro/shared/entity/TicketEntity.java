@@ -93,5 +93,17 @@ public class TicketEntity extends BaseEntity {
      */
     @Column(name = "reserved_until")
     private java.time.LocalDateTime reservedUntil;
+
+    /** Reserved seating: section name (e.g. Orchestra). Null for general admission. */
+    @Column(name = "seat_section", length = 100)
+    private String seatSection;
+
+    /** Reserved seating: row label (e.g. A, B). Null for general admission. */
+    @Column(name = "seat_row", length = 20)
+    private String seatRow;
+
+    /** Reserved seating: seat number in row. Null for general admission. */
+    @Column(name = "seat_number")
+    private Integer seatNumber;
 }
 

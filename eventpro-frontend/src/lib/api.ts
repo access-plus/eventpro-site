@@ -1,11 +1,13 @@
 import axios, { AxiosInstance } from "axios";
 import type {
   ApiResponse,
+  ApiKey,
   User,
   Event,
   EventAddon,
   Order,
   TicketType,
+  Attendee,
   UpdateUserRequest,
   CartResponse,
   AddToCartRequest,
@@ -14,6 +16,7 @@ import type {
   LoginRequest,
   AuthResponse,
   GuestConfirmPaymentRequest,
+  CreateApiKeyResponse,
   OrganizerSummary,
   VerificationStatusResponse,
   SubmitVerificationRequest,
@@ -21,6 +24,9 @@ import type {
   SubmitW9Request as SubmitW9RequestType,
   RecentSale,
   OrganizerInsights,
+  TeamMember,
+  SeatResponse,
+  CreateSeatMapRequest,
 } from "@/types/api";
 
 class ApiService {
@@ -67,6 +73,29 @@ class ApiService {
   async getCurrentUser(): Promise<User> {
     const response = await this.api.get<ApiResponse<User>>("/api/v1/users/me");
     return response.data.data;
+  }
+
+  /** Upgrade subscription tier (Basic → Pro or Enterprise). Returns updated user. */
+  async upgradeSubscription(tier: "PRO" | "ENTERPRISE"): Promise<User> {
+    const response = await this.api.put<ApiResponse<User>>("/api/v1/users/me/subscription-tier", { tier });
+    return response.data.data;
+  }
+
+  /** Create API key (Enterprise only). Returns key once – store it securely. */
+  async createApiKey(name: string): Promise<CreateApiKeyResponse> {
+    const response = await this.api.post<ApiResponse<CreateApiKeyResponse>>("/api/v1/users/me/api-keys", { name });
+    return response.data.data;
+  }
+
+  /** List API keys (Enterprise only). Key values are not returned. */
+  async listApiKeys(): Promise<ApiKey[]> {
+    const response = await this.api.get<ApiResponse<ApiKey[]>>("/api/v1/users/me/api-keys");
+    return response.data.data ?? [];
+  }
+
+  /** Revoke an API key (Enterprise only). */
+  async revokeApiKey(id: string): Promise<void> {
+    await this.api.delete(`/api/v1/users/me/api-keys/${id}`);
   }
 
   async updateUser(data: UpdateUserRequest): Promise<User> {
@@ -123,6 +152,21 @@ class ApiService {
   async getTicketTypes(eventId: string): Promise<TicketType[]> {
     const response = await this.api.get<ApiResponse<TicketType[]>>(`/api/v1/events/${eventId}/ticket-types`);
     return response.data.data;
+  }
+
+  /** Reserved seating: get seat map for an event (when reservedSeatingEnabled). */
+  async getEventSeats(eventId: string): Promise<SeatResponse[]> {
+    const response = await this.api.get<ApiResponse<SeatResponse[]>>(`/api/v1/events/${eventId}/seats`);
+    return response.data.data ?? [];
+  }
+
+  /** Create seat map for an event (Pro/Enterprise, organizer). Requires reservedSeatingEnabled on event. */
+  async createEventSeatMap(eventId: string, body: CreateSeatMapRequest): Promise<{ seatsCreated: number }> {
+    const response = await this.api.post<ApiResponse<{ seatsCreated: number }>>(
+      `/api/v1/organizer/events/${eventId}/seat-map`,
+      body
+    );
+    return response.data.data ?? { seatsCreated: 0 };
   }
 
   // Event add-ons (enhancements) - public for checkout
@@ -257,6 +301,7 @@ class ApiService {
     const d = response.data.data;
     const toNum = (v: unknown) =>
       typeof v === "number" && !Number.isNaN(v) ? v : typeof v === "string" ? parseFloat(v) || 0 : 0;
+    const pe = d.payoutEligibility;
     return {
       eventsHosted: d.eventsHosted ?? 0,
       ticketsSold: d.ticketsSold ?? 0,
@@ -267,6 +312,14 @@ class ApiService {
       riskFlagged: Boolean(d.riskFlagged),
       riskLevel: d.riskLevel ?? "LOW",
       w9Submitted: Boolean(d.w9Submitted),
+      payoutEligibility: pe
+        ? {
+            standardT2: Boolean(pe.standardT2),
+            early50Percent: Boolean(pe.early50Percent),
+            instant100: Boolean(pe.instant100),
+            label: pe.label ?? "Standard (T+2)",
+          }
+        : undefined,
     };
   }
 
@@ -281,6 +334,12 @@ class ApiService {
 
   async getVerificationStatus(): Promise<VerificationStatusResponse> {
     const response = await this.api.get<ApiResponse<VerificationStatusResponse>>("/api/v1/organizer/verification-status");
+    return response.data.data;
+  }
+
+  /** Recalculate organizer risk level (LOW/MEDIUM/HIGH). Returns updated riskLevel. */
+  async recalculateRiskScore(): Promise<{ riskLevel: string }> {
+    const response = await this.api.post<ApiResponse<{ riskLevel: string }>>("/api/v1/organizer/risk-score/recalculate");
     return response.data.data;
   }
 
@@ -322,6 +381,22 @@ class ApiService {
     return response.data.data;
   }
 
+  /** Get attendees for an event (organizer only). */
+  async getEventAttendees(eventId: string): Promise<Attendee[]> {
+    const response = await this.api.get<ApiResponse<Attendee[]>>(`/api/v1/organizer/events/${eventId}/attendees`);
+    return response.data.data ?? [];
+  }
+
+  /** Email all attendees of an event (Pro/Enterprise only). Returns { recipientsSent }. */
+  async emailEventAttendees(eventId: string, payload: { subject: string; body: string }): Promise<{ recipientsSent: number }> {
+    const response = await this.api.post<ApiResponse<{ recipientsSent: number }>>(
+      `/api/v1/organizer/events/${eventId}/email-attendees`,
+      payload
+    );
+    const data = response.data.data as { recipientsSent?: number } | undefined;
+    return { recipientsSent: data?.recipientsSent ?? 0 };
+  }
+
   /** Export data (attendees, checkin, marketing, financial). Triggers file download. */
   async exportOrganizerData(type: "attendees" | "checkin" | "marketing" | "financial", format = "csv"): Promise<void> {
     const response = await this.api.get<Blob>(`/api/v1/organizer/export?type=${type}&format=${format}`, {
@@ -345,6 +420,26 @@ class ApiService {
   async getOrganizerInsights(): Promise<OrganizerInsights> {
     const response = await this.api.get<ApiResponse<OrganizerInsights>>("/api/v1/organizer/insights");
     return response.data.data ?? { aiInsight: "", eventPulses: [], topCulturalInterests: [] };
+  }
+
+  // Team management (Pro/Enterprise)
+  async listTeamMembers(): Promise<TeamMember[]> {
+    const response = await this.api.get<ApiResponse<TeamMember[]>>("/api/v1/organizer/team");
+    return response.data.data ?? [];
+  }
+
+  async inviteTeamMember(email: string, role: "ADMIN" | "EDITOR" | "VIEWER"): Promise<TeamMember> {
+    const response = await this.api.post<ApiResponse<TeamMember>>("/api/v1/organizer/team", { email: email.trim(), role });
+    return response.data.data;
+  }
+
+  async removeTeamMember(userId: string): Promise<void> {
+    await this.api.delete(`/api/v1/organizer/team/${userId}`);
+  }
+
+  async updateTeamMemberRole(userId: string, role: "ADMIN" | "EDITOR" | "VIEWER"): Promise<TeamMember> {
+    const response = await this.api.put<ApiResponse<TeamMember>>(`/api/v1/organizer/team/${userId}/role`, { role });
+    return response.data.data;
   }
 }
 

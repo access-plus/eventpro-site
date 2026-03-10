@@ -39,6 +39,6 @@ public interface PaymentService {
      */
     OrderEntity processGuestPayment(String paymentIntentId, String guestEmail, String guestFirstName,
                                     String guestLastName, List<GuestOrderItem> items, BigDecimal totalAmount,
-                                    List<java.util.UUID> reservedTicketIds);
+                                    List<UUID> reservedTicketIds, BigDecimal donationAmount);
 }
 

@@ -72,7 +72,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public OrderEntity processGuestPayment(String paymentIntentId, String guestEmail, String guestFirstName,
                                            String guestLastName, List<GuestOrderItem> items, BigDecimal totalAmount,
-                                           List<UUID> reservedTicketIds) {
+                                           List<UUID> reservedTicketIds, BigDecimal donationAmount) {
         log.debug("Processing guest payment: paymentIntentId={}, guestEmail={}", paymentIntentId, guestEmail);
         PaymentIntent paymentIntent;
         try {
@@ -86,9 +86,9 @@ public class PaymentServiceImpl implements PaymentService {
         }
         OrderEntity order;
         if (reservedTicketIds != null && !reservedTicketIds.isEmpty()) {
-            order = orderService.createOrderForGuestWithReservedTickets(guestEmail, guestFirstName, guestLastName, items, totalAmount, reservedTicketIds);
+            order = orderService.createOrderForGuestWithReservedTickets(guestEmail, guestFirstName, guestLastName, items, totalAmount, reservedTicketIds, donationAmount);
         } else {
-            order = orderService.createOrderForGuest(guestEmail, guestFirstName, guestLastName, items, totalAmount);
+            order = orderService.createOrderForGuest(guestEmail, guestFirstName, guestLastName, items, totalAmount, donationAmount);
         }
         order = orderService.updateOrderStatus(order.getId(), OrderStatus.PAID);
         orderService.markOrderTicketsAsSold(order);

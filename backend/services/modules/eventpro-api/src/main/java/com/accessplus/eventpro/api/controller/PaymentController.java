@@ -152,7 +152,8 @@ public class PaymentController extends BaseController {
                     request.getLastName(),
                     items,
                     request.getTotalAmount(),
-                    request.getReservedTicketIds());
+                    request.getReservedTicketIds(),
+                    request.getDonationAmount());
             OrderResponse response = OrderResponse.fromEntity(order);
 
             sendOrderConfirmationNotification(order, null, request.getEmail());

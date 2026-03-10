@@ -14,6 +14,7 @@ import { apiService } from "@/lib/api";
 import { HOW_DID_YOU_HEAR_OPTIONS } from "@/types/api";
 import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone, CreditCard } from "lucide-react";
 import { CommunityImpactTile } from "@/components/CommunityImpactTile";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -45,6 +46,8 @@ const Checkout = () => {
   const [checkoutMode, setCheckoutMode] = useState<"select" | "guest" | "login">("select");
   const [selectedMerch, setSelectedMerch] = useState<SelectedMerchItem[]>([]);
   const [addonsByEvent, setAddonsByEvent] = useState<MerchandiseItem[]>([]);
+  const [donationAmount, setDonationAmount] = useState(0);
+  const [donationsEnabled, setDonationsEnabled] = useState(false);
   const [guestInfo, setGuestInfo] = useState<{
     firstName: string;
     lastName: string;
@@ -72,6 +75,7 @@ const Checkout = () => {
   useEffect(() => {
     if (eventIds.length === 0) {
       setAddonsByEvent([]);
+      setDonationsEnabled(false);
       return;
     }
     Promise.all(eventIds.map((eventId) => apiService.getEventAddons(eventId)))
@@ -80,6 +84,10 @@ const Checkout = () => {
         setAddonsByEvent(eventAddonsToMerchandise(merged));
       })
       .catch(() => setAddonsByEvent([]));
+    apiService
+      .getEvent(eventIds[0])
+      .then((event) => setDonationsEnabled(Boolean(event.donationsEnabled)))
+      .catch(() => setDonationsEnabled(false));
   }, [eventIds.join(",")]);
 
   // For signed-in users: cart tickets are already reserved; get expiry for countdown
@@ -97,7 +105,7 @@ const Checkout = () => {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const grandTotal = totalAmount + merchTotal;
+  const grandTotal = totalAmount + merchTotal + (donationAmount || 0);
 
   /** Attendee name for ticket preview: from user, guestInfo, or live preview. */
   const attendeeName =
@@ -188,6 +196,7 @@ const Checkout = () => {
         quantity: i.quantity,
       })),
       totalAmount: grandTotal,
+      donationAmount: donationAmount > 0 ? Number(donationAmount.toFixed(2)) : undefined,
       reservedTicketIds: reservedTicketIds ?? undefined,
       howDidYouHear: howDidYouHear && howDidYouHear !== "__" ? howDidYouHear : undefined,
       receiveTicketViaWhatsApp: receiveTicketViaWhatsApp || undefined,
@@ -510,6 +519,60 @@ const Checkout = () => {
                 />
               </motion.div>
             )}
+
+            {/* Optional donation (Pro/Enterprise events with donations enabled) */}
+            {donationsEnabled && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <Card className="rounded-xl border-white/10 bg-[rgba(255,255,255,0.05)]">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Add a donation</CardTitle>
+                    <CardDescription>Support the organizer (optional)</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {[5, 10, 25, 50].map((n) => (
+                        <Button
+                          key={n}
+                          type="button"
+                          variant={donationAmount === n ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setDonationAmount(n)}
+                        >
+                          ${n}
+                        </Button>
+                      ))}
+                      <Button
+                        type="button"
+                        variant={donationAmount !== 5 && donationAmount !== 10 && donationAmount !== 25 && donationAmount !== 50 ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setDonationAmount(0)}
+                      >
+                        None
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="donation-amount" className="text-sm text-muted-foreground shrink-0">
+                        Or enter amount ($):
+                      </Label>
+                      <Input
+                        id="donation-amount"
+                        type="number"
+                        min={0}
+                        step={1}
+                        className="max-w-[120px]"
+                        value={donationAmount > 0 ? donationAmount : ""}
+                        onChange={(e) => setDonationAmount(Math.max(0, parseFloat(e.target.value) || 0))}
+                        placeholder="0"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
           </div>
 
           {/* Right column: Ticket Preview + Community Impact + Order Summary */}
@@ -568,6 +631,12 @@ const Checkout = () => {
                     <div className="flex justify-between text-sm">
                       <span>Add-ons Subtotal</span>
                       <span>${merchTotal.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {donationAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span>Donation</span>
+                      <span>${donationAmount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-baseline pt-2 border-t">

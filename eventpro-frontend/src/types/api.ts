@@ -21,6 +21,12 @@ export interface User {
   status: UserStatus;
   /** Plan tier for feature gating (add-ons, early payouts, custom domain, etc.). Defaults to BASIC. */
   subscriptionTier?: SubscriptionTier;
+  /** White-label: custom logo URL (Pro/Enterprise). */
+  brandingLogoUrl?: string | null;
+  /** White-label: primary color hex (Pro/Enterprise). */
+  brandingPrimaryColor?: string | null;
+  /** White-label: hide platform branding on event pages (Pro/Enterprise). */
+  brandingHidePlatform?: boolean;
   /** True when tax/ID and risk check passed; gates payouts for organizers. */
   isVerified?: boolean;
   /** KYC workflow: NOT_STARTED, PENDING, IN_PROGRESS, VERIFIED, REJECTED. */
@@ -33,6 +39,9 @@ export interface User {
   updatedAt: string;
 }
 
+/** Pre-set event page template: DEFAULT, MINIMAL, VIBRANT. All tiers. */
+export type EventPageTemplate = "DEFAULT" | "MINIMAL" | "VIBRANT";
+
 export interface Event {
   id: string;
   name: string;
@@ -40,7 +49,23 @@ export interface Event {
   title?: string;
   description?: string;
   imageUrl?: string;
+  /** Optional YouTube/Vimeo URL for promotional video on event detail page. */
+  promotionalVideoUrl?: string;
+  /** Event page template for theming. Defaults to DEFAULT. */
+  eventPageTemplate?: EventPageTemplate | string;
   marketingEnabled?: boolean;
+  /** Pro/Enterprise: optional donation at checkout. */
+  donationsEnabled?: boolean;
+  /** Pro/Enterprise: custom domain hostname. */
+  customDomain?: string | null;
+  /** Pro/Enterprise: when true, event has seat map; sell by specific seat. */
+  reservedSeatingEnabled?: boolean;
+  /** White-label: organizer logo URL for event page. */
+  organizerBrandingLogoUrl?: string | null;
+  /** White-label: organizer primary color for event page. */
+  organizerBrandingPrimaryColor?: string | null;
+  /** White-label: hide platform branding on this event page. */
+  organizerBrandingHidePlatform?: boolean;
   startTime: string;
   endTime: string;
   userId?: string;
@@ -81,6 +106,28 @@ export interface EventAddon {
   displayOrder?: number;
 }
 
+/** Seat in reserved-seating map (from GET /events/{id}/seats). */
+export interface SeatResponse {
+  id: string;
+  section: string;
+  row: string;
+  seatNumber: number;
+  price: number;
+  status: string; // AVAILABLE, RESERVED, SOLD
+}
+
+/** Section spec for creating a seat map (Pro/Enterprise). */
+export interface SeatSectionDto {
+  name: string;
+  rowCount: number;
+  seatsPerRow: number;
+  price: number;
+}
+
+export interface CreateSeatMapRequest {
+  sections: SeatSectionDto[];
+}
+
 export interface TicketType {
   id: string;
   eventId: string;
@@ -112,6 +159,31 @@ export interface Order {
   status: "PENDING" | "COMPLETED" | "CANCELLED" | "REFUNDED";
   createdAt: string;
   tickets: Ticket[];
+}
+
+/** Attendee row from organizer event attendees list. */
+export interface Attendee {
+  ticketId: string;
+  userId?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  ticketType?: string;
+  ticketPrice?: number;
+  purchaseDate?: string;
+  checkedIn?: boolean;
+  checkedInAt?: string;
+}
+
+/** Team member on organizer's team (Pro/Enterprise). */
+export interface TeamMember {
+  id: string;
+  userId: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  role: "ADMIN" | "EDITOR" | "VIEWER";
+  joinedAt: string;
 }
 
 export type TicketTypeEnum = "VIP" | "REGULAR" | "EARLY_BIRD";
@@ -190,6 +262,20 @@ export interface UpdateUserRequest {
   location?: string;
   profilePictureUrl?: string;
   culturalNiche?: string;
+  /** White-label: custom logo URL (Pro/Enterprise). */
+  brandingLogoUrl?: string | null;
+  /** White-label: primary color hex (Pro/Enterprise). */
+  brandingPrimaryColor?: string | null;
+  /** White-label: hide platform branding on event pages (Pro/Enterprise). */
+  brandingHidePlatform?: boolean;
+}
+
+/** Payout options by tier and risk (T+2, 50% early, 100% instant). */
+export interface PayoutEligibility {
+  standardT2: boolean;
+  early50Percent: boolean;
+  instant100: boolean;
+  label: string;
 }
 
 /** Organizer dashboard summary for Profile "Your Impact" and Organizer page. */
@@ -204,6 +290,8 @@ export interface OrganizerSummary {
   riskLevel?: RiskLevel;
   /** True when W-9 submitted for 1099-K. */
   w9Submitted?: boolean;
+  /** Payout options available (tier + risk). */
+  payoutEligibility?: PayoutEligibility;
 }
 
 /** One tax form row for Document Vault. */
@@ -245,6 +333,22 @@ export interface SubmitVerificationRequest {
   idProvider?: string;
 }
 
+/** API key (Enterprise). Key value only returned on create. */
+export interface ApiKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  createdAt: string;
+}
+
+/** Response when creating an API key (key shown once). */
+export interface CreateApiKeyResponse {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  key: string;
+}
+
 export interface AdminStats {
   totalUsers: number;
   totalEvents: number;
@@ -284,6 +388,8 @@ export interface GuestConfirmPaymentRequest {
   lastName?: string;
   items: { eventId: string; ticketType: string; quantity: number }[];
   totalAmount: number;
+  /** Optional donation amount (included in total). Pro/Enterprise events with donations enabled. */
+  donationAmount?: number;
   /** Ticket IDs from guest-reserve (lock). Send when you called guest-reserve before payment. */
   reservedTicketIds?: string[];
   /** Optional: attribution for discovery / cultural taxonomy. */

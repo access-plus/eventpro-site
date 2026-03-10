@@ -33,4 +33,6 @@ public class OrganizerSummaryResponse {
     private String riskLevel;
     /** True when organizer has submitted W-9 for 1099-K compliance. */
     private boolean w9Submitted;
+    /** Payout options available by tier and risk: T+2, 50% early, 100% instant. */
+    private PayoutEligibilityDto payoutEligibility;
 }

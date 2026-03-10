@@ -51,8 +51,28 @@ public class EventEntity extends BaseEntity {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
+    /** Optional YouTube/Vimeo URL for promotional video embed on event detail page. Available to all tiers. */
+    @Column(name = "promotional_video_url", length = 500)
+    private String promotionalVideoUrl;
+
+    /** Pre-set event page template: DEFAULT, MINIMAL, VIBRANT. Available to all tiers. */
+    @Column(name = "event_page_template", length = 50, nullable = false)
+    private String eventPageTemplate = "DEFAULT";
+
     @Column(name = "marketing_enabled", nullable = false)
     private Boolean marketingEnabled = false;
+
+    /** Pro/Enterprise only: when true, checkout shows optional donation. */
+    @Column(name = "donations_enabled", nullable = false)
+    private Boolean donationsEnabled = false;
+
+    /** Pro/Enterprise only: custom hostname for event page (e.g. tickets.churchname.org). */
+    @Column(name = "custom_domain", length = 255)
+    private String customDomain;
+
+    /** Pro/Enterprise only: when true, event has a seat map and tickets are sold by specific seat. */
+    @Column(name = "reserved_seating_enabled", nullable = false)
+    private Boolean reservedSeatingEnabled = false;
 
     @NotNull(message = "Event status is required")
     @Enumerated(EnumType.STRING)

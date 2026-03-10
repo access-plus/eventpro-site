@@ -37,6 +37,10 @@ public class GuestConfirmPaymentRequest {
     @DecimalMin(value = "0.01", message = "Total amount must be positive")
     private BigDecimal totalAmount;
 
+    /** Optional donation amount (included in total). Pro/Enterprise events with donations enabled. */
+    @DecimalMin(value = "0", message = "Donation must be non-negative")
+    private BigDecimal donationAmount;
+
     /** Optional: ticket IDs from guest-reserve (lock). When set, order uses these instead of reserving again. */
     private List<UUID> reservedTicketIds;
 

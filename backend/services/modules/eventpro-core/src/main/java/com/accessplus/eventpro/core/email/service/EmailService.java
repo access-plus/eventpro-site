@@ -28,5 +28,16 @@ public interface EmailService {
      */
     void sendOrderConfirmation(String toEmail, String recipientName, String orderNumber,
                               String eventName, BigDecimal totalAmount) throws Exception;
+
+    /**
+     * Sends a custom email (e.g. organizer broadcast to attendees).
+     *
+     * @param toEmail   recipient email address
+     * @param subject   email subject
+     * @param bodyText  plain-text body
+     * @param bodyHtml  HTML body (optional; if null, bodyText is used and escaped for HTML)
+     * @throws Exception if email sending fails
+     */
+    void sendCustomEmail(String toEmail, String subject, String bodyText, String bodyHtml) throws Exception;
 }
 

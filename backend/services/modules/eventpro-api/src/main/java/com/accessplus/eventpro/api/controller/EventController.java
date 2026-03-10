@@ -4,6 +4,7 @@ import com.accessplus.eventpro.api.dto.ApiResponse;
 import com.accessplus.eventpro.api.dto.CreateEventRequest;
 import com.accessplus.eventpro.api.dto.EventAddonResponse;
 import com.accessplus.eventpro.api.dto.EventResponse;
+import com.accessplus.eventpro.api.dto.SeatResponse;
 import com.accessplus.eventpro.api.dto.TicketTypeResponse;
 import com.accessplus.eventpro.api.dto.UpdateEventRequest;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
@@ -20,6 +21,7 @@ import com.accessplus.eventpro.event.event.service.EventService;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.EventStatus;
+import com.accessplus.eventpro.shared.enums.TicketStatus;
 import com.accessplus.eventpro.shared.enums.TicketType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -92,6 +94,19 @@ public class EventController extends BaseController {
             event.setStartTime(request.getStartTime());
             event.setEndTime(request.getEndTime());
             event.setMarketingEnabled(request.getMarketingEnabled() != null ? request.getMarketingEnabled() : false);
+            if (request.getPromotionalVideoUrl() != null && !request.getPromotionalVideoUrl().trim().isEmpty()) {
+                event.setPromotionalVideoUrl(request.getPromotionalVideoUrl().trim());
+            }
+            if (request.getEventPageTemplate() != null && !request.getEventPageTemplate().trim().isEmpty()) {
+                event.setEventPageTemplate(request.getEventPageTemplate().trim());
+            }
+            String tier = organizer.getSubscriptionTier() != null ? organizer.getSubscriptionTier().toUpperCase() : "BASIC";
+            if ("PRO".equals(tier) || "ENTERPRISE".equals(tier)) {
+                event.setDonationsEnabled(Boolean.TRUE.equals(request.getDonationsEnabled()));
+                if (request.getCustomDomain() != null && !request.getCustomDomain().trim().isEmpty()) {
+                    event.setCustomDomain(request.getCustomDomain().trim());
+                }
+            }
             
             // Set address if provided
             if (request.getAddress() != null) {
@@ -122,11 +137,12 @@ public class EventController extends BaseController {
      * Retrieves an event by ID.
      */
     @GetMapping("/{id}")
-    @Operation(summary = "Get event by ID", description = "Returns event details by ID. Public endpoint.")
+    @Operation(summary = "Get event by ID", description = "Returns event details by ID. Public endpoint. Loads organizer for white-label branding.")
     public ResponseEntity<ApiResponse<EventResponse>> getEventById(@PathVariable UUID id) {
         log.debug("Getting event by ID: {}", id);
 
-        EventEntity event = eventService.getEventById(id);
+        EventEntity event = eventRepository.findByIdWithOrganizer(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
         EventResponse response = EventResponse.fromEntity(event);
 
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -206,23 +222,21 @@ public class EventController extends BaseController {
         Map<TicketType, List<TicketEntity>> groupedTickets = ticketService.groupTicketsByType(id);
         Map<TicketType, Long> availability = ticketService.checkTicketAvailability(id);
 
-        // Build TicketTypeResponse list
+        // Build TicketTypeResponse list (only GA tickets; exclude seat-based so reserved-seating events get empty list)
         List<TicketTypeResponse> ticketTypes = new ArrayList<>();
         for (Map.Entry<TicketType, List<TicketEntity>> entry : groupedTickets.entrySet()) {
             TicketType type = entry.getKey();
             List<TicketEntity> tickets = entry.getValue();
+            List<TicketEntity> gaTickets = tickets.stream().filter(t -> t.getSeatSection() == null).toList();
+            if (gaTickets.isEmpty()) continue;
 
-            if (!tickets.isEmpty()) {
+            {
                 // Get price from first ticket (assuming all tickets of same type have same price)
-                BigDecimal price = tickets.get(0).getPrice();
-                
-                // Get sale start/end times from first ticket
-                LocalDateTime saleStartDate = tickets.get(0).getStartTime();
-                LocalDateTime saleEndDate = tickets.get(0).getEndTime();
-                
-                // Calculate quantities
-                int totalQuantity = tickets.size();
-                long availableCount = availability.getOrDefault(type, 0L);
+                BigDecimal price = gaTickets.get(0).getPrice();
+                LocalDateTime saleStartDate = gaTickets.get(0).getStartTime();
+                LocalDateTime saleEndDate = gaTickets.get(0).getEndTime();
+                int totalQuantity = gaTickets.size();
+                long availableCount = gaTickets.stream().filter(t -> t.getTicketStatus() == TicketStatus.AVAILABLE).count();
                 
                 // Determine status
                 String status;
@@ -254,11 +268,40 @@ public class EventController extends BaseController {
         return ResponseEntity.ok(ApiResponse.success(ticketTypes));
     }
 
+    @GetMapping("/{id}/seats")
+    @Operation(summary = "Get seat map", description = "Returns seats for an event with reserved seating. Public. Empty when event does not have reserved seating.")
+    public ResponseEntity<ApiResponse<List<SeatResponse>>> getEventSeats(@PathVariable UUID id) {
+        EventEntity event = eventRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
+        if (!Boolean.TRUE.equals(event.getReservedSeatingEnabled())) {
+            return ResponseEntity.ok(ApiResponse.success(List.of()));
+        }
+        List<TicketEntity> seats = ticketService.getSeatsForEvent(id);
+        List<SeatResponse> responses = seats.stream()
+                .map(t -> SeatResponse.builder()
+                        .id(t.getId())
+                        .section(t.getSeatSection())
+                        .row(t.getSeatRow())
+                        .seatNumber(t.getSeatNumber())
+                        .price(t.getPrice())
+                        .status(t.getTicketStatus() != null ? t.getTicketStatus().name() : null)
+                        .build())
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
     @GetMapping("/{id}/addons")
-    @Operation(summary = "Get event add-ons", description = "Returns add-ons (enhancements, merchandise, upgrades) for an event. Public endpoint.")
+    @Operation(summary = "Get event add-ons", description = "Returns add-ons for an event. Empty for Basic-plan organizers (Pro/Enterprise only per pricing page). Public endpoint.")
     public ResponseEntity<ApiResponse<List<EventAddonResponse>>> getEventAddons(@PathVariable UUID id) {
         log.debug("Getting add-ons for event: {}", id);
-        eventRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
+        EventEntity event = eventRepository.findByIdWithOrganizer(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
+        String tier = event.getOrganizer().getSubscriptionTier() != null
+                ? event.getOrganizer().getSubscriptionTier().toUpperCase()
+                : "BASIC";
+        if (!"PRO".equals(tier) && !"ENTERPRISE".equals(tier)) {
+            return ResponseEntity.ok(ApiResponse.success(List.of()));
+        }
         List<EventAddonEntity> addons = eventAddonRepository.findByEventIdOrderByDisplayOrderAsc(id);
         List<EventAddonResponse> responses = addons.stream().map(EventAddonResponse::fromEntity).collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.success(responses));
@@ -351,6 +394,12 @@ public class EventController extends BaseController {
             eventUpdate.setEndTime(request.getEndTime());
             eventUpdate.setMarketingEnabled(request.getMarketingEnabled());
             eventUpdate.setStatus(request.getStatus());
+            if (request.getPromotionalVideoUrl() != null) {
+                eventUpdate.setPromotionalVideoUrl(request.getPromotionalVideoUrl().trim().isEmpty() ? null : request.getPromotionalVideoUrl().trim());
+            }
+            if (request.getEventPageTemplate() != null) {
+                eventUpdate.setEventPageTemplate(request.getEventPageTemplate().trim().isEmpty() ? "DEFAULT" : request.getEventPageTemplate().trim());
+            }
 
             // Set address if provided
             if (request.getAddress() != null) {

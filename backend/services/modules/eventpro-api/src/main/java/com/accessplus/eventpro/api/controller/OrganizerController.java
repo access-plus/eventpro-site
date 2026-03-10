@@ -2,6 +2,8 @@ package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.*;
 import com.accessplus.eventpro.api.service.OrganizerService;
+import com.accessplus.eventpro.api.team.service.OrganizerTeamService;
+import com.accessplus.eventpro.api.service.RiskScoringService;
 import com.accessplus.eventpro.api.service.VerificationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,6 +43,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.springframework.http.HttpHeaders.CONTENT_DISPOSITION;
@@ -56,6 +59,7 @@ public class OrganizerController extends BaseController {
 
     private final OrganizerService organizerService;
     private final VerificationService verificationService;
+    private final RiskScoringService riskScoringService;
     private final EventService eventService;
     private final TicketService ticketService;
     private final EventRepository eventRepository;
@@ -64,6 +68,7 @@ public class OrganizerController extends BaseController {
     private final AWSS3ImageService imageService;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
+    private final OrganizerTeamService organizerTeamService;
 
     /** Merchandise & add-ons require Pro or Enterprise per pricing page. */
     private void requireAddonsEligible() {
@@ -73,6 +78,83 @@ public class OrganizerController extends BaseController {
         if (!"PRO".equals(tier) && !"ENTERPRISE".equals(tier)) {
             throw new AccessDeniedException("Merchandise and add-ons require a Pro or Enterprise plan. Upgrade at /pricing.");
         }
+    }
+
+    private void requireEmailAttendeesEligible() {
+        UUID userId = JwtUtils.getCurrentUserId();
+        UserEntity user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+        String tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier().toUpperCase() : "BASIC";
+        if (!"PRO".equals(tier) && !"ENTERPRISE".equals(tier)) {
+            throw new AccessDeniedException("Email ticket holders is available on Pro and Enterprise plans. Upgrade at /pricing.");
+        }
+    }
+
+    private void requireTeamEligible() {
+        UUID userId = JwtUtils.getCurrentUserId();
+        UserEntity user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+        String tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier().toUpperCase() : "BASIC";
+        if (!"PRO".equals(tier) && !"ENTERPRISE".equals(tier)) {
+            throw new AccessDeniedException("Team management is available on Pro and Enterprise plans. Upgrade at /pricing.");
+        }
+    }
+
+    private void requireReservedSeatingEligible() {
+        UUID userId = JwtUtils.getCurrentUserId();
+        UserEntity user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+        String tier = user.getSubscriptionTier() != null ? user.getSubscriptionTier().toUpperCase() : "BASIC";
+        if (!"PRO".equals(tier) && !"ENTERPRISE".equals(tier)) {
+            throw new AccessDeniedException("Reserved seating is available on Pro and Enterprise plans. Upgrade at /pricing.");
+        }
+    }
+
+    private boolean canManageEvent(UUID currentUserId, EventEntity event) {
+        return event != null && organizerTeamService.canManageEvent(currentUserId, event.getOrganizer().getId());
+    }
+
+    @GetMapping("/team")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "List team members", description = "Returns team members who can manage your events. Pro and Enterprise only.")
+    public ResponseEntity<ApiResponse<List<TeamMemberResponse>>> listTeamMembers() {
+        requireTeamEligible();
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        List<TeamMemberResponse> members = organizerTeamService.listMembers(organizerId);
+        return ResponseEntity.ok(ApiResponse.success(members));
+    }
+
+    @PostMapping("/team")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Invite team member", description = "Add a user by email to your team. User must already have an account. Pro and Enterprise only.")
+    public ResponseEntity<ApiResponse<TeamMemberResponse>> inviteTeamMember(@Valid @RequestBody InviteTeamMemberRequest request) {
+        requireTeamEligible();
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        TeamMemberResponse member = organizerTeamService.addMember(organizerId, request.getEmail().trim(), request.getRole());
+        return ResponseEntity.ok(ApiResponse.success(member, "Team member added"));
+    }
+
+    @DeleteMapping("/team/{userId}")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Remove team member", description = "Removes a user from your team. Pro and Enterprise only.")
+    public ResponseEntity<ApiResponse<Void>> removeTeamMember(@PathVariable UUID userId) {
+        requireTeamEligible();
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        organizerTeamService.removeMember(organizerId, userId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Team member removed"));
+    }
+
+    @PutMapping("/team/{userId}/role")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Update team member role", description = "Changes a team member's role (ADMIN, EDITOR, VIEWER). Pro and Enterprise only.")
+    public ResponseEntity<ApiResponse<TeamMemberResponse>> updateTeamMemberRole(
+            @PathVariable UUID userId,
+            @RequestBody Map<String, String> body) {
+        requireTeamEligible();
+        String role = body != null ? body.get("role") : null;
+        if (role == null || role.isBlank()) {
+            throw new ValidationException("role is required");
+        }
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        TeamMemberResponse member = organizerTeamService.updateMemberRole(organizerId, userId, role.trim());
+        return ResponseEntity.ok(ApiResponse.success(member, "Role updated"));
     }
 
     @GetMapping("/summary")
@@ -91,6 +173,15 @@ public class OrganizerController extends BaseController {
         UUID organizerId = JwtUtils.getCurrentUserId();
         VerificationStatusResponse status = verificationService.getStatus(organizerId);
         return ResponseEntity.ok(ApiResponse.success(status));
+    }
+
+    @PostMapping("/risk-score/recalculate")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Recalculate risk score", description = "Recomputes organizer risk level (LOW/MEDIUM/HIGH) from KYC, event history, and ticket price band. Used for payout eligibility.")
+    public ResponseEntity<ApiResponse<Map<String, String>>> recalculateRiskScore() {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        String riskLevel = riskScoringService.computeAndUpdateRiskScore(organizerId);
+        return ResponseEntity.ok(ApiResponse.success(Map.of("riskLevel", riskLevel), "Risk score updated"));
     }
 
     @PostMapping("/verification")
@@ -137,16 +228,15 @@ public class OrganizerController extends BaseController {
 
     @GetMapping("/events")
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
-    @Operation(summary = "Get organizer's events", description = "Returns events created by the authenticated organizer. Requires ORGANIZER or ADMIN role.")
+    @Operation(summary = "Get organizer's events", description = "Returns events the user can manage (owned or as team member). Requires ORGANIZER or ADMIN role.")
     public ResponseEntity<ApiResponse<List<EventResponse>>> getOrganizerEvents() {
         log.debug("Getting organizer's events");
 
-        // Get current user's UUID from JWT
-        UUID organizerId = JwtUtils.getCurrentUserId();
+        UUID currentUserId = JwtUtils.getCurrentUserId();
+        Set<UUID> organizerIds = organizerTeamService.getOrganizerIdsAccessibleByUser(currentUserId);
 
-        // Get events by organizer (no pagination for this endpoint)
         Pageable pageable = PageRequest.of(0, Integer.MAX_VALUE);
-        Page<EventEntity> eventPage = eventService.getEventsByOrganizer(organizerId, pageable);
+        Page<EventEntity> eventPage = eventService.getEventsByOrganizerIds(organizerIds, pageable);
 
         List<EventResponse> responses = eventPage.getContent().stream()
                 .map(EventResponse::fromEntity)
@@ -175,6 +265,28 @@ public class OrganizerController extends BaseController {
         event.setStartTime(request.getStartTime());
         event.setEndTime(request.getEndTime());
         event.setMarketingEnabled(request.getMarketingEnabled() != null ? request.getMarketingEnabled() : false);
+        if (request.getPromotionalVideoUrl() != null) {
+            event.setPromotionalVideoUrl(request.getPromotionalVideoUrl().trim().isEmpty() ? null : request.getPromotionalVideoUrl().trim());
+        }
+        if (request.getEventPageTemplate() != null) {
+            event.setEventPageTemplate(request.getEventPageTemplate().trim().isEmpty() ? "DEFAULT" : request.getEventPageTemplate().trim());
+        }
+        if (Boolean.TRUE.equals(request.getDonationsEnabled())) {
+            requireAddonsEligible();
+            event.setDonationsEnabled(true);
+        } else {
+            event.setDonationsEnabled(false);
+        }
+        if (request.getCustomDomain() != null && !request.getCustomDomain().trim().isEmpty()) {
+            requireAddonsEligible();
+            event.setCustomDomain(request.getCustomDomain().trim());
+        }
+        if (Boolean.TRUE.equals(request.getReservedSeatingEnabled())) {
+            requireReservedSeatingEligible();
+            event.setReservedSeatingEnabled(true);
+        } else {
+            event.setReservedSeatingEnabled(false);
+        }
 
         // Set address if provided
         if (request.getAddress() != null) {
@@ -207,11 +319,10 @@ public class OrganizerController extends BaseController {
         // Get current user's UUID from JWT
         UUID organizerId = JwtUtils.getCurrentUserId();
 
-        // Verify event belongs to organizer
-        EventEntity event = eventRepository.findById(id)
+        // Verify current user can manage this event (owner or team member)
+        EventEntity event = eventRepository.findByIdWithOrganizer(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
-        
-        if (!event.getOrganizer().getId().equals(organizerId)) {
+        if (!canManageEvent(organizerId, event)) {
             throw new ResourceNotFoundException("Event", id.toString());
         }
 
@@ -224,6 +335,32 @@ public class OrganizerController extends BaseController {
         eventUpdate.setMarketingEnabled(request.getMarketingEnabled() != null ? request.getMarketingEnabled() : false);
         if (request.getImageUrl() != null) {
             eventUpdate.setImageUrl(request.getImageUrl());
+        }
+        if (request.getPromotionalVideoUrl() != null) {
+            eventUpdate.setPromotionalVideoUrl(request.getPromotionalVideoUrl().trim().isEmpty() ? null : request.getPromotionalVideoUrl().trim());
+        }
+        if (request.getEventPageTemplate() != null) {
+            eventUpdate.setEventPageTemplate(request.getEventPageTemplate().trim().isEmpty() ? "DEFAULT" : request.getEventPageTemplate().trim());
+        }
+        if (request.getDonationsEnabled() != null) {
+            if (Boolean.TRUE.equals(request.getDonationsEnabled())) {
+                requireAddonsEligible();
+            }
+            eventUpdate.setDonationsEnabled(request.getDonationsEnabled());
+        }
+        if (request.getCustomDomain() != null) {
+            if (!request.getCustomDomain().trim().isEmpty()) {
+                requireAddonsEligible();
+                eventUpdate.setCustomDomain(request.getCustomDomain().trim());
+            } else {
+                eventUpdate.setCustomDomain(null);
+            }
+        }
+        if (request.getReservedSeatingEnabled() != null) {
+            if (Boolean.TRUE.equals(request.getReservedSeatingEnabled())) {
+                requireReservedSeatingEligible();
+            }
+            eventUpdate.setReservedSeatingEnabled(request.getReservedSeatingEnabled());
         }
 
         // Set address if provided
@@ -281,6 +418,35 @@ public class OrganizerController extends BaseController {
         }
     }
 
+    @PostMapping("/events/{eventId}/seat-map")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Create seat map", description = "Creates seat tickets for an event with reserved seating. Pro/Enterprise only. Event must have reservedSeatingEnabled.")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createSeatMap(
+            @PathVariable UUID eventId,
+            @Valid @RequestBody CreateSeatMapRequest request) {
+        requireReservedSeatingEligible();
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        EventEntity event = eventRepository.findByIdWithOrganizer(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        if (!canManageEvent(organizerId, event)) {
+            throw new ResourceNotFoundException("Event", eventId.toString());
+        }
+        if (!Boolean.TRUE.equals(event.getReservedSeatingEnabled())) {
+            throw new ValidationException("Enable reserved seating on the event first, then create the seat map.");
+        }
+        List<TicketService.SeatSectionSpec> specs = request.getSections().stream()
+                .map(s -> new TicketService.SeatSectionSpec(
+                        s.getName(),
+                        s.getRowCount(),
+                        s.getSeatsPerRow(),
+                        s.getPrice()))
+                .toList();
+        int count = ticketService.createSeatMap(eventId, organizerId, specs);
+        Map<String, Object> data = new HashMap<>();
+        data.put("seatsCreated", count);
+        return ResponseEntity.ok(ApiResponse.success(data, count + " seat(s) created"));
+    }
+
     @GetMapping("/events/{id}/stats")
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
     @Operation(summary = "Get event statistics", description = "Returns statistics for an event. Requires ORGANIZER or ADMIN role.")
@@ -290,7 +456,12 @@ public class OrganizerController extends BaseController {
         // Get current user's UUID from JWT
         UUID organizerId = JwtUtils.getCurrentUserId();
 
-        EventStatsResponse stats = organizerService.getEventStats(id, organizerId);
+        EventEntity event = eventRepository.findByIdWithOrganizer(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
+        if (!canManageEvent(organizerId, event)) {
+            throw new ResourceNotFoundException("Event", id.toString());
+        }
+        EventStatsResponse stats = organizerService.getEventStats(id, event.getOrganizer().getId());
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
@@ -333,15 +504,34 @@ public class OrganizerController extends BaseController {
 
     @GetMapping("/events/{id}/attendees")
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
-    @Operation(summary = "Get event attendees", description = "Returns attendees for an event. Requires ORGANIZER or ADMIN role.")
+    @Operation(summary = "Get event attendees", description = "Returns attendees for an event. Requires ORGANIZER or ADMIN role (or team member).")
     public ResponseEntity<ApiResponse<List<AttendeeResponse>>> getEventAttendees(@PathVariable UUID id) {
         log.debug("Getting event attendees: eventId={}", id);
-
-        // Get current user's UUID from JWT
-        UUID organizerId = JwtUtils.getCurrentUserId();
-
-        List<AttendeeResponse> attendees = organizerService.getEventAttendees(id, organizerId);
+        UUID currentUserId = JwtUtils.getCurrentUserId();
+        EventEntity event = eventRepository.findByIdWithOrganizer(id).orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
+        if (!canManageEvent(currentUserId, event)) {
+            throw new ResourceNotFoundException("Event", id.toString());
+        }
+        List<AttendeeResponse> attendees = organizerService.getEventAttendees(id, event.getOrganizer().getId());
         return ResponseEntity.ok(ApiResponse.success(attendees));
+    }
+
+    @PostMapping("/events/{id}/email-attendees")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Email event attendees", description = "Sends an email to all ticket holders for this event. Pro and Enterprise only.")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> emailEventAttendees(
+            @PathVariable UUID id,
+            @Valid @RequestBody EmailAttendeesRequest request) {
+        requireEmailAttendeesEligible();
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        EventEntity event = eventRepository.findByIdWithOrganizer(id).orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
+        if (!canManageEvent(organizerId, event)) {
+            throw new ResourceNotFoundException("Event", id.toString());
+        }
+        int sent = organizerService.emailEventAttendees(id, event.getOrganizer().getId(), request.getSubject(), request.getBody());
+        Map<String, Object> data = new HashMap<>();
+        data.put("recipientsSent", sent);
+        return ResponseEntity.ok(ApiResponse.success(data, "Email sent to " + sent + " attendee(s)."));
     }
 
     @GetMapping("/events/{eventId}/addons")
@@ -353,7 +543,7 @@ public class OrganizerController extends BaseController {
         log.debug("Getting add-ons for event: {}", eventId);
         UUID organizerId = JwtUtils.getCurrentUserId();
         EventEntity event = eventRepository.findByIdWithOrganizer(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
-        if (!event.getOrganizer().getId().equals(organizerId)) {
+        if (!canManageEvent(organizerId, event)) {
             throw new ResourceNotFoundException("Event", eventId.toString());
         }
         List<EventAddonEntity> addons = eventAddonRepository.findByEventIdOrderByDisplayOrderAsc(eventId);
@@ -371,8 +561,8 @@ public class OrganizerController extends BaseController {
         requireAddonsEligible();
         log.debug("Creating add-on for event: {}", eventId);
         UUID organizerId = JwtUtils.getCurrentUserId();
-        EventEntity event = eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
-        if (!event.getOrganizer().getId().equals(organizerId)) {
+        EventEntity event = eventRepository.findByIdWithOrganizer(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        if (!canManageEvent(organizerId, event)) {
             throw new ResourceNotFoundException("Event", eventId.toString());
         }
         EventAddonEntity entity = new EventAddonEntity();
@@ -402,8 +592,8 @@ public class OrganizerController extends BaseController {
         requireAddonsEligible();
         log.debug("Updating add-on: {}", addonId);
         UUID organizerId = JwtUtils.getCurrentUserId();
-        EventEntity event = eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
-        if (!event.getOrganizer().getId().equals(organizerId)) {
+        EventEntity event = eventRepository.findByIdWithOrganizer(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        if (!canManageEvent(organizerId, event)) {
             throw new ResourceNotFoundException("Event", eventId.toString());
         }
         EventAddonEntity entity = eventAddonRepository.findById(addonId).orElseThrow(() -> new ResourceNotFoundException("EventAddon", addonId.toString()));
@@ -432,8 +622,8 @@ public class OrganizerController extends BaseController {
         requireAddonsEligible();
         log.debug("Deleting add-on: {}", addonId);
         UUID organizerId = JwtUtils.getCurrentUserId();
-        EventEntity event = eventRepository.findById(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
-        if (!event.getOrganizer().getId().equals(organizerId)) {
+        EventEntity event = eventRepository.findByIdWithOrganizer(eventId).orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        if (!canManageEvent(organizerId, event)) {
             throw new ResourceNotFoundException("Event", eventId.toString());
         }
         EventAddonEntity entity = eventAddonRepository.findById(addonId).orElseThrow(() -> new ResourceNotFoundException("EventAddon", addonId.toString()));
@@ -453,14 +643,11 @@ public class OrganizerController extends BaseController {
         // Get ticket
         TicketEntity ticket = ticketService.getTicketById(id);
         
-        // Verify ticket belongs to organizer's event
-        EventEntity event = eventRepository.findById(ticket.getEventId())
+        // Verify ticket belongs to an event the user can manage
+        EventEntity event = eventRepository.findByIdWithOrganizer(ticket.getEventId())
                 .orElseThrow(() -> new ResourceNotFoundException("Event", ticket.getEventId().toString()));
-
-        // Get current user's UUID from JWT
         UUID organizerId = JwtUtils.getCurrentUserId();
-
-        if (!event.getOrganizer().getId().equals(organizerId)) {
+        if (!canManageEvent(organizerId, event)) {
             throw new ResourceNotFoundException("Ticket", id.toString());
         }
 
@@ -501,18 +688,17 @@ public class OrganizerController extends BaseController {
         // Get current user's UUID from JWT
         UUID organizerId = JwtUtils.getCurrentUserId();
 
-        // Verify event exists and belongs to organizer
-        EventEntity event = eventRepository.findById(eventId)
+        // Verify event exists and user can manage it (owner or team member)
+        EventEntity event = eventRepository.findByIdWithOrganizer(eventId)
                 .orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
-
-        if (!event.getOrganizer().getId().equals(organizerId)) {
-            throw new ValidationException("You can only create tickets for your own events");
+        if (!canManageEvent(organizerId, event)) {
+            throw new ValidationException("You can only create tickets for events you manage");
         }
 
-        // Create tickets using the ticket service
+        // Create tickets using the ticket service (use event owner as organizer for ticket records)
         List<TicketEntity> createdTickets = ticketService.createTickets(
                 eventId,
-                organizerId,
+                event.getOrganizer().getId(),
                 request.getTicketType(),
                 request.getPrice(),
                 request.getQuantity(),
