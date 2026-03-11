@@ -51,6 +51,10 @@ public class UserEntity extends BaseEntity {
     @Column(name = "subscription_tier", length = 20, nullable = false)
     private String subscriptionTier = "BASIC";
 
+    /** Stripe Customer ID for subscription billing; set when user starts subscription checkout. */
+    @Column(name = "stripe_customer_id", length = 255)
+    private String stripeCustomerId;
+
     /** True when tax/ID provided and risk check passed; gates early/instant payouts. */
     @Column(name = "is_verified", nullable = false)
     private Boolean isVerified = false;

@@ -17,10 +17,10 @@ public class JwtProperties {
     @Min(300)
     private long accessTokenTtlSeconds = 3600;
 
-    @NotBlank
+    /** Optional when running with profile "local" (dev keys are generated). */
     private String publicKey;
 
-    @NotBlank
+    /** Optional when running with profile "local" (dev keys are generated). */
     private String privateKey;
 
     public String getIssuer() {

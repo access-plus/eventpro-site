@@ -3,6 +3,7 @@ package com.accessplus.eventpro.payment.service.impl;
 import com.accessplus.eventpro.order.order.model.GuestOrderItem;
 import com.accessplus.eventpro.order.order.service.OrderService;
 import com.accessplus.eventpro.payment.service.PaymentService;
+import com.accessplus.eventpro.payment.stripe.model.StripeBillingAddress;
 import com.accessplus.eventpro.payment.stripe.service.StripeService;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
@@ -41,9 +42,14 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public OrderEntity processPayment(UUID userId, String paymentIntentId) {
+        return processPayment(userId, paymentIntentId, null, null, null);
+    }
+
+    @Override
+    @Transactional
+    public OrderEntity processPayment(UUID userId, String paymentIntentId, BigDecimal taxAmount, String buyerState, String buyerCountry) {
         log.debug("Processing payment: userId={}, paymentIntentId={}", userId, paymentIntentId);
-        
-        // Confirm payment with Stripe
+
         PaymentIntent paymentIntent;
         try {
             paymentIntent = stripeService.confirmPayment(paymentIntentId);
@@ -51,20 +57,26 @@ public class PaymentServiceImpl implements PaymentService {
             log.error("Failed to confirm payment: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to confirm payment: " + e.getMessage(), e);
         }
-        
-        // Verify payment succeeded
+
         if (!"succeeded".equals(paymentIntent.getStatus())) {
             throw new RuntimeException("Payment not succeeded. Status: " + paymentIntent.getStatus());
         }
-        
-        // Create order from cart and mark PAID (Stripe already succeeded)
-        OrderEntity order = orderService.createOrderFromCart(userId);
+
+        // Prefer Stripe-validated billing address (from card) for tax jurisdiction and order record
+        StripeBillingAddress stripeAddress = null;
+        try {
+            stripeAddress = stripeService.getBillingAddressFromPaymentIntent(paymentIntentId);
+        } catch (Exception e) {
+            log.warn("Could not retrieve billing address from Stripe: {}", e.getMessage());
+        }
+        String orderState = stripeAddress != null && stripeAddress.getState() != null ? stripeAddress.getState() : buyerState;
+        String orderCountry = stripeAddress != null && stripeAddress.getCountry() != null ? stripeAddress.getCountry() : buyerCountry;
+
+        OrderEntity order = orderService.createOrderFromCart(userId, taxAmount, orderState, orderCountry);
         order = orderService.updateOrderStatus(order.getId(), OrderStatus.PAID);
         orderService.markOrderTicketsAsSold(order);
 
-        log.info("Payment processed successfully: orderId={}, paymentIntentId={}", 
-                order.getId(), paymentIntentId);
-
+        log.info("Payment processed successfully: orderId={}, paymentIntentId={}", order.getId(), paymentIntentId);
         return order;
     }
 
@@ -73,6 +85,16 @@ public class PaymentServiceImpl implements PaymentService {
     public OrderEntity processGuestPayment(String paymentIntentId, String guestEmail, String guestFirstName,
                                            String guestLastName, List<GuestOrderItem> items, BigDecimal totalAmount,
                                            List<UUID> reservedTicketIds, BigDecimal donationAmount) {
+        return processGuestPayment(paymentIntentId, guestEmail, guestFirstName, guestLastName, items, totalAmount,
+                reservedTicketIds, donationAmount, null, null, null);
+    }
+
+    @Override
+    @Transactional
+    public OrderEntity processGuestPayment(String paymentIntentId, String guestEmail, String guestFirstName,
+                                           String guestLastName, List<GuestOrderItem> items, BigDecimal totalAmount,
+                                           List<UUID> reservedTicketIds, BigDecimal donationAmount,
+                                           BigDecimal taxAmount, String buyerState, String buyerCountry) {
         log.debug("Processing guest payment: paymentIntentId={}, guestEmail={}", paymentIntentId, guestEmail);
         PaymentIntent paymentIntent;
         try {
@@ -84,11 +106,21 @@ public class PaymentServiceImpl implements PaymentService {
         if (!"succeeded".equals(paymentIntent.getStatus())) {
             throw new RuntimeException("Payment not succeeded. Status: " + paymentIntent.getStatus());
         }
+        // Prefer Stripe-validated billing address (from card) for order record
+        StripeBillingAddress stripeAddress = null;
+        try {
+            stripeAddress = stripeService.getBillingAddressFromPaymentIntent(paymentIntentId);
+        } catch (Exception e) {
+            log.warn("Could not retrieve billing address from Stripe: {}", e.getMessage());
+        }
+        String orderState = stripeAddress != null && stripeAddress.getState() != null ? stripeAddress.getState() : buyerState;
+        String orderCountry = stripeAddress != null && stripeAddress.getCountry() != null ? stripeAddress.getCountry() : buyerCountry;
+
         OrderEntity order;
         if (reservedTicketIds != null && !reservedTicketIds.isEmpty()) {
-            order = orderService.createOrderForGuestWithReservedTickets(guestEmail, guestFirstName, guestLastName, items, totalAmount, reservedTicketIds, donationAmount);
+            order = orderService.createOrderForGuestWithReservedTickets(guestEmail, guestFirstName, guestLastName, items, totalAmount, reservedTicketIds, donationAmount, taxAmount, orderState, orderCountry);
         } else {
-            order = orderService.createOrderForGuest(guestEmail, guestFirstName, guestLastName, items, totalAmount, donationAmount);
+            order = orderService.createOrderForGuest(guestEmail, guestFirstName, guestLastName, items, totalAmount, donationAmount, taxAmount, orderState, orderCountry);
         }
         order = orderService.updateOrderStatus(order.getId(), OrderStatus.PAID);
         orderService.markOrderTicketsAsSold(order);

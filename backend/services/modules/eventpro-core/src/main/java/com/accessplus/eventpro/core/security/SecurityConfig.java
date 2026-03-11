@@ -54,6 +54,7 @@ public class SecurityConfig {
                     "/api/v1/payments/create-intent", "/api/v1/payments/create-intent/",
                     "/api/v1/payments/guest/confirm", "/api/v1/payments/guest/confirm/",
                     "/api/v1/payments/guest-reserve", "/api/v1/payments/guest-reserve/").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/stripe").permitAll()
                 .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

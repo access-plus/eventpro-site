@@ -39,4 +39,19 @@ public interface UserService {
      * Valid tiers: PRO, ENTERPRISE. Only allows upgrading (BASIC -> PRO -> ENTERPRISE).
      */
     UserEntity updateSubscriptionTier(UUID userId, String tier);
+
+    /** Sets Stripe Customer ID for subscription billing (idempotent). */
+    UserEntity updateStripeCustomerId(UUID userId, String stripeCustomerId);
+
+    /** Gets user by Stripe Customer ID (for webhooks). */
+    UserEntity getUserByStripeCustomerId(String stripeCustomerId);
+
+    /** Sets subscription tier without upgrade check (for Stripe webhooks: renewals, cancellations). */
+    UserEntity setSubscriptionTier(UUID userId, String tier);
+
+    /**
+     * Sets subscription tier and, when tier is PRO or ENTERPRISE, sets role to ORGANIZER (unless user is ADMIN).
+     * Use after Stripe confirms payment or when syncing from Stripe.
+     */
+    UserEntity setSubscriptionTierAndOrganizerRole(UUID userId, String tier);
 }

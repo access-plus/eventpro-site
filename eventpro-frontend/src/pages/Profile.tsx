@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Mail,
   Calendar,
@@ -43,6 +43,7 @@ const VERIFIED_CELEBRATION_KEY = "profile_verified_celebration_shown";
 const Profile = () => {
   const { user, hasRole, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [summary, setSummary] = useState<OrganizerSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [identityModalOpen, setIdentityModalOpen] = useState(false);
@@ -80,6 +81,28 @@ const Profile = () => {
   useEffect(() => {
     fetchSummary();
   }, [fetchSummary]);
+
+  // After returning from Stripe Checkout, sync subscription from Stripe so tier + role update (even if webhooks missed)
+  useEffect(() => {
+    if (searchParams.get("subscription") !== "success") return;
+    apiService
+      .syncSubscriptionFromStripe()
+      .then(({ message }) => {
+        refreshUser();
+        setSearchParams((prev) => {
+          prev.delete("subscription");
+          return prev;
+        });
+        if (message.toLowerCase().includes("synced") || message.toLowerCase().includes("tier=")) {
+          toast.success("Subscription updated. You now have organizer access.");
+        } else {
+          toast.info(message);
+        }
+      })
+      .catch(() => {
+        toast.error("Could not sync subscription. Your payment may still have gone through.");
+      });
+  }, [searchParams, refreshUser, setSearchParams]);
 
   const fetchApiKeys = useCallback(() => {
     if (user?.subscriptionTier !== "ENTERPRISE") return;
@@ -269,6 +292,7 @@ const Profile = () => {
   const riskLevel = user?.riskLevel ?? summary?.riskLevel ?? "LOW";
   const isHighRisk = riskLevel === "HIGH";
   const payoutBalance = summary?.availableBalance ?? 0;
+  const platformFeesWithheld = summary ? Number(summary.platformFeesWithheld ?? 0) : 0;
 
   const handleRecalculateRisk = useCallback(() => {
     if (!hasRole("ORGANIZER")) return;
@@ -636,8 +660,8 @@ const Profile = () => {
             </Card>
           )}
 
-          {/* Pro/Enterprise: White-Label / custom branding */}
-          {isProOrEnterprise && (
+          {/* Enterprise only: White-Label (per pricing page) */}
+          {isEnterprise && (
             <Card className="md:col-span-3 rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
               <CardContent className="p-6">
                 <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
@@ -796,10 +820,19 @@ const Profile = () => {
                   <span className="w-2 h-8 rounded-full bg-gradient-to-b from-primary to-primary-glow" />
                   Your Impact
                 </h2>
-                {/* Payout balance (real-time) */}
+                {/* Payout balance (after platform fees) */}
                 {!summaryLoading && (
                   <div className="mb-4 rounded-xl bg-white/80 dark:bg-white/10 px-4 py-3 border border-primary/10 flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">Available for payout</span>
+                    <div>
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Available for payout{platformFeesWithheld > 0 ? " (after platform fees)" : ""}
+                      </span>
+                      {platformFeesWithheld > 0 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Platform fees withheld: ${platformFeesWithheld.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
                     <span className="text-xl font-bold text-foreground">
                       ${typeof payoutBalance === "number" ? payoutBalance.toFixed(2) : "0.00"}
                     </span>

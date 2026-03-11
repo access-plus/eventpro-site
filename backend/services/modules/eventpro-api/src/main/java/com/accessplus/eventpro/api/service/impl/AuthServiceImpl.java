@@ -2,6 +2,7 @@ package com.accessplus.eventpro.api.service.impl;
 
 import com.accessplus.eventpro.api.dto.AuthLoginRequest;
 import com.accessplus.eventpro.api.dto.AuthSignupRequest;
+import com.accessplus.eventpro.api.dto.CreateAdminUserRequest;
 import com.accessplus.eventpro.api.service.AuthResult;
 import com.accessplus.eventpro.api.service.AuthService;
 import com.accessplus.eventpro.core.security.JwtService;
@@ -86,5 +87,20 @@ public class AuthServiceImpl implements AuthService {
             throw new ValidationException("Invalid role: " + role);
         }
         return normalized;
+    }
+
+    @Override
+    public UserEntity createAdminUser(CreateAdminUserRequest request) {
+        String email = normalizeEmail(request.getEmail());
+        String passwordHash = passwordEncoder.encode(request.getPassword());
+        log.info("Creating admin user: email={}", email);
+        return userService.createUser(
+                email,
+                passwordHash,
+                request.getFirstName(),
+                request.getLastName(),
+                request.getPhoneNumber(),
+                "ADMIN"
+        );
     }
 }

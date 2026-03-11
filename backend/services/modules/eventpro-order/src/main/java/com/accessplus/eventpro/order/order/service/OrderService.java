@@ -28,13 +28,23 @@ public interface OrderService {
      * Creates an order from the user's cart.
      * Converts cart items to order items, calculates total, generates order number,
      * and publishes order to SQS queue for processing.
-     * 
+     *
      * @param userId the UUID of the user
      * @return created OrderEntity
-     * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if user not found or cart is empty
-     * @throws IllegalArgumentException if validation fails
      */
     OrderEntity createOrderFromCart(UUID userId);
+
+    /**
+     * Creates an order from the user's cart with jurisdiction-based tax.
+     * When overrideTaxAmount is not null, order total = cartTotal + overrideTaxAmount and buyer state/country are stored.
+     *
+     * @param userId the UUID of the user
+     * @param overrideTaxAmount pre-computed tax amount (from checkout-totals by state); null to use default rate
+     * @param buyerState purchaser state code (e.g. CA) for tax jurisdiction
+     * @param buyerCountry purchaser country code (e.g. US)
+     * @return created OrderEntity
+     */
+    OrderEntity createOrderFromCart(UUID userId, BigDecimal overrideTaxAmount, String buyerState, String buyerCountry);
 
     /**
      * Retrieves an order by ID.
@@ -89,13 +99,21 @@ public interface OrderService {
     OrderEntity createOrderForGuest(String guestEmail, String guestFirstName, String guestLastName,
                                     List<GuestOrderItem> items, BigDecimal totalAmount, BigDecimal donationAmount);
 
+    OrderEntity createOrderForGuest(String guestEmail, String guestFirstName, String guestLastName,
+                                    List<GuestOrderItem> items, BigDecimal totalAmount, BigDecimal donationAmount,
+                                    BigDecimal taxAmount, String buyerState, String buyerCountry);
+
     /**
      * Same as createOrderForGuest but uses pre-reserved ticket IDs (from reserveTicketsForGuest).
-     * Use when guest already reserved tickets at "Proceed to Payment".
      */
     OrderEntity createOrderForGuestWithReservedTickets(String guestEmail, String guestFirstName, String guestLastName,
                                                        List<GuestOrderItem> items, BigDecimal totalAmount,
                                                        List<UUID> reservedTicketIds, BigDecimal donationAmount);
+
+    OrderEntity createOrderForGuestWithReservedTickets(String guestEmail, String guestFirstName, String guestLastName,
+                                                       List<GuestOrderItem> items, BigDecimal totalAmount,
+                                                       List<UUID> reservedTicketIds, BigDecimal donationAmount,
+                                                       BigDecimal taxAmount, String buyerState, String buyerCountry);
 
     /**
      * Marks all tickets in the order as SOLD (reduces available count).

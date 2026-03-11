@@ -23,13 +23,25 @@ public interface PaymentService {
     
     /**
      * Processes payment and creates order from cart.
-     * 
+     *
      * @param userId user ID
      * @param paymentIntentId Stripe payment intent ID
      * @return created order
-     * @throws RuntimeException if payment processing fails
      */
     OrderEntity processPayment(UUID userId, String paymentIntentId);
+
+    /**
+     * Processes payment and creates order from cart with jurisdiction-based tax.
+     * When taxAmount is not null, order total = cartTotal + taxAmount and buyerState/buyerCountry are stored.
+     *
+     * @param userId user ID
+     * @param paymentIntentId Stripe payment intent ID
+     * @param taxAmount pre-computed tax from checkout-totals (by state); null to use default
+     * @param buyerState purchaser state code (e.g. CA)
+     * @param buyerCountry purchaser country code (e.g. US)
+     * @return created order
+     */
+    OrderEntity processPayment(UUID userId, String paymentIntentId, BigDecimal taxAmount, String buyerState, String buyerCountry);
 
     /**
      * Processes payment for a guest (no account) and creates order from provided items.
@@ -40,5 +52,13 @@ public interface PaymentService {
     OrderEntity processGuestPayment(String paymentIntentId, String guestEmail, String guestFirstName,
                                     String guestLastName, List<GuestOrderItem> items, BigDecimal totalAmount,
                                     List<UUID> reservedTicketIds, BigDecimal donationAmount);
+
+    /**
+     * Guest payment with optional tax jurisdiction (state, country, taxAmount for order record).
+     */
+    OrderEntity processGuestPayment(String paymentIntentId, String guestEmail, String guestFirstName,
+                                    String guestLastName, List<GuestOrderItem> items, BigDecimal totalAmount,
+                                    List<UUID> reservedTicketIds, BigDecimal donationAmount,
+                                    BigDecimal taxAmount, String buyerState, String buyerCountry);
 }
 

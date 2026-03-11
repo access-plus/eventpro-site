@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +24,7 @@ public class OrderResponse {
     private UUID id;
     private UUID userId;
     private Long amount; // Order total amount in cents (for legacy API compatibility)
+    private BigDecimal taxAmount; // Sales tax / VAT amount for this order (0 when not applied)
     private String status; // PENDING, COMPLETED, CANCELLED, REFUNDED
     private LocalDateTime orderDate;
     private List<OrderItemResponse> orderItems;
@@ -52,6 +54,7 @@ public class OrderResponse {
                 .id(entity.getId())
                 .userId(entity.getUserId())
                 .amount(amountInCents)
+                .taxAmount(entity.getTaxAmount() != null ? entity.getTaxAmount() : BigDecimal.ZERO)
                 .status(statusStr)
                 .orderDate(entity.getOrderDate())
                 .orderItems(orderItemResponses)

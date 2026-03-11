@@ -82,6 +82,17 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
             Pageable pageable);
 
     /**
+     * Finds orders by status within a date range using createdAt (audit timestamp).
+     * Use for pending balance when order_date may not be set in all code paths.
+     */
+    @Query("SELECT o FROM OrderEntity o WHERE o.status = :status AND o.createdAt BETWEEN :startDate AND :endDate")
+    Page<OrderEntity> findByStatusAndCreatedAtBetween(
+            @Param("status") OrderStatus status,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
+
+    /**
      * Counts orders by status.
      * 
      * @param status the order status

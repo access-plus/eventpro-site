@@ -8,6 +8,7 @@ import com.accessplus.eventpro.api.dto.OrganizerInsightsResponse;
 import com.accessplus.eventpro.api.dto.OrganizerSummaryResponse;
 import com.accessplus.eventpro.api.dto.PayoutEligibilityDto;
 import com.accessplus.eventpro.api.dto.RecentSaleResponse;
+import com.accessplus.eventpro.api.config.PlatformTierFeeProperties;
 import com.accessplus.eventpro.api.service.OrganizerService;
 import com.accessplus.eventpro.core.notification.service.NotificationService;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
@@ -22,17 +23,23 @@ import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
 import com.accessplus.eventpro.event.ticket.repository.TicketRepository;
+import com.accessplus.eventpro.api.subscription.repository.SubscriptionPaymentRepository;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -55,11 +62,17 @@ public class OrganizerServiceImpl implements OrganizerService {
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final SubscriptionPaymentRepository subscriptionPaymentRepository;
+    private final PlatformTierFeeProperties tierFeeProperties;
+
+    @Value("${eventpro.payout.pending-hold-days:3}")
+    private int pendingHoldDays;
 
     @Override
     public OrganizerSummaryResponse getOrganizerSummary(UUID organizerId) {
         log.debug("Getting organizer summary: organizerId={}", organizerId);
         List<EventEntity> events = eventRepository.findByOrganizerId(organizerId, PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        Set<UUID> eventIds = events.stream().map(EventEntity::getId).collect(Collectors.toSet());
         long eventsHosted = events.size();
         long ticketsSold = 0;
         BigDecimal totalRevenue = BigDecimal.ZERO;
@@ -82,22 +95,118 @@ public class OrganizerServiceImpl implements OrganizerService {
             totalRevenue = totalRevenue.add(eventRevenue);
         }
         UserEntity user = userRepository.findById(organizerId).orElse(null);
-        String riskLevel = user != null && user.getRiskLevel() != null ? user.getRiskLevel() : "LOW";
         String tier = user != null && user.getSubscriptionTier() != null ? user.getSubscriptionTier().toUpperCase() : "BASIC";
+        BigDecimal totalFeesLifeToDate = getOrganizerFeesLifeToDate(organizerId, eventIds, totalRevenue);
+        String feeRateLabel = formatFeeRateLabel(tier);
+        String riskLevel = user != null && user.getRiskLevel() != null ? user.getRiskLevel() : "LOW";
         boolean w9Submitted = user != null && Boolean.TRUE.equals(user.getW9Submitted());
         PayoutEligibilityDto payoutEligibility = computePayoutEligibility(tier, riskLevel);
+        // Pending = net (revenue − fees) from orders in the last N days; available = rest.
+        BigDecimal totalNet = totalRevenue.subtract(totalFeesLifeToDate).max(BigDecimal.ZERO);
+        BigDecimal pendingNet = getOrganizerPendingNet(organizerId, eventIds, tier);
+        BigDecimal pendingBalance = pendingNet.min(totalNet);
+        BigDecimal availableBalance = totalNet.subtract(pendingBalance).max(BigDecimal.ZERO);
         return OrganizerSummaryResponse.builder()
                 .eventsHosted(eventsHosted)
                 .ticketsSold(ticketsSold)
                 .ticketsSoldTrendPercent(null)
                 .totalRevenue(totalRevenue)
-                .availableBalance(BigDecimal.ZERO) // Placeholder until payout service
-                .pendingBalance(BigDecimal.ZERO) // Placeholder: funds in 1–3 day holding
+                .platformFeesWithheld(totalFeesLifeToDate)
+                .platformFeeRateLabel(feeRateLabel)
+                .availableBalance(availableBalance)
+                .pendingBalance(pendingBalance)
+                .pendingHoldDays(pendingHoldDays > 0 ? pendingHoldDays : null)
                 .riskFlagged(false)
                 .riskLevel(riskLevel)
                 .w9Submitted(w9Submitted)
                 .payoutEligibility(payoutEligibility)
                 .build();
+    }
+
+    /**
+     * Organizer's net (revenue − fees) from PAID orders in the last pendingHoldDays.
+     * Used to split total net into "pending" (in hold) vs "available" for payout.
+     */
+    private BigDecimal getOrganizerPendingNet(UUID organizerId, Set<UUID> eventIds, String tier) {
+        if (eventIds.isEmpty() || pendingHoldDays <= 0) return BigDecimal.ZERO;
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime cutoff = now.minusDays(pendingHoldDays);
+        // End 1s in future so orders created in the same second are included (BETWEEN inclusive)
+        LocalDateTime end = now.plusSeconds(1);
+        // Use createdAt (set by Hibernate on insert) so we catch all PAID orders in the window
+        // even if order_date were missing or out of sync in any code path
+        Page<OrderEntity> ordersPage = orderRepository.findByStatusAndCreatedAtBetween(
+                OrderStatus.PAID, cutoff, end, PageRequest.of(0, Integer.MAX_VALUE));
+        int totalOrdersInRange = ordersPage.getNumberOfElements();
+        if (totalOrdersInRange > 0) {
+            log.debug("getOrganizerPendingNet: organizerId={}, cutoff={}, end={}, paidOrdersInRange={}",
+                    organizerId, cutoff, end, totalOrdersInRange);
+        }
+        double feePercent = tierFeeProperties.getFeePercentForTier(tier);
+        BigDecimal feePerTicket = tierFeeProperties.getFeePerTicketForTier(tier);
+        BigDecimal revenue = BigDecimal.ZERO;
+        BigDecimal fees = BigDecimal.ZERO;
+        for (OrderEntity order : ordersPage.getContent()) {
+            BigDecimal organizerRevenueFromOrder = BigDecimal.ZERO;
+            int organizerTicketCount = 0;
+            for (OrderItemEntity oi : orderItemRepository.findByOrderId(order.getId())) {
+                TicketEntity ticket = ticketRepository.findById(oi.getTicketId()).orElse(null);
+                if (ticket != null && eventIds.contains(ticket.getEventId())) {
+                    BigDecimal lineTotal = oi.getPrice().multiply(BigDecimal.valueOf(oi.getQuantity()));
+                    organizerRevenueFromOrder = organizerRevenueFromOrder.add(lineTotal);
+                    organizerTicketCount += oi.getQuantity();
+                }
+            }
+            if (organizerRevenueFromOrder.compareTo(BigDecimal.ZERO) <= 0) continue;
+            revenue = revenue.add(organizerRevenueFromOrder);
+            BigDecimal percentFee = organizerRevenueFromOrder.multiply(BigDecimal.valueOf(feePercent)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            BigDecimal flatFee = feePerTicket.multiply(BigDecimal.valueOf(organizerTicketCount)).setScale(2, RoundingMode.HALF_UP);
+            fees = fees.add(percentFee).add(flatFee);
+        }
+        return revenue.subtract(fees).max(BigDecimal.ZERO);
+    }
+
+    /**
+     * Life-to-date platform fees (withheld from ticket sales) for this organizer.
+     * Uses tier-based rates from Pricing page: Basic 3.5%+$0.99, Pro 2.9%+$0.79, Enterprise 2.5%+$0.49 per ticket.
+     */
+    private BigDecimal getOrganizerFeesLifeToDate(UUID organizerId, Set<UUID> eventIds, BigDecimal totalRevenue) {
+        if (eventIds.isEmpty()) return BigDecimal.ZERO;
+        String tier = userRepository.findById(organizerId).map(UserEntity::getSubscriptionTier).orElse("BASIC");
+        double feePercent = tierFeeProperties.getFeePercentForTier(tier);
+        BigDecimal feePerTicket = tierFeeProperties.getFeePerTicketForTier(tier);
+        Page<OrderEntity> ordersPage = orderRepository.findByStatus(OrderStatus.PAID, PageRequest.of(0, Integer.MAX_VALUE));
+        BigDecimal totalFees = BigDecimal.ZERO;
+        for (OrderEntity order : ordersPage.getContent()) {
+            BigDecimal organizerRevenueFromOrder = BigDecimal.ZERO;
+            int organizerTicketCount = 0;
+            for (OrderItemEntity oi : orderItemRepository.findByOrderId(order.getId())) {
+                TicketEntity ticket = ticketRepository.findById(oi.getTicketId()).orElse(null);
+                if (ticket != null && eventIds.contains(ticket.getEventId())) {
+                    BigDecimal lineTotal = oi.getPrice().multiply(BigDecimal.valueOf(oi.getQuantity()));
+                    organizerRevenueFromOrder = organizerRevenueFromOrder.add(lineTotal);
+                    organizerTicketCount += oi.getQuantity();
+                }
+            }
+            if (organizerRevenueFromOrder.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal percentFee = organizerRevenueFromOrder.multiply(BigDecimal.valueOf(feePercent)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            BigDecimal flatFee = feePerTicket.multiply(BigDecimal.valueOf(organizerTicketCount)).setScale(2, RoundingMode.HALF_UP);
+            totalFees = totalFees.add(percentFee).add(flatFee);
+        }
+        return totalFees;
+    }
+
+    /** e.g. "2.9% + $0.79 per ticket (Pro)" for dashboard display. */
+    private String formatFeeRateLabel(String tier) {
+        if (tier == null) tier = "BASIC";
+        double pct = tierFeeProperties.getFeePercentForTier(tier);
+        BigDecimal perTicket = tierFeeProperties.getFeePerTicketForTier(tier);
+        String tierName = switch (tier.toUpperCase()) {
+            case "PRO" -> "Pro";
+            case "ENTERPRISE" -> "Enterprise";
+            default -> "Basic";
+        };
+        return String.format("%s%% + $%s per ticket (%s)", pct, perTicket.setScale(2, RoundingMode.HALF_UP), tierName);
     }
 
     /**
@@ -126,6 +235,67 @@ public class OrganizerServiceImpl implements OrganizerService {
                 .instant100(instant100)
                 .label(label)
                 .build();
+    }
+
+    @Override
+    public BigDecimal getOrganizerRevenueForYear(UUID organizerId, int year) {
+        LocalDateTime start = LocalDateTime.of(year, 1, 1, 0, 0, 0);
+        LocalDateTime end = LocalDateTime.of(year, 12, 31, 23, 59, 59);
+        List<EventEntity> events = eventRepository.findByOrganizerId(organizerId, PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        Set<UUID> eventIds = events.stream().map(EventEntity::getId).collect(Collectors.toSet());
+        if (eventIds.isEmpty()) return BigDecimal.ZERO;
+        Page<OrderEntity> ordersPage = orderRepository.findByStatusAndOrderDateBetween(
+                OrderStatus.PAID, start, end, PageRequest.of(0, Integer.MAX_VALUE));
+        BigDecimal total = BigDecimal.ZERO;
+        for (OrderEntity order : ordersPage.getContent()) {
+            for (OrderItemEntity oi : orderItemRepository.findByOrderId(order.getId())) {
+                TicketEntity ticket = ticketRepository.findById(oi.getTicketId()).orElse(null);
+                if (ticket != null && eventIds.contains(ticket.getEventId())) {
+                    total = total.add(oi.getPrice().multiply(BigDecimal.valueOf(oi.getQuantity())));
+                }
+            }
+        }
+        return total;
+    }
+
+    @Override
+    public BigDecimal getOrganizerFeesForYear(UUID organizerId, int year) {
+        LocalDateTime start = LocalDateTime.of(year, 1, 1, 0, 0, 0);
+        LocalDateTime end = LocalDateTime.of(year, 12, 31, 23, 59, 59);
+        List<EventEntity> events = eventRepository.findByOrganizerId(organizerId, PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        Set<UUID> eventIds = events.stream().map(EventEntity::getId).collect(Collectors.toSet());
+        if (eventIds.isEmpty()) return BigDecimal.ZERO;
+        String tier = userRepository.findById(organizerId).map(UserEntity::getSubscriptionTier).orElse("BASIC");
+        double feePercent = tierFeeProperties.getFeePercentForTier(tier);
+        BigDecimal feePerTicket = tierFeeProperties.getFeePerTicketForTier(tier);
+        Page<OrderEntity> ordersPage = orderRepository.findByStatusAndOrderDateBetween(
+                OrderStatus.PAID, start, end, PageRequest.of(0, Integer.MAX_VALUE));
+        BigDecimal totalFees = BigDecimal.ZERO;
+        for (OrderEntity order : ordersPage.getContent()) {
+            BigDecimal organizerRevenueFromOrder = BigDecimal.ZERO;
+            int organizerTicketCount = 0;
+            for (OrderItemEntity oi : orderItemRepository.findByOrderId(order.getId())) {
+                TicketEntity ticket = ticketRepository.findById(oi.getTicketId()).orElse(null);
+                if (ticket != null && eventIds.contains(ticket.getEventId())) {
+                    organizerRevenueFromOrder = organizerRevenueFromOrder.add(
+                            oi.getPrice().multiply(BigDecimal.valueOf(oi.getQuantity())));
+                    organizerTicketCount += oi.getQuantity();
+                }
+            }
+            if (organizerRevenueFromOrder.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal percentFee = organizerRevenueFromOrder.multiply(BigDecimal.valueOf(feePercent)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            BigDecimal flatFee = feePerTicket.multiply(BigDecimal.valueOf(organizerTicketCount)).setScale(2, RoundingMode.HALF_UP);
+            totalFees = totalFees.add(percentFee).add(flatFee);
+        }
+        return totalFees;
+    }
+
+    @Override
+    public BigDecimal getOrganizerSubscriptionPaymentsForYear(UUID organizerId, int year) {
+        Instant start = LocalDateTime.of(year, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC);
+        Instant end = LocalDateTime.of(year + 1, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC);
+        BigDecimal sum = subscriptionPaymentRepository.sumAmountByUserIdAndPaidAtBetween(organizerId, start, end);
+        return sum != null ? sum : BigDecimal.ZERO;
     }
 
     @Override

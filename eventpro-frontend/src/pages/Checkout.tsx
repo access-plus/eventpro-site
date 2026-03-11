@@ -39,6 +39,23 @@ function eventAddonsToMerchandise(addons: { id: string; name: string; descriptio
   }));
 }
 
+/** US states for sales tax jurisdiction dropdown (code + name). */
+const US_STATE_OPTIONS: { code: string; name: string }[] = [
+  { code: "AL", name: "Alabama" }, { code: "AK", name: "Alaska" }, { code: "AZ", name: "Arizona" }, { code: "AR", name: "Arkansas" },
+  { code: "CA", name: "California" }, { code: "CO", name: "Colorado" }, { code: "CT", name: "Connecticut" }, { code: "DE", name: "Delaware" },
+  { code: "FL", name: "Florida" }, { code: "GA", name: "Georgia" }, { code: "HI", name: "Hawaii" }, { code: "ID", name: "Idaho" },
+  { code: "IL", name: "Illinois" }, { code: "IN", name: "Indiana" }, { code: "IA", name: "Iowa" }, { code: "KS", name: "Kansas" },
+  { code: "KY", name: "Kentucky" }, { code: "LA", name: "Louisiana" }, { code: "ME", name: "Maine" }, { code: "MD", name: "Maryland" },
+  { code: "MA", name: "Massachusetts" }, { code: "MI", name: "Michigan" }, { code: "MN", name: "Minnesota" }, { code: "MS", name: "Mississippi" },
+  { code: "MO", name: "Missouri" }, { code: "MT", name: "Montana" }, { code: "NE", name: "Nebraska" }, { code: "NV", name: "Nevada" },
+  { code: "NH", name: "New Hampshire" }, { code: "NJ", name: "New Jersey" }, { code: "NM", name: "New Mexico" }, { code: "NY", name: "New York" },
+  { code: "NC", name: "North Carolina" }, { code: "ND", name: "North Dakota" }, { code: "OH", name: "Ohio" }, { code: "OK", name: "Oklahoma" },
+  { code: "OR", name: "Oregon" }, { code: "PA", name: "Pennsylvania" }, { code: "RI", name: "Rhode Island" }, { code: "SC", name: "South Carolina" },
+  { code: "SD", name: "South Dakota" }, { code: "TN", name: "Tennessee" }, { code: "TX", name: "Texas" }, { code: "UT", name: "Utah" },
+  { code: "VT", name: "Vermont" }, { code: "VA", name: "Virginia" }, { code: "WA", name: "Washington" }, { code: "WV", name: "West Virginia" },
+  { code: "WI", name: "Wisconsin" }, { code: "WY", name: "Wyoming" }, { code: "DC", name: "District of Columbia" },
+];
+
 const Checkout = () => {
   const { items, totalAmount, removeItem, clearCart } = useCart();
   const { user, isAuthenticated } = useAuth();
@@ -69,8 +86,31 @@ const Checkout = () => {
   const [successTicketType, setSuccessTicketType] = useState<string>("");
   /** Live form values for ticket preview (guest only, before submit). */
   const [previewGuest, setPreviewGuest] = useState({ firstName: "", lastName: "", email: "" });
+  /** Checkout totals including tax (from GET /payments/checkout-totals). Use total for payment intent when tax enabled. */
+  const [checkoutTotals, setCheckoutTotals] = useState<{ subtotal: number; taxRatePercent: number; tax: number; total: number } | null>(null);
+  /** Buyer state/country for jurisdiction-based sales tax (e.g. state=CA, country=US). */
+  const [taxState, setTaxState] = useState<string>("");
+  const [taxCountry, setTaxCountry] = useState<string>("US");
 
   const eventIds = useMemo(() => [...new Set(items.map((i) => i.eventId).filter(Boolean))], [items]);
+
+  const merchTotal = selectedMerch.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+  const grandTotal = totalAmount + merchTotal + (donationAmount || 0);
+
+  // Fetch checkout totals (subtotal + tax) when grandTotal and optional state/country change
+  useEffect(() => {
+    if (grandTotal <= 0) {
+      setCheckoutTotals(null);
+      return;
+    }
+    apiService
+      .getCheckoutTotals(grandTotal, taxState || undefined, taxCountry || undefined)
+      .then(setCheckoutTotals)
+      .catch(() => setCheckoutTotals(null));
+  }, [grandTotal, taxState, taxCountry]);
 
   useEffect(() => {
     if (eventIds.length === 0) {
@@ -100,12 +140,6 @@ const Checkout = () => {
       })
       .catch(() => {});
   }, [isAuthenticated, items.length]);
-
-  const merchTotal = selectedMerch.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-  const grandTotal = totalAmount + merchTotal + (donationAmount || 0);
 
   /** Attendee name for ticket preview: from user, guestInfo, or live preview. */
   const attendeeName =
@@ -143,7 +177,8 @@ const Checkout = () => {
     setReservedTicketIds(null);
     if (!isAuthenticated) setReservedUntil(null);
     try {
-      const amount = Number(grandTotal.toFixed(2));
+      const amountToCharge = checkoutTotals?.total ?? grandTotal;
+      const amount = Number(amountToCharge.toFixed(2));
       if (amount <= 0) {
         setPaymentError("Order total must be greater than 0");
         toast.error("Order total must be greater than 0");
@@ -185,6 +220,7 @@ const Checkout = () => {
 
   const buildGuestConfirm = (paymentIntentId: string) => {
     if (!guestInfo) throw new Error("Guest info required");
+    const totalToConfirm = checkoutTotals?.total ?? grandTotal;
     return apiService.confirmGuestPayment({
       paymentIntentId,
       email: guestInfo.email,
@@ -195,12 +231,15 @@ const Checkout = () => {
         ticketType: i.ticketTypeId,
         quantity: i.quantity,
       })),
-      totalAmount: grandTotal,
+      totalAmount: totalToConfirm,
       donationAmount: donationAmount > 0 ? Number(donationAmount.toFixed(2)) : undefined,
       reservedTicketIds: reservedTicketIds ?? undefined,
       howDidYouHear: howDidYouHear && howDidYouHear !== "__" ? howDidYouHear : undefined,
       receiveTicketViaWhatsApp: receiveTicketViaWhatsApp || undefined,
       receiveTicketViaSMS: receiveTicketViaSMS || undefined,
+      state: taxState?.trim() || undefined,
+      country: taxCountry?.trim() || undefined,
+      taxAmount: checkoutTotals && checkoutTotals.tax > 0 ? Number(checkoutTotals.tax.toFixed(2)) : undefined,
     });
   };
 
@@ -295,9 +334,10 @@ const Checkout = () => {
                 amount={grandTotal}
                 isGuest={!isAuthenticated && !!guestInfo}
                 guestConfirm={!isAuthenticated && guestInfo ? buildGuestConfirm : undefined}
-                authenticatedConfirm={isAuthenticated ? (id) => apiService.confirmPayment(id) : undefined}
+                authenticatedConfirm={isAuthenticated ? (id) => apiService.confirmPayment(id, taxState?.trim() || undefined, taxCountry?.trim() || undefined) : undefined}
                 onSuccess={handlePaymentSuccess}
                 onError={(msg) => { setPaymentError(msg); toast.error(msg); }}
+                billingDetails={(taxState || taxCountry) ? { state: taxState?.trim() || undefined, country: taxCountry?.trim() || undefined } : undefined}
               />
               <Button
                 type="button"
@@ -622,6 +662,50 @@ const Checkout = () => {
                   </div>
                 )}
 
+                {/* Billing address: standard checkout field; we use state/country for tax (same as Stripe, TaxJar). */}
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">
+                      Billing address
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Used for your receipt and to calculate sales tax where required.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Country</Label>
+                      <Select value={taxCountry || "US"} onValueChange={(v) => setTaxCountry(v || "US")}>
+                        <SelectTrigger className="rounded-lg border-primary/20 bg-background/80">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="US">United States</SelectItem>
+                          <SelectItem value="CA">Canada</SelectItem>
+                          <SelectItem value="GB">United Kingdom</SelectItem>
+                          <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">State / Province</Label>
+                      <Select value={taxState || "__"} onValueChange={(v) => setTaxState(v === "__" ? "" : v)}>
+                        <SelectTrigger className="rounded-lg border-primary/20 bg-background/80">
+                          <SelectValue placeholder="State" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__">Select state (optional)</SelectItem>
+                          {US_STATE_OPTIONS.map((s) => (
+                            <SelectItem key={s.code} value={s.code}>
+                              {s.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="border-t border-border pt-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Tickets Subtotal</span>
@@ -639,10 +723,16 @@ const Checkout = () => {
                       <span>${donationAmount.toFixed(2)}</span>
                     </div>
                   )}
+                  {checkoutTotals && checkoutTotals.tax > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span>Tax ({checkoutTotals.taxRatePercent}%)</span>
+                      <span>${checkoutTotals.tax.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-baseline pt-2 border-t">
                     <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total</span>
                     <span className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight text-foreground">
-                      ${grandTotal.toFixed(2)}
+                      ${(checkoutTotals?.total ?? grandTotal).toFixed(2)}
                     </span>
                   </div>
                 </div>

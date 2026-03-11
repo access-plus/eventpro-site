@@ -1,5 +1,6 @@
 package com.accessplus.eventpro.api.service.impl;
 
+import com.accessplus.eventpro.api.dto.PendingVerificationResponse;
 import com.accessplus.eventpro.api.dto.SubmitVerificationRequest;
 import com.accessplus.eventpro.api.dto.VerificationStatusResponse;
 import com.accessplus.eventpro.api.service.RiskScoringService;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -96,5 +98,68 @@ public class VerificationServiceImpl implements VerificationService {
         userRepository.save(user);
         riskScoringService.computeAndUpdateRiskScore(organizerId);
         log.info("KYC submitted for organizer: {}", organizerId);
+    }
+
+    @Override
+    @Transactional
+    public void approveSubmission(UUID submissionId) {
+        OrganizerKycSubmissionEntity submission = kycSubmissionRepository.findById(submissionId)
+                .orElseThrow(() -> new ResourceNotFoundException("KYC submission", submissionId.toString()));
+        if (!"PENDING".equals(submission.getStatus())) {
+            throw new ValidationException("Only PENDING submissions can be approved. Current status: " + submission.getStatus());
+        }
+        submission.setStatus("VERIFIED");
+        submission.setReviewedAt(Instant.now());
+        kycSubmissionRepository.save(submission);
+
+        UserEntity user = userRepository.findById(submission.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", submission.getUserId().toString()));
+        user.setVerificationStatus("VERIFIED");
+        user.setIsVerified(true);
+        userRepository.save(user);
+        log.info("KYC approved: submissionId={}, userId={}", submissionId, submission.getUserId());
+    }
+
+    @Override
+    @Transactional
+    public void rejectSubmission(UUID submissionId, String reason) {
+        OrganizerKycSubmissionEntity submission = kycSubmissionRepository.findById(submissionId)
+                .orElseThrow(() -> new ResourceNotFoundException("KYC submission", submissionId.toString()));
+        if (!"PENDING".equals(submission.getStatus())) {
+            throw new ValidationException("Only PENDING submissions can be rejected. Current status: " + submission.getStatus());
+        }
+        submission.setStatus("REJECTED");
+        submission.setReviewedAt(Instant.now());
+        submission.setRejectionReason(reason != null ? reason.trim() : null);
+        kycSubmissionRepository.save(submission);
+
+        UserEntity user = userRepository.findById(submission.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User", submission.getUserId().toString()));
+        user.setVerificationStatus("REJECTED");
+        user.setIsVerified(false);
+        userRepository.save(user);
+        log.info("KYC rejected: submissionId={}, userId={}, reason={}", submissionId, submission.getUserId(), reason);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PendingVerificationResponse> listPendingSubmissions(int limit) {
+        List<OrganizerKycSubmissionEntity> list = kycSubmissionRepository
+                .findByStatusOrderBySubmittedAtDesc("PENDING", org.springframework.data.domain.PageRequest.of(0, limit > 0 ? limit : 50));
+        List<PendingVerificationResponse> result = new ArrayList<>();
+        for (OrganizerKycSubmissionEntity s : list) {
+            UserEntity u = userRepository.findById(s.getUserId()).orElse(null);
+            result.add(PendingVerificationResponse.builder()
+                    .id(s.getId())
+                    .userId(s.getUserId())
+                    .email(u != null ? u.getEmail() : null)
+                    .legalEntityType(s.getLegalEntityType())
+                    .addressCity(s.getAddressCity())
+                    .addressState(s.getAddressState())
+                    .submittedAt(s.getSubmittedAt())
+                    .status(s.getStatus())
+                    .build());
+        }
+        return result;
     }
 }

@@ -11,6 +11,16 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    // In dev, proxy /api to backend so the app works without CORS and with backend in Docker (backend:8080) or on host (localhost:8080)
+    proxy:
+      mode === "development"
+        ? {
+            "/api": {
+              target: process.env.VITE_PROXY_TARGET || "http://localhost:8080",
+              changeOrigin: true,
+            },
+          }
+        : undefined,
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

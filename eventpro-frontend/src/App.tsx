@@ -10,6 +10,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { PreferencesProvider } from "@/contexts/PreferencesContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminLayout } from "@/components/AdminLayout";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { PageTransition } from "@/components/PageTransition";
@@ -26,6 +27,12 @@ import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Admin from "./pages/Admin";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminVerification from "./pages/AdminVerification";
+import AdminEvents from "./pages/AdminEvents";
+import AdminEventSales from "./pages/AdminEventSales";
+import AdminRevenue from "./pages/AdminRevenue";
+import AdminSubscriptionPayments from "./pages/AdminSubscriptionPayments";
 import UserManagement from "./pages/UserManagement";
 import Organizer from "./pages/Organizer";
 import EventForm from "./pages/EventForm";
@@ -34,6 +41,7 @@ import EventTickets from "./pages/EventTickets";
 import EventEnhancements from "./pages/EventEnhancements";
 import OrderHistory from "./pages/OrderHistory";
 import Pricing from "./pages/Pricing";
+import SubscriptionReturn from "./pages/SubscriptionReturn";
 import Partners from "./pages/Partners";
 import NotFound from "./pages/NotFound";
 
@@ -47,6 +55,14 @@ const AnimatedRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PageTransition><Home /></PageTransition>} />
         <Route path="/pricing" element={<PageTransition><Pricing /></PageTransition>} />
+        <Route
+          path="/subscription/return"
+          element={
+            <ProtectedRoute>
+              <PageTransition><SubscriptionReturn /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
         <Route path="/partners" element={<PageTransition><Partners /></PageTransition>} />
         <Route path="/events" element={<PageTransition><Events /></PageTransition>} />
         <Route path="/events/:id" element={<PageTransition><EventDetails /></PageTransition>} />
@@ -100,19 +116,21 @@ const AnimatedRoutes = () => {
           path="/admin"
           element={
             <ProtectedRoute allowedRoles={["ADMIN"]}>
-              <PageTransition><Admin /></PageTransition>
+              <PageTransition>
+                <AdminLayout />
+              </PageTransition>
             </ProtectedRoute>
           }
-        />
-
-        <Route
-          path="/admin/users"
-          element={
-            <ProtectedRoute allowedRoles={["ADMIN"]}>
-              <PageTransition><UserManagement /></PageTransition>
-            </ProtectedRoute>
-          }
-        />
+        >
+          <Route index element={<Admin />} />
+          <Route path="overview" element={<AdminDashboard />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="verification" element={<AdminVerification />} />
+          <Route path="events" element={<AdminEvents />} />
+          <Route path="event-sales" element={<AdminEventSales />} />
+          <Route path="revenue" element={<AdminRevenue />} />
+          <Route path="subscription-payments" element={<AdminSubscriptionPayments />} />
+        </Route>
 
         <Route
           path="/organizer"

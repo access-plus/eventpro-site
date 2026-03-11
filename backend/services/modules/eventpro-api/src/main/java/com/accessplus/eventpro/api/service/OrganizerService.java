@@ -31,5 +31,20 @@ public interface OrganizerService {
     List<RecentSaleResponse> getRecentSales(UUID organizerId, int limit);
 
     OrganizerInsightsResponse getInsights(UUID organizerId);
+
+    /** Gross revenue (from PAID orders) for the organizer in the given calendar year. For 1099-K reporting. */
+    java.math.BigDecimal getOrganizerRevenueForYear(UUID organizerId, int year);
+
+    /**
+     * Total platform (and payment-processing) fees withheld for the organizer in the given year.
+     * Based on stored order platform_fee (or fallback to % of gross). Used for 1099-K "fees withheld" and payouts.
+     */
+    java.math.BigDecimal getOrganizerFeesForYear(UUID organizerId, int year);
+
+    /**
+     * Total subscription/plan fees the organizer paid in the given year (Pro/Enterprise).
+     * Separate payments (organizer → platform). For 1099-K "subscription fees paid" line for their records.
+     */
+    java.math.BigDecimal getOrganizerSubscriptionPaymentsForYear(UUID organizerId, int year);
 }
 

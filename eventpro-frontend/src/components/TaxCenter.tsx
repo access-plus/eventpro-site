@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Shield, ShieldCheck, FileText, Download } from "lucide-react";
+import { Shield, ShieldCheck, FileText, Download, Lock } from "lucide-react";
 import { apiService } from "@/lib/api";
 import type { OrganizerSummary, TaxFormEntry } from "@/types/api";
 import { W9Modal } from "@/components/W9Modal";
+import { useAuth } from "@/contexts/AuthContext";
 
 const THRESHOLD_1099 = 600;
 const W9_REQUIRED_ABOVE = 500;
@@ -26,16 +28,19 @@ function toNum(v: unknown): number {
 const INVALUATE_EVENT = "organizer-summary-invalidate";
 
 export function TaxCenter() {
+  const { user } = useAuth();
   const [summary, setSummary] = useState<OrganizerSummary | null>(null);
   const [taxForms, setTaxForms] = useState<TaxFormEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [w9ModalOpen, setW9ModalOpen] = useState(false);
 
+  const isEnterprise = (user?.subscriptionTier ?? "").toUpperCase() === "ENTERPRISE";
+
   const fetchData = useCallback(async () => {
     try {
       const [s, forms] = await Promise.all([
         apiService.getOrganizerSummary(),
-        apiService.getOrganizerTaxForms(),
+        isEnterprise ? apiService.getOrganizerTaxForms() : Promise.resolve([]),
       ]);
       setSummary(s);
       setTaxForms(forms ?? []);
@@ -45,7 +50,7 @@ export function TaxCenter() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isEnterprise]);
 
   useEffect(() => {
     fetchData();
@@ -129,13 +134,26 @@ export function TaxCenter() {
         )}
       </div>
 
-      {/* Document Vault */}
+      {/* Document Vault (1099-K reports — Enterprise only per pricing) */}
       <div className={`${tileBase} mb-6`}>
         <h3 className="font-semibold mb-4 flex items-center gap-2">
           <FileText className="h-4 w-4 text-primary" />
           Document Vault
         </h3>
-        {loading ? (
+        {!isEnterprise ? (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+            <Lock className="h-10 w-10 text-primary shrink-0" />
+            <div>
+              <p className="font-medium text-foreground">1099-K reports are included in Enterprise</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Download annual 1099-K tax forms and keep compliance in one place. Upgrade to Enterprise to unlock the Document Vault.
+              </p>
+            </div>
+            <Button asChild className="shrink-0 bg-gradient-to-r from-primary to-primary-glow text-primary-foreground">
+              <Link to="/pricing">View plans</Link>
+            </Button>
+          </div>
+        ) : loading ? (
           <Skeleton className="h-16 w-full rounded-lg bg-white/10" />
         ) : taxForms.length === 0 ? (
           <p className="text-sm text-muted-foreground">No tax forms yet. Forms appear here after the calendar year.</p>
@@ -163,8 +181,13 @@ export function TaxCenter() {
                   size="sm"
                   variant="outline"
                   className="bg-gradient-to-r from-primary/10 to-primary-glow/10 border-primary/30 text-primary hover:bg-primary/20"
-                  disabled={form.status !== "Available" || !form.downloadUrl}
-                  onClick={() => form.downloadUrl && window.open(form.downloadUrl)}
+                  disabled={form.status !== "Available"}
+                  onClick={() => {
+                    if (form.status !== "Available") return;
+                    const year = parseInt(form.year, 10);
+                    if (!Number.isNaN(year)) apiService.downloadOrganizerTaxFormPdf(year);
+                  }}
+                  title={form.status !== "Available" ? form.status : undefined}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Download PDF

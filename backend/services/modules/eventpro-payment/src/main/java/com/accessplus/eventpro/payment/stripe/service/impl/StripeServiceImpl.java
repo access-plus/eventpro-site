@@ -1,13 +1,19 @@
 package com.accessplus.eventpro.payment.stripe.service.impl;
 
+import com.accessplus.eventpro.payment.stripe.model.StripeBillingAddress;
 import com.accessplus.eventpro.payment.stripe.service.StripeService;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
+import com.stripe.model.Customer;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.PaymentMethod;
 import com.stripe.model.Refund;
+import com.stripe.param.CustomerCreateParams;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.PaymentIntentConfirmParams;
+import com.stripe.param.PaymentIntentRetrieveParams;
 import com.stripe.param.RefundCreateParams;
+import com.stripe.param.checkout.SessionCreateParams;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -111,6 +117,82 @@ public class StripeServiceImpl implements StripeService {
                 paymentIntentId, refund.getId());
         
         return refund.getId();
+    }
+
+    @Override
+    public StripeBillingAddress getBillingAddressFromPaymentIntent(String paymentIntentId) throws StripeException {
+        ensureStripeConfigured();
+        PaymentIntentRetrieveParams params = PaymentIntentRetrieveParams.builder()
+                .addExpand("payment_method")
+                .build();
+        PaymentIntent paymentIntent = PaymentIntent.retrieve(paymentIntentId, params, null);
+        Object pmObj = paymentIntent.getPaymentMethod();
+        if (pmObj == null) {
+            return null;
+        }
+        PaymentMethod pm;
+        if (pmObj instanceof PaymentMethod) {
+            pm = (PaymentMethod) pmObj;
+        } else if (pmObj instanceof com.stripe.model.ExpandableField) {
+            @SuppressWarnings("unchecked")
+            com.stripe.model.ExpandableField<PaymentMethod> field = (com.stripe.model.ExpandableField<PaymentMethod>) pmObj;
+            if (!field.isExpanded()) {
+                return null;
+            }
+            pm = field.getExpanded();
+        } else {
+            return null;
+        }
+        if (pm == null || pm.getBillingDetails() == null || pm.getBillingDetails().getAddress() == null) {
+            return null;
+        }
+        com.stripe.model.Address addr = pm.getBillingDetails().getAddress();
+        String state = addr.getState() != null && !addr.getState().isBlank() ? addr.getState().trim() : null;
+        String country = addr.getCountry() != null && !addr.getCountry().isBlank() ? addr.getCountry().trim() : null;
+        if (state == null && country == null) {
+            return null;
+        }
+        return new StripeBillingAddress(state, country);
+    }
+
+    @Override
+    public String createCustomer(String email, String name) throws StripeException {
+        ensureStripeConfigured();
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Email is required for Stripe Customer");
+        }
+        CustomerCreateParams params = CustomerCreateParams.builder()
+                .setEmail(email.trim().toLowerCase())
+                .setName(name != null && !name.isBlank() ? name.trim() : null)
+                .build();
+        Customer customer = Customer.create(params);
+        log.info("Created Stripe customer: id={}, email={}", customer.getId(), email);
+        return customer.getId();
+    }
+
+    @Override
+    public String createSubscriptionCheckoutSession(String customerId, String priceId, String successUrl, String cancelUrl, String clientReferenceId) throws StripeException {
+        ensureStripeConfigured();
+        if (customerId == null || customerId.isBlank() || priceId == null || priceId.isBlank()) {
+            throw new IllegalArgumentException("customerId and priceId are required");
+        }
+        SessionCreateParams.LineItem lineItem = SessionCreateParams.LineItem.builder()
+                .setPrice(priceId)
+                .setQuantity(1L)
+                .build();
+        SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+                .setCustomer(customerId)
+                .addLineItem(lineItem)
+                .setSuccessUrl(successUrl)
+                .setCancelUrl(cancelUrl);
+        if (clientReferenceId != null && !clientReferenceId.isBlank()) {
+            paramsBuilder.setClientReferenceId(clientReferenceId);
+        }
+        com.stripe.model.checkout.Session session = com.stripe.model.checkout.Session.create(paramsBuilder.build());
+        String url = session.getUrl();
+        log.info("Created subscription checkout session: id={}, url={}", session.getId(), url != null ? "present" : "null");
+        return url;
     }
 }
 

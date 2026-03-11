@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import type {
   ApiResponse,
+  PageResponse,
   ApiKey,
   User,
   Event,
@@ -27,15 +28,23 @@ import type {
   TeamMember,
   SeatResponse,
   CreateSeatMapRequest,
+  AdminStats,
+  EventSales,
+  RevenueData,
+  PendingVerification,
+  RecordSubscriptionPaymentRequest,
 } from "@/types/api";
 
 class ApiService {
   private api: AxiosInstance;
 
   constructor() {
-    // Default to localhost for development - set VITE_API_BASE_URL in production
+    // In dev always use same-origin so Vite proxy forwards /api to backend (avoids direct :8080 and CORS).
+    const baseURL = import.meta.env.DEV
+      ? ""
+      : (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080");
     this.api = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080",
+      baseURL,
       headers: {
         "Content-Type": "application/json",
       },
@@ -75,7 +84,35 @@ class ApiService {
     return response.data.data;
   }
 
-  /** Upgrade subscription tier (Basic → Pro or Enterprise). Returns updated user. */
+  /** Create Stripe Checkout Session for subscription. Redirect user to returned url. After payment, webhooks update tier. */
+  async createSubscriptionCheckoutSession(params: {
+    tier: "PRO" | "ENTERPRISE";
+    period?: "MONTHLY" | "YEARLY";
+    successUrl: string;
+    cancelUrl: string;
+  }): Promise<{ url: string }> {
+    const response = await this.api.post<ApiResponse<{ url: string }>>(
+      "/api/v1/subscription/create-checkout-session",
+      {
+        tier: params.tier,
+        period: params.period ?? "MONTHLY",
+        successUrl: params.successUrl,
+        cancelUrl: params.cancelUrl,
+      }
+    );
+    return response.data.data ?? { url: "" };
+  }
+
+  /** Sync subscription from Stripe (updates tier + role). Returns user and server message (e.g. why nothing changed). */
+  async syncSubscriptionFromStripe(): Promise<{ user: User; message: string }> {
+    const response = await this.api.post<ApiResponse<User>>("/api/v1/subscription/sync");
+    return {
+      user: response.data.data!,
+      message: response.data.message ?? "Done",
+    };
+  }
+
+  /** Upgrade subscription tier without payment (legacy / dev). Prefer createSubscriptionCheckoutSession for real billing. */
   async upgradeSubscription(tier: "PRO" | "ENTERPRISE"): Promise<User> {
     const response = await this.api.put<ApiResponse<User>>("/api/v1/users/me/subscription-tier", { tier });
     return response.data.data;
@@ -257,6 +294,23 @@ class ApiService {
     return response.data.data ?? { stripePublishableKey: "" };
   }
 
+  /** Get checkout totals including tax. Pass state/country for jurisdiction-based tax (e.g. state=CA, country=US). */
+  async getCheckoutTotals(subtotal?: number, state?: string, country?: string): Promise<import("@/types/api").CheckoutTotals> {
+    const params: Record<string, string | number> = {};
+    if (subtotal != null && subtotal >= 0) params.subtotal = subtotal;
+    if (state != null && state.trim()) params.state = state.trim();
+    if (country != null && country.trim()) params.country = country.trim();
+    const response = await this.api.get<ApiResponse<import("@/types/api").CheckoutTotals>>("/api/v1/payments/checkout-totals", { params });
+    const data = response.data.data;
+    if (!data) throw new Error("No checkout totals");
+    return {
+      subtotal: Number(data.subtotal),
+      taxRatePercent: Number(data.taxRatePercent),
+      tax: Number(data.tax),
+      total: Number(data.total),
+    };
+  }
+
   /** Create Stripe payment intent (amount in dollars). Public – works for guest. */
   async createPaymentIntent(amount: number): Promise<{ clientSecret: string }> {
     const response = await this.api.post<ApiResponse<{ clientSecret: string }>>("/api/v1/payments/create-intent", {
@@ -271,28 +325,140 @@ class ApiService {
     return response.data.data;
   }
 
-  /** Confirm payment for authenticated user (creates order from cart). */
-  async confirmPayment(paymentIntentId: string): Promise<Order> {
-    const response = await this.api.post<ApiResponse<Order>>("/api/v1/payments/confirm", {
-      paymentIntentId,
-    });
+  /** Confirm payment for authenticated user (creates order from cart). Optional state/country for sales tax jurisdiction. */
+  async confirmPayment(paymentIntentId: string, state?: string, country?: string): Promise<Order> {
+    const body: { paymentIntentId: string; state?: string; country?: string } = { paymentIntentId };
+    if (state != null && state.trim()) body.state = state.trim();
+    if (country != null && country.trim()) body.country = country.trim();
+    const response = await this.api.post<ApiResponse<Order>>("/api/v1/payments/confirm", body);
     return response.data.data;
   }
 
-  // Admin endpoints
+  // Admin endpoints (only call from admin-only UI; backend enforces ADMIN role)
+  async getUsersPage(page = 1, size = 10): Promise<PageResponse<User>> {
+    const response = await this.api.get<ApiResponse<PageResponse<User>>>(
+      "/api/v1/admin/users",
+      { params: { page, size } }
+    );
+    const raw = response.data.data;
+    if (!raw) return { content: [], totalElements: 0, totalPages: 0, size, number: page - 1 };
+    return {
+      content: Array.isArray(raw) ? raw : (raw.content ?? []),
+      totalElements: raw.totalElements ?? raw.content?.length ?? 0,
+      totalPages: raw.totalPages ?? 1,
+      size: raw.size ?? size,
+      number: raw.number ?? page - 1,
+      first: raw.first,
+      last: raw.last,
+    };
+  }
+
   async getAllUsers(): Promise<User[]> {
-    const response = await this.api.get<ApiResponse<User[]>>("/api/v1/admin/users");
+    const page = await this.getUsersPage(1, 100);
+    return page.content;
+  }
+
+  /** Create a new user with ADMIN role. Requires caller to be ADMIN. */
+  async createAdminUser(body: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    phoneNumber?: string;
+  }): Promise<User> {
+    const response = await this.api.post<ApiResponse<User>>("/api/v1/admin/users", body);
     return response.data.data;
   }
 
   async updateUserRole(userId: string, role: string): Promise<User> {
-    const response = await this.api.put<ApiResponse<User>>(`/api/v1/admin/users/${userId}/role`, { role });
+    const response = await this.api.patch<ApiResponse<User>>(`/api/v1/admin/users/${userId}/role`, { role });
     return response.data.data;
   }
 
   async updateUserStatus(userId: string, status: string): Promise<User> {
-    const response = await this.api.put<ApiResponse<User>>(`/api/v1/admin/users/${userId}/status`, { status });
+    const response = await this.api.patch<ApiResponse<User>>(`/api/v1/admin/users/${userId}/status`, { status });
     return response.data.data;
+  }
+
+  async getStats(): Promise<AdminStats> {
+    const response = await this.api.get<ApiResponse<AdminStats>>("/api/v1/admin/stats");
+    const d = response.data.data;
+    const num = (v: unknown) => (typeof v === "number" && !Number.isNaN(v) ? v : typeof v === "string" ? parseFloat(v) || 0 : 0);
+    return {
+      totalUsers: Number(d?.totalUsers ?? 0),
+      totalEvents: Number(d?.totalEvents ?? 0),
+      totalTicketsSold: Number(d?.totalTicketsSold ?? 0),
+      totalRevenue: num(d?.totalRevenue),
+      userGrowth: num(d?.userGrowth),
+      eventGrowth: num(d?.eventGrowth),
+      ticketGrowth: num(d?.ticketGrowth),
+      revenueGrowth: num(d?.revenueGrowth),
+    };
+  }
+
+  async getVerificationPending(limit = 50): Promise<PendingVerification[]> {
+    const response = await this.api.get<ApiResponse<PendingVerification[]>>("/api/v1/admin/verification-pending", {
+      params: { limit },
+    });
+    return response.data.data ?? [];
+  }
+
+  async approveVerification(submissionId: string): Promise<void> {
+    await this.api.post(`/api/v1/admin/verification/${submissionId}/approve`);
+  }
+
+  async rejectVerification(submissionId: string, reason?: string): Promise<void> {
+    await this.api.post(`/api/v1/admin/verification/${submissionId}/reject`, reason != null ? { reason } : {});
+  }
+
+  async getEventSales(): Promise<EventSales[]> {
+    const response = await this.api.get<ApiResponse<EventSales[]>>("/api/v1/admin/event-sales");
+    const list = response.data.data ?? [];
+    return list.map((e: Record<string, unknown>) => ({
+      eventId: String(e.eventId ?? ""),
+      eventName: String(e.eventName ?? ""),
+      ticketsSold: Number(e.ticketsSold ?? 0),
+      revenue: Number(e.revenue ?? 0),
+      availableTickets: Number(e.availableTickets ?? 0),
+      totalTickets: Number(e.totalTickets ?? 0),
+    }));
+  }
+
+  async getRevenue(period = "30d"): Promise<RevenueData[]> {
+    const response = await this.api.get<ApiResponse<RevenueData[]>>("/api/v1/admin/revenue", { params: { period } });
+    const list = response.data.data ?? [];
+    return list.map((r: Record<string, unknown>) => ({
+      date: String(r.date ?? ""),
+      revenue: Number(r.revenue ?? 0),
+      ticketsSold: Number(r.ticketsSold ?? 0),
+    }));
+  }
+
+  async getEventsPage(page = 1, size = 10): Promise<PageResponse<Event>> {
+    const response = await this.api.get<ApiResponse<PageResponse<Event>>>("/api/v1/admin/events", {
+      params: { page, size },
+    });
+    const raw = response.data.data;
+    if (!raw) return { content: [], totalElements: 0, totalPages: 0, size, number: page - 1 };
+    return {
+      content: Array.isArray(raw) ? raw : (raw.content ?? []),
+      totalElements: raw.totalElements ?? raw.content?.length ?? 0,
+      totalPages: raw.totalPages ?? 1,
+      size: raw.size ?? size,
+      number: raw.number ?? page - 1,
+      first: raw.first,
+      last: raw.last,
+    };
+  }
+
+  async updateEventStatus(eventId: string, status: string): Promise<Event> {
+    const response = await this.api.patch<ApiResponse<Event>>(`/api/v1/admin/events/${eventId}/status`, { status });
+    return response.data.data;
+  }
+
+  async recordSubscriptionPayment(body: RecordSubscriptionPaymentRequest): Promise<{ id: string }> {
+    const response = await this.api.post<ApiResponse<{ id: string }>>("/api/v1/admin/subscription-payments", body);
+    return response.data.data ?? { id: "" };
   }
 
   // Organizer endpoints
@@ -307,8 +473,11 @@ class ApiService {
       ticketsSold: d.ticketsSold ?? 0,
       ticketsSoldTrendPercent: d.ticketsSoldTrendPercent ?? null,
       totalRevenue: toNum(d.totalRevenue),
+      platformFeesWithheld: toNum(d.platformFeesWithheld),
+      platformFeeRateLabel: d.platformFeeRateLabel ?? undefined,
       availableBalance: toNum(d.availableBalance),
       pendingBalance: toNum(d.pendingBalance),
+      pendingHoldDays: typeof d.pendingHoldDays === "number" ? d.pendingHoldDays : undefined,
       riskFlagged: Boolean(d.riskFlagged),
       riskLevel: d.riskLevel ?? "LOW",
       w9Submitted: Boolean(d.w9Submitted),
@@ -323,9 +492,32 @@ class ApiService {
     };
   }
 
+  /** Request a payout for the given amount. Validates balance and eligibility (verified, W-9 if $600+). */
+  async requestPayout(amount: number): Promise<{ id: string; amount: number; status: string }> {
+    const response = await this.api.post<ApiResponse<{ id: string; amount: number; status: string }>>(
+      "/api/v1/organizer/payouts/request",
+      { amount: Number(amount.toFixed(2)) }
+    );
+    return response.data.data;
+  }
+
   async getOrganizerTaxForms(): Promise<TaxFormEntry[]> {
     const response = await this.api.get<ApiResponse<TaxFormEntry[]>>("/api/v1/organizer/tax-forms");
     return response.data.data ?? [];
+  }
+
+  /** Download 1099-K PDF for a tax year. Triggers browser download. */
+  async downloadOrganizerTaxFormPdf(year: number): Promise<void> {
+    const response = await this.api.get<Blob>(`/api/v1/organizer/tax-forms/${year}/download`, {
+      responseType: "blob",
+    });
+    const blob = response.data;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `1099-K-${year}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   async submitW9(data: SubmitW9RequestType): Promise<void> {

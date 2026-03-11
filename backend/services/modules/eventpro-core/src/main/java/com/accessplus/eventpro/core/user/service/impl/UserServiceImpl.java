@@ -250,4 +250,47 @@ public class UserServiceImpl implements UserService {
         log.info("Updated subscription tier: id={}, tier={}", saved.getId(), saved.getSubscriptionTier());
         return saved;
     }
+
+    @Override
+    public UserEntity updateStripeCustomerId(UUID userId, String stripeCustomerId) {
+        log.debug("Updating Stripe customer id: userId={}", userId);
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+        user.setStripeCustomerId(stripeCustomerId);
+        return userRepository.save(user);
+    }
+
+    @Override
+    public UserEntity getUserByStripeCustomerId(String stripeCustomerId) {
+        if (stripeCustomerId == null || stripeCustomerId.isBlank()) {
+            throw new ResourceNotFoundException("User", "stripeCustomerId");
+        }
+        return userRepository.findByStripeCustomerId(stripeCustomerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "stripeCustomerId=" + stripeCustomerId));
+    }
+
+    @Override
+    public UserEntity setSubscriptionTier(UUID userId, String tier) {
+        log.debug("Setting subscription tier (billing): userId={}, tier={}", userId, tier);
+        String normalized = (tier != null && !tier.isBlank()) ? tier.trim().toUpperCase() : "BASIC";
+        if (!"BASIC".equals(normalized) && !"PRO".equals(normalized) && !"ENTERPRISE".equals(normalized)) {
+            normalized = "BASIC";
+        }
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+        user.setSubscriptionTier(normalized);
+        UserEntity saved = userRepository.save(user);
+        log.info("Set subscription tier: id={}, tier={}", saved.getId(), saved.getSubscriptionTier());
+        return saved;
+    }
+
+    @Override
+    public UserEntity setSubscriptionTierAndOrganizerRole(UUID userId, String tier) {
+        UserEntity user = setSubscriptionTier(userId, tier);
+        if (user == null) return null;
+        String normalizedTier = user.getSubscriptionTier();
+        if (!"PRO".equals(normalizedTier) && !"ENTERPRISE".equals(normalizedTier)) return user;
+        if ("ADMIN".equalsIgnoreCase(user.getRole()) || "ORGANIZER".equalsIgnoreCase(user.getRole())) return user;
+        return updateUserRole(userId, "ORGANIZER");
+    }
 }

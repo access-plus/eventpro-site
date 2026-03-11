@@ -31,4 +31,14 @@ public interface NotificationService {
      * @param bodyHtml HTML body (optional; if null, bodyText is used)
      */
     void sendOrganizerBroadcastEmail(String toEmail, String subject, String bodyText, String bodyHtml);
+
+    /**
+     * Sends a subscription-upgraded notification (e.g. when Stripe confirms Pro/Enterprise or trial).
+     * Does not throw; logs errors so webhook flow is not affected.
+     *
+     * @param toEmail        recipient email
+     * @param recipientName  first name or display name
+     * @param tier           new tier (PRO or ENTERPRISE)
+     */
+    void sendSubscriptionUpgradedEmail(String toEmail, String recipientName, String tier);
 }

@@ -111,10 +111,18 @@ STRIPE_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
 
 # Stripe Webhook Secret (for webhook signature verification)
 # Use test webhook secrets for local development: whsec_...
+# Required for subscription lifecycle (invoice.paid, subscription.updated/deleted). Webhook URL: POST /api/v1/webhooks/stripe
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+
+# Subscription Price IDs (create in Stripe Dashboard → Products → add recurring prices for Pro/Enterprise)
+# When set, "Upgrade to Pro/Enterprise" on the Pricing page redirects to Stripe Checkout; webhooks update user tier and record payments.
+STRIPE_PRICE_PRO_MONTHLY=price_xxx
+STRIPE_PRICE_PRO_YEARLY=price_xxx
+STRIPE_PRICE_ENTERPRISE_MONTHLY=price_xxx
+STRIPE_PRICE_ENTERPRISE_YEARLY=price_xxx
 ```
 
-**Note**: For local development, you can use test keys. The application-local.yml provides default test values, but you should set real test keys for proper functionality.
+**Note**: For local development, you can use test keys. The application-local.yml provides default test values, but you should set real test keys for proper functionality. For subscriptions: create Products (e.g. "Pro", "Enterprise") and recurring Prices in Stripe Dashboard, then set the four `STRIPE_PRICE_*` env vars. If they are unset, the create-checkout-session API will return an error when users try to upgrade.
 
 ### Optional: AWS Secrets Manager
 
@@ -125,6 +133,21 @@ DB_SECRET_ARN=arn:aws:secretsmanager:us-east-1:000000000000:secret:eventpro-db-s
 # Stripe secret ARN (optional - if using Secrets Manager instead of direct env vars)
 STRIPE_SECRET_ARN=arn:aws:secretsmanager:us-east-1:000000000000:secret:eventpro-stripe-keys
 ```
+
+### Platform fees (by tier; match Pricing page)
+
+Fees are **tier-based** and configured in `application.yml` under `eventpro.platform.tiers` (Basic 3.5% + $0.99, Pro 2.9% + $0.79, Enterprise 2.5% + $0.49 per ticket). No env vars are required; override in yml if you need to change rates.
+
+### Payout and tax (optional)
+
+```env
+# Number of days revenue is held as "pending" before becoming "available" for payout (default: 3)
+EVENTPRO_PAYOUT_PENDING_HOLD_DAYS=3
+
+# Default sales tax rate when no state is provided (0 = no tax). Jurisdiction-based: pass state/country at checkout for state-specific rates (see eventpro.tax.rates-by-state in application.yml).
+EVENTPRO_TAX_DEFAULT_RATE=0
+```
+Rates per state are in `application.yml` under `eventpro.tax.rates-by-state` (e.g. CA: 7.25, NY: 8.875). Override or extend there; no env var for the map.
 
 ### Spring Profile
 

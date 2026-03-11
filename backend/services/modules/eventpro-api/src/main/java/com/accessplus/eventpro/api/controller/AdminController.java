@@ -2,6 +2,10 @@ package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.*;
 import com.accessplus.eventpro.api.service.AdminService;
+import com.accessplus.eventpro.api.service.AuthService;
+import com.accessplus.eventpro.api.service.VerificationService;
+import com.accessplus.eventpro.api.subscription.entity.SubscriptionPaymentEntity;
+import com.accessplus.eventpro.api.subscription.service.SubscriptionPaymentService;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.event.event.entity.EventEntity;
@@ -34,9 +38,40 @@ import java.util.UUID;
 public class AdminController extends BaseController {
 
     private final AdminService adminService;
+    private final AuthService authService;
     private final UserService userService;
     private final EventService eventService;
     private final EventRepository eventRepository;
+    private final SubscriptionPaymentService subscriptionPaymentService;
+    private final VerificationService verificationService;
+
+    @GetMapping("/verification-pending")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "List pending KYC submissions", description = "Returns PENDING identity verification submissions for admin review. Requires ADMIN role.")
+    public ResponseEntity<ApiResponse<List<PendingVerificationResponse>>> listPendingVerifications(
+            @RequestParam(defaultValue = "50") int limit) {
+        List<PendingVerificationResponse> list = verificationService.listPendingSubmissions(limit);
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    @PostMapping("/verification/{submissionId}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Approve KYC submission", description = "Marks submission as VERIFIED and sets user as verified. Requires ADMIN role.")
+    public ResponseEntity<ApiResponse<String>> approveVerification(@PathVariable UUID submissionId) {
+        verificationService.approveSubmission(submissionId);
+        return ResponseEntity.ok(ApiResponse.success("Verification approved.", "Approved"));
+    }
+
+    @PostMapping("/verification/{submissionId}/reject")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Reject KYC submission", description = "Marks submission as REJECTED and sets user verification status. Optional reason in body. Requires ADMIN role.")
+    public ResponseEntity<ApiResponse<String>> rejectVerification(
+            @PathVariable UUID submissionId,
+            @RequestBody(required = false) java.util.Map<String, String> body) {
+        String reason = body != null && body.containsKey("reason") ? body.get("reason") : null;
+        verificationService.rejectSubmission(submissionId, reason);
+        return ResponseEntity.ok(ApiResponse.success("Verification rejected.", "Rejected"));
+    }
 
     @GetMapping("/stats")
     @PreAuthorize("hasRole('ADMIN')")
@@ -103,6 +138,17 @@ public class AdminController extends BaseController {
         EventResponse response = EventResponse.fromEntity(event);
 
         return ResponseEntity.ok(ApiResponse.success(response, "Event status updated successfully"));
+    }
+
+    @PostMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Create admin user", description = "Creates a new user with ADMIN role. Requires ADMIN role.")
+    public ResponseEntity<ApiResponse<UserResponse>> createAdminUser(
+            @Valid @RequestBody CreateAdminUserRequest request) {
+        log.debug("Creating admin user: email={}", request.getEmail());
+        UserEntity user = authService.createAdminUser(request);
+        UserResponse response = UserResponse.fromEntity(user);
+        return ResponseEntity.ok(ApiResponse.success(response, "Admin user created successfully"));
     }
 
     @GetMapping("/users")
@@ -178,5 +224,16 @@ public class AdminController extends BaseController {
         
         UserResponse response = UserResponse.fromEntity(updatedUser);
         return ResponseEntity.ok(ApiResponse.success(response, "User role updated successfully"));
+    }
+
+    @PostMapping("/subscription-payments")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Record subscription payment", description = "Records a Pro/Enterprise subscription payment for an organizer. Used for 1099-K 'subscription fees paid' and billing. Requires ADMIN role.")
+    public ResponseEntity<ApiResponse<SubscriptionPaymentEntity>> recordSubscriptionPayment(
+            @Valid @RequestBody RecordSubscriptionPaymentRequest request) {
+        log.debug("Recording subscription payment: userId={}, amount={}, tier={}", request.getUserId(), request.getAmount(), request.getTier());
+        SubscriptionPaymentEntity payment = subscriptionPaymentService.recordPayment(
+                request.getUserId(), request.getAmount(), request.getTier(), request.getPeriod());
+        return ResponseEntity.ok(ApiResponse.success(payment, "Subscription payment recorded"));
     }
 }

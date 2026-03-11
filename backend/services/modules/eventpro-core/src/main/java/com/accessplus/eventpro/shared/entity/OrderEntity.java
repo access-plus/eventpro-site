@@ -51,6 +51,22 @@ public class OrderEntity extends BaseEntity {
     @Column(name = "donation_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal donationAmount = BigDecimal.ZERO;
 
+    /** Platform fee withheld for this order (from eventpro.platform.fee-percent). Used for 1099-K and payouts. */
+    @Column(name = "platform_fee", nullable = false, precision = 10, scale = 2)
+    private BigDecimal platformFee = BigDecimal.ZERO;
+
+    /** Tax (sales tax / VAT) amount for this order. Zero when tax not applied. */
+    @Column(name = "tax_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal taxAmount = BigDecimal.ZERO;
+
+    /** Buyer state code (e.g. CA, NY) for sales tax jurisdiction. */
+    @Column(name = "buyer_state", length = 10)
+    private String buyerState;
+
+    /** Buyer country code (e.g. US) for tax jurisdiction. */
+    @Column(name = "buyer_country", length = 2)
+    private String buyerCountry;
+
     @NotNull(message = "Order status is required")
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)

@@ -16,11 +16,13 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.Arrays;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +30,14 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final String LOCAL_PROFILE = "local";
+
+    private final Environment environment;
+
+    public GlobalExceptionHandler(Environment environment) {
+        this.environment = environment;
+    }
     
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     
@@ -212,8 +222,12 @@ public class GlobalExceptionHandler {
         
         String path = extractPath(request);
         String detail = ex.getClass().getSimpleName() + ": " + (ex.getMessage() != null ? ex.getMessage() : "");
+        boolean isLocal = Arrays.asList(environment.getActiveProfiles()).contains(LOCAL_PROFILE);
+        String message = isLocal && ex.getMessage() != null && !ex.getMessage().isBlank()
+                ? ex.getMessage()
+                : "An unexpected error occurred. Please try again later.";
         ErrorResponse errorResponse = ErrorResponse.builder()
-                .message("An unexpected error occurred. Please try again later.")
+                .message(message)
                 .path(path)
                 .timestamp(Instant.now())
                 .detail(detail)

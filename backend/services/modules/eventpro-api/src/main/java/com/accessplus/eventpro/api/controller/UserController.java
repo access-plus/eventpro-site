@@ -74,6 +74,13 @@ public class UserController extends BaseController {
         log.debug("Updating current user profile");
 
         UUID userId = JwtUtils.getCurrentUserId();
+        UserEntity currentUser = userService.getUserById(userId);
+        String tier = currentUser.getSubscriptionTier() != null ? currentUser.getSubscriptionTier().toUpperCase() : "BASIC";
+        // White-label branding (logo, primary color, hide platform) is Enterprise only per pricing page
+        String brandingLogoUrl = "ENTERPRISE".equals(tier) ? request.getBrandingLogoUrl() : null;
+        String brandingPrimaryColor = "ENTERPRISE".equals(tier) ? request.getBrandingPrimaryColor() : null;
+        Boolean brandingHidePlatform = "ENTERPRISE".equals(tier) ? request.getBrandingHidePlatform() : null;
+
         UserEntity updatedUser = userService.updateUserProfile(
                 userId,
                 request.getFirstName(),
@@ -83,9 +90,9 @@ public class UserController extends BaseController {
                 request.getLocation(),
                 null, // profilePictureUrl is updated via separate endpoint
                 request.getCulturalNiche(),
-                request.getBrandingLogoUrl(),
-                request.getBrandingPrimaryColor(),
-                request.getBrandingHidePlatform()
+                brandingLogoUrl,
+                brandingPrimaryColor,
+                brandingHidePlatform
         );
         UserResponse response = UserResponse.fromEntity(updatedUser);
 
