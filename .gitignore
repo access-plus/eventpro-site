@@ -114,6 +114,7 @@ vite.config.*.timestamp-*
 
 ## Environment variables
 .env
+.env.example
 .env.stripe
 .env.example
 .env.backup
