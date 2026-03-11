@@ -40,6 +40,9 @@ dependencies {
     // PDF generation (1099-K)
     implementation 'org.apache.pdfbox:pdfbox:2.0.29'
 
+    // Stripe (webhook controller and subscription checkout use Stripe types directly)
+    implementation 'com.stripe:stripe-java:24.16.0'
+
     // Lombok
     compileOnly "org.projectlombok:lombok:${project.ext.lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${project.ext.lombokVersion}"

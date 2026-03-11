@@ -47,6 +47,12 @@ stripe:
   secretKey: ${STRIPE_SECRET_KEY}
   publishableKey: ${STRIPE_PUBLISHABLE_KEY:}
   webhookSecret: ${STRIPE_WEBHOOK_SECRET:}
+  # Subscription Price IDs (create in Stripe Dashboard → Products → add recurring prices)
+  subscription:
+    priceIdProMonthly: ${STRIPE_PRICE_PRO_MONTHLY:}
+    priceIdProYearly: ${STRIPE_PRICE_PRO_YEARLY:}
+    priceIdEnterpriseMonthly: ${STRIPE_PRICE_ENTERPRISE_MONTHLY:}
+    priceIdEnterpriseYearly: ${STRIPE_PRICE_ENTERPRISE_YEARLY:}
 
 # Ticket reservation expiry: release reserved tickets after this many minutes if not purchased.
 # Use 10 for high-demand sales (one winner, rest rejected instantly via atomic reserve).
@@ -116,8 +122,9 @@ security:
   jwt:
     issuer: ${JWT_ISSUER:eventpro}
     accessTokenTtlSeconds: ${JWT_ACCESS_TTL_SECONDS:3600}
-    publicKey: ${JWT_PUBLIC_KEY}
-    privateKey: ${JWT_PRIVATE_KEY}
+    # When empty and profile=local, JwtConfig generates in-memory dev keys so the app can start
+    publicKey: ${JWT_PUBLIC_KEY:}
+    privateKey: ${JWT_PRIVATE_KEY:}
 
 server:
   port: 8080

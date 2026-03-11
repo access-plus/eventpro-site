@@ -2,6 +2,7 @@ package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.*;
 import com.accessplus.eventpro.api.service.AdminService;
+import com.accessplus.eventpro.api.service.AuthService;
 import com.accessplus.eventpro.api.service.VerificationService;
 import com.accessplus.eventpro.api.subscription.entity.SubscriptionPaymentEntity;
 import com.accessplus.eventpro.api.subscription.service.SubscriptionPaymentService;
@@ -37,6 +38,7 @@ import java.util.UUID;
 public class AdminController extends BaseController {
 
     private final AdminService adminService;
+    private final AuthService authService;
     private final UserService userService;
     private final EventService eventService;
     private final EventRepository eventRepository;
@@ -136,6 +138,17 @@ public class AdminController extends BaseController {
         EventResponse response = EventResponse.fromEntity(event);
 
         return ResponseEntity.ok(ApiResponse.success(response, "Event status updated successfully"));
+    }
+
+    @PostMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Create admin user", description = "Creates a new user with ADMIN role. Requires ADMIN role.")
+    public ResponseEntity<ApiResponse<UserResponse>> createAdminUser(
+            @Valid @RequestBody CreateAdminUserRequest request) {
+        log.debug("Creating admin user: email={}", request.getEmail());
+        UserEntity user = authService.createAdminUser(request);
+        UserResponse response = UserResponse.fromEntity(user);
+        return ResponseEntity.ok(ApiResponse.success(response, "Admin user created successfully"));
     }
 
     @GetMapping("/users")

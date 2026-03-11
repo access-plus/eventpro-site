@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Mail,
   Calendar,
@@ -43,6 +43,7 @@ const VERIFIED_CELEBRATION_KEY = "profile_verified_celebration_shown";
 const Profile = () => {
   const { user, hasRole, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [summary, setSummary] = useState<OrganizerSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [identityModalOpen, setIdentityModalOpen] = useState(false);
@@ -80,6 +81,28 @@ const Profile = () => {
   useEffect(() => {
     fetchSummary();
   }, [fetchSummary]);
+
+  // After returning from Stripe Checkout, sync subscription from Stripe so tier + role update (even if webhooks missed)
+  useEffect(() => {
+    if (searchParams.get("subscription") !== "success") return;
+    apiService
+      .syncSubscriptionFromStripe()
+      .then(({ message }) => {
+        refreshUser();
+        setSearchParams((prev) => {
+          prev.delete("subscription");
+          return prev;
+        });
+        if (message.toLowerCase().includes("synced") || message.toLowerCase().includes("tier=")) {
+          toast.success("Subscription updated. You now have organizer access.");
+        } else {
+          toast.info(message);
+        }
+      })
+      .catch(() => {
+        toast.error("Could not sync subscription. Your payment may still have gone through.");
+      });
+  }, [searchParams, refreshUser, setSearchParams]);
 
   const fetchApiKeys = useCallback(() => {
     if (user?.subscriptionTier !== "ENTERPRISE") return;

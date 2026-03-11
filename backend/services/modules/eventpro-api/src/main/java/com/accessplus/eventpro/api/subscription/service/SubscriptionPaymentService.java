@@ -2,6 +2,7 @@ package com.accessplus.eventpro.api.subscription.service;
 
 import com.accessplus.eventpro.api.subscription.entity.SubscriptionPaymentEntity;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -15,4 +16,9 @@ public interface SubscriptionPaymentService {
      * Call from admin or from Stripe/billing webhook when payment succeeds.
      */
     SubscriptionPaymentEntity recordPayment(UUID userId, java.math.BigDecimal amount, String tier, String period);
+
+    /**
+     * Record a subscription payment with a specific paid-at time (e.g. from Stripe invoice.paid webhook).
+     */
+    SubscriptionPaymentEntity recordPayment(UUID userId, java.math.BigDecimal amount, String tier, String period, Instant paidAt);
 }

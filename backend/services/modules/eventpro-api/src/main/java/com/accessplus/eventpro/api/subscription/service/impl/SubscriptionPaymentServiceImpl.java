@@ -22,15 +22,22 @@ public class SubscriptionPaymentServiceImpl implements SubscriptionPaymentServic
     @Override
     @Transactional
     public SubscriptionPaymentEntity recordPayment(UUID userId, BigDecimal amount, String tier, String period) {
+        return recordPayment(userId, amount, tier, period, Instant.now());
+    }
+
+    @Override
+    @Transactional
+    public SubscriptionPaymentEntity recordPayment(UUID userId, BigDecimal amount, String tier, String period, Instant paidAt) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Amount must be non-negative");
         }
         String tierNorm = tier != null ? tier.trim().toUpperCase() : "PRO";
         String periodNorm = (period != null && !period.isBlank()) ? period.trim().toUpperCase() : "MONTHLY";
+        Instant at = paidAt != null ? paidAt : Instant.now();
         SubscriptionPaymentEntity entity = new SubscriptionPaymentEntity();
         entity.setUserId(userId);
         entity.setAmount(amount);
-        entity.setPaidAt(Instant.now());
+        entity.setPaidAt(at);
         entity.setTier(tierNorm);
         entity.setPeriod(periodNorm);
         entity = subscriptionPaymentRepository.save(entity);

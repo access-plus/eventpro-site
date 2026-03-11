@@ -47,5 +47,27 @@ public interface StripeService {
      * @return billing address (state, country) if present, or null if not collected/expanded
      */
     StripeBillingAddress getBillingAddressFromPaymentIntent(String paymentIntentId) throws StripeException;
+
+    /**
+     * Creates a Stripe Customer for subscription billing (idempotent: reuse if same email).
+     *
+     * @param email customer email
+     * @param name  optional display name
+     * @return Stripe Customer ID
+     */
+    String createCustomer(String email, String name) throws StripeException;
+
+    /**
+     * Creates a Stripe Checkout Session for subscription (Pro/Enterprise).
+     * Customer must already exist. Caller should persist customer ID on user before redirecting.
+     *
+     * @param customerId        Stripe Customer ID
+     * @param priceId           Stripe Price ID (e.g. Pro monthly)
+     * @param successUrl        URL to redirect after successful payment
+     * @param cancelUrl         URL to redirect if user cancels
+     * @param clientReferenceId optional (e.g. user ID) for reference
+     * @return Checkout Session URL to redirect the user to
+     */
+    String createSubscriptionCheckoutSession(String customerId, String priceId, String successUrl, String cancelUrl, String clientReferenceId) throws StripeException;
 }
 

@@ -236,6 +236,17 @@ export interface UpdateCartRequest {
   quantity: number;
 }
 
+/** Paginated response from admin/list endpoints (e.g. getUsers). */
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first?: boolean;
+  last?: boolean;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   message?: string;
@@ -388,6 +399,26 @@ export interface RevenueData {
   date: string;
   revenue: number;
   ticketsSold: number;
+}
+
+/** Pending KYC submission for admin review. */
+export interface PendingVerification {
+  id: string;
+  userId: string;
+  email: string;
+  legalEntityType: string;
+  addressCity: string;
+  addressState: string;
+  submittedAt: string;
+  status: string;
+}
+
+/** Request to record a Pro/Enterprise subscription payment (admin). */
+export interface RecordSubscriptionPaymentRequest {
+  userId: string;
+  amount: number;
+  tier?: "PRO" | "ENTERPRISE";
+  period?: "MONTHLY" | "YEARLY";
 }
 
 /** Request to create a Stripe payment intent (amount in dollars). */

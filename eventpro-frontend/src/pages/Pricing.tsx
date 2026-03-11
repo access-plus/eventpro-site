@@ -17,7 +17,9 @@ import {
   Headphones,
   CreditCard,
   Shield,
-  Clock
+  Clock,
+  Loader2,
+  RefreshCw
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,14 +31,38 @@ const Pricing = () => {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [upgradingTier, setUpgradingTier] = useState<string | null>(null);
+  const [syncingPlan, setSyncingPlan] = useState(false);
+
+  const handleRefreshPlan = async () => {
+    if (!user) return;
+    try {
+      setSyncingPlan(true);
+      const { message } = await apiService.syncSubscriptionFromStripe();
+      await refreshUser();
+      toast.info(message);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Could not refresh plan.";
+      toast.error(msg);
+    } finally {
+      setSyncingPlan(false);
+    }
+  };
 
   const handleUpgrade = async (tier: "PRO" | "ENTERPRISE") => {
     try {
       setUpgradingTier(tier);
-      await apiService.upgradeSubscription(tier);
-      await refreshUser();
-      toast.success(`You're now on ${tier}. New features are unlocked.`);
-      navigate("/organizer");
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const { url } = await apiService.createSubscriptionCheckoutSession({
+        tier,
+        period: isAnnual ? "YEARLY" : "MONTHLY",
+        successUrl: `${base}/subscription/return`,
+        cancelUrl: `${base}/pricing`,
+      });
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      throw new Error("No checkout URL returned");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Upgrade failed";
       toast.error(msg);
@@ -50,6 +76,16 @@ const Pricing = () => {
     if (tierName === "Basic") return false;
     if (tierName === "Pro") return current === "BASIC";
     if (tierName === "Enterprise") return current === "BASIC" || current === "PRO";
+    return false;
+  };
+
+  /** True if the user is already on this tier or a higher one (so we show "Current plan" instead of trial/upgrade CTA). */
+  const isCurrentOrHigherTier = (tierName: string): boolean => {
+    if (!user) return false;
+    const current = (user.subscriptionTier ?? "BASIC").toUpperCase();
+    if (tierName === "Basic") return true;
+    if (tierName === "Pro") return current === "PRO" || current === "ENTERPRISE";
+    if (tierName === "Enterprise") return current === "ENTERPRISE";
     return false;
   };
 
@@ -211,6 +247,23 @@ const Pricing = () => {
               </Badge>
             </Label>
           </div>
+
+          {/* Refresh plan: only show for BASIC users who might have subscribed elsewhere or need to sync */}
+          {user && (user.subscriptionTier !== "PRO" && user.subscriptionTier !== "ENTERPRISE") && (
+            <div className="mt-6 flex flex-col items-center gap-1">
+              <p className="text-sm text-muted-foreground">Already subscribed or on trial?</p>
+              <Button
+                variant="outline"
+                size="default"
+                onClick={handleRefreshPlan}
+                disabled={syncingPlan}
+                className="gap-2"
+              >
+                {syncingPlan ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Refresh my plan
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Pricing Cards */}
@@ -296,6 +349,10 @@ const Pricing = () => {
                       onClick={() => handleUpgrade(tier.name.toUpperCase() as "PRO" | "ENTERPRISE")}
                     >
                       {upgradingTier === tier.name ? "Upgrading…" : tier.name === "Pro" ? "Upgrade to Pro" : "Upgrade to Enterprise"}
+                    </Button>
+                  ) : tier.name !== "Basic" && user && isCurrentOrHigherTier(tier.name) ? (
+                    <Button className="w-full" variant="secondary" size="lg" disabled>
+                      Current plan
                     </Button>
                   ) : (
                     <Button 

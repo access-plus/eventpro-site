@@ -22,6 +22,9 @@ public class NotificationServiceImpl implements NotificationService {
     @Value("${eventpro.notifications.organizer-email-attendees-enabled:true}")
     private boolean organizerEmailAttendeesEnabled;
 
+    @Value("${eventpro.notifications.subscription-upgraded-enabled:true}")
+    private boolean subscriptionUpgradedEnabled;
+
     @Override
     public void sendOrderConfirmationEmail(String toEmail, String recipientName, String orderNumber,
                                            String eventName, BigDecimal totalAmount) {
@@ -56,6 +59,28 @@ public class NotificationServiceImpl implements NotificationService {
             emailService.sendCustomEmail(toEmail, subject, bodyText, bodyHtml);
         } catch (Exception e) {
             log.error("Failed to send organizer broadcast email: to={}, error={}", toEmail, e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void sendSubscriptionUpgradedEmail(String toEmail, String recipientName, String tier) {
+        if (!subscriptionUpgradedEnabled) {
+            log.debug("Subscription upgraded email disabled by config, skipping: to={}", toEmail);
+            return;
+        }
+        if (toEmail == null || toEmail.isBlank()) {
+            log.warn("Cannot send subscription upgraded email: no recipient email");
+            return;
+        }
+        String name = recipientName != null && !recipientName.isBlank() ? recipientName : "there";
+        String tierLabel = (tier != null && !tier.isBlank()) ? tier : "Pro";
+        String subject = "You're now on EventPro " + tierLabel;
+        String bodyText = "Hi " + name + ",\n\nYour EventPro plan has been upgraded. You now have organizer access and can create and manage events.\n\nLog in to get started — your " + tierLabel + " plan is active.";
+        String bodyHtml = "<p>Hi " + name + ",</p><p>Your EventPro plan has been upgraded. You now have <strong>organizer access</strong> and can create and manage events.</p><p>Log in to get started — your " + tierLabel + " plan is active.</p>";
+        try {
+            emailService.sendCustomEmail(toEmail, subject, bodyText, bodyHtml);
+        } catch (Exception e) {
+            log.error("Failed to send subscription upgraded email: to={}, error={}", toEmail, e.getMessage(), e);
         }
     }
 }

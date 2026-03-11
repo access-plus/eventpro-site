@@ -4,9 +4,11 @@ import com.accessplus.eventpro.core.security.JwtService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.security.KeyPairGenerator;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -14,26 +16,61 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Arrays;
 import java.util.Base64;
 
 @Slf4j
 @Configuration
 public class JwtConfig {
 
-    private final JwtProperties jwtProperties;
+    private static final String LOCAL_PROFILE = "local";
 
-    public JwtConfig(JwtProperties jwtProperties) {
+    private final JwtProperties jwtProperties;
+    private final Environment environment;
+
+    public JwtConfig(JwtProperties jwtProperties, Environment environment) {
         this.jwtProperties = jwtProperties;
+        this.environment = environment;
     }
 
     @Bean
     public PublicKey jwtPublicKey() {
+        if (isLocalWithEmptyKeys()) {
+            return devKeyPair().getPublic();
+        }
         return parsePublicKey(jwtProperties.getPublicKey());
     }
 
     @Bean
     public PrivateKey jwtPrivateKey() {
+        if (isLocalWithEmptyKeys()) {
+            return devKeyPair().getPrivate();
+        }
         return parsePrivateKey(jwtProperties.getPrivateKey());
+    }
+
+    private boolean isLocalWithEmptyKeys() {
+        boolean isLocal = Arrays.asList(environment.getActiveProfiles()).contains(LOCAL_PROFILE);
+        String pub = jwtProperties.getPublicKey();
+        String priv = jwtProperties.getPrivateKey();
+        boolean emptyKeys = (pub == null || pub.isBlank()) && (priv == null || priv.isBlank());
+        return isLocal && emptyKeys;
+    }
+
+    private java.security.KeyPair devKeyPair;
+
+    private java.security.KeyPair devKeyPair() {
+        if (devKeyPair == null) {
+            try {
+                KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
+                gen.initialize(2048);
+                devKeyPair = gen.generateKeyPair();
+                log.warn("JWT keys not set: using in-memory RSA key pair for local development only. Set JWT_PUBLIC_KEY and JWT_PRIVATE_KEY in .env for persistent tokens.");
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to generate dev JWT key pair", e);
+            }
+        }
+        return devKeyPair;
     }
 
     @Bean

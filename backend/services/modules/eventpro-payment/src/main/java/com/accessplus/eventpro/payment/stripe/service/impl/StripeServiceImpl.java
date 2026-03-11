@@ -4,13 +4,16 @@ import com.accessplus.eventpro.payment.stripe.model.StripeBillingAddress;
 import com.accessplus.eventpro.payment.stripe.service.StripeService;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
+import com.stripe.model.Customer;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.PaymentMethod;
 import com.stripe.model.Refund;
+import com.stripe.param.CustomerCreateParams;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.PaymentIntentConfirmParams;
 import com.stripe.param.PaymentIntentRetrieveParams;
 import com.stripe.param.RefundCreateParams;
+import com.stripe.param.checkout.SessionCreateParams;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -150,6 +153,46 @@ public class StripeServiceImpl implements StripeService {
             return null;
         }
         return new StripeBillingAddress(state, country);
+    }
+
+    @Override
+    public String createCustomer(String email, String name) throws StripeException {
+        ensureStripeConfigured();
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Email is required for Stripe Customer");
+        }
+        CustomerCreateParams params = CustomerCreateParams.builder()
+                .setEmail(email.trim().toLowerCase())
+                .setName(name != null && !name.isBlank() ? name.trim() : null)
+                .build();
+        Customer customer = Customer.create(params);
+        log.info("Created Stripe customer: id={}, email={}", customer.getId(), email);
+        return customer.getId();
+    }
+
+    @Override
+    public String createSubscriptionCheckoutSession(String customerId, String priceId, String successUrl, String cancelUrl, String clientReferenceId) throws StripeException {
+        ensureStripeConfigured();
+        if (customerId == null || customerId.isBlank() || priceId == null || priceId.isBlank()) {
+            throw new IllegalArgumentException("customerId and priceId are required");
+        }
+        SessionCreateParams.LineItem lineItem = SessionCreateParams.LineItem.builder()
+                .setPrice(priceId)
+                .setQuantity(1L)
+                .build();
+        SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+                .setCustomer(customerId)
+                .addLineItem(lineItem)
+                .setSuccessUrl(successUrl)
+                .setCancelUrl(cancelUrl);
+        if (clientReferenceId != null && !clientReferenceId.isBlank()) {
+            paramsBuilder.setClientReferenceId(clientReferenceId);
+        }
+        com.stripe.model.checkout.Session session = com.stripe.model.checkout.Session.create(paramsBuilder.build());
+        String url = session.getUrl();
+        log.info("Created subscription checkout session: id={}, url={}", session.getId(), url != null ? "present" : "null");
+        return url;
     }
 }
 
