@@ -1107,6 +1107,34 @@ The local development guide covers:
 - Makefile commands reference
 - Service management
 
+### If Docker Desktop won't start
+
+Docker Desktop sometimes fails to start on macOS (e.g. "Docker Desktop is unable to start"). You can:
+
+1. **Fix Docker:** Restart your Mac, ensure you have the latest Docker Desktop for your macOS version, and in Docker Desktop → Settings → Resources give it enough CPU/Memory. See [Docker docs](https://docs.docker.com/desktop/install/mac-install/).
+2. **Run the backend without Docker** (so the mobile app can hit the API):
+   - **Java 25** is required (backend uses JDK 25). Install via [SDKMAN](https://sdkman.io/) or your preferred method.
+   - **PostgreSQL** must be running locally. Install with Homebrew: `brew install postgresql@16` and start it, then create the DB:
+     ```bash
+     createuser -s eventpro 2>/dev/null || true
+     createdb -O eventpro eventpro 2>/dev/null || true
+     # If your postgres user has a password, set PGPASSWORD or use psql to create user/db.
+     ```
+   - **Environment:** From the repo root, ensure `.env` exists with at least `JWT_PRIVATE_KEY` and `JWT_PUBLIC_KEY` (see [JWT Keys](#jwt-keys-required-for-local-auth) below). For local run set:
+     ```bash
+     export SPRING_PROFILES_ACTIVE=local
+     export DB_HOST=localhost
+     export DB_PORT=5432
+     export DB_NAME=eventpro
+     export DB_USERNAME=eventpro
+     export DB_PASSWORD=eventpro
+     ```
+   - **Run the API:**
+     ```bash
+     cd backend/services && ./gradlew :eventpro-api:bootRun
+     ```
+   - The API will be at `http://localhost:8080`. Point the mobile app at that URL (e.g. `EXPO_PUBLIC_API_URL=http://localhost:8080` in `eventpro-mobile/.env` for simulator).
+
 ### JWT Keys (Required for Local Auth)
 
 Generate an RSA key pair and set the environment variables in the root `.env` file:

@@ -35,6 +35,7 @@ import AdminRevenue from "./pages/AdminRevenue";
 import AdminSubscriptionPayments from "./pages/AdminSubscriptionPayments";
 import UserManagement from "./pages/UserManagement";
 import Organizer from "./pages/Organizer";
+import CheckIn from "./pages/CheckIn";
 import EventForm from "./pages/EventForm";
 import EventFormNew from "./pages/EventFormNew";
 import EventTickets from "./pages/EventTickets";
@@ -135,8 +136,16 @@ const AnimatedRoutes = () => {
         <Route
           path="/organizer"
           element={
-            <ProtectedRoute allowedRoles={["ORGANIZER"]}>
+            <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
               <PageTransition><Organizer /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizer/check-in"
+          element={
+            <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
+              <PageTransition><CheckIn /></PageTransition>
             </ProtectedRoute>
           }
         />

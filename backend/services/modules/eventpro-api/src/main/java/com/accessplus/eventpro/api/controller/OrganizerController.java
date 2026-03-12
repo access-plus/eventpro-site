@@ -710,14 +710,11 @@ public class OrganizerController extends BaseController {
 
     @PostMapping("/tickets/{id}/check-in")
     @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
-    @Operation(summary = "Check in attendee", description = "Checks in an attendee by ticket ID. Requires ORGANIZER or ADMIN role.")
-    public ResponseEntity<ApiResponse<Void>> checkInAttendee(@PathVariable UUID id) {
+    @Operation(summary = "Check in attendee", description = "Checks in an attendee by ticket ID (e.g. from QR scan). Returns attendee/ticket name for the check-in app.")
+    public ResponseEntity<ApiResponse<CheckInResponse>> checkInAttendee(@PathVariable UUID id) {
         log.debug("Checking in attendee: ticketId={}", id);
 
-        // Get ticket
         TicketEntity ticket = ticketService.getTicketById(id);
-        
-        // Verify ticket belongs to an event the user can manage
         EventEntity event = eventRepository.findByIdWithOrganizer(ticket.getEventId())
                 .orElseThrow(() -> new ResourceNotFoundException("Event", ticket.getEventId().toString()));
         UUID organizerId = JwtUtils.getCurrentUserId();
@@ -725,11 +722,19 @@ public class OrganizerController extends BaseController {
             throw new ResourceNotFoundException("Ticket", id.toString());
         }
 
-        // Check in ticket
-        ticketService.checkInTicket(id);
-        
-        log.info("Attendee checked in: ticketId={}", id);
-        return ResponseEntity.ok(ApiResponse.success(null, "Attendee checked in successfully"));
+        try {
+            ticketService.checkInTicket(id);
+        } catch (IllegalStateException e) {
+            if (e.getMessage() != null && e.getMessage().contains("already checked in")) {
+                CheckInResponse already = organizerService.getCheckInResult(id, organizerId);
+                return ResponseEntity.ok(ApiResponse.success(already, "Already checked in"));
+            }
+            throw e;
+        }
+
+        CheckInResponse result = organizerService.getCheckInResult(id, organizerId);
+        log.info("Attendee checked in: ticketId={}, attendee={}", id, result.getAttendeeName());
+        return ResponseEntity.ok(ApiResponse.success(result, "Checked in successfully"));
     }
 
     private UUID resolveCategoryId(String categoryIdentifier) {

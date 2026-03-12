@@ -105,5 +105,13 @@ public class TicketEntity extends BaseEntity {
     /** Reserved seating: seat number in row. Null for general admission. */
     @Column(name = "seat_number")
     private Integer seatNumber;
+
+    /** Door check-in: set when attendee is validated at the event. */
+    @Column(name = "checked_in", nullable = false)
+    private Boolean checkedIn = false;
+
+    /** When this ticket was checked in at the door. */
+    @Column(name = "checked_in_at")
+    private LocalDateTime checkedInAt;
 }
 

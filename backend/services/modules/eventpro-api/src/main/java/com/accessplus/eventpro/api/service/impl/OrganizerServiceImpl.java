@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.api.service.impl;
 
 import com.accessplus.eventpro.api.dto.AttendeeResponse;
+import com.accessplus.eventpro.api.dto.CheckInResponse;
 import com.accessplus.eventpro.api.dto.CulturalInterestResponse;
 import com.accessplus.eventpro.api.dto.EventPulseResponse;
 import com.accessplus.eventpro.api.dto.EventStatsResponse;
@@ -345,8 +346,10 @@ public class OrganizerServiceImpl implements OrganizerService {
                 .distinct()
                 .count();
         
-        // Count checked in (for now, we'll use a placeholder - would need a checked_in field)
-        long checkedIn = 0L; // Placeholder - would need to track check-in status
+        // Count checked in
+        long checkedIn = tickets.stream()
+                .filter(t -> Boolean.TRUE.equals(t.getCheckedIn()))
+                .count();
         
         return EventStatsResponse.builder()
                 .ticketsSold(ticketsSold)
@@ -402,14 +405,52 @@ public class OrganizerServiceImpl implements OrganizerService {
                     .ticketType(ticket.getTicketType().name())
                     .ticketPrice(ticket.getPrice())
                     .purchaseDate(order != null ? order.getOrderDate() : null)
-                    .checkedIn(false) // Placeholder - would need to track check-in status
-                    .checkedInAt(null)
+                    .checkedIn(Boolean.TRUE.equals(ticket.getCheckedIn()))
+                    .checkedInAt(ticket.getCheckedInAt())
                     .build();
             
             attendees.add(attendee);
         }
         
         return attendees;
+    }
+
+    @Override
+    public CheckInResponse getCheckInResult(UUID ticketId, UUID organizerId) {
+        TicketEntity ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket", ticketId.toString()));
+        EventEntity event = eventRepository.findByIdWithOrganizer(ticket.getEventId())
+                .orElseThrow(() -> new ResourceNotFoundException("Event", ticket.getEventId().toString()));
+        if (!event.getOrganizer().getId().equals(organizerId)) {
+            throw new ResourceNotFoundException("Ticket", ticketId.toString());
+        }
+        String ticketName = ticket.getName() != null ? ticket.getName() : ticket.getTicketType().name();
+        String attendeeName = "Guest";
+        if (ticket.getPurchaserId() != null) {
+            UserEntity user = userRepository.findById(ticket.getPurchaserId()).orElse(null);
+            if (user != null) {
+                String first = user.getFirstName() != null ? user.getFirstName().trim() : "";
+                String last = user.getLastName() != null ? user.getLastName().trim() : "";
+                attendeeName = (first + " " + last).trim();
+                if (attendeeName.isEmpty()) attendeeName = user.getEmail();
+            }
+        } else {
+            List<OrderItemEntity> items = orderItemRepository.findByTicketId(ticketId);
+            if (!items.isEmpty()) {
+                OrderEntity order = orderRepository.findById(items.get(0).getOrderId()).orElse(null);
+                if (order != null) {
+                    String first = order.getGuestFirstName() != null ? order.getGuestFirstName().trim() : "";
+                    String last = order.getGuestLastName() != null ? order.getGuestLastName().trim() : "";
+                    attendeeName = (first + " " + last).trim();
+                    if (attendeeName.isEmpty()) attendeeName = order.getGuestEmail() != null ? order.getGuestEmail() : "Guest";
+                }
+            }
+        }
+        return CheckInResponse.builder()
+                .ticketName(ticketName)
+                .attendeeName(attendeeName != null && !attendeeName.isEmpty() ? attendeeName : "Guest")
+                .alreadyCheckedIn(Boolean.TRUE.equals(ticket.getCheckedIn()))
+                .build();
     }
 
     @Override

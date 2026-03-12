@@ -9,6 +9,7 @@ import type {
   Order,
   TicketType,
   Attendee,
+  CheckInResult,
   UpdateUserRequest,
   CartResponse,
   AddToCartRequest,
@@ -571,6 +572,14 @@ class ApiService {
   async publishEvent(eventId: string): Promise<Event> {
     const response = await this.api.post<ApiResponse<Event>>(`/api/v1/events/${eventId}/publish`);
     return response.data.data;
+  }
+
+  /** Check in a ticket by ID (e.g. from QR scan). Returns attendee/ticket info for display. */
+  async checkInTicket(ticketId: string): Promise<CheckInResult> {
+    const response = await this.api.post<ApiResponse<CheckInResult>>(
+      `/api/v1/organizer/tickets/${ticketId}/check-in`
+    );
+    return response.data.data!;
   }
 
   /** Get attendees for an event (organizer only). */

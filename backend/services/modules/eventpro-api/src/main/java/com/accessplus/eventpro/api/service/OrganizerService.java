@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.api.service;
 
 import com.accessplus.eventpro.api.dto.AttendeeResponse;
+import com.accessplus.eventpro.api.dto.CheckInResponse;
 import com.accessplus.eventpro.api.dto.EventStatsResponse;
 import com.accessplus.eventpro.api.dto.OrganizerInsightsResponse;
 import com.accessplus.eventpro.api.dto.OrganizerSummaryResponse;
@@ -16,6 +17,12 @@ public interface OrganizerService {
     EventStatsResponse getEventStats(UUID eventId, UUID organizerId);
 
     List<AttendeeResponse> getEventAttendees(UUID eventId, UUID organizerId);
+
+    /**
+     * Returns ticket and attendee display info for a ticket (after check-in or for validation).
+     * Used by the check-in app to show "Checked in: Name - Ticket type".
+     */
+    CheckInResponse getCheckInResult(UUID ticketId, UUID organizerId);
 
     /**
      * Sends an email to all attendees of an event (Pro and Enterprise only).

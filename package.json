@@ -1,0 +1,21 @@
+{
+  "name": "eventpro-monorepo",
+  "private": true,
+  "description": "EventPro – web, mobile, backend. Use eventpro-frontend and eventpro-mobile for app dev.",
+  "workspaces": [
+    "packages/*",
+    "eventpro-frontend",
+    "eventpro-mobile"
+  ],
+  "overrides": {
+    "@types/react": "~19.1.10",
+    "@types/react-dom": "~19.1.10",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "scripts": {
+    "build:shared": "npm run build -w @eventpro/shared",
+    "dev:web": "npm run dev -w vite_react_shadcn_ts",
+    "dev:mobile": "npm run start -w eventpro-mobile"
+  }
+}
