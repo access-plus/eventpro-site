@@ -6,7 +6,7 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: "0.0.0.0", // listen on all interfaces so Docker port mapping works
     port: 5173,
     hmr: {
       overlay: false,
@@ -27,5 +27,7 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // Force a single copy of React so hooks work (avoids "Invalid hook call" with react-query, etc.)
+    dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
 }));

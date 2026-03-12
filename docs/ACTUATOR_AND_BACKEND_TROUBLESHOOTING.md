@@ -166,8 +166,34 @@ After a clean build, the module JARs under `backend/services/modules/*/build/lib
 | `BeanDefinitionStoreException: Failed to read candidate component class` | Corrupted/incomplete module JAR (e.g. eventpro-event) | `cd backend/services && ./gradlew clean :eventpro-api:bootJar` then `docker compose restart backend` |
 | Image proxy 403 | S3 access denied (e.g. old upload without PUBLIC_READ) | Re-upload the event image in organizer UI (edit event → change image → save) |
 | Image proxy 404 | Object not in S3/LocalStack at that key | Check logs; list bucket with `aws --endpoint-url=http://localhost:4566 s3 ls s3://eventpro-images-local/events/ --recursive`; re-upload image if missing |
+| **S3: The specified bucket does not exist (404)** | The bucket in `S3_BUCKET_NAME` has not been created | See [S3 bucket does not exist](#s3-bucket-does-not-exist) below |
 
 Once the backend starts successfully, **http://localhost:8080/actuator/health** will respond; security already allows unauthenticated access to this endpoint.
+
+### S3 bucket does not exist
+
+The backend uses `S3_BUCKET_NAME` (default `eventpro-images-local`) for event images and QR codes. That bucket must exist in the same AWS (or LocalStack) environment the app is using.
+
+- **LocalStack (Docker / local dev)**  
+  With LocalStack running (e.g. `docker compose up -d localstack`), create the bucket:
+
+  ```bash
+  # Use the same name as in your .env (default: eventpro-images-local)
+  aws --endpoint-url=http://localhost:4566 s3 mb s3://eventpro-images-local
+  ```
+
+  If the backend runs inside Docker and talks to LocalStack as `http://localstack:4566`, run the same command from a container that can reach LocalStack, or temporarily set `AWS_ENDPOINT_URL=http://localhost:4566` and run the above from your host (with LocalStack port 4566 published).
+
+- **Real AWS**  
+  Create the bucket in your AWS account (names must be globally unique), then set `S3_BUCKET_NAME` to that name:
+
+  ```bash
+  aws s3 mb s3://your-unique-bucket-name --region us-east-1
+  ```
+
+  In `.env` (or your deployment config): `S3_BUCKET_NAME=your-unique-bucket-name`.
+
+If you use Terraform for local or deployed infra (e.g. `make local-infra` or backend/services/terraform), the images bucket is usually created for you and `S3_BUCKET_NAME` is set in the generated env.
 
 ---
 

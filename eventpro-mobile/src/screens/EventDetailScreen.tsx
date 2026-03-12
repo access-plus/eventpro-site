@@ -10,7 +10,9 @@ import {
   TextInput,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
+import { useRecentlyViewed } from "../contexts/RecentlyViewedContext";
 import type { Event, TicketType } from "@eventpro/shared";
+import { theme } from "../theme";
 
 export function EventDetailScreen({
   route,
@@ -20,6 +22,7 @@ export function EventDetailScreen({
   navigation: any;
 }) {
   const { api } = useAuth();
+  const { addRecentlyViewed } = useRecentlyViewed();
   const [event, setEvent] = useState<Event | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +38,7 @@ export function EventDetailScreen({
       .then(([eventData, tickets]) => {
         if (!cancelled) {
           setEvent(eventData);
+          if (eventData) addRecentlyViewed(eventData);
           setTicketTypes(tickets);
           const initial: Record<string, number> = {};
           tickets.forEach((t) => (initial[t.id] = 0));
@@ -50,7 +54,7 @@ export function EventDetailScreen({
     return () => {
       cancelled = true;
     };
-  }, [api, route.params.eventId]);
+  }, [api, route.params.eventId, addRecentlyViewed]);
 
   const setQty = (ticketId: string, delta: number) => {
     const t = ticketTypes.find((x) => x.id === ticketId);
@@ -196,34 +200,34 @@ export function EventDetailScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  error: { padding: 24, color: "#666" },
-  cover: { width: "100%", height: 200, backgroundColor: "#eee" },
-  coverPlaceholder: { width: "100%", height: 200, backgroundColor: "#eee", justifyContent: "center", alignItems: "center" },
-  coverPlaceholderText: { color: "#999" },
-  content: { padding: 16 },
-  title: { fontSize: 22, fontWeight: "700", marginBottom: 8 },
-  desc: { fontSize: 15, color: "#444", marginBottom: 12 },
-  meta: { fontSize: 14, color: "#666", marginBottom: 8 },
-  sectionTitle: { fontSize: 18, fontWeight: "600", marginTop: 20, marginBottom: 12 },
-  muted: { color: "#888", marginBottom: 16 },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.colors.background },
+  error: { padding: 24, color: theme.colors.mutedForeground },
+  cover: { width: "100%", height: 200, backgroundColor: theme.colors.muted },
+  coverPlaceholder: { width: "100%", height: 200, backgroundColor: theme.colors.muted, justifyContent: "center", alignItems: "center" },
+  coverPlaceholderText: { color: theme.colors.mutedForeground },
+  content: { padding: theme.spacing.md },
+  title: { fontSize: 22, fontWeight: "700", marginBottom: 8, color: theme.colors.foreground },
+  desc: { fontSize: 15, marginBottom: 12, color: theme.colors.mutedForeground },
+  meta: { fontSize: 14, marginBottom: 8, color: theme.colors.mutedForeground },
+  sectionTitle: { fontSize: 18, fontWeight: "600", marginTop: 20, marginBottom: 12, color: theme.colors.foreground },
+  muted: { marginBottom: 16, color: theme.colors.mutedForeground },
   ticketRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: theme.colors.border,
   },
   ticketInfo: { flex: 1 },
-  ticketName: { fontSize: 16, fontWeight: "600" },
-  ticketMeta: { fontSize: 14, color: "#666", marginTop: 2 },
+  ticketName: { fontSize: 16, fontWeight: "600", color: theme.colors.foreground },
+  ticketMeta: { fontSize: 14, marginTop: 2, color: theme.colors.mutedForeground },
   stepper: { flexDirection: "row", alignItems: "center" },
-  stepperBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#f0f0f0", justifyContent: "center", alignItems: "center" },
-  stepperText: { fontSize: 18, fontWeight: "600", color: "#333" },
-  stepperInput: { width: 40, textAlign: "center", fontSize: 16, marginHorizontal: 8 },
-  button: { backgroundColor: "#0a0a0a", padding: 16, borderRadius: 8, alignItems: "center", marginTop: 24 },
-  buttonDisabled: { backgroundColor: "#ccc" },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  stepperBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.colors.muted, justifyContent: "center", alignItems: "center" },
+  stepperText: { fontSize: 18, fontWeight: "600", color: theme.colors.foreground },
+  stepperInput: { width: 40, textAlign: "center", fontSize: 16, marginHorizontal: 8, color: theme.colors.foreground },
+  button: { backgroundColor: theme.colors.primary, padding: 16, borderRadius: theme.radius.md, alignItems: "center", marginTop: 24 },
+  buttonDisabled: { backgroundColor: theme.colors.muted },
+  buttonText: { color: theme.colors.primaryForeground, fontWeight: "600" },
 });

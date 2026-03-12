@@ -254,6 +254,25 @@ export interface PageResponse<T> {
   last?: boolean;
 }
 
+/** In-app notification for the current user. */
+export interface UserNotification {
+  id: string;
+  notificationId: string;
+  title: string;
+  message: string;
+  type: string;
+  status: "UNREAD" | "READ";
+  readAt: string | null;
+  createdAt: string;
+}
+
+/** Notification channel preferences (email, SMS, in-app). */
+export interface NotificationPreferences {
+  emailEnabled: boolean;
+  smsEnabled: boolean;
+  pushEnabled: boolean;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   message?: string;

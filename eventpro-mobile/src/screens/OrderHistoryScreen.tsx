@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import type { Order } from "@eventpro/shared";
+import { theme } from "../theme";
 
 function getStatusLabel(status: string) {
   switch (status) {
@@ -32,14 +33,14 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
     api.getOrders(1, 50).then(setOrders).catch(() => setOrders([])).finally(() => setLoading(false));
   }, [api]);
 
-  if (loading) return <View style={styles.centered}><ActivityIndicator /></View>;
+  if (loading) return <View style={[styles.centered, { backgroundColor: theme.colors.background }]}><ActivityIndicator color={theme.colors.primary} /></View>;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <FlatList
         data={orders}
         keyExtractor={(item) => item.id}
-        ListEmptyComponent={<Text style={styles.empty}>No orders yet.</Text>}
+        ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.mutedForeground }]}>No orders yet.</Text>}
         contentContainerStyle={orders.length === 0 ? styles.emptyList : undefined}
         renderItem={({ item }) => {
           const status = (item as any).status ?? "COMPLETED";
@@ -47,15 +48,15 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
             ? new Date(item.createdAt).toLocaleDateString(undefined, { dateStyle: "medium" })
             : "—";
           return (
-            <TouchableOpacity style={styles.card} activeOpacity={0.7}>
+            <TouchableOpacity style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]} activeOpacity={0.7}>
               <View style={styles.cardRow}>
-                <Text style={styles.amount}>${Number((item as any).totalAmount ?? 0).toFixed(2)}</Text>
+                <Text style={[styles.amount, { color: theme.colors.foreground }]}>${Number((item as any).totalAmount ?? 0).toFixed(2)}</Text>
                 <View style={[styles.badge, { backgroundColor: getStatusColor(status) }]}>
                   <Text style={styles.badgeText}>{getStatusLabel(status)}</Text>
                 </View>
               </View>
-              <Text style={styles.date}>{dateStr}</Text>
-              <Text style={styles.id}>Order #{item.id.slice(0, 8)}</Text>
+              <Text style={[styles.date, { color: theme.colors.mutedForeground }]}>{dateStr}</Text>
+              <Text style={[styles.id, { color: theme.colors.mutedForeground }]}>Order #{item.id.slice(0, 8)}</Text>
             </TouchableOpacity>
           );
         }}
@@ -65,15 +66,15 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  container: { flex: 1, padding: theme.spacing.md },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyList: { flexGrow: 1 },
-  empty: { textAlign: "center", color: "#666", marginTop: 24 },
-  card: { backgroundColor: "#fff", padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#eee" },
+  empty: { textAlign: "center", marginTop: 24 },
+  card: { padding: 16, borderRadius: theme.radius.lg, marginBottom: 12, borderWidth: 1 },
   cardRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  id: { fontSize: 12, color: "#888", marginTop: 6 },
+  id: { fontSize: 12, marginTop: 6 },
   amount: { fontSize: 18, fontWeight: "700" },
-  date: { fontSize: 14, color: "#666", marginTop: 4 },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  date: { fontSize: 14, marginTop: 4 },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: theme.radius.md },
   badgeText: { fontSize: 12, fontWeight: "600", color: "#fff" },
 });

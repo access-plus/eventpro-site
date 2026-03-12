@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/UserMenu";
 import { CartMenu } from "@/components/CartMenu";
+import { NotificationCenter } from "@/components/NotificationCenter";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export const Navigation = () => {
@@ -67,6 +68,7 @@ export const Navigation = () => {
             <ThemeToggle />
 
             <CartMenu />
+            {isAuthenticated && <NotificationCenter />}
 
             {isAuthenticated ? (
               <UserMenu />
@@ -123,6 +125,7 @@ export const Navigation = () => {
 
               <div className="flex items-center justify-between px-4 py-2">
                 <CartMenu />
+                {isAuthenticated && <NotificationCenter />}
               </div>
 
               <div className="flex items-center justify-between px-4 py-2">

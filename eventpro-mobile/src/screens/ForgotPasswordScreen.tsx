@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
+import { theme } from "../theme";
 
 export function ForgotPasswordScreen({ navigation }: { navigation: any }) {
   const [email, setEmail] = useState("");
@@ -72,7 +73,7 @@ export function ForgotPasswordScreen({ navigation }: { navigation: any }) {
         value={email}
         onChangeText={(t) => { setEmail(t); setError(null); }}
         placeholder="you@example.com"
-        placeholderTextColor="#999"
+        placeholderTextColor={theme.colors.mutedForeground}
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
@@ -84,7 +85,7 @@ export function ForgotPasswordScreen({ navigation }: { navigation: any }) {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator size="small" color="#fff" />
+          <ActivityIndicator size="small" color={theme.colors.primaryForeground} />
         ) : (
           <Text style={styles.primaryBtnText}>Send reset link</Text>
         )}
@@ -97,23 +98,24 @@ export function ForgotPasswordScreen({ navigation }: { navigation: any }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: "center" },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 8 },
-  desc: { fontSize: 15, color: "#666", marginBottom: 24 },
+  container: { flex: 1, padding: theme.spacing.lg, justifyContent: "center", backgroundColor: theme.colors.background },
+  title: { fontSize: 24, fontWeight: "700", marginBottom: 8, color: theme.colors.foreground },
+  desc: { fontSize: 15, color: theme.colors.mutedForeground, marginBottom: 24 },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
     marginBottom: 12,
-    backgroundColor: "#fff",
+    backgroundColor: theme.colors.card,
+    color: theme.colors.foreground,
   },
-  error: { color: "#c00", marginBottom: 12, fontSize: 14 },
-  primaryBtn: { backgroundColor: "#0a0a0a", padding: 16, borderRadius: 8, alignItems: "center", marginBottom: 16 },
+  error: { color: theme.colors.destructive, marginBottom: 12, fontSize: 14 },
+  primaryBtn: { backgroundColor: theme.colors.primary, padding: 16, borderRadius: theme.radius.md, alignItems: "center", marginBottom: 16 },
   btnDisabled: { opacity: 0.7 },
-  primaryBtnText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  primaryBtnText: { color: theme.colors.primaryForeground, fontWeight: "600", fontSize: 16 },
   link: { alignItems: "center" },
-  linkText: { fontSize: 15, color: "#666" },
+  linkText: { fontSize: 15, color: theme.colors.mutedForeground },
 });

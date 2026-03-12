@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import type { User } from "@eventpro/shared";
+import { theme } from "../theme";
 
 export function AdminUsersScreen() {
   const { api } = useAuth();
@@ -36,29 +37,29 @@ export function AdminUsersScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <FlatList
         data={users}
         keyExtractor={(item) => item.id}
         contentContainerStyle={users.length === 0 ? styles.emptyList : styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No users.</Text>}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.mutedForeground }]}>No users.</Text>}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} color={theme.colors.primary} />}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.name}>
+          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Text style={[styles.name, { color: theme.colors.foreground }]}>
               {[item.firstName, item.lastName].filter(Boolean).join(" ") || "—"}
             </Text>
-            <Text style={styles.email}>{item.email}</Text>
+            <Text style={[styles.email, { color: theme.colors.mutedForeground }]}>{item.email}</Text>
             <View style={styles.row}>
-              <Text style={styles.meta}>Role: {item.role}</Text>
-              <Text style={styles.meta}>Status: {item.status ?? "—"}</Text>
+              <Text style={[styles.meta, { color: theme.colors.mutedForeground }]}>Role: {item.role}</Text>
+              <Text style={[styles.meta, { color: theme.colors.mutedForeground }]}>Status: {item.status ?? "—"}</Text>
             </View>
           </View>
         )}
@@ -70,19 +71,12 @@ export function AdminUsersScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  list: { padding: 16 },
-  emptyList: { flexGrow: 1, padding: 16 },
-  empty: { textAlign: "center", color: "#666", marginTop: 24 },
-  card: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
+  list: { padding: theme.spacing.lg },
+  emptyList: { flexGrow: 1, padding: theme.spacing.lg },
+  empty: { textAlign: "center", marginTop: 24 },
+  card: { padding: 16, borderRadius: theme.radius.lg, marginBottom: 12, borderWidth: 1 },
   name: { fontSize: 17, fontWeight: "600" },
-  email: { fontSize: 14, color: "#666", marginTop: 4 },
+  email: { fontSize: 14, marginTop: 4 },
   row: { flexDirection: "row", marginTop: 6, gap: 12 },
-  meta: { fontSize: 13, color: "#888" },
+  meta: { fontSize: 13 },
 });
