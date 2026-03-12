@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "EventPro",
+    "slug": "eventpro-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "eventpro",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.eventpro.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.eventpro.mobile"
+    },
+    "extra": {
+      "apiUrl": "http://localhost:8080"
+    },
+    "plugins": ["expo-camera", "expo-secure-store"]
+  }
+}

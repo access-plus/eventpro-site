@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { Calendar, Plus, Edit, CheckCircle, Clock, BarChart, Ticket, RefreshCw, ShoppingBag, Mail } from "lucide-react";
+import { Calendar, Plus, Edit, CheckCircle, Clock, BarChart, Ticket, RefreshCw, ShoppingBag, Mail, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -240,6 +240,12 @@ const Organizer = () => {
           </div>
 
           <div className="flex gap-2">
+            <Link to="/organizer/check-in">
+              <Button variant="outline">
+                <QrCode className="h-4 w-4 mr-2" />
+                Check-in App
+              </Button>
+            </Link>
             <Button
               variant="outline"
               onClick={loadEvents}

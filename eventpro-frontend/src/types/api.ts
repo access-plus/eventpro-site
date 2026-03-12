@@ -170,6 +170,13 @@ export interface CheckoutTotals {
   total: number;
 }
 
+/** Result of a door check-in (QR scan). */
+export interface CheckInResult {
+  ticketName: string;
+  attendeeName: string;
+  alreadyCheckedIn: boolean;
+}
+
 /** Attendee row from organizer event attendees list. */
 export interface Attendee {
   ticketId: string;
