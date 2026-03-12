@@ -41,9 +41,13 @@ import EventFormNew from "./pages/EventFormNew";
 import EventTickets from "./pages/EventTickets";
 import EventEnhancements from "./pages/EventEnhancements";
 import OrderHistory from "./pages/OrderHistory";
+import Notifications from "./pages/Notifications";
 import Pricing from "./pages/Pricing";
 import SubscriptionReturn from "./pages/SubscriptionReturn";
 import Partners from "./pages/Partners";
+import Contact from "./pages/Contact";
+import Help from "./pages/Help";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +69,9 @@ const AnimatedRoutes = () => {
           }
         />
         <Route path="/partners" element={<PageTransition><Partners /></PageTransition>} />
+        <Route path="/contact" element={<PageTransition><Contact /></PageTransition>} />
+        <Route path="/help" element={<PageTransition><Help /></PageTransition>} />
+        <Route path="/privacy" element={<PageTransition><Privacy /></PageTransition>} />
         <Route path="/events" element={<PageTransition><Events /></PageTransition>} />
         <Route path="/events/:id" element={<PageTransition><EventDetails /></PageTransition>} />
         <Route path="/signup" element={<PageTransition><SignUp /></PageTransition>} />
@@ -109,6 +116,14 @@ const AnimatedRoutes = () => {
           element={
             <ProtectedRoute>
               <PageTransition><OrderHistory /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <PageTransition><Notifications /></PageTransition>
             </ProtectedRoute>
           }
         />

@@ -34,6 +34,8 @@ import type {
   RevenueData,
   PendingVerification,
   RecordSubscriptionPaymentRequest,
+  UserNotification,
+  NotificationPreferences,
 } from "@/types/api";
 
 class ApiService {
@@ -138,6 +140,41 @@ class ApiService {
 
   async updateUser(data: UpdateUserRequest): Promise<User> {
     const response = await this.api.put<ApiResponse<User>>("/api/v1/users/me", data);
+    return response.data.data;
+  }
+
+  /** List in-app notifications for current user (paginated). */
+  async getMyNotifications(page = 0, size = 20): Promise<PageResponse<UserNotification>> {
+    const response = await this.api.get<ApiResponse<PageResponse<UserNotification>>>(
+      "/api/v1/users/me/notifications",
+      { params: { page, size } }
+    );
+    return response.data.data;
+  }
+
+  /** Mark a notification as read. */
+  async markNotificationRead(id: string): Promise<void> {
+    await this.api.patch(`/api/v1/users/me/notifications/${id}/read`);
+  }
+
+  /** Get current user notification preferences. */
+  async getMyNotificationPreferences(): Promise<NotificationPreferences> {
+    const response = await this.api.get<ApiResponse<NotificationPreferences>>(
+      "/api/v1/users/me/notification-preferences"
+    );
+    return response.data.data;
+  }
+
+  /** Update current user notification preferences. */
+  async updateMyNotificationPreferences(data: {
+    emailEnabled?: boolean;
+    smsEnabled?: boolean;
+    pushEnabled?: boolean;
+  }): Promise<NotificationPreferences> {
+    const response = await this.api.put<ApiResponse<NotificationPreferences>>(
+      "/api/v1/users/me/notification-preferences",
+      data
+    );
     return response.data.data;
   }
 

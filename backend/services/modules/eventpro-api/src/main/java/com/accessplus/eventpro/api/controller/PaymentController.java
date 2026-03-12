@@ -8,6 +8,8 @@ import com.accessplus.eventpro.api.dto.GuestConfirmPaymentRequest;
 import com.accessplus.eventpro.api.dto.GuestOrderItemRequest;
 import com.accessplus.eventpro.api.dto.GuestReserveRequest;
 import com.accessplus.eventpro.api.dto.OrderResponse;
+import com.accessplus.eventpro.api.notification.service.NotificationPreferenceService;
+import com.accessplus.eventpro.api.notification.service.UserNotificationService;
 import com.accessplus.eventpro.core.notification.service.NotificationService;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.service.UserService;
@@ -60,6 +62,8 @@ public class PaymentController extends BaseController {
     private final OrderService orderService;
     private final CartService cartService;
     private final NotificationService notificationService;
+    private final UserNotificationService userNotificationService;
+    private final NotificationPreferenceService notificationPreferenceService;
     private final EventService eventService;
     private final UserService userService;
 
@@ -269,6 +273,17 @@ public class PaymentController extends BaseController {
                     order.getOrderNumber(),
                     eventName,
                     order.getTotalAmount());
+            if (userId != null && notificationPreferenceService.isInAppEnabled(userId)) {
+                try {
+                    userNotificationService.storeInAppNotification(
+                            userId,
+                            "Order confirmed",
+                            "Your order " + order.getOrderNumber() + " has been confirmed.",
+                            "ORDER_CONFIRMATION");
+                } catch (Exception inAppEx) {
+                    log.warn("Failed to store in-app order confirmation: orderId={}, error={}", order.getId(), inAppEx.getMessage());
+                }
+            }
         } catch (Exception e) {
             log.warn("Failed to send order confirmation notification: orderId={}, error={}", order.getId(), e.getMessage());
         }

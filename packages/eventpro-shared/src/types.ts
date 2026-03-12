@@ -196,6 +196,23 @@ export interface PageResponse<T> {
   last?: boolean;
 }
 
+export interface UserNotification {
+  id: string;
+  notificationId: string;
+  title: string;
+  message: string;
+  type: string;
+  status: "UNREAD" | "READ";
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationPreferences {
+  emailEnabled: boolean;
+  smsEnabled: boolean;
+  pushEnabled: boolean;
+}
+
 export type TicketTypeEnum = "VIP" | "REGULAR" | "EARLY_BIRD";
 export type TicketStatusEnum = "AVAILABLE" | "SOLD" | "RESERVED" | "USED" | "CANCELLED" | "REFUNDED";
 

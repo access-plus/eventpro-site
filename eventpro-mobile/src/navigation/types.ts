@@ -9,6 +9,8 @@ export type AuthStackParamList = {
   Login: undefined;
   SignUp: undefined;
   ForgotPassword: undefined;
+  Verify: undefined;
+  ResetPassword: { token?: string } | undefined;
 };
 
 export type DiscoverStackParamList = {
@@ -19,11 +21,13 @@ export type DiscoverStackParamList = {
 };
 
 export type ProfileStackParamList = {
-  Profile: undefined;
+  ProfileHome: undefined;
   ProfileEdit: undefined;
   Settings: undefined;
+  Notifications: undefined;
   OrderHistory: undefined;
   Pricing: undefined;
+  Privacy: undefined;
 };
 
 export type OrganizerStackParamList = {
@@ -31,11 +35,13 @@ export type OrganizerStackParamList = {
   OrganizerEventDetail: { eventId: string };
   EventTickets: { eventId: string };
   EventEnhancements: { eventId: string };
-  CheckIn: { eventId?: string };
+  CheckIn: { eventId?: string; scannedTicketId?: string };
+  QRScanner: { eventId?: string };
 };
 
 export type AdminStackParamList = {
   AdminOverview: undefined;
+  AdminStats: undefined;
   AdminUsers: undefined;
   AdminVerification: undefined;
   AdminEvents: undefined;

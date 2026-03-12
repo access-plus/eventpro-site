@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiService } from "@/lib/api";
 import { toast } from "sonner";
@@ -7,14 +7,19 @@ import { Loader2 } from "lucide-react";
 
 /**
  * Stripe redirects here after subscription checkout. We sync tier/role from Stripe
- * and redirect to Profile so the user sees their updated plan without any extra click.
+ * and redirect to Profile. When from=app (mobile), redirect to app deep link so the app opens and syncs.
  */
 const SubscriptionReturn = () => {
   const { refreshUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<"syncing" | "done" | "error">("syncing");
 
   useEffect(() => {
+    if (searchParams.get("from") === "app") {
+      window.location.href = "eventpro://subscription/return";
+      return;
+    }
     let cancelled = false;
     apiService
       .syncSubscriptionFromStripe()
@@ -38,7 +43,7 @@ const SubscriptionReturn = () => {
     return () => {
       cancelled = true;
     };
-  }, [refreshUser, navigate]);
+  }, [searchParams, refreshUser, navigate]);
 
   return (
     <div className="min-h-[40vh] flex flex-col items-center justify-center gap-4 p-6">

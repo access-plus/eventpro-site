@@ -18,6 +18,7 @@ import type {
   EventSales,
   GuestConfirmPaymentRequest,
   LoginRequest,
+  NotificationPreferences,
   Order,
   OrganizerInsights,
   OrganizerSummary,
@@ -32,6 +33,7 @@ import type {
   UpdateCartRequest,
   UpdateUserRequest,
   User,
+  UserNotification,
   VerificationStatusResponse,
   SubmitVerificationRequest,
 } from "./types";
@@ -79,6 +81,12 @@ export interface EventProApi {
   // Subscription (user)
   createSubscriptionCheckoutSession: (params: { tier: "PRO" | "ENTERPRISE"; period?: "MONTHLY" | "YEARLY"; successUrl: string; cancelUrl: string }) => Promise<{ url: string }>;
   syncSubscriptionFromStripe: () => Promise<{ user: User; message: string }>;
+
+  // Notifications (user)
+  getMyNotifications: (page?: number, size?: number) => Promise<PageResponse<UserNotification>>;
+  markNotificationRead: (id: string) => Promise<void>;
+  getMyNotificationPreferences: () => Promise<NotificationPreferences>;
+  updateMyNotificationPreferences: (data: { emailEnabled?: boolean; smsEnabled?: boolean; pushEnabled?: boolean }) => Promise<NotificationPreferences>;
 
   // Organizer
   getOrganizerSummary: () => Promise<OrganizerSummary>;
@@ -271,6 +279,37 @@ export function createEventProApi(config: EventProApiConfig): EventProApi {
         user: res.data.data!,
         message: res.data.message ?? "Done",
       };
+    },
+
+    async getMyNotifications(page = 0, size = 20) {
+      const res = await api.get<ApiResponse<PageResponse<UserNotification>>>(
+        "/api/v1/users/me/notifications",
+        { params: { page, size } }
+      );
+      const raw = res.data.data!;
+      return {
+        content: raw?.content ?? [],
+        totalElements: raw?.totalElements ?? 0,
+        totalPages: raw?.totalPages ?? 1,
+        size: raw?.size ?? size,
+        number: raw?.number ?? page,
+        first: raw?.first,
+        last: raw?.last,
+      };
+    },
+    async markNotificationRead(id: string) {
+      await api.patch(`/api/v1/users/me/notifications/${id}/read`);
+    },
+    async getMyNotificationPreferences() {
+      const res = await api.get<ApiResponse<NotificationPreferences>>("/api/v1/users/me/notification-preferences");
+      return res.data.data ?? { emailEnabled: true, smsEnabled: true, pushEnabled: true };
+    },
+    async updateMyNotificationPreferences(data: { emailEnabled?: boolean; smsEnabled?: boolean; pushEnabled?: boolean }) {
+      const res = await api.put<ApiResponse<NotificationPreferences>>(
+        "/api/v1/users/me/notification-preferences",
+        data
+      );
+      return res.data.data ?? { emailEnabled: true, smsEnabled: true, pushEnabled: true };
     },
 
     async getOrganizerSummary() {

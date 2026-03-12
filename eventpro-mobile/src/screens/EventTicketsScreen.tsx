@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import type { TicketType } from "@eventpro/shared";
+import { theme } from "../theme";
 
 export function EventTicketsScreen({ route }: { route: { params: { eventId: string } }; navigation?: any }) {
   const { api } = useAuth();
@@ -41,35 +42,35 @@ export function EventTicketsScreen({ route }: { route: { params: { eventId: stri
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.hint}>Manage or add ticket types on the web app.</Text>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.hint, { color: theme.colors.mutedForeground }]}>Manage or add ticket types on the web app.</Text>
       <FlatList
         data={tickets}
         keyExtractor={(item) => item.id}
         contentContainerStyle={tickets.length === 0 ? styles.emptyList : styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No ticket types yet.</Text>}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.mutedForeground }]}>No ticket types yet.</Text>}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <View style={styles.cardRow}>
-              <Text style={styles.name}>{item.name}</Text>
+              <Text style={[styles.name, { color: theme.colors.foreground }]}>{item.name}</Text>
               <View style={[styles.badge, { backgroundColor: getStatusColor(item.status) }]}>
                 <Text style={styles.badgeText}>{item.status}</Text>
               </View>
             </View>
-            <Text style={styles.price}>${Number(item.price).toFixed(2)}</Text>
-            <Text style={styles.meta}>
+            <Text style={[styles.price, { color: theme.colors.foreground }]}>${Number(item.price).toFixed(2)}</Text>
+            <Text style={[styles.meta, { color: theme.colors.mutedForeground }]}>
               Available: {item.availableQuantity ?? 0} / {item.totalQuantity ?? 0}
             </Text>
             {item.description ? (
-              <Text style={styles.desc} numberOfLines={2}>{item.description}</Text>
+              <Text style={[styles.desc, { color: theme.colors.mutedForeground }]} numberOfLines={2}>{item.description}</Text>
             ) : null}
           </View>
         )}
@@ -81,23 +82,16 @@ export function EventTicketsScreen({ route }: { route: { params: { eventId: stri
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  hint: { fontSize: 13, color: "#666", padding: 16, paddingBottom: 8 },
-  list: { padding: 16, paddingTop: 0 },
-  emptyList: { flexGrow: 1, padding: 16 },
-  empty: { textAlign: "center", color: "#666", marginTop: 24 },
-  card: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
+  hint: { fontSize: 13, padding: 16, paddingBottom: 8 },
+  list: { padding: theme.spacing.md, paddingTop: 0 },
+  emptyList: { flexGrow: 1, padding: theme.spacing.md },
+  empty: { textAlign: "center", marginTop: 24 },
+  card: { padding: 16, borderRadius: theme.radius.lg, marginBottom: 12, borderWidth: 1 },
   cardRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   name: { fontSize: 17, fontWeight: "600" },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: theme.radius.md },
   badgeText: { fontSize: 12, fontWeight: "600", color: "#fff" },
   price: { fontSize: 18, fontWeight: "700", marginTop: 6 },
-  meta: { fontSize: 14, color: "#666", marginTop: 4 },
-  desc: { fontSize: 13, color: "#888", marginTop: 6 },
+  meta: { fontSize: 14, marginTop: 4 },
+  desc: { fontSize: 13, marginTop: 6 },
 });

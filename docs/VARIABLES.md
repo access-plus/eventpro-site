@@ -62,6 +62,9 @@ JWT_PRIVATE_KEY=your-base64-or-pem-private-key
 ```env
 # S3 bucket name for image storage
 # Default: eventpro-images-local
+# The bucket must exist in AWS (or LocalStack) before uploading images.
+# LocalStack: aws --endpoint-url=http://localhost:4566 s3 mb s3://eventpro-images-local
+# Real AWS:  aws s3 mb s3://your-bucket-name --region us-east-1
 S3_BUCKET_NAME=eventpro-images-local
 ```
 
@@ -256,6 +259,13 @@ VITE_STRIPE_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
 
 </details>
 
+## Mobile (Expo)
+
+When running the mobile app (locally or via Docker), the app needs the backend API URL.
+
+- **Docker:** The `mobile` service in `docker-compose.yml` sets `EXPO_PUBLIC_API_URL=http://host.docker.internal:8080` so the container and Android emulator can reach the backend. For a **physical device**, create `eventpro-mobile/.env` with your machine’s LAN IP, e.g. `EXPO_PUBLIC_API_URL=http://192.168.1.x:8080`.
+- **Local (no Docker):** In `eventpro-mobile/.env` set `EXPO_PUBLIC_API_URL=http://localhost:8080` for simulator, or your machine IP for a real device.
+
 ## Environment File Setup
 
 ### Automatic Setup (Recommended)
@@ -328,6 +338,12 @@ If you prefer to set up manually:
 | `VITE_AWS_REGION` | No | `us-east-1` | AWS region |
 | `VITE_S3_BUCKET_NAME` | No | `eventpro-images-local` | S3 bucket name |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | **Yes*** | - | Stripe publishable key (*required for payments) |
+
+### Mobile (Expo)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `EXPO_PUBLIC_API_URL` | Yes | `http://localhost:8080` | Backend API URL; use host IP for physical device or `host.docker.internal:8080` when using Docker + emulator |
 
 ## Notes
 

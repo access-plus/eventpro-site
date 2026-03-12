@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import type { PendingVerification } from "@eventpro/shared";
+import { theme } from "../theme";
 
 export function AdminVerificationScreen() {
   const { api } = useAuth();
@@ -83,46 +84,46 @@ export function AdminVerificationScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <FlatList
         data={list}
         keyExtractor={(item) => item.id}
         contentContainerStyle={list.length === 0 ? styles.emptyList : styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No pending verifications.</Text>}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.mutedForeground }]}>No pending verifications.</Text>}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} color={theme.colors.primary} />}
         renderItem={({ item }) => {
           const busy = actingId === item.id;
           const submittedAt = item.submittedAt
             ? new Date(item.submittedAt).toLocaleDateString(undefined, { dateStyle: "medium" })
             : "—";
           return (
-            <View style={styles.card}>
-              <Text style={styles.email}>{item.email}</Text>
-              <Text style={styles.meta}>
+            <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+              <Text style={[styles.email, { color: theme.colors.foreground }]}>{item.email}</Text>
+              <Text style={[styles.meta, { color: theme.colors.mutedForeground }]}>
                 {item.legalEntityType ?? "—"} · {item.addressCity ?? ""}, {item.addressState ?? ""}
               </Text>
-              <Text style={styles.date}>Submitted: {submittedAt}</Text>
+              <Text style={[styles.date, { color: theme.colors.mutedForeground }]}>Submitted: {submittedAt}</Text>
               <View style={styles.actions}>
                 <TouchableOpacity
-                  style={[styles.approveBtn, busy && styles.btnDisabled]}
+                  style={[styles.approveBtn, { backgroundColor: theme.colors.success }, busy && styles.btnDisabled]}
                   onPress={() => handleApprove(item.id)}
                   disabled={busy}
                 >
                   <Text style={styles.approveBtnText}>Approve</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.rejectBtn, busy && styles.btnDisabled]}
+                  style={[styles.rejectBtn, { backgroundColor: theme.colors.destructive + "20" }, busy && styles.btnDisabled]}
                   onPress={() => handleReject(item.id)}
                   disabled={busy}
                 >
-                  <Text style={styles.rejectBtnText}>Reject</Text>
+                  <Text style={[styles.rejectBtnText, { color: theme.colors.destructive }]}>Reject</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -136,24 +137,17 @@ export function AdminVerificationScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  list: { padding: 16 },
-  emptyList: { flexGrow: 1, padding: 16 },
-  empty: { textAlign: "center", color: "#666", marginTop: 24 },
-  card: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
+  list: { padding: theme.spacing.lg },
+  emptyList: { flexGrow: 1, padding: theme.spacing.lg },
+  empty: { textAlign: "center", marginTop: 24 },
+  card: { padding: 16, borderRadius: theme.radius.lg, marginBottom: 12, borderWidth: 1 },
   email: { fontSize: 16, fontWeight: "600" },
-  meta: { fontSize: 14, color: "#666", marginTop: 4 },
-  date: { fontSize: 13, color: "#888", marginTop: 4 },
+  meta: { fontSize: 14, marginTop: 4 },
+  date: { fontSize: 13, marginTop: 4 },
   actions: { flexDirection: "row", marginTop: 12, gap: 8 },
-  approveBtn: { flex: 1, padding: 10, borderRadius: 8, backgroundColor: "#059669", alignItems: "center" },
+  approveBtn: { flex: 1, padding: 10, borderRadius: theme.radius.md, alignItems: "center" },
   approveBtnText: { fontSize: 14, fontWeight: "600", color: "#fff" },
-  rejectBtn: { flex: 1, padding: 10, borderRadius: 8, backgroundColor: "#fee", alignItems: "center" },
-  rejectBtnText: { fontSize: 14, fontWeight: "600", color: "#c00" },
+  rejectBtn: { flex: 1, padding: 10, borderRadius: theme.radius.md, alignItems: "center" },
+  rejectBtnText: { fontSize: 14, fontWeight: "600" },
   btnDisabled: { opacity: 0.6 },
 });

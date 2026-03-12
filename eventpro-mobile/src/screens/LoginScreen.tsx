@@ -12,6 +12,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
+import { theme } from "../theme";
 
 export function LoginScreen({ navigation }: { navigation: { navigate: (name: string) => void } }) {
   const { login } = useAuth();
@@ -100,12 +101,15 @@ export function LoginScreen({ navigation }: { navigation: { navigate: (name: str
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={theme.colors.primaryForeground} />
             ) : (
               <Text style={styles.buttonText}>Sign in</Text>
             )}
           </TouchableOpacity>
 
+          <TouchableOpacity style={styles.verifyLink} onPress={() => navigation.navigate("Verify")}>
+            <Text style={styles.forgotText}>Verify your email</Text>
+          </TouchableOpacity>
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
@@ -119,55 +123,58 @@ export function LoginScreen({ navigation }: { navigation: { navigate: (name: str
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  scrollContent: { flexGrow: 1, justifyContent: "center", padding: 24, paddingVertical: 40 },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  scrollContent: { flexGrow: 1, justifyContent: "center", padding: theme.spacing.lg, paddingVertical: 40 },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 24,
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
   iconBox: {
     width: 48,
     height: 48,
-    borderRadius: 10,
-    backgroundColor: "#0a0a0a",
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.primary,
     alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
-  iconText: { color: "#fff", fontSize: 18, fontWeight: "700" },
-  title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 4 },
-  subtitle: { fontSize: 14, color: "#666", textAlign: "center", marginBottom: 24 },
-  label: { fontSize: 14, fontWeight: "600", marginBottom: 6 },
+  iconText: { color: theme.colors.primaryForeground, fontSize: 18, fontWeight: "700" },
+  title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 4, color: theme.colors.foreground },
+  subtitle: { fontSize: 14, color: theme.colors.mutedForeground, textAlign: "center", marginBottom: 24 },
+  label: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: theme.colors.foreground },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
     padding: 14,
     fontSize: 16,
     marginBottom: 16,
+    backgroundColor: theme.colors.card,
+    color: theme.colors.foreground,
   },
-  passwordRow: { position: "relative", marginBottom: 8 },
+  passwordRow: { position: "relative" as const, marginBottom: 8 },
   passwordInput: { marginBottom: 0, paddingRight: 56 },
-  eyeButton: { position: "absolute", right: 12, top: 0, bottom: 0, justifyContent: "center" },
-  eyeText: { fontSize: 14, color: "#666" },
+  eyeButton: { position: "absolute" as const, right: 12, top: 0, bottom: 0, justifyContent: "center" },
+  eyeText: { fontSize: 14, color: theme.colors.mutedForeground },
   forgotLink: { alignSelf: "flex-end", marginBottom: 16 },
-  forgotText: { fontSize: 14, color: "#0a0a0a" },
+  forgotText: { fontSize: 14, color: theme.colors.primary },
+  verifyLink: { alignSelf: "center", marginTop: 12 },
   button: {
-    backgroundColor: "#0a0a0a",
-    borderRadius: 8,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radius.md,
     padding: 16,
     alignItems: "center",
   },
   buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  buttonText: { color: theme.colors.primaryForeground, fontSize: 16, fontWeight: "600" },
   footer: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 20 },
-  footerText: { fontSize: 14, color: "#666" },
-  footerLink: { fontSize: 14, color: "#0a0a0a", fontWeight: "600" },
+  footerText: { fontSize: 14, color: theme.colors.mutedForeground },
+  footerLink: { fontSize: 14, color: theme.colors.primary, fontWeight: "600" },
 });

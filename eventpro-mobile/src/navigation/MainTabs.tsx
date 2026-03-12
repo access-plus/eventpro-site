@@ -1,16 +1,19 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 import type { MainTabParamList } from "./types";
 import { useAuth } from "../context/AuthContext";
 import { DiscoverStack } from "./DiscoverStack";
 import { ProfileStack } from "./ProfileStack";
 import { OrganizerStack } from "./OrganizerStack";
 import { AdminStack } from "./AdminStack";
+import { useTheme } from "../contexts/ThemeContext";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabs() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const isOrganizer = user?.role === "ORGANIZER" || user?.role === "ADMIN";
   const isAdmin = user?.role === "ADMIN";
 
@@ -19,30 +22,55 @@ export function MainTabs() {
       screenOptions={{
         headerShown: false,
         tabBarLabelStyle: { fontSize: 12 },
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.mutedForeground,
+        tabBarStyle: { backgroundColor: theme.colors.card, borderTopColor: theme.colors.border },
       }}
     >
       <Tab.Screen
         name="Discover"
         component={DiscoverStack}
-        options={{ title: "Home", tabBarLabel: "Home" }}
+        options={{
+          title: "Home",
+          tabBarLabel: "Home",
+          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+        }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileStack}
-        options={{ title: "Profile", tabBarLabel: "Profile" }}
+        options={{
+          title: "Profile",
+          tabBarLabel: "Profile",
+          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
+        }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate("Profile", { screen: "ProfileHome" });
+          },
+        })}
       />
       {isOrganizer && (
         <Tab.Screen
           name="Organizer"
           component={OrganizerStack}
-          options={{ title: "Organizer", tabBarLabel: "Organizer" }}
+          options={{
+            title: "Organizer",
+            tabBarLabel: "Organizer",
+            tabBarIcon: ({ color, size }) => <Ionicons name="calendar" size={size} color={color} />,
+          }}
         />
       )}
       {isAdmin && (
         <Tab.Screen
           name="Admin"
           component={AdminStack}
-          options={{ title: "Admin", tabBarLabel: "Admin" }}
+          options={{
+            title: "Admin",
+            tabBarLabel: "Admin",
+            tabBarIcon: ({ color, size }) => <Ionicons name="shield-checkmark" size={size} color={color} />,
+          }}
         />
       )}
     </Tab.Navigator>

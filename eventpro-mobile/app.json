@@ -22,7 +22,8 @@
       "package": "com.eventpro.mobile"
     },
     "extra": {
-      "apiUrl": "http://localhost:8080"
+      "apiUrl": "http://localhost:8080",
+      "webUrl": "http://localhost:5173"
     },
     "plugins": ["expo-camera", "expo-secure-store"]
   }

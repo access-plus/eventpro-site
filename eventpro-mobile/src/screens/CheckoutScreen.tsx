@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import type { CartResponse, CartItemResponse, CheckoutTotals } from "@eventpro/shared";
+import { theme } from "../theme";
 
 export function CheckoutScreen({
   route,
@@ -85,7 +86,7 @@ export function CheckoutScreen({
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -176,26 +177,26 @@ export function CheckoutScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  content: { padding: 16 },
-  emptyTitle: { fontSize: 20, fontWeight: "700", marginBottom: 8, textAlign: "center" },
-  emptyDesc: { fontSize: 15, color: "#666", marginBottom: 24, textAlign: "center" },
-  sectionTitle: { fontSize: 18, fontWeight: "600", marginBottom: 12 },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee" },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: theme.colors.background },
+  content: { padding: theme.spacing.md },
+  emptyTitle: { fontSize: 20, fontWeight: "700", marginBottom: 8, textAlign: "center", color: theme.colors.foreground },
+  emptyDesc: { fontSize: 15, marginBottom: 24, textAlign: "center", color: theme.colors.mutedForeground },
+  sectionTitle: { fontSize: 18, fontWeight: "600", marginBottom: 12, color: theme.colors.foreground },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   rowLeft: { flex: 1 },
-  itemName: { fontSize: 16, fontWeight: "600" },
-  itemMeta: { fontSize: 14, color: "#666", marginTop: 2 },
+  itemName: { fontSize: 16, fontWeight: "600", color: theme.colors.foreground },
+  itemMeta: { fontSize: 14, marginTop: 2, color: theme.colors.mutedForeground },
   removeBtn: { padding: 8 },
-  removeText: { fontSize: 14, color: "#c00" },
-  totals: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: "#eee" },
+  removeText: { fontSize: 14, color: theme.colors.destructive },
+  totals: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: theme.colors.border },
   totalRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 },
   totalRowLast: { marginTop: 8 },
-  totalLabel: { fontSize: 15, color: "#666" },
-  totalValue: { fontSize: 15, color: "#333" },
-  totalLabelBold: { fontSize: 17, fontWeight: "700" },
-  totalValueBold: { fontSize: 17, fontWeight: "700" },
-  button: { backgroundColor: "#0a0a0a", padding: 16, borderRadius: 8, alignItems: "center", marginTop: 24 },
+  totalLabel: { fontSize: 15, color: theme.colors.mutedForeground },
+  totalValue: { fontSize: 15, color: theme.colors.foreground },
+  totalLabelBold: { fontSize: 17, fontWeight: "700", color: theme.colors.foreground },
+  totalValueBold: { fontSize: 17, fontWeight: "700", color: theme.colors.foreground },
+  button: { backgroundColor: theme.colors.primary, padding: 16, borderRadius: theme.radius.md, alignItems: "center", marginTop: 24 },
   buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  buttonText: { color: theme.colors.primaryForeground, fontWeight: "600" },
 });

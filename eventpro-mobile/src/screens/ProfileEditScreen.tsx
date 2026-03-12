@@ -11,6 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
+import { theme } from "../theme";
 
 const CULTURAL_NICHE_OPTIONS = [
   "West African Cultural Events",
@@ -143,7 +144,7 @@ export function ProfileEditScreen({ navigation }: { navigation: any }) {
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={theme.colors.primaryForeground} />
             ) : (
               <Text style={styles.saveBtnText}>Save changes</Text>
             )}
@@ -155,27 +156,28 @@ export function ProfileEditScreen({ navigation }: { navigation: any }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: theme.colors.background },
   scroll: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 32 },
-  sectionLabel: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: "#333" },
+  scrollContent: { padding: theme.spacing.md, paddingBottom: 32 },
+  sectionLabel: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: theme.colors.foreground },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
     marginBottom: 16,
-    backgroundColor: "#fff",
+    backgroundColor: theme.colors.card,
+    color: theme.colors.foreground,
   },
   inputMultiline: { minHeight: 80, textAlignVertical: "top" },
-  hint: { fontSize: 12, color: "#666", marginBottom: 16 },
-  error: { color: "#c00", marginBottom: 12 },
+  hint: { fontSize: 12, marginBottom: 16, color: theme.colors.mutedForeground },
+  error: { marginBottom: 12, color: theme.colors.destructive },
   actions: { flexDirection: "row", gap: 12, marginTop: 8 },
-  cancelBtn: { flex: 1, padding: 14, borderRadius: 8, borderWidth: 1, borderColor: "#ccc", alignItems: "center" },
-  cancelBtnText: { fontSize: 16, color: "#333" },
-  saveBtn: { flex: 1, padding: 14, borderRadius: 8, backgroundColor: "#0a0a0a", alignItems: "center" },
+  cancelBtn: { flex: 1, padding: 14, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border, alignItems: "center" },
+  cancelBtnText: { fontSize: 16, color: theme.colors.foreground },
+  saveBtn: { flex: 1, padding: 14, borderRadius: theme.radius.md, backgroundColor: theme.colors.primary, alignItems: "center" },
   saveBtnDisabled: { opacity: 0.7 },
-  saveBtnText: { fontSize: 16, fontWeight: "600", color: "#fff" },
+  saveBtnText: { fontSize: 16, fontWeight: "600", color: theme.colors.primaryForeground },
 });

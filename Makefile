@@ -76,8 +76,10 @@ help:
 	@echo "  make local-setup    - Complete first-time setup (all steps)"
 	@echo "  make local-infra-only - Step 1: Start PostgreSQL + LocalStack"
 	@echo "  make local-infra    - Step 2: Provision resources + create .env"
-	@echo "  make local-up       - Step 3: Start Backend + Frontend"
+	@echo "  make local-up       - Step 3: Start Backend + Frontend + Mobile"
 	@echo "  make local-down     - Stop all services"
+	@echo "  make start-mobile   - Start Mobile (Expo) only"
+	@echo "  make mobile-logs    - Follow mobile container logs"
 	@echo "  make local-restart  - Restart Backend + Frontend"
 	@echo "  make backend-rebuild - Clean backend build and restart (use after changing shared/migrations)"
 	@echo "  make local-reset    - Reset containers (fixes conflicts)"
@@ -433,12 +435,13 @@ local-up:
 		exit 1; \
 	fi
 	@if ! docker ps | grep -q "postgres"; then $(MAKE) local-infra-only; fi
-	@docker compose --env-file .env up -d backend frontend
+	@docker compose --env-file .env up -d backend frontend mobile
 	@echo "Waiting for services to start (migrations run automatically)..."
 	@sleep 15
 	@echo ""
 	@echo "All services started!"
 	@echo "   Frontend: http://localhost:5173"
+	@echo "   Mobile (Expo): Metro on http://localhost:8081, Expo dev tools on http://localhost:19000"
 	@echo "   Backend health:  http://localhost:8080/actuator/health"
 	@echo "   Backend swagger:  http://localhost:8080/swagger-ui/index.html"
 	@echo "   Lambda functions: Managed by LocalStack (automatically triggered by SQS)"
@@ -451,11 +454,11 @@ local-down:
 	@cd infrastructure/environments/local && terraform destroy -auto-approve || true
 	cd ../../../
 	@rm -f .env eventpro-frontend/.env.local
-	@docker compose  down backend frontend postgres -v
+	@docker compose  down backend frontend mobile postgres -v
 
 local-restart:
 	@echo "Restarting application services..."
-	@docker compose  restart backend frontend
+	@docker compose  restart backend frontend mobile
 	@echo "Services restarted!"
 
 # Force backend to recompile from source (clean + restart). Use after changing shared/ or migrations.
@@ -473,6 +476,9 @@ backend-logs:
 
 frontend-logs:
 	@docker compose  logs -f frontend
+
+mobile-logs:
+	@docker compose  logs -f mobile
 
 # Clean everything (containers + Terraform resources)
 local-clean:
@@ -496,6 +502,13 @@ start-frontend:
 	@echo "Starting frontend..."
 	@docker compose  --env-file eventpro-frontend/.env.local up -d frontend
 	@echo "   Frontend UI: http://localhost:5173"
+
+start-mobile:
+	@echo "Starting mobile (Expo)..."
+	@docker compose up -d mobile
+	@echo "   Metro: http://localhost:8081"
+	@echo "   Expo dev tools: http://localhost:19000"
+	@echo "   Use Expo Go and connect to this host; set EXPO_PUBLIC_API_URL to your machine IP for physical devices."
 
 start-localstack:
 	@echo "Starting LocalStack..."

@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import type { UserRole } from "@eventpro/shared";
+import { theme } from "../theme";
 
 /** Extract a user-friendly message from signup API error (backend sends message + optional fields). */
 function getSignUpErrorMessage(err: unknown): string {
@@ -96,8 +97,8 @@ export function SignUpScreen({ navigation }: { navigation: { navigate: (name: st
         phoneNumber: phoneNumber.trim() || undefined,
         role,
       });
-      Alert.alert("Success", "Account created! You can now log in.", [
-        { text: "OK", onPress: () => navigation.navigate("Login") },
+      Alert.alert("Success", "Account created! Check your email to verify your account.", [
+        { text: "OK", onPress: () => navigation.navigate("Verify") },
       ]);
     } catch (err: unknown) {
       const msg = getSignUpErrorMessage(err);
@@ -225,39 +226,41 @@ export function SignUpScreen({ navigation }: { navigation: { navigate: (name: st
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  scrollContent: { padding: 24, paddingVertical: 24, paddingBottom: 40 },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  scrollContent: { padding: theme.spacing.lg, paddingVertical: 24, paddingBottom: 40 },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 24,
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.lg,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
   iconBox: {
     width: 48,
     height: 48,
-    borderRadius: 10,
-    backgroundColor: "#0a0a0a",
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.primary,
     alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
-  iconText: { color: "#fff", fontSize: 18, fontWeight: "700" },
-  title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 4 },
-  subtitle: { fontSize: 14, color: "#666", textAlign: "center", marginBottom: 24 },
-  label: { fontSize: 14, fontWeight: "600", marginBottom: 6 },
+  iconText: { color: theme.colors.primaryForeground, fontSize: 18, fontWeight: "700" },
+  title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 4, color: theme.colors.foreground },
+  subtitle: { fontSize: 14, color: theme.colors.mutedForeground, textAlign: "center", marginBottom: 24 },
+  label: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: theme.colors.foreground },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
     padding: 14,
     fontSize: 16,
     marginBottom: 16,
+    backgroundColor: theme.colors.card,
+    color: theme.colors.foreground,
   },
   row: { flexDirection: "row", gap: 12 },
   half: { flex: 1 },
@@ -266,24 +269,24 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: theme.radius.md,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: theme.colors.border,
     alignItems: "center",
   },
-  roleBtnActive: { backgroundColor: "#0a0a0a", borderColor: "#0a0a0a" },
-  roleBtnText: { fontSize: 14, color: "#666" },
-  roleBtnTextActive: { color: "#fff", fontWeight: "600" },
+  roleBtnActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  roleBtnText: { fontSize: 14, color: theme.colors.mutedForeground },
+  roleBtnTextActive: { color: theme.colors.primaryForeground, fontWeight: "600" },
   button: {
-    backgroundColor: "#0a0a0a",
-    borderRadius: 8,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radius.md,
     padding: 16,
     alignItems: "center",
     marginTop: 8,
   },
   buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  buttonText: { color: theme.colors.primaryForeground, fontSize: 16, fontWeight: "600" },
   footer: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 20 },
-  footerText: { fontSize: 14, color: "#666" },
-  footerLink: { fontSize: 14, color: "#0a0a0a", fontWeight: "600" },
+  footerText: { fontSize: 14, color: theme.colors.mutedForeground },
+  footerLink: { fontSize: 14, color: theme.colors.primary, fontWeight: "600" },
 });
