@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -64,6 +64,8 @@ const Profile = () => {
   const [brandingPrimaryColor, setBrandingPrimaryColor] = useState(user?.brandingPrimaryColor ?? "");
   const [brandingHidePlatform, setBrandingHidePlatform] = useState(user?.brandingHidePlatform ?? false);
   const [brandingSaving, setBrandingSaving] = useState(false);
+  const [profilePhotoUploading, setProfilePhotoUploading] = useState(false);
+  const profilePhotoInputRef = useRef<HTMLInputElement>(null);
 
   const fetchSummary = useCallback(() => {
     if (!hasRole("ORGANIZER")) {
@@ -330,12 +332,43 @@ const Profile = () => {
           >
             <CardContent className="p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
               <div className="relative shrink-0">
+                <input
+                  ref={profilePhotoInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setProfilePhotoUploading(true);
+                    try {
+                      await apiService.uploadProfilePicture(file);
+                      await refreshUser();
+                      toast.success("Profile picture updated.");
+                    } catch (err: any) {
+                      toast.error(err?.message || "Failed to upload profile picture.");
+                    } finally {
+                      setProfilePhotoUploading(false);
+                      e.target.value = "";
+                    }
+                  }}
+                />
                 <Avatar className="h-28 w-28 ring-4 ring-primary/40 ring-offset-4 ring-offset-background shadow-lg shadow-[0_0_24px_hsl(var(--primary)_/_0.35)]">
                   <AvatarImage src={user?.profilePictureUrl} alt={displayName} />
                   <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-primary-foreground text-3xl">
                     {getInitials()}
                   </AvatarFallback>
                 </Avatar>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="absolute bottom-0 right-0 rounded-full h-9 w-9 p-0 shadow-md"
+                  disabled={profilePhotoUploading}
+                  onClick={() => profilePhotoInputRef.current?.click()}
+                >
+                  {profilePhotoUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}
+                </Button>
               </div>
               <div className="flex-1 text-center sm:text-left">
                 <h1 className="text-3xl sm:text-4xl font-extrabold font-heading tracking-tight text-foreground">

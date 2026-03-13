@@ -12,7 +12,8 @@ import {
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import type { UserRole } from "@eventpro/shared";
-import { theme } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
+import type { Theme } from "../theme";
 
 /** Extract a user-friendly message from signup API error (backend sends message + optional fields). */
 function getSignUpErrorMessage(err: unknown): string {
@@ -58,7 +59,77 @@ function getSignUpErrorMessage(err: unknown): string {
   return "Sign up failed. Check your entries and try again.";
 }
 
+function createStyles(theme: Theme) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    scrollContent: { padding: theme.spacing.lg, paddingVertical: 24, paddingBottom: 40 },
+    card: {
+      backgroundColor: theme.colors.card,
+      borderRadius: theme.radius.lg,
+      padding: theme.spacing.lg,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    iconBox: {
+      width: 48,
+      height: 48,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.colors.primary,
+      alignSelf: "center",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: theme.spacing.md,
+    },
+    iconText: { color: theme.colors.primaryForeground, fontSize: 18, fontWeight: "700" },
+    title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 4, color: theme.colors.foreground },
+    subtitle: { fontSize: 14, color: theme.colors.mutedForeground, textAlign: "center", marginBottom: 24 },
+    label: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: theme.colors.foreground },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: theme.radius.md,
+      padding: 14,
+      fontSize: 16,
+      marginBottom: 16,
+      backgroundColor: theme.colors.card,
+      color: theme.colors.foreground,
+    },
+    row: { flexDirection: "row", gap: 12 },
+    half: { flex: 1 },
+    roleRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
+    roleBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: theme.radius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      alignItems: "center",
+    },
+    roleBtnActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+    roleBtnText: { fontSize: 14, color: theme.colors.mutedForeground },
+    roleBtnTextActive: { color: theme.colors.primaryForeground, fontWeight: "600" },
+    button: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.radius.md,
+      padding: 16,
+      alignItems: "center",
+      marginTop: 8,
+    },
+    buttonDisabled: { opacity: 0.7 },
+    buttonText: { color: theme.colors.primaryForeground, fontSize: 16, fontWeight: "600" },
+    footer: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 20 },
+    footerText: { fontSize: 14, color: theme.colors.mutedForeground },
+    footerLink: { fontSize: 14, color: theme.colors.primary, fontWeight: "600" },
+  });
+}
+
 export function SignUpScreen({ navigation }: { navigation: { navigate: (name: string) => void } }) {
+  const { theme } = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const { signUp } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -224,69 +295,3 @@ export function SignUpScreen({ navigation }: { navigation: { navigate: (name: st
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background },
-  scrollContent: { padding: theme.spacing.lg, paddingVertical: 24, paddingBottom: 40 },
-  card: {
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.lg,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.primary,
-    alignSelf: "center",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: theme.spacing.md,
-  },
-  iconText: { color: theme.colors.primaryForeground, fontSize: 18, fontWeight: "700" },
-  title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 4, color: theme.colors.foreground },
-  subtitle: { fontSize: 14, color: theme.colors.mutedForeground, textAlign: "center", marginBottom: 24 },
-  label: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: theme.colors.foreground },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
-    padding: 14,
-    fontSize: 16,
-    marginBottom: 16,
-    backgroundColor: theme.colors.card,
-    color: theme.colors.foreground,
-  },
-  row: { flexDirection: "row", gap: 12 },
-  half: { flex: 1 },
-  roleRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
-  roleBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: "center",
-  },
-  roleBtnActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-  roleBtnText: { fontSize: 14, color: theme.colors.mutedForeground },
-  roleBtnTextActive: { color: theme.colors.primaryForeground, fontWeight: "600" },
-  button: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.radius.md,
-    padding: 16,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: theme.colors.primaryForeground, fontSize: 16, fontWeight: "600" },
-  footer: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 20 },
-  footerText: { fontSize: 14, color: theme.colors.mutedForeground },
-  footerLink: { fontSize: 14, color: theme.colors.primary, fontWeight: "600" },
-});

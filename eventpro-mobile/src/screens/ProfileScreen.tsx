@@ -7,13 +7,17 @@ import {
   ScrollView,
   ActivityIndicator,
   Linking,
+  Image,
+  Alert,
 } from "react-native";
 import Constants from "expo-constants";
+import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import type { OrganizerSummary } from "@eventpro/shared";
 import { useTheme } from "../contexts/ThemeContext";
 import { lightTheme } from "../theme";
+import { uploadProfilePicture as uploadProfilePictureMobile } from "../lib/mobileApi";
 
 const WEB_URL = Constants.expoConfig?.extra?.webUrl ?? process.env.EXPO_PUBLIC_WEB_URL ?? "http://localhost:5173";
 
@@ -35,6 +39,7 @@ export function ProfileScreen({ navigation }: { navigation: any }) {
   const [summary, setSummary] = useState<OrganizerSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const isOrganizer = hasRole("ORGANIZER");
   const verificationStatus = user?.verificationStatus ?? "NOT_STARTED";
@@ -87,12 +92,71 @@ export function ProfileScreen({ navigation }: { navigation: any }) {
     return user?.email?.[0]?.toUpperCase() ?? "U";
   };
 
+  const handleChangePhoto = useCallback(async () => {
+    if (uploadingPhoto) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Allow access to your photos to set a profile picture.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    setUploadingPhoto(true);
+    try {
+      const asset = result.assets[0];
+      await uploadProfilePictureMobile({
+        uri: asset.uri,
+        type: asset.mimeType ?? "image/jpeg",
+        name: asset.fileName ?? "profile.jpg",
+      });
+      await refreshUser();
+    } catch (e) {
+      Alert.alert("Upload failed", "Could not update profile picture. Try again.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }, [refreshUser, uploadingPhoto]);
+
   const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "User";
   const specialtyLabel = user?.culturalNiche
     ? `Focus: ${user.culturalNiche}`
     : isOrganizer
       ? "Focus: Cultural & Community Events"
       : null;
+
+  // Guest view: same as web – browse first, sign in only when needed
+  if (!user) {
+    return (
+      <View style={[styles.guestContainer, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.guestCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={[styles.guestIconWrap, { backgroundColor: theme.colors.primary + "20" }]}>
+            <Ionicons name="person-outline" size={48} color={theme.colors.primary} />
+          </View>
+          <Text style={[styles.guestTitle, { color: theme.colors.foreground }]}>Welcome to EventPro</Text>
+          <Text style={[styles.guestSubtitle, { color: theme.colors.mutedForeground }]}>
+            Sign in to get tickets, follow organizers, and manage your orders.
+          </Text>
+          <TouchableOpacity
+            style={[styles.guestButton, { backgroundColor: theme.colors.primary }]}
+            onPress={() => (navigation as any).getParent()?.getParent()?.navigate("Auth", { screen: "Login" })}
+          >
+            <Text style={[styles.guestButtonText, { color: theme.colors.primaryForeground }]}>Sign in</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.guestButtonOutline, { borderColor: theme.colors.primary }]}
+            onPress={() => (navigation as any).getParent()?.getParent()?.navigate("Auth", { screen: "SignUp" })}
+          >
+            <Text style={[styles.guestButtonOutlineText, { color: theme.colors.primary }]}>Create account</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -103,9 +167,27 @@ export function ProfileScreen({ navigation }: { navigation: any }) {
       {/* Hero card */}
       <View style={[styles.heroCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <View style={styles.heroRow}>
-          <View style={[styles.avatarWrap, { backgroundColor: theme.colors.primary + "30" }]}>
-            <Text style={[styles.avatarText, { color: theme.colors.primary }]}>{getInitials()}</Text>
-          </View>
+          <TouchableOpacity
+            onPress={handleChangePhoto}
+            disabled={uploadingPhoto}
+            style={[styles.avatarWrap, { backgroundColor: theme.colors.primary + "30" }]}
+            activeOpacity={0.8}
+          >
+            {user?.profilePictureUrl ? (
+              <Image key={user.profilePictureUrl} source={{ uri: user.profilePictureUrl }} style={styles.avatarImage} />
+            ) : (
+              <Text style={[styles.avatarText, { color: theme.colors.primary }]}>{getInitials()}</Text>
+            )}
+            {uploadingPhoto ? (
+              <View style={styles.avatarOverlay}>
+                <ActivityIndicator size="small" color="#fff" />
+              </View>
+            ) : (
+              <View style={styles.avatarBadge}>
+                <Ionicons name="camera" size={16} color={theme.colors.primaryForeground} />
+              </View>
+            )}
+          </TouchableOpacity>
           <View style={styles.heroMain}>
             <Text style={[styles.heroName, { color: theme.colors.foreground }]}>{displayName}</Text>
             {specialtyLabel ? (
@@ -393,6 +475,11 @@ export function ProfileScreen({ navigation }: { navigation: any }) {
           <Text style={[styles.linkText, { color: theme.colors.foreground }]}>Order history</Text>
           <Ionicons name="chevron-forward" size={20} color={theme.colors.mutedForeground} />
         </TouchableOpacity>
+        <TouchableOpacity style={[styles.linkRow, { borderBottomColor: theme.colors.border }]} onPress={() => navigation.navigate("Following")}>
+          <Ionicons name="heart-outline" size={22} color={theme.colors.foreground} />
+          <Text style={[styles.linkText, { color: theme.colors.foreground }]}>Following</Text>
+          <Ionicons name="chevron-forward" size={20} color={theme.colors.mutedForeground} />
+        </TouchableOpacity>
         <TouchableOpacity style={[styles.linkRow, { borderBottomColor: theme.colors.border }]} onPress={() => navigation.navigate("Pricing")}>
           <Ionicons name="pricetag-outline" size={22} color={theme.colors.foreground} />
           <Text style={[styles.linkText, { color: theme.colors.foreground }]}>Pricing</Text>
@@ -418,8 +505,27 @@ const styles = StyleSheet.create({
     marginBottom: lightTheme.spacing.md,
   },
   heroRow: { flexDirection: "row", alignItems: "flex-start", gap: 16 },
-  avatarWrap: { width: 72, height: 72, borderRadius: 36, justifyContent: "center", alignItems: "center" },
+  avatarWrap: { width: 72, height: 72, borderRadius: 36, justifyContent: "center", alignItems: "center", overflow: "hidden" },
+  avatarImage: { width: 72, height: 72, borderRadius: 36 },
   avatarText: { fontSize: 24, fontWeight: "700" },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 36,
+  },
+  avatarBadge: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: lightTheme.colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   heroMain: { flex: 1 },
   heroName: { fontSize: 22, fontWeight: "700", marginBottom: 4 },
   specialty: { fontSize: 14, marginBottom: 8 },
@@ -476,4 +582,13 @@ const styles = StyleSheet.create({
   },
   linkText: { flex: 1, fontSize: 16 },
   logoutText: { flex: 1, fontSize: 16 },
+  guestContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: lightTheme.spacing.lg },
+  guestCard: { width: "100%", maxWidth: 360, padding: 28, borderRadius: lightTheme.radius.lg, borderWidth: 1, alignItems: "center" },
+  guestIconWrap: { width: 88, height: 88, borderRadius: 44, justifyContent: "center", alignItems: "center", marginBottom: 20 },
+  guestTitle: { fontSize: 22, fontWeight: "700", marginBottom: 8, textAlign: "center" },
+  guestSubtitle: { fontSize: 15, textAlign: "center", marginBottom: 24, lineHeight: 22 },
+  guestButton: { width: "100%", paddingVertical: 14, borderRadius: lightTheme.radius.md, alignItems: "center", marginBottom: 12 },
+  guestButtonText: { fontSize: 16, fontWeight: "600" },
+  guestButtonOutline: { width: "100%", paddingVertical: 14, borderRadius: lightTheme.radius.md, borderWidth: 2, alignItems: "center" },
+  guestButtonOutlineText: { fontSize: 16, fontWeight: "600" },
 });

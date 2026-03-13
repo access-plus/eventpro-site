@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,8 @@ const EVENT_CATEGORIES = [
 ];
 
 const Events = () => {
+  const [searchParams] = useSearchParams();
+  const organizerIdFromUrl = searchParams.get("organizerId") ?? undefined;
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -28,6 +31,7 @@ const Events = () => {
   const searchDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const prevSearchQueryRef = useRef<string>("");
   const prevCategoryRef = useRef<string | undefined>(undefined);
+  const prevOrganizerIdRef = useRef<string | undefined>(undefined);
   const isInitialMount = useRef(true);
 
   const loadEvents = useCallback(async () => {
@@ -38,7 +42,7 @@ const Events = () => {
       if (selectedCategory) {
         data = await apiService.getEventsByCategory(selectedCategory);
       } else {
-        data = await apiService.getEvents(1, 20, searchQuery || undefined);
+        data = await apiService.getEvents(1, 20, searchQuery || undefined, organizerIdFromUrl);
       }
 
       setEvents(data);
@@ -48,7 +52,7 @@ const Events = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, organizerIdFromUrl]);
 
   useEffect(() => {
     if (searchDebounceTimerRef.current) {
@@ -60,17 +64,20 @@ const Events = () => {
       isInitialMount.current = false;
       prevSearchQueryRef.current = searchQuery;
       prevCategoryRef.current = selectedCategory;
+      prevOrganizerIdRef.current = organizerIdFromUrl;
       loadEvents();
       return;
     }
 
     const searchQueryChanged = searchQuery !== prevSearchQueryRef.current;
     const categoryChanged = selectedCategory !== prevCategoryRef.current;
+    const organizerIdChanged = organizerIdFromUrl !== prevOrganizerIdRef.current;
 
     prevSearchQueryRef.current = searchQuery;
     prevCategoryRef.current = selectedCategory;
+    prevOrganizerIdRef.current = organizerIdFromUrl;
 
-    if (categoryChanged) {
+    if (categoryChanged || organizerIdChanged) {
       loadEvents();
       return;
     }
@@ -138,10 +145,12 @@ const Events = () => {
           <div className="relative px-4 py-6 sm:py-8">
             {/* Header */}
             <h1 className="text-4xl md:text-5xl font-extrabold font-heading tracking-tight text-gradient-hero mb-2">
-              Discover Events
+              {organizerIdFromUrl ? "More from this organizer" : "Discover Events"}
             </h1>
             <p className="text-xl text-muted-foreground mb-6">
-              Find and book tickets for amazing events
+              {organizerIdFromUrl
+                ? "Other events by the same organizer"
+                : "Find and book tickets for amazing events"}
             </p>
 
             {/* Search bar - glassmorphism + vibrant focus */}

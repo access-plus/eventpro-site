@@ -49,6 +49,8 @@ export interface Event {
   title?: string;
   description?: string;
   imageUrl?: string;
+  /** Additional images for gallery (primary is imageUrl). */
+  additionalImageUrls?: string[] | null;
   /** Optional YouTube/Vimeo URL for promotional video on event detail page. */
   promotionalVideoUrl?: string;
   /** Event page template for theming. Defaults to DEFAULT. */
@@ -66,6 +68,10 @@ export interface Event {
   organizerBrandingPrimaryColor?: string | null;
   /** White-label: hide platform branding on this event page. */
   organizerBrandingHidePlatform?: boolean;
+  /** Organizer display (event detail). */
+  organizerFirstName?: string | null;
+  organizerLastName?: string | null;
+  organizerProfilePictureUrl?: string | null;
   startTime: string;
   endTime: string;
   userId?: string;
@@ -255,6 +261,14 @@ export interface PageResponse<T> {
 }
 
 /** In-app notification for the current user. */
+/** Organizer in the current user's Following list. */
+export interface FollowedOrganizer {
+  organizerId: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  profilePictureUrl?: string | null;
+}
+
 export interface UserNotification {
   id: string;
   notificationId: string;

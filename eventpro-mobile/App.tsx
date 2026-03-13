@@ -12,6 +12,7 @@ import Constants from "expo-constants";
 import { View, ActivityIndicator, StyleSheet, Linking, Alert } from "react-native";
 
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
+import { CartProvider } from "./src/contexts/CartContext";
 import { NotificationPreferencesProvider } from "./src/contexts/NotificationPreferencesContext";
 import { RecentlyViewedProvider } from "./src/contexts/RecentlyViewedContext";
 import { ThemeProvider } from "./src/contexts/ThemeContext";
@@ -101,17 +102,21 @@ function AppContent() {
     []
   );
 
+  const getAccessToken = useMemo(() => () => SecureStore.getItemAsync("accessToken"), []);
+
   return (
     <ThemeProvider>
-      <AuthProvider api={api} onUnauthorizedRef={onUnauthorizedRef}>
-        <NotificationPreferencesProvider>
-          <RecentlyViewedProvider>
-            <NavigationContainer ref={navigationRef}>
+      <AuthProvider api={api} getAccessToken={getAccessToken} onUnauthorizedRef={onUnauthorizedRef}>
+        <CartProvider>
+          <NotificationPreferencesProvider>
+            <RecentlyViewedProvider>
+              <NavigationContainer ref={navigationRef}>
             <RootNavigator />
             <DeepLinkHandler navigationRef={navigationRef} />
           </NavigationContainer>
-          </RecentlyViewedProvider>
-        </NotificationPreferencesProvider>
+            </RecentlyViewedProvider>
+          </NotificationPreferencesProvider>
+        </CartProvider>
       </AuthProvider>
     </ThemeProvider>
   );
@@ -130,13 +135,11 @@ function RootNavigator() {
     );
   }
 
+  // Same flow as web: land on Discover (Main), no login prompt. Auth only when user taps Sign in or does protected action.
   return (
-    <RootStack.Navigator screenOptions={{ headerShown: false }}>
-      {!user ? (
-        <RootStack.Screen name="Auth" component={AuthStack} />
-      ) : (
-        <RootStack.Screen name="Main" component={MainTabs} />
-      )}
+    <RootStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Main">
+      <RootStack.Screen name="Main" component={MainTabs} />
+      <RootStack.Screen name="Auth" component={AuthStack} />
     </RootStack.Navigator>
   );
 }

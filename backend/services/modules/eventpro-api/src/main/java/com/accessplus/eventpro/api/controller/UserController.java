@@ -4,10 +4,13 @@ import com.accessplus.eventpro.api.apikey.service.ApiKeyService;
 import com.accessplus.eventpro.api.dto.ApiKeyResponse;
 import com.accessplus.eventpro.api.dto.ApiResponse;
 import com.accessplus.eventpro.api.dto.CreateApiKeyRequest;
+import com.accessplus.eventpro.api.dto.FollowedOrganizerResponse;
+import com.accessplus.eventpro.api.dto.OrganizerPublicProfileResponse;
 import com.accessplus.eventpro.api.dto.PromoteUserRequest;
 import com.accessplus.eventpro.api.dto.UpdateUserRequest;
 import com.accessplus.eventpro.api.dto.UpgradeSubscriptionRequest;
 import com.accessplus.eventpro.api.dto.UserResponse;
+import com.accessplus.eventpro.api.follow.service.OrganizerFollowService;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.service.UserService;
@@ -32,6 +35,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -46,6 +50,7 @@ public class UserController extends BaseController {
     private final UserService userService;
     private final AWSS3ImageService imageService;
     private final ApiKeyService apiKeyService;
+    private final OrganizerFollowService organizerFollowService;
 
     private void requireEnterprise() {
         UUID userId = JwtUtils.getCurrentUserId();
@@ -65,6 +70,33 @@ public class UserController extends BaseController {
         UserEntity user = userService.getUserById(userId);
         UserResponse response = UserResponse.fromEntity(user);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/me/following")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "List followed organizers", description = "Returns organizers the current user follows.")
+    public ResponseEntity<ApiResponse<List<FollowedOrganizerResponse>>> getFollowing() {
+        UUID userId = JwtUtils.getCurrentUserId();
+        List<FollowedOrganizerResponse> list = organizerFollowService.getFollowedOrganizersWithDetails(userId);
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    @PostMapping("/me/following/{organizerId}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Follow organizer", description = "Follow an organizer to see their events in your Following list.")
+    public ResponseEntity<ApiResponse<Void>> followOrganizer(@PathVariable UUID organizerId) {
+        UUID userId = JwtUtils.getCurrentUserId();
+        organizerFollowService.follow(userId, organizerId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Following."));
+    }
+
+    @DeleteMapping("/me/following/{organizerId}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Unfollow organizer", description = "Stop following an organizer.")
+    public ResponseEntity<ApiResponse<Void>> unfollowOrganizer(@PathVariable UUID organizerId) {
+        UUID userId = JwtUtils.getCurrentUserId();
+        organizerFollowService.unfollow(userId, organizerId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Unfollowed."));
     }
 
     @PutMapping("/me")
@@ -184,6 +216,20 @@ public class UserController extends BaseController {
             log.error("Failed to upload profile picture: {}", e.getMessage(), e);
             throw new ValidationException("Failed to upload profile picture: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/{id}/public-profile")
+    @Operation(summary = "Get organizer public profile", description = "Returns display-only profile (name, photo) for an organizer. Public; used to show organizer on event pages.")
+    public ResponseEntity<ApiResponse<OrganizerPublicProfileResponse>> getOrganizerPublicProfile(@PathVariable UUID id) {
+        log.debug("Getting public profile for user: {}", id);
+        UserEntity user = userService.getUserById(id);
+        OrganizerPublicProfileResponse response = OrganizerPublicProfileResponse.builder()
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .profilePictureUrl(user.getProfilePictureUrl())
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/{id}")

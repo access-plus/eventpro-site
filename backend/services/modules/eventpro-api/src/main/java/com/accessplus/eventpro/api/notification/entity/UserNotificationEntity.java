@@ -30,7 +30,7 @@ public class UserNotificationEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @JdbcTypeCode(SqlTypes.UUID)
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
@@ -40,7 +40,7 @@ public class UserNotificationEntity {
     @Column(name = "read_at")
     private Instant readAt;
 
-    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @JdbcTypeCode(SqlTypes.UUID)
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 

@@ -36,6 +36,7 @@ import type {
   RecordSubscriptionPaymentRequest,
   UserNotification,
   NotificationPreferences,
+  FollowedOrganizer,
 } from "@/types/api";
 
 class ApiService {
@@ -85,6 +86,19 @@ class ApiService {
   async getCurrentUser(): Promise<User> {
     const response = await this.api.get<ApiResponse<User>>("/api/v1/users/me");
     return response.data.data;
+  }
+
+  async getFollowing(): Promise<FollowedOrganizer[]> {
+    const response = await this.api.get<ApiResponse<FollowedOrganizer[]>>("/api/v1/users/me/following");
+    return response.data.data ?? [];
+  }
+
+  async followOrganizer(organizerId: string): Promise<void> {
+    await this.api.post<ApiResponse<null>>(`/api/v1/users/me/following/${organizerId}`);
+  }
+
+  async unfollowOrganizer(organizerId: string): Promise<void> {
+    await this.api.delete<ApiResponse<null>>(`/api/v1/users/me/following/${organizerId}`);
   }
 
   /** Create Stripe Checkout Session for subscription. Redirect user to returned url. After payment, webhooks update tier. */
@@ -143,6 +157,16 @@ class ApiService {
     return response.data.data;
   }
 
+  /** Upload profile picture (organizers and any user). Returns new profile picture URL. */
+  async uploadProfilePicture(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append("image", file);
+    const response = await this.api.post<ApiResponse<{ url: string }>>("/api/v1/users/upload-profile-picture", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data.data.url;
+  }
+
   /** List in-app notifications for current user (paginated). */
   async getMyNotifications(page = 0, size = 20): Promise<PageResponse<UserNotification>> {
     const response = await this.api.get<ApiResponse<PageResponse<UserNotification>>>(
@@ -189,14 +213,15 @@ class ApiService {
   }
 
   // Event endpoints
-  async getEvents(page = 1, size = 20, keyword?: string): Promise<Event[]> {
+  async getEvents(page = 1, size = 20, keyword?: string, organizerId?: string): Promise<Event[]> {
     const params = new URLSearchParams();
-    params.append("page", String(page - 1));
+    params.append("page", String(page));
     params.append("size", String(size));
     if (keyword) params.append("keyword", keyword);
-    
+    if (organizerId) params.append("organizerId", organizerId);
+
     const response = await this.api.get<ApiResponse<{ content: Event[] }>>(`/api/v1/events?${params}`);
-    return response.data.data.content || [];
+    return response.data.data.content ?? [];
   }
 
   async getEventsByCategory(category: string): Promise<Event[]> {
@@ -207,6 +232,13 @@ class ApiService {
   async getEvent(id: string): Promise<Event> {
     const response = await this.api.get<ApiResponse<Event>>(`/api/v1/events/${id}`);
     return response.data.data;
+  }
+
+  async contactOrganizer(
+    eventId: string,
+    body: { senderEmail: string; senderName?: string; message: string }
+  ): Promise<void> {
+    await this.api.post<ApiResponse<null>>(`/api/v1/events/${eventId}/contact`, body);
   }
 
   async createEvent(data: Partial<Event>): Promise<Event> {

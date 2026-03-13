@@ -47,6 +47,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/*/addons").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/category/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/images/proxy").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/users/*/public-profile").permitAll()
                 // Payment config (Stripe publishable key for frontend) - public
                 .requestMatchers(HttpMethod.GET, "/api/v1/payments/config").permitAll()
                 // Guest checkout: no auth required (endpoint exists in PaymentController)

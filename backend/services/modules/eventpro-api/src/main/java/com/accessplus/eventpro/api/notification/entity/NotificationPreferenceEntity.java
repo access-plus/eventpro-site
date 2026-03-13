@@ -27,7 +27,7 @@ public class NotificationPreferenceEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @JdbcTypeCode(SqlTypes.UUID)
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
@@ -40,7 +40,7 @@ public class NotificationPreferenceEntity {
     @Column(name = "push_enabled", nullable = false)
     private boolean pushEnabled = true; // used for in-app when push not implemented
 
-    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @JdbcTypeCode(SqlTypes.UUID)
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 

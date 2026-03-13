@@ -20,6 +20,7 @@ import EventDetails from "./pages/EventDetails";
 import Checkout from "./pages/Checkout";
 import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
+import Following from "./pages/Following";
 import Settings from "./pages/Settings";
 import SignUp from "./pages/SignUp";
 import Verify from "./pages/Verify";
@@ -100,6 +101,14 @@ const AnimatedRoutes = () => {
           element={
             <ProtectedRoute>
               <PageTransition><ProfileEdit /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile/following"
+          element={
+            <ProtectedRoute>
+              <PageTransition><Following /></PageTransition>
             </ProtectedRoute>
           }
         />
