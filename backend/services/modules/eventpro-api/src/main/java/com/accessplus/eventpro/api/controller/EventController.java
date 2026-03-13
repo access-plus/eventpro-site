@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.ApiResponse;
+import com.accessplus.eventpro.api.dto.ContactOrganizerRequest;
 import com.accessplus.eventpro.api.dto.CreateEventRequest;
 import com.accessplus.eventpro.api.dto.EventAddonResponse;
 import com.accessplus.eventpro.api.dto.EventResponse;
@@ -9,6 +10,7 @@ import com.accessplus.eventpro.api.dto.TicketTypeResponse;
 import com.accessplus.eventpro.api.dto.UpdateEventRequest;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
+import com.accessplus.eventpro.core.email.service.EmailService;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.event.category.entity.CategoryEntity;
@@ -18,6 +20,7 @@ import com.accessplus.eventpro.event.addon.entity.EventAddonEntity;
 import com.accessplus.eventpro.event.addon.repository.EventAddonRepository;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.event.service.EventService;
+import com.accessplus.eventpro.api.eventimage.repository.EventImageRepository;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.EventStatus;
@@ -61,6 +64,8 @@ public class EventController extends BaseController {
     private final EventRepository eventRepository;
     private final EventAddonRepository eventAddonRepository;
     private final TicketService ticketService;
+    private final EmailService emailService;
+    private final EventImageRepository eventImageRepository;
     private final ObjectMapper objectMapper;
 
     @PostMapping
@@ -144,21 +149,70 @@ public class EventController extends BaseController {
         EventEntity event = eventRepository.findByIdWithOrganizer(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
         EventResponse response = EventResponse.fromEntity(event);
+        List<String> galleryUrls = eventImageRepository.findByEventIdOrderByDisplayOrderAsc(id).stream()
+                .map(img -> img.getImageUrl())
+                .collect(Collectors.toList());
+        response.setAdditionalImageUrls(galleryUrls.isEmpty() ? null : galleryUrls);
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PostMapping("/{id}/contact")
+    @Operation(summary = "Contact organizer", description = "Sends a message to the event organizer. Public endpoint. Organizer email is not exposed.")
+    public ResponseEntity<ApiResponse<Void>> contactOrganizer(
+            @PathVariable UUID id,
+            @Valid @RequestBody ContactOrganizerRequest request) {
+        log.debug("Contact organizer for event: {}", id);
+
+        EventEntity event = eventRepository.findByIdWithOrganizer(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
+        if (event.getStatus() != EventStatus.PUBLISHED) {
+            throw new ValidationException("Event is not available for contact.");
+        }
+        if (event.getOrganizer() == null || event.getOrganizer().getEmail() == null || event.getOrganizer().getEmail().isBlank()) {
+            log.warn("Cannot send contact message: event {} has no organizer email", id);
+            throw new ValidationException("Organizer contact is not available for this event.");
+        }
+
+        String organizerEmail = event.getOrganizer().getEmail();
+        String eventName = event.getName();
+        String senderName = request.getSenderName() != null && !request.getSenderName().isBlank()
+                ? request.getSenderName().trim() : "Someone";
+        String subject = "EventPro: Message about your event \"" + eventName + "\"";
+        String bodyText = String.format(
+                "You received a message about your event \"%s\".%n%nFrom: %s <%s>%n%nMessage:%n%s",
+                eventName, senderName, request.getSenderEmail(), request.getMessage());
+        String bodyHtml = String.format(
+                "<p>You received a message about your event <strong>%s</strong>.</p>" +
+                "<p><strong>From:</strong> %s &lt;%s&gt;</p>" +
+                "<p><strong>Message:</strong></p><p>%s</p>",
+                eventName.replace("<", "&lt;").replace(">", "&gt;"),
+                senderName.replace("<", "&lt;").replace(">", "&gt;"),
+                request.getSenderEmail().replace("<", "&lt;").replace(">", "&gt;"),
+                request.getMessage().replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>"));
+
+        try {
+            emailService.sendCustomEmail(organizerEmail, subject, bodyText, bodyHtml);
+        } catch (Exception e) {
+            log.error("Failed to send contact email for event {} to organizer: {}", id, e.getMessage(), e);
+            throw new ValidationException("Unable to send message. Please try again later.");
+        }
+
+        return ResponseEntity.ok(ApiResponse.success(null, "Message sent."));
+    }
+
     @GetMapping
     @Operation(summary = "Get all events", description = "Returns paginated list of PUBLISHED events. " +
-            "Supports search by keyword (name). Public endpoint - only shows published events.")
+            "Supports search by keyword (name) and filter by organizerId. Public endpoint - only shows published events.")
     public ResponseEntity<ApiResponse<Page<EventResponse>>> getAllEvents(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "startTime") String sortBy,
             @RequestParam(defaultValue = "asc") String dir,
-            @RequestParam(required = false) String keyword) {
-        log.debug("Getting all published events: page={}, size={}, sortBy={}, dir={}, keyword={}",
-                page, size, sortBy, dir, keyword);
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) UUID organizerId) {
+        log.debug("Getting published events: page={}, size={}, sortBy={}, dir={}, keyword={}, organizerId={}",
+                page, size, sortBy, dir, keyword, organizerId);
 
         // Convert page from 1-based to 0-based
         int pageIndex = page > 0 ? page - 1 : 0;
@@ -173,8 +227,9 @@ public class EventController extends BaseController {
 
         Page<EventEntity> eventPage;
 
-        // Apply search filter if keyword provided - only show PUBLISHED events
-        if (keyword != null && !keyword.trim().isEmpty()) {
+        if (organizerId != null) {
+            eventPage = eventRepository.findByOrganizerIdAndStatus(organizerId, EventStatus.PUBLISHED, pageable);
+        } else if (keyword != null && !keyword.trim().isEmpty()) {
             eventPage = eventRepository.findByStatusAndNameContainingIgnoreCase(
                     EventStatus.PUBLISHED, keyword.trim(), pageable);
         } else {

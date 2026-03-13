@@ -16,6 +16,7 @@ import type {
   Event,
   EventAddon,
   EventSales,
+  FollowedOrganizer,
   GuestConfirmPaymentRequest,
   LoginRequest,
   NotificationPreferences,
@@ -52,12 +53,14 @@ export interface EventProApi {
   signUp: (data: SignUpRequest) => Promise<void>;
   getCurrentUser: () => Promise<User>;
   updateUser: (data: UpdateUserRequest) => Promise<User>;
+  uploadProfilePicture: (file: File | { uri: string; type?: string; name?: string }) => Promise<string>;
   removeAccessToken: () => void | Promise<void>;
 
   // Public events
-  getEvents: (page?: number, size?: number, keyword?: string) => Promise<Event[]>;
+  getEvents: (page?: number, size?: number, keyword?: string, organizerId?: string) => Promise<Event[]>;
   getEventsByCategory: (category: string) => Promise<Event[]>;
   getEvent: (id: string) => Promise<Event>;
+  contactOrganizer: (eventId: string, body: { senderEmail: string; senderName?: string; message: string }) => Promise<void>;
   getTicketTypes: (eventId: string) => Promise<TicketType[]>;
   getEventAddons: (eventId: string) => Promise<EventAddon[]>;
 
@@ -89,6 +92,9 @@ export interface EventProApi {
   updateMyNotificationPreferences: (data: { emailEnabled?: boolean; smsEnabled?: boolean; pushEnabled?: boolean }) => Promise<NotificationPreferences>;
 
   // Organizer
+  getFollowing: () => Promise<FollowedOrganizer[]>;
+  followOrganizer: (organizerId: string) => Promise<void>;
+  unfollowOrganizer: (organizerId: string) => Promise<void>;
   getOrganizerSummary: () => Promise<OrganizerSummary>;
   getOrganizerEvents: () => Promise<Event[]>;
   publishEvent: (eventId: string) => Promise<Event>;
@@ -172,14 +178,31 @@ export function createEventProApi(config: EventProApiConfig): EventProApi {
     async updateUser(data: UpdateUserRequest) {
       return getData(await api.put<ApiResponse<User>>("/api/v1/users/me", data));
     },
+    async uploadProfilePicture(file: File | { uri: string; type?: string; name?: string }) {
+      const formData = new FormData();
+      formData.append("image", file as any);
+      const res = await api.post<ApiResponse<{ url: string }>>("/api/v1/users/upload-profile-picture", formData);
+      return res.data.data?.url ?? "";
+    },
+    async getFollowing() {
+      const res = await api.get<ApiResponse<FollowedOrganizer[]>>("/api/v1/users/me/following");
+      return res.data.data ?? [];
+    },
+    async followOrganizer(organizerId: string) {
+      await api.post<ApiResponse<null>>(`/api/v1/users/me/following/${organizerId}`);
+    },
+    async unfollowOrganizer(organizerId: string) {
+      await api.delete<ApiResponse<null>>(`/api/v1/users/me/following/${organizerId}`);
+    },
     async removeAccessToken() {
       const remove = config.removeAccessToken();
       if (isPromise(remove)) await remove;
     },
 
-    async getEvents(page = 1, size = 20, keyword?: string) {
-      const q = [`page=${page - 1}`, `size=${size}`];
+    async getEvents(page = 1, size = 20, keyword?: string, organizerId?: string) {
+      const q = [`page=${page}`, `size=${size}`];
       if (keyword != null && keyword !== "") q.push(`keyword=${encodeURIComponent(keyword)}`);
+      if (organizerId != null && organizerId !== "") q.push(`organizerId=${encodeURIComponent(organizerId)}`);
       const query = q.join("&");
       const res = await api.get<ApiResponse<{ content: Event[] }>>(`/api/v1/events?${query}`);
       return res.data.data?.content ?? [];
@@ -190,6 +213,9 @@ export function createEventProApi(config: EventProApiConfig): EventProApi {
     },
     async getEvent(id: string) {
       return getData(await api.get<ApiResponse<Event>>(`/api/v1/events/${id}`));
+    },
+    async contactOrganizer(eventId: string, body: { senderEmail: string; senderName?: string; message: string }) {
+      await api.post<ApiResponse<null>>(`/api/v1/events/${eventId}/contact`, body);
     },
     async getTicketTypes(eventId: string) {
       const res = await api.get<ApiResponse<TicketType[]>>(`/api/v1/events/${eventId}/ticket-types`);

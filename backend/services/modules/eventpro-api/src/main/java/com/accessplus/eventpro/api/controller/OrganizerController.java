@@ -21,6 +21,8 @@ import com.accessplus.eventpro.event.addon.repository.EventAddonRepository;
 import com.accessplus.eventpro.event.event.entity.EventEntity;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.event.service.EventService;
+import com.accessplus.eventpro.api.eventimage.entity.EventImageEntity;
+import com.accessplus.eventpro.api.eventimage.repository.EventImageRepository;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
@@ -75,6 +77,7 @@ public class OrganizerController extends BaseController {
     private final OrganizerTeamService organizerTeamService;
     private final TaxFormPdfService taxFormPdfService;
     private final PayoutRequestService payoutRequestService;
+    private final EventImageRepository eventImageRepository;
 
     /** Merchandise & add-ons require Pro or Enterprise per pricing page. */
     private void requireAddonsEligible() {
@@ -490,6 +493,52 @@ public class OrganizerController extends BaseController {
             log.error("Failed to upload event image: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to upload image: " + e.getMessage());
         }
+    }
+
+    @PostMapping("/events/{eventId}/images")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Add event gallery image", description = "Adds an image to the event gallery. Requires ORGANIZER or ADMIN role.")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> addEventImage(
+            @PathVariable UUID eventId,
+            @Valid @RequestBody AddEventImageRequest request) {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        EventEntity event = eventRepository.findByIdWithOrganizer(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        if (!canManageEvent(organizerId, event)) {
+            throw new ResourceNotFoundException("Event", eventId.toString());
+        }
+        int order = request.getDisplayOrder() != null ? request.getDisplayOrder() : (int) eventImageRepository.findByEventIdOrderByDisplayOrderAsc(eventId).stream().count();
+        EventImageEntity img = new EventImageEntity();
+        img.setEventId(eventId);
+        img.setImageUrl(request.getImageUrl().trim());
+        img.setDisplayOrder(order);
+        eventImageRepository.save(img);
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", img.getId());
+        data.put("imageUrl", img.getImageUrl());
+        data.put("displayOrder", img.getDisplayOrder());
+        return ResponseEntity.ok(ApiResponse.success(data, "Image added."));
+    }
+
+    @DeleteMapping("/events/{eventId}/images/{imageId}")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Remove event gallery image", description = "Removes an image from the event gallery.")
+    public ResponseEntity<ApiResponse<Void>> removeEventImage(
+            @PathVariable UUID eventId,
+            @PathVariable UUID imageId) {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        EventEntity event = eventRepository.findByIdWithOrganizer(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        if (!canManageEvent(organizerId, event)) {
+            throw new ResourceNotFoundException("Event", eventId.toString());
+        }
+        EventImageEntity img = eventImageRepository.findById(imageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event image", imageId.toString()));
+        if (!img.getEventId().equals(eventId)) {
+            throw new ResourceNotFoundException("Event image", imageId.toString());
+        }
+        eventImageRepository.delete(img);
+        return ResponseEntity.ok(ApiResponse.success(null, "Image removed."));
     }
 
     @PostMapping("/events/{eventId}/seat-map")

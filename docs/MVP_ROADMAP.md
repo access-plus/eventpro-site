@@ -178,4 +178,18 @@ Use this doc as the single source of truth; keep the **Status** column and check
 - **Tiered payouts execution:** Wire 50% early (Pro) and 100% instant (Enterprise) to real payout flow once bank and risk are in place.
 - **Dynamic pricing, multi-currency, SLA, on-premise:** Per pricing page, these are Enterprise; not yet implemented.
 
+**Event page & organizer**
+
+- [ ] **Organizer on event:** Show organizer (name, avatar, link) on event detail (web + mobile).
+- [ ] **Other events by organizer:** “More from this organizer” / “Other events” by same organizer (web + mobile).
+- [ ] **Contact organizer:** “Contact organizer” (email or in-app) from event page.
+- [ ] **Follow organizers:** Follow/unfollow; “Following” list; optionally “Events from organizers you follow”.
+
+**Event media**
+
+- [ ] **Multiple event images:** Multiple images per event (gallery/carousel); backend + web + mobile.
+- [ ] **Promotional video on mobile:** Render `promotionalVideoUrl` (e.g. YouTube) in mobile EventDetailScreen (web already has embed).
+
+---
+
 See also: `docs/TODO-identity-check-and-verification.md` for the full KYC checklist.

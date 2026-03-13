@@ -3,8 +3,18 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, MapPin, Clock, Ticket, Minus, Plus, Grid3X3 } from "lucide-react";
+import { Calendar, MapPin, Clock, Ticket, Minus, Plus, Grid3X3, User } from "lucide-react";
+import { Link } from "react-router-dom";
 import { apiService } from "@/lib/api";
 import type { Event, TicketType, SeatResponse } from "@/types/api";
 import { useCart } from "@/contexts/CartContext";
@@ -15,6 +25,9 @@ import { getEventImageUrl, getPromotionalVideoEmbedUrl } from "@/lib/utils";
 import { SeatingMap, generateSampleSeats, Seat } from "@/components/SeatingMap";
 import { ShareActionsContainer } from "@/components/ShareActions";
 import { LiveAttendanceBadge, useSimulatedViewers } from "@/components/LiveAttendanceBadge";
+import { EventCard } from "@/components/EventCard";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const EventDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +40,11 @@ const EventDetails = () => {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [ticketMode, setTicketMode] = useState<"general" | "seating">("general");
+  const [otherEventsByOrganizer, setOtherEventsByOrganizer] = useState<Event[]>([]);
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({ senderName: "", senderEmail: "", message: "" });
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  const [contactSent, setContactSent] = useState(false);
   // Default to seating tab when event has reserved seating (with seats) and no GA types
   useEffect(() => {
     if (event?.reservedSeatingEnabled && seatResponses.length > 0 && ticketTypes.length === 0) {
@@ -35,6 +53,10 @@ const EventDetails = () => {
   }, [event?.reservedSeatingEnabled, seatResponses.length, ticketTypes.length]);
   const { addItem } = useCart();
   const { addRecentlyViewed } = usePreferences();
+  const { isAuthenticated } = useAuth();
+  const [followedOrganizerIds, setFollowedOrganizerIds] = useState<Set<string>>(new Set());
+  const [followLoading, setFollowLoading] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   // Reserved seating: map API seats to SeatingMap Seat format
   const seatsFromApi = useMemo(() => {
@@ -50,6 +72,13 @@ const EventDetails = () => {
   }, [seatResponses]);
 
   const hasReservedSeating = Boolean(event?.reservedSeatingEnabled && seatsFromApi.length > 0);
+  const galleryImages = useMemo(() => {
+    if (!event) return [];
+    const main = event.imageUrl ? [event.imageUrl] : [];
+    const extra = event.additionalImageUrls ?? [];
+    return [...main, ...extra].filter(Boolean);
+  }, [event?.imageUrl, event?.additionalImageUrls]);
+  const showGallery = galleryImages.length > 1;
   /** Event has reserved seating enabled but organizer hasn't created a seat map yet */
   const reservedSeatingPending = Boolean(event?.reservedSeatingEnabled && seatsFromApi.length === 0);
   const showSeatingTab = hasReservedSeating || reservedSeatingPending;
@@ -78,6 +107,21 @@ const EventDetails = () => {
       loadEventDetails();
     }
   }, [id]);
+
+  // Load other events by same organizer (for "More from this organizer" section)
+  useEffect(() => {
+    if (!event?.userId || !id) return;
+    apiService
+      .getEvents(1, 6, undefined, event.userId)
+      .then((list) => setOtherEventsByOrganizer(list.filter((e) => e.id !== id)))
+      .catch(() => setOtherEventsByOrganizer([]));
+  }, [event?.userId, id]);
+
+  // Load followed organizers when logged in (for Follow/Unfollow button)
+  useEffect(() => {
+    if (!isAuthenticated || !event?.userId) return;
+    apiService.getFollowing().then((list) => setFollowedOrganizerIds(new Set(list.map((o) => o.organizerId))));
+  }, [isAuthenticated, event?.userId]);
 
   const loadEventDetails = async () => {
     try {
@@ -228,7 +272,32 @@ const EventDetails = () => {
               isMinimal ? "space-y-8 max-w-2xl" : ""
             } ${isVibrant ? "rounded-2xl p-4 md:p-6 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/5" : ""}`}
           >
-            {(event.imageUrl && !imgError) ? (
+            {showGallery ? (
+              <>
+                <div className="rounded-xl overflow-hidden h-64 md:h-96">
+                  <img
+                    src={getEventImageUrl(galleryImages[galleryIndex]) ?? ""}
+                    alt={`${event.name} (${galleryIndex + 1}/${galleryImages.length})`}
+                    className="w-full h-full object-cover"
+                    onError={() => setImgError(true)}
+                  />
+                </div>
+                <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                  {galleryImages.map((url, i) => (
+                    <button
+                      key={url + i}
+                      type="button"
+                      onClick={() => setGalleryIndex(i)}
+                      className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
+                        i === galleryIndex ? "border-primary ring-2 ring-primary/30" : "border-transparent opacity-80 hover:opacity-100"
+                      }`}
+                    >
+                      <img src={getEventImageUrl(url) ?? ""} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (event.imageUrl && !imgError) ? (
               <div className="rounded-xl overflow-hidden h-64 md:h-96">
                 <img
                   src={getEventImageUrl(event.imageUrl) ?? ""}
@@ -285,6 +354,142 @@ const EventDetails = () => {
                   <p>{event.description}</p>
                 </div>
               )}
+
+              {/* Organizer — name, avatar, link to more events, contact */}
+              {(event.userId || event.organizerFirstName || event.organizerLastName) && (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 py-3 border-t border-b border-border/60">
+                  {event.organizerProfilePictureUrl ? (
+                    <img
+                      src={event.organizerProfilePictureUrl}
+                      alt=""
+                      className="h-12 w-12 rounded-full object-cover bg-muted"
+                    />
+                  ) : (
+                    <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                      <User className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-muted-foreground">Organized by</p>
+                    {event.userId ? (
+                      <Link
+                        to={`/events?organizerId=${event.userId}`}
+                        className="font-semibold text-foreground hover:text-primary hover:underline truncate block"
+                      >
+                        {[event.organizerFirstName, event.organizerLastName].filter(Boolean).join(" ") || "Organizer"}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold text-foreground truncate block">
+                        {[event.organizerFirstName, event.organizerLastName].filter(Boolean).join(" ") || "Organizer"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {isAuthenticated && event.userId && (
+                      <Button
+                        variant={followedOrganizerIds.has(event.userId) ? "default" : "outline"}
+                        size="sm"
+                        disabled={followLoading}
+                        className={followedOrganizerIds.has(event.userId) ? "bg-primary text-primary-foreground" : ""}
+                        onClick={async () => {
+                          if (!event.userId) return;
+                          setFollowLoading(true);
+                          try {
+                            const name = [event.organizerFirstName, event.organizerLastName].filter(Boolean).join(" ") || "this organizer";
+                            if (followedOrganizerIds.has(event.userId)) {
+                              await apiService.unfollowOrganizer(event.userId);
+                              setFollowedOrganizerIds((s) => { const n = new Set(s); n.delete(event.userId!); return n; });
+                              toast.success(`Unfollowed ${name}`);
+                            } else {
+                              await apiService.followOrganizer(event.userId);
+                              setFollowedOrganizerIds((s) => new Set(s).add(event.userId!));
+                              toast.success(`Following ${name}. See them in Following.`);
+                            }
+                          } finally {
+                            setFollowLoading(false);
+                          }
+                        }}
+                      >
+                        {followLoading ? "…" : followedOrganizerIds.has(event.userId) ? "Followed" : "Follow"}
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" className="border border-dashed border-input" onClick={() => { setContactDialogOpen(true); setContactSent(false); setContactForm({ senderName: "", senderEmail: "", message: "" }); }}>
+                      Contact organizer
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Contact organizer dialog */}
+              <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Contact organizer</DialogTitle>
+                  </DialogHeader>
+                  {contactSent ? (
+                    <p className="text-muted-foreground py-4">Your message has been sent. The organizer will get back to you by email.</p>
+                  ) : (
+                    <form
+                      className="space-y-4"
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!event?.id || !contactForm.senderEmail.trim() || !contactForm.message.trim()) return;
+                        setContactSubmitting(true);
+                        try {
+                          await apiService.contactOrganizer(event.id, {
+                            senderEmail: contactForm.senderEmail.trim(),
+                            senderName: contactForm.senderName.trim() || undefined,
+                            message: contactForm.message.trim(),
+                          });
+                          setContactSent(true);
+                        } catch (err) {
+                          console.error(err);
+                        } finally {
+                          setContactSubmitting(false);
+                        }
+                      }}
+                    >
+                      <div className="space-y-2">
+                        <Label htmlFor="contact-name">Your name (optional)</Label>
+                        <Input
+                          id="contact-name"
+                          value={contactForm.senderName}
+                          onChange={(e) => setContactForm((f) => ({ ...f, senderName: e.target.value }))}
+                          placeholder="Jane Doe"
+                          maxLength={200}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="contact-email">Your email *</Label>
+                        <Input
+                          id="contact-email"
+                          type="email"
+                          required
+                          value={contactForm.senderEmail}
+                          onChange={(e) => setContactForm((f) => ({ ...f, senderEmail: e.target.value }))}
+                          placeholder="you@example.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="contact-message">Message *</Label>
+                        <textarea
+                          id="contact-message"
+                          required
+                          value={contactForm.message}
+                          onChange={(e) => setContactForm((f) => ({ ...f, message: e.target.value }))}
+                          placeholder="Your message to the organizer..."
+                          className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          maxLength={2000}
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setContactDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={contactSubmitting}>{contactSubmitting ? "Sending…" : "Send message"}</Button>
+                      </DialogFooter>
+                    </form>
+                  )}
+                </DialogContent>
+              </Dialog>
 
               {/* Promotional video (YouTube/Vimeo embed) — Basic theming, all tiers */}
               {event.promotionalVideoUrl && getPromotionalVideoEmbedUrl(event.promotionalVideoUrl) && (
@@ -455,6 +660,26 @@ const EventDetails = () => {
               </TabsContent>
             </Tabs>
           </div>
+
+          {/* More from this organizer — full-width row */}
+          {event.userId && otherEventsByOrganizer.length > 0 && (
+            <div className="lg:col-span-3 mt-10 pt-8 border-t border-border/60">
+              <h2 className="text-2xl font-bold mb-4">More from this organizer</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {otherEventsByOrganizer.slice(0, 3).map((e, index) => (
+                  <EventCard key={e.id} event={e} index={index} />
+                ))}
+              </div>
+              <div className="mt-4">
+                <Link
+                  to={`/events?organizerId=${event.userId}`}
+                  className="text-primary font-medium hover:underline"
+                >
+                  View all events by this organizer →
+                </Link>
+              </div>
+            </div>
+          )}
         </motion.div>
       </div>
       {!hidePlatformBranding && (

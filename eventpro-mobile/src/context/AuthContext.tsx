@@ -19,11 +19,13 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 type AuthProviderProps = {
   children: React.ReactNode;
   api: EventProApi;
+  /** Used to skip getCurrentUser when no token (guest-first load). */
+  getAccessToken: () => string | null | Promise<string | null>;
   /** Ref set to a function that clears user (called on 401). */
   onUnauthorizedRef?: React.MutableRefObject<(() => void) | null>;
 };
 
-export function AuthProvider({ children, api, onUnauthorizedRef }: AuthProviderProps) {
+export function AuthProvider({ children, api, getAccessToken, onUnauthorizedRef }: AuthProviderProps) {
   if (api == null) {
     throw new Error("AuthProvider requires api");
   }
@@ -77,13 +79,22 @@ export function AuthProvider({ children, api, onUnauthorizedRef }: AuthProviderP
     [user?.role]
   );
 
+  // Same flow as web: allow browsing without login. Only restore session when we have a token.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api
-      .getCurrentUser()
+    getAccessToken()
+      .then((token) => {
+        if (cancelled) return;
+        if (!token || (typeof token === "string" && !token.trim())) {
+          setUserState(null);
+          setLoading(false);
+          return;
+        }
+        return api.getCurrentUser();
+      })
       .then((u) => {
-        if (!cancelled) setUserState(u);
+        if (!cancelled && u !== undefined) setUserState(u);
       })
       .catch(() => {
         if (!cancelled) setUserState(null);
@@ -94,7 +105,7 @@ export function AuthProvider({ children, api, onUnauthorizedRef }: AuthProviderP
     return () => {
       cancelled = true;
     };
-  }, [api]);
+  }, [api, getAccessToken]);
 
   const value: AuthContextValue = {
     user,

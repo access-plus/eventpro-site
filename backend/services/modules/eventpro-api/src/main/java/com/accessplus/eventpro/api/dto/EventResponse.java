@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -22,6 +23,8 @@ public class EventResponse {
     private String name;
     private String description;
     private String imageUrl;
+    /** Additional images for gallery (primary image is imageUrl). */
+    private List<String> additionalImageUrls;
     private String promotionalVideoUrl;
     private String eventPageTemplate;
     private Boolean marketingEnabled;
@@ -37,6 +40,10 @@ public class EventResponse {
     private String organizerBrandingPrimaryColor;
     /** White-label: hide platform branding on this event page. */
     private Boolean organizerBrandingHidePlatform;
+    /** Organizer display info for event detail (name, avatar). */
+    private String organizerFirstName;
+    private String organizerLastName;
+    private String organizerProfilePictureUrl;
     private EventStatus status;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
@@ -71,10 +78,28 @@ public class EventResponse {
                 .startTime(entity.getStartTime())
                 .endTime(entity.getEndTime());
         
-        // Set organizer (userId) and white-label branding
+        // Set organizer (userId), display info, and white-label branding
         if (entity.getOrganizer() != null) {
             var org = entity.getOrganizer();
+            String first = org.getFirstName();
+            String last = org.getLastName();
+            // If organizer has no first/last name set, derive display name from email (e.g. "john" from "john@example.com")
+            if ((first == null || first.isBlank()) && (last == null || last.isBlank()) && org.getEmail() != null && !org.getEmail().isBlank()) {
+                String emailLocal = org.getEmail().split("@")[0].trim();
+                if (!emailLocal.isEmpty()) {
+                    first = emailLocal;
+                    last = null;
+                }
+            }
+            // Ensure at least one display label so clients never get null for both (e.g. legacy accounts with no name/email set)
+            if ((first == null || first.isBlank()) && (last == null || last.isBlank())) {
+                first = "Organizer";
+                last = null;
+            }
             builder.userId(org.getId())
+                    .organizerFirstName(first)
+                    .organizerLastName(last)
+                    .organizerProfilePictureUrl(org.getProfilePictureUrl())
                     .organizerBrandingLogoUrl(org.getBrandingLogoUrl())
                     .organizerBrandingPrimaryColor(org.getBrandingPrimaryColor())
                     .organizerBrandingHidePlatform(org.getBrandingHidePlatform() != null ? org.getBrandingHidePlatform() : false);

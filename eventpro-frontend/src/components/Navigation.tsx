@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Ticket, Calendar, User as UserIcon, ShoppingBag, LogOut, Settings, Shield } from "lucide-react";
+import { Menu, X, Ticket, Calendar, User as UserIcon, ShoppingBag, LogOut, Settings, Shield, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ export const Navigation = () => {
 
   if (isAuthenticated) {
     navLinks.push({ path: "/orders", label: "My Orders", icon: ShoppingBag });
+    navLinks.push({ path: "/profile/following", label: "Following", icon: Heart });
     navLinks.push({ path: "/profile", label: "Profile", icon: UserIcon });
   }
 

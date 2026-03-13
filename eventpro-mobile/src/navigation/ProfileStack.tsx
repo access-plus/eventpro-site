@@ -8,6 +8,7 @@ import { ProfileScreen } from "../screens/ProfileScreen";
 import { ProfileEditScreen } from "../screens/ProfileEditScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { OrderHistoryScreen } from "../screens/OrderHistoryScreen";
+import { FollowingScreen } from "../screens/FollowingScreen";
 import { PricingScreen } from "../screens/PricingScreen";
 import { PrivacyScreen } from "../screens/PrivacyScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
@@ -41,8 +42,18 @@ function ProfileHeaderRight({ navigation }: { navigation: NativeStackNavigationP
 }
 
 export function ProfileStack() {
+  const { theme } = useTheme();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: true }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: true,
+        headerStyle: { backgroundColor: theme.colors.card },
+        headerTintColor: theme.colors.foreground,
+        headerTitleStyle: { color: theme.colors.foreground },
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: theme.colors.background },
+      }}
+    >
       <Stack.Screen
         name="ProfileHome"
         component={ProfileScreen}
@@ -56,6 +67,7 @@ export function ProfileStack() {
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: "Settings" }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
       <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ title: "Orders" }} />
+      <Stack.Screen name="Following" component={FollowingScreen} options={{ title: "Following" }} />
       <Stack.Screen name="Pricing" component={PricingScreen} options={{ title: "Pricing" }} />
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: "Privacy" }} />
     </Stack.Navigator>

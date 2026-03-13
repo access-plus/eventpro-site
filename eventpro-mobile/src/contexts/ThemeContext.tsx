@@ -22,7 +22,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     SecureStore.getItemAsync(THEME_KEY).then((stored) => {
-      const scheme = stored === "dark" || stored === "light" ? stored : "light";
+      let scheme: ColorScheme = stored === "dark" || stored === "light" ? stored : "light";
+      if (stored !== "dark" && stored !== "light") {
+        const system = Appearance.getColorScheme();
+        if (system === "dark" || system === "light") scheme = system;
+      }
       setColorSchemeState(scheme);
       if (typeof Appearance.setColorScheme === "function") {
         Appearance.setColorScheme(scheme);

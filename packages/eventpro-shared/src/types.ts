@@ -40,6 +40,7 @@ export interface Event {
   title?: string;
   description?: string;
   imageUrl?: string;
+  additionalImageUrls?: string[] | null;
   promotionalVideoUrl?: string;
   eventPageTemplate?: EventPageTemplate | string;
   marketingEnabled?: boolean;
@@ -49,6 +50,9 @@ export interface Event {
   organizerBrandingLogoUrl?: string | null;
   organizerBrandingPrimaryColor?: string | null;
   organizerBrandingHidePlatform?: boolean;
+  organizerFirstName?: string | null;
+  organizerLastName?: string | null;
+  organizerProfilePictureUrl?: string | null;
   startTime: string;
   endTime: string;
   userId?: string;
@@ -67,6 +71,14 @@ export interface Event {
   category?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+/** Organizer in the current user's Following list. */
+export interface FollowedOrganizer {
+  organizerId: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  profilePictureUrl?: string | null;
 }
 
 export interface ApiResponse<T> {

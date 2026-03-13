@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import type { Event } from "@eventpro/shared";
 import { useTheme } from "../contexts/ThemeContext";
+import { EventCard } from "../components/EventCard";
 import { lightTheme } from "../theme";
 
 const CATEGORIES = [
@@ -198,39 +199,13 @@ export function HomeScreen({ navigation }: { navigation: any }) {
             <Text style={[styles.loadingText, { color: theme.colors.mutedForeground }]}>Loading…</Text>
           </View>
         ) : trendingEvents.length > 0 ? (
-          trendingEvents.map((event) => {
-            const imageUrl = (event as any).imageUrl ?? (event as any).coverImageUrl;
-            const startTime = event.startTime ?? (event as any).startDateTime;
-            return (
-              <TouchableOpacity
-                key={event.id}
-                style={[styles.eventCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-                onPress={() => navigation.navigate("EventDetail", { eventId: event.id })}
-                activeOpacity={0.8}
-              >
-                {imageUrl ? (
-                  <Image source={{ uri: imageUrl }} style={styles.eventImage} resizeMode="cover" />
-                ) : (
-                  <View style={[styles.eventImagePlaceholder, { backgroundColor: theme.colors.muted }]}>
-                    <Ionicons name="calendar-outline" size={36} color={theme.colors.mutedForeground} />
-                  </View>
-                )}
-                <View style={styles.eventCardBody}>
-                  <Text style={[styles.eventName, { color: theme.colors.foreground }]} numberOfLines={2}>{event.name}</Text>
-                  <Text style={[styles.eventDate, { color: theme.colors.mutedForeground }]}>
-                    {startTime
-                      ? new Date(startTime).toLocaleDateString(undefined, {
-                          weekday: "short",
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })
-                      : ""}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })
+          trendingEvents.map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              onPress={() => navigation.navigate("EventDetail", { eventId: event.id })}
+            />
+          ))
         ) : (
           <View style={[styles.emptyCard, { backgroundColor: theme.colors.muted }]}>
             <Ionicons name="ticket-outline" size={40} color={theme.colors.mutedForeground} />
@@ -259,32 +234,13 @@ export function HomeScreen({ navigation }: { navigation: any }) {
             <ActivityIndicator size="small" color={theme.colors.primary} />
           </View>
         ) : upcomingEvents.length > 0 ? (
-          upcomingEvents.map((event) => {
-            const imageUrl = (event as any).imageUrl ?? (event as any).coverImageUrl;
-            const startTime = event.startTime ?? (event as any).startDateTime;
-            return (
-              <TouchableOpacity
-                key={event.id}
-                style={[styles.eventCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
-                onPress={() => navigation.navigate("EventDetail", { eventId: event.id })}
-                activeOpacity={0.8}
-              >
-                {imageUrl ? (
-                  <Image source={{ uri: imageUrl }} style={styles.eventImage} resizeMode="cover" />
-                ) : (
-                  <View style={[styles.eventImagePlaceholder, { backgroundColor: theme.colors.muted }]}>
-                    <Ionicons name="calendar-outline" size={36} color={theme.colors.mutedForeground} />
-                  </View>
-                )}
-                <View style={styles.eventCardBody}>
-                  <Text style={[styles.eventName, { color: theme.colors.foreground }]} numberOfLines={2}>{event.name}</Text>
-                  <Text style={[styles.eventDate, { color: theme.colors.mutedForeground }]}>
-                    {startTime ? new Date(startTime).toLocaleDateString(undefined, { dateStyle: "medium" }) : ""}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })
+          upcomingEvents.map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              onPress={() => navigation.navigate("EventDetail", { eventId: event.id })}
+            />
+          ))
         ) : (
           <View style={[styles.emptyCardSmall, { backgroundColor: theme.colors.muted }]}>
             <Ionicons name="calendar-outline" size={32} color={theme.colors.mutedForeground} />

@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import * as SecureStore from "expo-secure-store";
 import type { Event } from "@eventpro/shared";
 
-const STORAGE_KEY = "eventpro_recently_viewed";
+const STORAGE_KEY = "eventpro_recently_viewed_ids";
 const MAX_RECENTLY_VIEWED = 10;
 
 type RecentlyViewedContextValue = {
@@ -16,27 +16,14 @@ const Context = createContext<RecentlyViewedContextValue | undefined>(undefined)
 export function RecentlyViewedProvider({ children }: { children: React.ReactNode }) {
   const [recentlyViewed, setRecentlyViewed] = useState<Event[]>([]);
 
-  useEffect(() => {
-    SecureStore.getItemAsync(STORAGE_KEY)
-      .then((stored) => {
-        if (!stored) return;
-        try {
-          const parsed = JSON.parse(stored) as Event[];
-          if (Array.isArray(parsed)) {
-            setRecentlyViewed(parsed);
-          }
-        } catch {
-          // ignore
-        }
-      })
-      .catch(() => {});
-  }, []);
-
+  // Persist only event IDs (small payload) to stay under SecureStore 2048-byte limit.
+  // Full recently-viewed list is in-memory only per session.
   const addRecentlyViewed = useCallback((event: Event) => {
     setRecentlyViewed((prev) => {
       const filtered = prev.filter((e) => e.id !== event.id);
       const updated = [event, ...filtered].slice(0, MAX_RECENTLY_VIEWED);
-      SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
+      const idsOnly = updated.map((e) => e.id);
+      SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(idsOnly)).catch(() => {});
       return updated;
     });
   }, []);

@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import type { TicketType } from "@eventpro/shared";
-import { theme } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
+import { theme as staticTheme } from "../theme";
 
 export function EventTicketsScreen({ route }: { route: { params: { eventId: string } }; navigation?: any }) {
+  const { theme } = useTheme();
   const { api } = useAuth();
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,13 +85,13 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   hint: { fontSize: 13, padding: 16, paddingBottom: 8 },
-  list: { padding: theme.spacing.md, paddingTop: 0 },
-  emptyList: { flexGrow: 1, padding: theme.spacing.md },
+  list: { padding: staticTheme.spacing.md, paddingTop: 0 },
+  emptyList: { flexGrow: 1, padding: staticTheme.spacing.md },
   empty: { textAlign: "center", marginTop: 24 },
-  card: { padding: 16, borderRadius: theme.radius.lg, marginBottom: 12, borderWidth: 1 },
+  card: { padding: 16, borderRadius: staticTheme.radius.lg, marginBottom: 12, borderWidth: 1 },
   cardRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   name: { fontSize: 17, fontWeight: "600" },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: theme.radius.md },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: staticTheme.radius.md },
   badgeText: { fontSize: 12, fontWeight: "600", color: "#fff" },
   price: { fontSize: 18, fontWeight: "700", marginTop: 6 },
   meta: { fontSize: 14, marginTop: 4 },

@@ -15,7 +15,7 @@ export type AuthStackParamList = {
 
 export type DiscoverStackParamList = {
   Home: undefined;
-  EventsList: undefined;
+  EventsList: { organizerId?: string } | undefined;
   EventDetail: { eventId: string };
   Checkout: { eventId?: string };
 };
@@ -26,6 +26,7 @@ export type ProfileStackParamList = {
   Settings: undefined;
   Notifications: undefined;
   OrderHistory: undefined;
+  Following: undefined;
   Pricing: undefined;
   Privacy: undefined;
 };

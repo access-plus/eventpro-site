@@ -3,11 +3,13 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator
 import Constants from "expo-constants";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
-import { theme } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
+import { theme as staticTheme } from "../theme";
 
 const WEB_URL = Constants.expoConfig?.extra?.webUrl ?? process.env.EXPO_PUBLIC_WEB_URL ?? "http://localhost:5173";
 
 export function PricingScreen({ navigation }: { navigation?: any }) {
+  const { theme } = useTheme();
   const { api, user } = useAuth();
   const [upgrading, setUpgrading] = useState(false);
   const currentTier = (user?.subscriptionTier ?? "BASIC").toUpperCase();
@@ -75,9 +77,9 @@ export function PricingScreen({ navigation }: { navigation?: any }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: theme.spacing.lg },
+  content: { padding: staticTheme.spacing.lg },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 20 },
-  card: { padding: 20, borderRadius: theme.radius.lg, marginBottom: 12, borderWidth: 1 },
+  card: { padding: 20, borderRadius: staticTheme.radius.lg, marginBottom: 12, borderWidth: 1 },
   tier: { fontSize: 18, fontWeight: "600" },
   price: { fontSize: 20, fontWeight: "700", marginTop: 4 },
   desc: { fontSize: 14, marginTop: 8 },
@@ -89,7 +91,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: theme.radius.md,
+    borderRadius: staticTheme.radius.md,
   },
   upgradeBtnText: { fontSize: 16, fontWeight: "600" },
   footnote: { fontSize: 13, marginTop: 24, textAlign: "center" },
