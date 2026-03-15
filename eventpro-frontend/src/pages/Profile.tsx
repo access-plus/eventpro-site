@@ -443,8 +443,8 @@ const Profile = () => {
                 <div>
                   <p className="font-medium text-red-800 dark:text-red-200">Verification declined</p>
                   <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                    {rejectionReason
-                      ? rejectionReason
+                    {(user?.rejectionReason ?? rejectionReason)
+                      ? (user?.rejectionReason ?? rejectionReason)
                       : "We couldn’t verify your information. Common reasons: address doesn’t match ID, or document couldn’t be read. Please resubmit with correct details."}
                   </p>
                 </div>

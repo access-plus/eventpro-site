@@ -507,7 +507,11 @@ public class OrganizerController extends BaseController {
         if (!canManageEvent(organizerId, event)) {
             throw new ResourceNotFoundException("Event", eventId.toString());
         }
-        int order = request.getDisplayOrder() != null ? request.getDisplayOrder() : (int) eventImageRepository.findByEventIdOrderByDisplayOrderAsc(eventId).stream().count();
+        long galleryCount = eventImageRepository.countByEventId(eventId);
+        if (galleryCount >= 4) {
+            throw new ValidationException("Event can have at most 5 images (1 cover + 4 gallery). Remove an image to add another.");
+        }
+        int order = request.getDisplayOrder() != null ? request.getDisplayOrder() : (int) galleryCount;
         EventImageEntity img = new EventImageEntity();
         img.setEventId(eventId);
         img.setImageUrl(request.getImageUrl().trim());

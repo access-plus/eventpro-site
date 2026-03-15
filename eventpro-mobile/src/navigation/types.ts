@@ -26,6 +26,7 @@ export type ProfileStackParamList = {
   Settings: undefined;
   Notifications: undefined;
   OrderHistory: undefined;
+  OrderDetail: { orderId: string; eventName?: string };
   Following: undefined;
   Pricing: undefined;
   Privacy: undefined;

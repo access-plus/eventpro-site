@@ -11,6 +11,7 @@ import com.accessplus.eventpro.api.dto.UpdateUserRequest;
 import com.accessplus.eventpro.api.dto.UpgradeSubscriptionRequest;
 import com.accessplus.eventpro.api.dto.UserResponse;
 import com.accessplus.eventpro.api.follow.service.OrganizerFollowService;
+import com.accessplus.eventpro.api.service.VerificationService;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.service.UserService;
@@ -51,6 +52,7 @@ public class UserController extends BaseController {
     private final AWSS3ImageService imageService;
     private final ApiKeyService apiKeyService;
     private final OrganizerFollowService organizerFollowService;
+    private final VerificationService verificationService;
 
     private void requireEnterprise() {
         UUID userId = JwtUtils.getCurrentUserId();
@@ -69,6 +71,10 @@ public class UserController extends BaseController {
         UUID userId = JwtUtils.getCurrentUserId();
         UserEntity user = userService.getUserById(userId);
         UserResponse response = UserResponse.fromEntity(user);
+        if ("REJECTED".equals(user.getVerificationStatus())) {
+            response.setRejectionReason(
+                    verificationService.getStatus(userId).getLastRejectionReason());
+        }
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

@@ -28,7 +28,7 @@ spring:
 aws:
   region: ${AWS_REGION:us-east-1}
   s3:
-    bucketName: ${S3_BUCKET_NAME}
+    bucketName: ${S3_BUCKET_NAME:eventpro-images-local}
   sqs:
     endpoint: ${SQS_ENDPOINT:} # Optional: for LocalStack (e.g., http://localhost:4566)
     orderQueueUrl: ${ORDER_QUEUE_URL}

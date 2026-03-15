@@ -11,4 +11,7 @@ public interface EventImageRepository extends JpaRepository<EventImageEntity, UU
     List<EventImageEntity> findByEventIdOrderByDisplayOrderAsc(UUID eventId);
 
     void deleteByEventId(UUID eventId);
+
+    /** Count gallery images for an event (max 4 allowed; primary image = 1, so total max 5). */
+    long countByEventId(UUID eventId);
 }

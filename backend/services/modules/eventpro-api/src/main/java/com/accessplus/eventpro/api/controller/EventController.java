@@ -20,8 +20,10 @@ import com.accessplus.eventpro.event.addon.entity.EventAddonEntity;
 import com.accessplus.eventpro.event.addon.repository.EventAddonRepository;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.event.service.EventService;
+import com.accessplus.eventpro.api.eventimage.entity.EventImageEntity;
 import com.accessplus.eventpro.api.eventimage.repository.EventImageRepository;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
+import com.accessplus.eventpro.event.service.AWSS3ImageService;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.EventStatus;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
@@ -67,16 +69,33 @@ public class EventController extends BaseController {
     private final EmailService emailService;
     private final EventImageRepository eventImageRepository;
     private final ObjectMapper objectMapper;
+    private final AWSS3ImageService imageService;
+
+    private static final int MAX_EVENT_IMAGES = 5;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
-    @Operation(summary = "Create event", description = "Creates a new event with optional image upload. " +
-            "Requires ADMIN or ORGANIZER role. Content-Type must be multipart/form-data with 'request' (JSON string) and optional 'imageFile' parts.")
+    @Operation(summary = "Create event", description = "Creates a new event with optional image uploads (max 5). " +
+            "Requires ADMIN or ORGANIZER role. Content-Type must be multipart/form-data with 'request' (JSON string) and optional 'imageFiles' (multiple, max 5).")
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<EventResponse>> createEvent(
             @RequestPart("request") String requestJson,
+            @RequestPart(value = "imageFiles", required = false) List<MultipartFile> imageFiles,
             @RequestPart(value = "imageFile", required = false) MultipartFile imageFile) {
-        log.debug("Creating event with imageFile: {}", imageFile != null ? imageFile.getOriginalFilename() : "none");
+        // Support both single (legacy) and multiple: normalize to list, max 5
+        List<MultipartFile> files = new ArrayList<>();
+        if (imageFiles != null && !imageFiles.isEmpty()) {
+            for (MultipartFile f : imageFiles) {
+                if (f != null && !f.isEmpty()) files.add(f);
+            }
+        }
+        if (files.isEmpty() && imageFile != null && !imageFile.isEmpty()) {
+            files.add(imageFile);
+        }
+        if (files.size() > MAX_EVENT_IMAGES) {
+            throw new ValidationException("Maximum " + MAX_EVENT_IMAGES + " event images allowed.");
+        }
+        log.debug("Creating event with {} image(s)", files.size());
 
         try {
             // Parse JSON request
@@ -118,15 +137,39 @@ public class EventController extends BaseController {
                 event.setAddress(request.getAddress().toEntity());
             }
             
-            // Create event via service
+            // First image as primary (passed to service); rest saved as gallery after create
+            MultipartFile primaryFile = files.isEmpty() ? null : files.get(0);
             EventEntity createdEvent = eventService.createEvent(
                     event,
                     organizer.getId(),
                     categoryId,
-                    imageFile
+                    primaryFile
             );
             
+            // Persist additional images (2–5) as gallery
+            for (int i = 1; i < files.size(); i++) {
+                MultipartFile f = files.get(i);
+                try {
+                    imageService.validateImage(f);
+                    String imageKey = String.format("events/%s/%s",
+                            UUID.randomUUID(),
+                            f.getOriginalFilename() != null ? f.getOriginalFilename() : "image.jpg");
+                    String imageUrl = imageService.uploadImage(f, imageKey);
+                    EventImageEntity img = new EventImageEntity();
+                    img.setEventId(createdEvent.getId());
+                    img.setImageUrl(imageUrl);
+                    img.setDisplayOrder(i - 1);
+                    eventImageRepository.save(img);
+                } catch (IOException e) {
+                    log.warn("Failed to upload gallery image {}: {}", i + 1, e.getMessage());
+                }
+            }
+            
             EventResponse response = EventResponse.fromEntity(createdEvent);
+            List<String> galleryUrls = eventImageRepository.findByEventIdOrderByDisplayOrderAsc(createdEvent.getId()).stream()
+                    .map(EventImageEntity::getImageUrl)
+                    .collect(Collectors.toList());
+            response.setAdditionalImageUrls(galleryUrls.isEmpty() ? null : galleryUrls);
             return ResponseEntity.ok(ApiResponse.success(response, "Event created successfully"));
             
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {

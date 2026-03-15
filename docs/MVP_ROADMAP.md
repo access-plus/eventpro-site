@@ -180,15 +180,15 @@ Use this doc as the single source of truth; keep the **Status** column and check
 
 **Event page & organizer**
 
-- [ ] **Organizer on event:** Show organizer (name, avatar, link) on event detail (web + mobile).
-- [ ] **Other events by organizer:** “More from this organizer” / “Other events” by same organizer (web + mobile).
-- [ ] **Contact organizer:** “Contact organizer” (email or in-app) from event page.
-- [ ] **Follow organizers:** Follow/unfollow; “Following” list; optionally “Events from organizers you follow”.
+- [x] **Organizer on event:** Show organizer (name, avatar, link) on event detail (web + mobile).
+- [x] **Other events by organizer:** “More from this organizer” / “Other events” by same organizer (web + mobile).
+- [x] **Contact organizer:** “Contact organizer” (email or in-app) from event page.
+- [x] **Follow organizers:** Follow/unfollow; “Following” list; optionally “Events from organizers you follow”.
 
 **Event media**
 
-- [ ] **Multiple event images:** Multiple images per event (gallery/carousel); backend + web + mobile.
-- [ ] **Promotional video on mobile:** Render `promotionalVideoUrl` (e.g. YouTube) in mobile EventDetailScreen (web already has embed).
+- [x] **Multiple event images:** Multiple images per event (gallery/carousel); backend + web + mobile.
+- [x] **Promotional video on mobile:** Render `promotionalVideoUrl` (e.g. YouTube) in mobile EventDetailScreen (web already has embed).
 
 ---
 
