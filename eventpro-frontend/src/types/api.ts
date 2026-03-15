@@ -31,6 +31,8 @@ export interface User {
   isVerified?: boolean;
   /** KYC workflow: NOT_STARTED, PENDING, IN_PROGRESS, VERIFIED, REJECTED. */
   verificationStatus?: VerificationStatus;
+  /** Reason for rejection when verificationStatus is REJECTED (from GET /users/me). */
+  rejectionReason?: string | null;
   /** Risk level: LOW, MEDIUM, HIGH. */
   riskLevel?: RiskLevel;
   /** Organizer cultural niche / focus; feeds search taxonomy. */

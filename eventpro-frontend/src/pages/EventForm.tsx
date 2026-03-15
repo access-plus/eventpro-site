@@ -65,10 +65,12 @@ const eventFormSchema = z.object({
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
+const MAX_EVENT_IMAGES = 5;
+const MAX_FILE_SIZE_MB = 5;
+
 const EventForm = () => {
   const navigate = useNavigate();
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<{ file: File; preview: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<EventFormValues>({
@@ -104,24 +106,36 @@ const EventForm = () => {
   });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image must be less than 5MB");
-        return;
-      }
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (!files?.length) return;
+    const remaining = MAX_EVENT_IMAGES - imageFiles.length;
+    if (remaining <= 0) {
+      toast.error(`Maximum ${MAX_EVENT_IMAGES} images allowed.`);
+      return;
     }
+    const toAdd: { file: File; preview: string }[] = [];
+    const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
+    for (let i = 0; i < Math.min(files.length, remaining); i++) {
+      const file = files[i];
+      if (file.size > maxSize) {
+        toast.error(`"${file.name}" must be less than ${MAX_FILE_SIZE_MB}MB`);
+        continue;
+      }
+      toAdd.push({
+        file,
+        preview: URL.createObjectURL(file),
+      });
+    }
+    setImageFiles((prev) => [...prev, ...toAdd].slice(0, MAX_EVENT_IMAGES));
+    e.target.value = "";
   };
 
-  const removeImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
+  const removeImage = (index: number) => {
+    setImageFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      URL.revokeObjectURL(prev[index]?.preview ?? "");
+      return next;
+    });
   };
 
   const onSubmit = async (values: EventFormValues) => {
@@ -151,9 +165,9 @@ const EventForm = () => {
       // Append request as JSON string
       formData.append("request", JSON.stringify(requestPayload));
       
-      // Append image file if present
-      if (imageFile) {
-        formData.append("imageFile", imageFile);
+      // Append image files (max 5)
+      if (imageFiles.length > 0) {
+        imageFiles.forEach(({ file }) => formData.append("imageFiles", file));
       }
 
       const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
@@ -370,36 +384,48 @@ const EventForm = () => {
                     </div>
                   </div>
 
-                  {/* Image Upload */}
+                  {/* Event Images (max 5) */}
                   <div className="space-y-2">
-                    <Label>Event Image</Label>
-                    {imagePreview ? (
-                      <div className="relative">
-                        <img
-                          src={imagePreview}
-                          alt="Event preview"
-                          className="w-full h-48 object-cover rounded-lg"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-2 right-2"
-                          onClick={removeImage}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                    <Label>Event Images (up to {MAX_EVENT_IMAGES})</Label>
+                    <p className="text-sm text-muted-foreground">
+                      First image is the cover. Max {MAX_FILE_SIZE_MB}MB per image.
+                    </p>
+                    {imageFiles.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {imageFiles.map(({ preview }, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={preview}
+                              alt={`Event ${index + 1}`}
+                              className="w-full h-32 object-cover rounded-lg border"
+                            />
+                            <div className="absolute top-1 left-1 rounded bg-black/60 text-white text-xs px-1.5 py-0.5">
+                              {index === 0 ? "Cover" : index + 1}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute top-1 right-1 h-7 w-7 opacity-90"
+                              onClick={() => removeImage(index)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
                       </div>
-                    ) : (
-                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
-                        <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                    )}
+                    {imageFiles.length < MAX_EVENT_IMAGES && (
+                      <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-muted-foreground/25 rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
+                        <Upload className="h-6 w-6 text-muted-foreground mb-1" />
                         <span className="text-sm text-muted-foreground">
-                          Click to upload image (max 5MB)
+                          Add image ({imageFiles.length}/{MAX_EVENT_IMAGES})
                         </span>
                         <input
                           type="file"
                           accept="image/*"
                           className="hidden"
+                          multiple
                           onChange={handleImageChange}
                         />
                       </label>

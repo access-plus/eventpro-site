@@ -32,6 +32,8 @@ public class UserResponse {
     private Boolean isVerified;
     /** KYC workflow: NOT_STARTED, PENDING, IN_PROGRESS, VERIFIED, REJECTED. */
     private String verificationStatus;
+    /** Reason for rejection when verificationStatus is REJECTED (from last KYC submission). */
+    private String rejectionReason;
     /** Risk level: LOW, MEDIUM, HIGH. */
     private String riskLevel;
     /** Organizer cultural niche / focus; feeds search taxonomy. */

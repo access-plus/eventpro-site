@@ -102,37 +102,38 @@ export function EventsListScreen({ route, navigation }: { route: any; navigation
               </TouchableOpacity>
             )}
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryScroll}
-            style={styles.categoryScrollWrap}
-          >
-            <TouchableOpacity
-              style={[
-                styles.categoryPill,
-                { borderColor: theme.colors.border, backgroundColor: selectedCategory === undefined ? theme.colors.primary : theme.colors.card },
-              ]}
-              onPress={() => { setSelectedCategory(undefined); setLoading(true); }}
+          <View style={styles.categorySection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryList}
             >
-              <Text style={[styles.categoryPillText, { color: selectedCategory === undefined ? theme.colors.primaryForeground : theme.colors.foreground }]}>All</Text>
-            </TouchableOpacity>
-            {EVENT_CATEGORIES.map((cat) => {
-              const isSelected = selectedCategory === cat;
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  style={[
-                    styles.categoryPill,
-                    { borderColor: theme.colors.border, backgroundColor: isSelected ? theme.colors.primary : theme.colors.card },
-                  ]}
-                  onPress={() => { setSelectedCategory(isSelected ? undefined : cat); setLoading(true); }}
-                >
-                  <Text style={[styles.categoryPillText, { color: isSelected ? theme.colors.primaryForeground : theme.colors.foreground }]}>{cat}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+              <TouchableOpacity
+                style={[
+                  styles.categoryPill,
+                  { borderColor: theme.colors.border, backgroundColor: selectedCategory === undefined ? theme.colors.primary : theme.colors.card },
+                ]}
+                onPress={() => { setSelectedCategory(undefined); setLoading(true); }}
+              >
+                <Text style={[styles.categoryPillText, { color: selectedCategory === undefined ? theme.colors.primaryForeground : theme.colors.foreground }]}>All</Text>
+              </TouchableOpacity>
+              {EVENT_CATEGORIES.map((cat) => {
+                const isSelected = selectedCategory === cat;
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.categoryPill,
+                      { borderColor: theme.colors.border, backgroundColor: isSelected ? theme.colors.primary : theme.colors.card },
+                    ]}
+                    onPress={() => { setSelectedCategory(isSelected ? undefined : cat); setLoading(true); }}
+                  >
+                    <Text style={[styles.categoryPillText, { color: isSelected ? theme.colors.primaryForeground : theme.colors.foreground }]}>{cat}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
         </>
       )}
       <FlatList
@@ -177,14 +178,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   searchInput: { flex: 1, fontSize: 16, paddingVertical: 4 },
-  categoryScroll: { paddingHorizontal: staticTheme.spacing.md, paddingBottom: staticTheme.spacing.sm, gap: 8, flexDirection: "row" },
-  categoryScrollWrap: { maxHeight: 44 },
+  categorySection: { marginBottom: 16, minHeight: 52 },
+  categoryList: {
+    paddingHorizontal: staticTheme.spacing.md,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 48,
+  },
   categoryPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
     borderWidth: 1,
-    marginRight: 8,
+    flexShrink: 0,
   },
   categoryPillText: { fontSize: 14, fontWeight: "600" },
   listContent: { padding: staticTheme.spacing.md, paddingBottom: 32 },

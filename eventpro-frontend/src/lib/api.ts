@@ -637,6 +637,15 @@ class ApiService {
     return { url: url ?? "" };
   }
 
+  /** Add a gallery image to an event (organizer). Upload image first with uploadEventImage, then pass the URL. */
+  async addEventImage(eventId: string, payload: { imageUrl: string; displayOrder?: number }): Promise<{ id: string; imageUrl: string; displayOrder: number }> {
+    const response = await this.api.post<ApiResponse<{ id: string; imageUrl: string; displayOrder: number }>>(
+      `/api/v1/organizer/events/${eventId}/images`,
+      payload
+    );
+    return response.data.data!;
+  }
+
   /** Publish event (DRAFT → PUBLISHED). Requires organizer role. */
   async publishEvent(eventId: string): Promise<Event> {
     const response = await this.api.post<ApiResponse<Event>>(`/api/v1/events/${eventId}/publish`);

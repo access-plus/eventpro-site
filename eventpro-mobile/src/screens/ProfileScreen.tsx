@@ -248,7 +248,7 @@ export function ProfileScreen({ navigation }: { navigation: any }) {
         <View style={[styles.alertCard, styles.alertDanger]}>
           <Text style={styles.alertTitle}>Verification declined</Text>
           <Text style={styles.alertDesc}>
-            {rejectionReason || "We couldn’t verify your information. Please resubmit with correct details on the web."}
+            {(user?.rejectionReason ?? rejectionReason) || "We couldn’t verify your information. Please resubmit with correct details on the web."}
           </Text>
           <TouchableOpacity style={[styles.outlineBtn, { borderColor: theme.colors.destructive }]} onPress={() => openWeb("/profile")}>
             <Text style={[styles.outlineBtnText, { color: theme.colors.destructive }]}>Resubmit on web</Text>

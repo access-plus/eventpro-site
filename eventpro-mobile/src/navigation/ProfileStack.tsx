@@ -8,6 +8,7 @@ import { ProfileScreen } from "../screens/ProfileScreen";
 import { ProfileEditScreen } from "../screens/ProfileEditScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { OrderHistoryScreen } from "../screens/OrderHistoryScreen";
+import { OrderDetailScreen } from "../screens/OrderDetailScreen";
 import { FollowingScreen } from "../screens/FollowingScreen";
 import { PricingScreen } from "../screens/PricingScreen";
 import { PrivacyScreen } from "../screens/PrivacyScreen";
@@ -67,6 +68,7 @@ export function ProfileStack() {
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: "Settings" }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
       <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ title: "Orders" }} />
+      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ title: "View Ticket" }} />
       <Stack.Screen name="Following" component={FollowingScreen} options={{ title: "Following" }} />
       <Stack.Screen name="Pricing" component={PricingScreen} options={{ title: "Pricing" }} />
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: "Privacy" }} />

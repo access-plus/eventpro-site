@@ -26,6 +26,8 @@ export interface User {
   brandingHidePlatform?: boolean;
   isVerified?: boolean;
   verificationStatus?: VerificationStatus;
+  /** Reason for rejection when verificationStatus is REJECTED. */
+  rejectionReason?: string | null;
   riskLevel?: RiskLevel;
   culturalNiche?: string;
   createdAt: string;

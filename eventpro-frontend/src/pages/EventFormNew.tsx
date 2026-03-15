@@ -70,6 +70,9 @@ function canUseAddons(tier: string | undefined): boolean {
   return t === "PRO" || t === "ENTERPRISE";
 }
 
+const MAX_EVENT_IMAGES = 5;
+const MAX_FILE_SIZE_MB = 5;
+
 const EventFormNew = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -77,9 +80,9 @@ const EventFormNew = () => {
   const isEditMode = Boolean(id);
   const showProFeatures = canUseAddons(user?.subscriptionTier);
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<{ file: File; preview: string }[]>([]);
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [existingGalleryUrls, setExistingGalleryUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [eventSeats, setEventSeats] = useState<SeatResponse[]>([]);
@@ -157,9 +160,10 @@ const EventFormNew = () => {
       });
 
       if (event.imageUrl) {
-        const displayUrl = getEventImageUrl(event.imageUrl) ?? event.imageUrl;
         setExistingImageUrl(event.imageUrl);
-        setImagePreview(displayUrl);
+      }
+      if (event.additionalImageUrls?.length) {
+        setExistingGalleryUrls(event.additionalImageUrls.map((u: string) => getEventImageUrl(u) ?? u));
       }
       if (event.reservedSeatingEnabled) {
         const seats = await apiService.getEventSeats(eventId);
@@ -177,25 +181,46 @@ const EventFormNew = () => {
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image must be less than 5MB");
-        return;
-      }
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (!files?.length) return;
+    const currentCount = imageFiles.length + (existingImageUrl ? 1 : 0) + existingGalleryUrls.length;
+    const remaining = MAX_EVENT_IMAGES - currentCount;
+    if (remaining <= 0) {
+      toast.error(`Maximum ${MAX_EVENT_IMAGES} images allowed.`);
+      return;
     }
+    const toAdd: { file: File; preview: string }[] = [];
+    const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
+    for (let i = 0; i < Math.min(files.length, remaining); i++) {
+      const file = files[i];
+      if (file.size > maxSize) {
+        toast.error(`"${file.name}" must be less than ${MAX_FILE_SIZE_MB}MB`);
+        continue;
+      }
+      toAdd.push({ file, preview: URL.createObjectURL(file) });
+    }
+    setImageFiles((prev) => [...prev, ...toAdd].slice(0, MAX_EVENT_IMAGES));
+    e.target.value = "";
   };
 
-  const removeImage = () => {
-    setImageFile(null);
-    setImagePreview(existingImageUrl);
+  const removeImage = (index: number) => {
+    setImageFiles((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      URL.revokeObjectURL(prev[index]?.preview ?? "");
+      return next;
+    });
   };
+
+  const removeExistingImage = () => {
+    setExistingImageUrl(null);
+  };
+  const removeExistingGallery = (index: number) => {
+    setExistingGalleryUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const totalImageCount = imageFiles.length + (existingImageUrl ? 1 : 0) + existingGalleryUrls.length;
+  const imagePreview = imageFiles[0]?.preview ?? existingImageUrl ? (getEventImageUrl(existingImageUrl) ?? existingImageUrl) : null;
+  const hasAnyImage = imageFiles.length > 0 || existingImageUrl || existingGalleryUrls.length > 0;
 
   const onSubmit = async (values: EventFormValues) => {
     setIsSubmitting(true);
@@ -212,10 +237,10 @@ const EventFormNew = () => {
       const token = localStorage.getItem("accessToken");
 
       if (isEditMode && id) {
-        // UPDATE MODE - JSON PUT; upload image first if present, then update with URL
+        // UPDATE MODE - JSON PUT; upload first new image if present as new cover, then update with URL
         let imageUrl: string | undefined;
-        if (imageFile) {
-          const upload = await apiService.uploadEventImage(imageFile);
+        if (imageFiles.length > 0) {
+          const upload = await apiService.uploadEventImage(imageFiles[0].file);
           imageUrl = upload?.url;
         }
         const requestPayload = {
@@ -234,6 +259,11 @@ const EventFormNew = () => {
           ...(imageUrl && { imageUrl }),
         };
         await apiService.updateOrganizerEvent(id, requestPayload);
+        // Add any extra new images as gallery (first was used as new cover if present)
+        for (let i = 1; i < imageFiles.length; i++) {
+          const { url } = await apiService.uploadEventImage(imageFiles[i].file);
+          await apiService.addEventImage(id, { imageUrl: url, displayOrder: i });
+        }
         toast.success("Event updated successfully!");
         navigate("/organizer");
       } else {
@@ -257,9 +287,9 @@ const EventFormNew = () => {
 
         formData.append("request", JSON.stringify(requestPayload));
 
-        if (imageFile) {
-          formData.append("imageFile", imageFile);
-        }
+        imageFiles.forEach(({ file }) => {
+          formData.append("imageFiles", file);
+        });
 
         const response = await axios.post(`${baseUrl}/api/v1/events`, formData, {
           headers: {
@@ -323,61 +353,85 @@ const EventFormNew = () => {
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  {/* Image Upload */}
+                  {/* Image Upload - up to 5 images (1 cover + 4 gallery) */}
                   <div className="space-y-2">
-                    <Label>Event Image</Label>
-                    {imagePreview ? (
-                      <div className="space-y-2">
-                        <div className="relative">
+                    <Label>Event Images</Label>
+                    <p className="text-sm text-muted-foreground">Add up to {MAX_EVENT_IMAGES} images. First image is the cover.</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {existingImageUrl && (
+                        <div className="relative aspect-video rounded-lg overflow-hidden border">
                           <img
-                            src={imagePreview}
-                            alt="Preview"
-                            className="w-full h-48 object-cover rounded-lg"
+                            src={getEventImageUrl(existingImageUrl) ?? existingImageUrl}
+                            alt="Cover"
+                            className="w-full h-full object-cover"
                           />
+                          <span className="absolute bottom-1 left-1 text-xs bg-black/70 text-white px-1.5 py-0.5 rounded">Cover</span>
                           <Button
                             type="button"
                             variant="destructive"
                             size="icon"
-                            className="absolute top-2 right-2"
-                            onClick={removeImage}
-                            title="Remove image"
+                            className="absolute top-1 right-1 h-7 w-7"
+                            onClick={removeExistingImage}
+                            title="Remove cover"
                           >
-                            <X className="h-4 w-4" />
+                            <X className="h-3.5 w-3.5" />
                           </Button>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Label htmlFor="image-upload-edit" className="cursor-pointer">
-                            <span className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
-                              <Upload className="h-4 w-4" />
-                              {isEditMode ? "Update image" : "Change image"}
-                            </span>
-                          </Label>
-                          <Input
+                      )}
+                      {existingGalleryUrls.map((url, idx) => (
+                        <div key={`existing-${idx}`} className="relative aspect-video rounded-lg overflow-hidden border">
+                          <img src={url} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 h-7 w-7"
+                            onClick={() => removeExistingGallery(idx)}
+                            title="Remove image"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                      {imageFiles.map((item, index) => (
+                        <div key={item.preview} className="relative aspect-video rounded-lg overflow-hidden border">
+                          <img src={item.preview} alt={`Upload ${index + 1}`} className="w-full h-full object-cover" />
+                          <span className="absolute bottom-1 left-1 text-xs bg-black/70 text-white px-1.5 py-0.5 rounded">
+                            {index === 0 && !existingImageUrl ? "Cover" : `Image ${index + 1}`}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 h-7 w-7"
+                            onClick={() => removeImage(index)}
+                            title="Remove image"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                      {totalImageCount < MAX_EVENT_IMAGES && (
+                        <label
+                          htmlFor="image-upload"
+                          className="aspect-video rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                        >
+                          <input
                             type="file"
                             accept="image/*"
+                            multiple
                             onChange={handleImageChange}
                             className="hidden"
-                            id="image-upload-edit"
+                            id="image-upload"
                           />
-                        </div>
-                      </div>
-                    ) : (
-                      <label
-                        htmlFor="image-upload"
-                        className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer block"
-                      >
-                        <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageChange}
-                          className="hidden"
-                          id="image-upload"
-                        />
-                        <div className="text-sm text-muted-foreground hover:text-foreground">
-                          Click to upload event image (Max 5MB)
-                        </div>
-                      </label>
+                          <span className="text-sm text-muted-foreground text-center px-2">
+                            Add image ({totalImageCount}/{MAX_EVENT_IMAGES})
+                          </span>
+                        </label>
+                      )}
+                    </div>
+                    {!hasAnyImage && (
+                      <p className="text-xs text-muted-foreground">Max {MAX_FILE_SIZE_MB}MB per image.</p>
                     )}
                   </div>
 
