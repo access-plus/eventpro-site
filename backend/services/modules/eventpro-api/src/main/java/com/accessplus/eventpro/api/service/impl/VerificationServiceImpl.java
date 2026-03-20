@@ -94,10 +94,12 @@ public class VerificationServiceImpl implements VerificationService {
         submission.setSubmittedAt(Instant.now());
         kycSubmissionRepository.save(submission);
 
-        user.setVerificationStatus("PENDING");
+        user.setVerificationStatus("IN_PROGRESS");
         userRepository.save(user);
         riskScoringService.computeAndUpdateRiskScore(organizerId);
-        log.info("KYC submitted for organizer: {}", organizerId);
+        log.info("KYC submitted for organizer: {} (IN_PROGRESS until admin review or automated OFAC/ID check)", organizerId);
+        // When OFAC and ID verification (Stripe Identity/Persona) are integrated: run checks async,
+        // then call approveSubmission(submission.getId()) or rejectSubmission(submission.getId(), reason).
     }
 
     @Override

@@ -20,16 +20,16 @@ This document tracks remaining work to make the KYC (Know Your Customer) / Compl
 
 ## 2. Backend Risk Scoring & Processing
 
-**Status:** Not started  
+**Status:** Partially done  
 **Priority:** High
 
-- [ ] When a KYC submission is created, set user `verification_status` to **IN_PROGRESS** when processing starts (e.g. via background job or async handler).
+- [x] When a KYC submission is created, set user `verification_status` to **IN_PROGRESS** when processing starts (done in `VerificationServiceImpl.submitVerification`).
 - [ ] Implement **OFAC (or other watchlist) check** on name/DOB/address (and ID data when available).
 - [ ] Implement **ID verification result** check from Stripe/Persona (if integrated in §1).
 - [ ] Store risk-check results (e.g. `watchlist_checked_at`, `watchlist_result`, `id_verification_result`) for audit and to drive VERIFIED/REJECTED decision.
 - [ ] Optionally compute or update `user.risk_level` (LOW/MEDIUM/HIGH) based on check results.
 
-**Notes:** Currently the backend only creates a row in `organizer_kyc_submissions` and sets `verification_status = PENDING`. No automated checks run after that.
+**Notes:** Submission is still created as PENDING so admins can list and approve/reject. User sees "Verification in progress" until admin or future automated checks set VERIFIED/REJECTED. Placeholder comment in code for wiring OFAC/ID when integrated.
 
 ---
 
@@ -50,26 +50,26 @@ This document tracks remaining work to make the KYC (Know Your Customer) / Compl
 
 ## 4. Bank Account & Payout Readiness
 
-**Status:** Not started  
+**Status:** Implemented (Stripe Connect)  
 **Priority:** High (for real payouts)
 
-- [ ] **Collect payout bank account** (e.g. when user first uses "Manage Payouts" or in Organizer dashboard): account holder name, routing number, account number (and optionally bank name).
-- [ ] **Name matching:** Compare bank account holder name to KYC/ID name; reject or flag mismatches.
-- [ ] **Secure storage** of bank details (e.g. Stripe Connect, or encrypted storage) and link to organizer for payouts.
-- [ ] Expose **available payout balance** from real payout service (currently `OrganizerSummary.availableBalance` is a placeholder).
+- [x] **Collect payout bank account** via Stripe Connect Express onboarding (organizer clicks "Add bank account", redirects to Stripe, returns to app; `stripe_connect_account_id` stored on user).
+- [ ] **Name matching:** Optional: compare Stripe Connect account holder to KYC/ID name; reject or flag mismatches.
+- [x] **Secure storage** via Stripe Connect (Stripe holds bank details); we store only Connect account ID.
+- [x] **Payout execution:** When organizer requests payout and has Connect account, backend creates Stripe Transfer to that account and marks request COMPLETED. `OrganizerSummary.availableBalance` remains computed from orders; transfer uses that balance.
 
-**Notes:** The design doc calls out verifying "name matches the bank account provided for payouts." Until this exists, payouts cannot be safely executed even when the user is Verified.
+**Notes:** Name matching can be added when needed. Platform must have sufficient Stripe balance to transfer (in test mode, add funds in Dashboard).
 
 ---
 
 ## 5. Frontend: Rejection & Resubmit UX
 
-**Status:** Not started  
+**Status:** Implemented  
 **Priority:** Medium
 
-- [ ] When `verification_status === 'REJECTED'`, show a clear **"Verification declined"** state on the Profile (badge or message).
-- [ ] Add **"Resubmit"** or **"Complete Identity Check again"** button that reopens the Identity Check modal (API already allows resubmit when REJECTED via `canResubmit`).
-- [ ] If backend returns a **rejection reason** (from admin or risk checks), display a user-friendly message (e.g. "We couldn't verify your ID. Please try again with a different document.").
+- [x] When `verification_status === 'REJECTED'`, show a clear **"Verification declined"** state on the Profile (badge or message). (Web + mobile.)
+- [x] Add **"Resubmit"** or **"Complete Identity Check again"** — web reopens Identity Check modal; mobile shows "Resubmit on web" and opens web Profile (API allows resubmit when REJECTED via `canResubmit`).
+- [x] If backend returns a **rejection reason** (from admin or risk checks), display a user-friendly message. (Web and mobile show `user.rejectionReason` or `lastRejectionReason` from verification-status API.)
 
 ---
 

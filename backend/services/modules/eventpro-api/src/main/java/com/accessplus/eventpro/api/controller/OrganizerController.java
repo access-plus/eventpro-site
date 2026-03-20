@@ -1,9 +1,11 @@
 package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.*;
+import com.accessplus.eventpro.api.payout.dto.ConnectOnboardingRequest;
 import com.accessplus.eventpro.api.payout.dto.PayoutRequestResponse;
 import com.accessplus.eventpro.api.payout.dto.RequestPayoutRequest;
 import com.accessplus.eventpro.api.payout.service.PayoutRequestService;
+import com.accessplus.eventpro.payment.stripe.service.StripeService;
 import com.accessplus.eventpro.api.service.OrganizerService;
 import com.accessplus.eventpro.api.service.TaxFormPdfService;
 import com.accessplus.eventpro.api.team.service.OrganizerTeamService;
@@ -52,6 +54,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.stripe.exception.StripeException;
+
 import static org.springframework.http.HttpHeaders.CONTENT_DISPOSITION;
 
 
@@ -78,6 +82,7 @@ public class OrganizerController extends BaseController {
     private final TaxFormPdfService taxFormPdfService;
     private final PayoutRequestService payoutRequestService;
     private final EventImageRepository eventImageRepository;
+    private final StripeService stripeService;
 
     /** Merchandise & add-ons require Pro or Enterprise per pricing page. */
     private void requireAddonsEligible() {
@@ -191,6 +196,39 @@ public class OrganizerController extends BaseController {
         UUID organizerId = JwtUtils.getCurrentUserId();
         Page<PayoutRequestResponse> page = payoutRequestService.getPayoutRequests(organizerId, pageable);
         return ResponseEntity.ok(ApiResponse.success(page));
+    }
+
+    @PostMapping("/payouts/connect-onboarding")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Start Connect onboarding", description = "Returns a URL to redirect the user to Stripe Connect onboarding to add their bank account for payouts. Creates a Connect Express account if the user does not have one yet.")
+    public ResponseEntity<ApiResponse<Map<String, String>>> connectOnboarding(@Valid @RequestBody ConnectOnboardingRequest request) {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        UserEntity user = userRepository.findById(organizerId).orElseThrow(() -> new ResourceNotFoundException("User", organizerId.toString()));
+        String accountId = user.getStripeConnectAccountId();
+        try {
+            if (accountId == null || accountId.isBlank()) {
+                String name = ((user.getFirstName() != null ? user.getFirstName() : "") + " " + (user.getLastName() != null ? user.getLastName() : "")).trim();
+                if (name.isEmpty()) name = user.getEmail();
+                accountId = stripeService.createConnectExpressAccount(user.getEmail(), name);
+                user.setStripeConnectAccountId(accountId);
+                userRepository.save(user);
+            }
+            String url = stripeService.createConnectAccountLink(accountId, request.getReturnUrl(), request.getRefreshUrl());
+            return ResponseEntity.ok(ApiResponse.success(Map.of("url", url)));
+        } catch (StripeException e) {
+            log.warn("Stripe Connect onboarding failed: {}", e.getMessage());
+            throw new ValidationException("Could not start payout setup. Please try again or contact support.");
+        }
+    }
+
+    @GetMapping("/payouts/connect-status")
+    @PreAuthorize("hasAnyRole('ORGANIZER', 'ADMIN')")
+    @Operation(summary = "Connect account status", description = "Returns whether the organizer has connected a payout (bank) account.")
+    public ResponseEntity<ApiResponse<Map<String, Boolean>>> getConnectStatus() {
+        UUID organizerId = JwtUtils.getCurrentUserId();
+        UserEntity user = userRepository.findById(organizerId).orElseThrow(() -> new ResourceNotFoundException("User", organizerId.toString()));
+        boolean connected = user.getStripeConnectAccountId() != null && !user.getStripeConnectAccountId().isBlank();
+        return ResponseEntity.ok(ApiResponse.success(Map.of("connected", connected)));
     }
 
     @GetMapping("/verification-status")

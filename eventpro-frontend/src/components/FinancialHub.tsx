@@ -68,7 +68,9 @@ export function FinancialHub() {
   const w9Submitted = Boolean(summary?.w9Submitted);
   const isVerified = Boolean(user?.isVerified) || user?.verificationStatus === "VERIFIED";
   const payoutsPausedByTax = totalRevenue >= 600 && !w9Submitted;
-  const canPayout = isVerified && availableBalance > 0 && !payoutsPausedByTax;
+  const bankConnected = Boolean(user?.stripeConnectAccountId);
+  const canPayout = isVerified && availableBalance > 0 && !payoutsPausedByTax && bankConnected;
+  const [connectingBank, setConnectingBank] = useState(false);
 
   const tileBase =
     "rounded-xl border border-white/10 dark:border-white/10 bg-[rgba(255,255,255,0.05)] dark:bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px] p-5 transition-all duration-300";
@@ -164,6 +166,35 @@ export function FinancialHub() {
             </p>
           </div>
         </div>
+        {!bankConnected && (
+          <Button
+            variant="outline"
+            className="border-primary/50 text-primary hover:bg-primary/10"
+            disabled={connectingBank}
+            onClick={async () => {
+              setConnectingBank(true);
+              try {
+                const base = window.location.origin;
+                const { url } = await apiService.connectOnboarding(
+                  `${base}/organizer`,
+                  `${base}/organizer`
+                );
+                if (url) window.location.href = url;
+                else toast.error("Could not start bank setup.");
+              } catch (e: unknown) {
+                const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Request failed";
+                toast.error(msg);
+              } finally {
+                setConnectingBank(false);
+              }
+            }}
+          >
+            {connectingBank ? "Redirecting…" : "Add bank account"}
+          </Button>
+        )}
+        {bankConnected && (
+          <p className="text-sm text-muted-foreground">Bank account connected</p>
+        )}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -178,7 +209,7 @@ export function FinancialHub() {
                     setRequestingPayout(true);
                     try {
                       await apiService.requestPayout(availableBalance);
-                      toast.success("Payout requested. You will be notified when it is processed.");
+                      toast.success("Payout requested. Funds will be sent to your bank account.");
                       window.dispatchEvent(new Event("organizer-summary-invalidate"));
                       fetchFinancials();
                     } catch (e: unknown) {
@@ -190,7 +221,7 @@ export function FinancialHub() {
                   }}
                 >
                   <Zap className="h-4 w-4 mr-2" />
-                  {requestingPayout ? "Requesting…" : payoutsPausedByTax ? "Payouts Paused: Tax Info Required" : "Instant Payout"}
+                  {requestingPayout ? "Requesting…" : payoutsPausedByTax ? "Payouts Paused: Tax Info Required" : !bankConnected ? "Add bank account first" : "Instant Payout"}
                 </Button>
               </span>
             </TooltipTrigger>
@@ -199,9 +230,11 @@ export function FinancialHub() {
                 ? "Submit your W-9 in the 1099-K Tax Center to resume payouts (required at $600+ gross payments)."
                 : !isVerified
                   ? "Complete Identity Check in Profile to unlock instant payouts."
-                  : availableBalance <= 0
-                    ? "No funds available for payout yet."
-                    : "You can request an instant payout."}
+                  : !bankConnected
+                    ? "Add your bank account to receive payouts."
+                    : availableBalance <= 0
+                      ? "No funds available for payout yet."
+                      : "You can request an instant payout."}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

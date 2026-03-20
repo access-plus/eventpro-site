@@ -37,6 +37,8 @@ export interface User {
   riskLevel?: RiskLevel;
   /** Organizer cultural niche / focus; feeds search taxonomy. */
   culturalNiche?: string;
+  /** Set when payout (bank) account is connected via Stripe Connect. */
+  stripeConnectAccountId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

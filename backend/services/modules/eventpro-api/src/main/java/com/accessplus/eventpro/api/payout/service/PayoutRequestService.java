@@ -8,7 +8,9 @@ import com.accessplus.eventpro.api.payout.entity.PayoutRequestEntity;
 import com.accessplus.eventpro.api.payout.repository.PayoutRequestRepository;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.UserRepository;
+import com.accessplus.eventpro.payment.stripe.service.StripeService;
 import com.accessplus.eventpro.shared.exception.ValidationException;
+import com.stripe.exception.StripeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 @Slf4j
@@ -28,6 +31,7 @@ public class PayoutRequestService {
     private final PayoutRequestRepository payoutRequestRepository;
     private final OrganizerService organizerService;
     private final UserRepository userRepository;
+    private final StripeService stripeService;
 
     /**
      * Request a payout. Validates available balance and eligibility (verified, W-9 if required).
@@ -61,7 +65,22 @@ public class PayoutRequestService {
         entity.setStatus("PENDING");
         entity.setRequestedAt(java.time.Instant.now());
         entity = payoutRequestRepository.save(entity);
-        log.info("Payout requested: userId={}, amount={}, requestId={}", userId, amount, entity.getId());
+
+        String connectAccountId = user.getStripeConnectAccountId();
+        if (connectAccountId != null && !connectAccountId.isBlank()) {
+            try {
+                stripeService.createTransferToConnectAccount(amount, connectAccountId, "usd");
+                entity.setStatus("COMPLETED");
+                entity.setCompletedAt(Instant.now());
+                entity = payoutRequestRepository.save(entity);
+                log.info("Payout completed via Stripe Connect: userId={}, amount={}, requestId={}", userId, amount, entity.getId());
+            } catch (StripeException e) {
+                log.warn("Stripe Transfer failed for payout request {}: {}", entity.getId(), e.getMessage());
+                // Leave as PENDING; support can retry or process manually
+            }
+        } else {
+            log.info("Payout requested (no Connect account): userId={}, amount={}, requestId={}. Add bank account to enable instant payouts.", userId, amount, entity.getId());
+        }
 
         return toResponse(entity);
     }

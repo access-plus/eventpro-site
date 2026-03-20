@@ -571,6 +571,21 @@ class ApiService {
     return response.data.data;
   }
 
+  /** Whether the organizer has connected a payout (bank) account via Stripe Connect. */
+  async getConnectStatus(): Promise<{ connected: boolean }> {
+    const response = await this.api.get<ApiResponse<{ connected: boolean }>>("/api/v1/organizer/payouts/connect-status");
+    return response.data.data ?? { connected: false };
+  }
+
+  /** Start Stripe Connect onboarding; returns URL to redirect the user to add their bank account. */
+  async connectOnboarding(returnUrl: string, refreshUrl: string): Promise<{ url: string }> {
+    const response = await this.api.post<ApiResponse<{ url: string }>>("/api/v1/organizer/payouts/connect-onboarding", {
+      returnUrl,
+      refreshUrl,
+    });
+    return response.data.data ?? { url: "" };
+  }
+
   async getOrganizerTaxForms(): Promise<TaxFormEntry[]> {
     const response = await this.api.get<ApiResponse<TaxFormEntry[]>>("/api/v1/organizer/tax-forms");
     return response.data.data ?? [];
