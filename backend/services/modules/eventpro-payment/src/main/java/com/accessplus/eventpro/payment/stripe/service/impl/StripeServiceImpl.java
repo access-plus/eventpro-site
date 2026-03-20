@@ -4,15 +4,21 @@ import com.accessplus.eventpro.payment.stripe.model.StripeBillingAddress;
 import com.accessplus.eventpro.payment.stripe.service.StripeService;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
+import com.stripe.model.Account;
+import com.stripe.model.AccountLink;
 import com.stripe.model.Customer;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.PaymentMethod;
 import com.stripe.model.Refund;
+import com.stripe.model.Transfer;
+import com.stripe.param.AccountCreateParams;
+import com.stripe.param.AccountLinkCreateParams;
 import com.stripe.param.CustomerCreateParams;
 import com.stripe.param.PaymentIntentCreateParams;
 import com.stripe.param.PaymentIntentConfirmParams;
 import com.stripe.param.PaymentIntentRetrieveParams;
 import com.stripe.param.RefundCreateParams;
+import com.stripe.param.TransferCreateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -193,6 +199,56 @@ public class StripeServiceImpl implements StripeService {
         String url = session.getUrl();
         log.info("Created subscription checkout session: id={}, url={}", session.getId(), url != null ? "present" : "null");
         return url;
+    }
+
+    @Override
+    public String createConnectExpressAccount(String email, String name) throws StripeException {
+        ensureStripeConfigured();
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Email is required for Connect account");
+        }
+        AccountCreateParams params = AccountCreateParams.builder()
+                .setType(AccountCreateParams.Type.EXPRESS)
+                .setEmail(email.trim().toLowerCase())
+                .build();
+        Account account = Account.create(params);
+        log.info("Created Stripe Connect Express account: id={}, email={}", account.getId(), email);
+        return account.getId();
+    }
+
+    @Override
+    public String createConnectAccountLink(String accountId, String returnUrl, String refreshUrl) throws StripeException {
+        ensureStripeConfigured();
+        if (accountId == null || accountId.isBlank() || returnUrl == null || refreshUrl == null) {
+            throw new IllegalArgumentException("accountId, returnUrl, and refreshUrl are required");
+        }
+        AccountLinkCreateParams params = AccountLinkCreateParams.builder()
+                .setAccount(accountId)
+                .setRefreshUrl(refreshUrl)
+                .setReturnUrl(returnUrl)
+                .setType(AccountLinkCreateParams.Type.ACCOUNT_ONBOARDING)
+                .build();
+        AccountLink link = AccountLink.create(params);
+        String url = link.getUrl();
+        log.info("Created Connect AccountLink for account: {}", accountId);
+        return url;
+    }
+
+    @Override
+    public String createTransferToConnectAccount(BigDecimal amountDollars, String destinationAccountId, String currency) throws StripeException {
+        ensureStripeConfigured();
+        if (amountDollars == null || amountDollars.compareTo(BigDecimal.ZERO) <= 0 || destinationAccountId == null || destinationAccountId.isBlank()) {
+            throw new IllegalArgumentException("amount (positive), destinationAccountId required");
+        }
+        long amountCents = amountDollars.multiply(BigDecimal.valueOf(100)).longValue();
+        TransferCreateParams params = TransferCreateParams.builder()
+                .setAmount(amountCents)
+                .setCurrency(currency != null && !currency.isBlank() ? currency.toLowerCase() : "usd")
+                .setDestination(destinationAccountId)
+                .build();
+        Transfer transfer = Transfer.create(params);
+        log.info("Created Transfer to Connect account: transferId={}, destination={}, amount={}", transfer.getId(), destinationAccountId, amountDollars);
+        return transfer.getId();
     }
 }
 

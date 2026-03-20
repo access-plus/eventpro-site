@@ -163,10 +163,13 @@ Use this doc as the single source of truth; keep the **Status** column and check
 
 **Payouts & identity**
 
-- **Bank account & real payouts:** Collect payout bank account (e.g. via Stripe Connect), store securely, and execute real payouts. Currently “Request Payout” is a placeholder; `availableBalance` / `pendingBalance` are computed from orders but no money is sent.
-- **ID verification:** Integrate Stripe Identity or Persona for ID document capture; pass session/verification ID in KYC submission; backend to verify session and drive VERIFIED/REJECTED.
-- **Risk/OFAC:** When KYC is submitted, run OFAC (or similar) check and ID verification result; set verification_status IN_PROGRESS → VERIFIED/REJECTED; optionally notify user on approval/rejection.
-- **Rejection UX:** When verification_status is REJECTED, show “Verification declined” and “Resubmit” on Profile; display rejection reason when provided.
+- [x] **Bank account & real payouts:** Stripe Connect Express onboarding; Connect account ID on user; real payouts via Stripe Transfer when bank connected. (Previously: collect payout bank account (e.g. via Stripe Connect), store securely, and execute real payouts. Currently “Request Payout” is a placeholder; `availableBalance` / `pendingBalance` are computed from orders but no money is sent.
+- **ID verification:** Integrate Stripe Identity or Persona for ID document capture; pass session/verification ID in KYC submission (backend already accepts `idSessionId` / `idProvider`); backend to verify session and drive VERIFIED/REJECTED.
+- **Risk/OFAC:** When KYC is submitted, user is set to **IN_PROGRESS** (done). Still to do: run OFAC (or similar) check and ID verification result; automated path from IN_PROGRESS → VERIFIED/REJECTED; optionally notify user. Admin approve/reject continues to work.
+- [x] **Rejection UX:** When verification_status is REJECTED, show “Verification declined” and “Resubmit” on Profile (web + mobile); display rejection reason when provided. Web: Identity Check modal for resubmit; mobile: Resubmit on web with reason.
+
+**On hold (implementation in place, not enabled until config ready)**  
+Bank account & Connect payouts, ID verification (Stripe Identity/Persona), and OFAC/risk checks are implemented in code but on hold. Enable when Stripe secret key and Connect are configured; ID verification and real OFAC can be wired when those products are ready.
 
 **Tax & compliance**
 
@@ -175,7 +178,7 @@ Use this doc as the single source of truth; keep the **Status** column and check
 
 **Product / pricing**
 
-- **Tiered payouts execution:** Wire 50% early (Pro) and 100% instant (Enterprise) to real payout flow once bank and risk are in place.
+- [x] **Tiered payouts execution:** Payout request creates real Stripe Transfer to Connect account when bank is connected; eligibility (50% early / 100% instant) remains gated by tier and risk; actual transfer amount uses requested amount up to available balance.
 - **Dynamic pricing, multi-currency, SLA, on-premise:** Per pricing page, these are Enterprise; not yet implemented.
 
 **Event page & organizer**

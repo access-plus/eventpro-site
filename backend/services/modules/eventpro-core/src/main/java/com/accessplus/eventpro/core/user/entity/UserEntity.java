@@ -55,6 +55,10 @@ public class UserEntity extends BaseEntity {
     @Column(name = "stripe_customer_id", length = 255)
     private String stripeCustomerId;
 
+    /** Stripe Connect Express account ID for payouts; set after completing Connect onboarding. */
+    @Column(name = "stripe_connect_account_id", length = 255)
+    private String stripeConnectAccountId;
+
     /** True when tax/ID provided and risk check passed; gates early/instant payouts. */
     @Column(name = "is_verified", nullable = false)
     private Boolean isVerified = false;

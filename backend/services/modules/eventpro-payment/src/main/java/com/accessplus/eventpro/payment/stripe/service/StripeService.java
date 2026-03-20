@@ -69,5 +69,36 @@ public interface StripeService {
      * @return Checkout Session URL to redirect the user to
      */
     String createSubscriptionCheckoutSession(String customerId, String priceId, String successUrl, String cancelUrl, String clientReferenceId) throws StripeException;
+
+    // --- Stripe Connect (payouts) ---
+
+    /**
+     * Creates a Stripe Connect Express account for payouts. Caller should persist the returned account ID on the user.
+     *
+     * @param email organizer email
+     * @param name  optional display name
+     * @return Stripe Connect account ID (acct_...)
+     */
+    String createConnectExpressAccount(String email, String name) throws StripeException;
+
+    /**
+     * Creates a one-time AccountLink for Connect onboarding or updating. User is redirected to this URL.
+     *
+     * @param accountId  Stripe Connect account ID
+     * @param returnUrl  URL to redirect after completing onboarding
+     * @param refreshUrl URL to redirect if link expires
+     * @return URL to redirect the user to
+     */
+    String createConnectAccountLink(String accountId, String returnUrl, String refreshUrl) throws StripeException;
+
+    /**
+     * Transfers funds from the platform to a Connect Express account (payout). Platform must have sufficient balance.
+     *
+     * @param amountDollars        amount in dollars (converted to cents)
+     * @param destinationAccountId Stripe Connect account ID (acct_...)
+     * @param currency             e.g. "usd"
+     * @return Stripe Transfer ID
+     */
+    String createTransferToConnectAccount(BigDecimal amountDollars, String destinationAccountId, String currency) throws StripeException;
 }
 

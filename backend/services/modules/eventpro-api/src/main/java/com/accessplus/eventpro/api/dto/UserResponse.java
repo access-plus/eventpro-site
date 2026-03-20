@@ -44,6 +44,8 @@ public class UserResponse {
     private String brandingPrimaryColor;
     /** White-label: hide platform branding on event pages (Pro/Enterprise). */
     private Boolean brandingHidePlatform;
+    /** Stripe Connect account ID when bank/payout account is connected. */
+    private String stripeConnectAccountId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
@@ -89,6 +91,7 @@ public class UserResponse {
                 .brandingLogoUrl(entity.getBrandingLogoUrl())
                 .brandingPrimaryColor(entity.getBrandingPrimaryColor())
                 .brandingHidePlatform(entity.getBrandingHidePlatform() != null ? entity.getBrandingHidePlatform() : false)
+                .stripeConnectAccountId(entity.getStripeConnectAccountId())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .accountNonExpired(true)
