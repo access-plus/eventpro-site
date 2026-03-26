@@ -30,6 +30,9 @@ import type {
   SeatResponse,
   CreateSeatMapRequest,
   AdminStats,
+  AuditActivity,
+  AuditActivityPage,
+  SystemStatus,
   EventSales,
   RevenueData,
   PendingVerification,
@@ -463,7 +466,39 @@ class ApiService {
       eventGrowth: num(d?.eventGrowth),
       ticketGrowth: num(d?.ticketGrowth),
       revenueGrowth: num(d?.revenueGrowth),
+      usersAttendeeCount: Number(d?.usersAttendeeCount ?? 0),
+      usersOrganizerCount: Number(d?.usersOrganizerCount ?? 0),
+      usersAdminCount: Number(d?.usersAdminCount ?? 0),
     };
+  }
+
+  async getAuditActivityPage(params: {
+    page?: number;
+    size?: number;
+    category?: string;
+    search?: string;
+  }): Promise<AuditActivityPage> {
+    const response = await this.api.get<ApiResponse<AuditActivityPage>>("/api/v1/admin/audit-activity", {
+      params: {
+        page: params.page ?? 1,
+        size: params.size ?? 20,
+        category: params.category,
+        search: params.search,
+      },
+    });
+    const d = response.data.data;
+    return {
+      content: Array.isArray(d?.content) ? d!.content : [],
+      totalElements: Number(d?.totalElements ?? 0),
+      totalPages: Math.max(1, Number(d?.totalPages ?? 1)),
+      page: Number(d?.page ?? 1),
+      size: Number(d?.size ?? 20),
+    };
+  }
+
+  async getSystemStatus(): Promise<SystemStatus> {
+    const response = await this.api.get<ApiResponse<SystemStatus>>("/api/v1/admin/system-status");
+    return response.data.data!;
   }
 
   async getVerificationPending(limit = 50): Promise<PendingVerification[]> {

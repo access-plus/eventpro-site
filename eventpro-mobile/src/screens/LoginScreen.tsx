@@ -11,66 +11,82 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import type { Theme } from "../theme";
 
+const MAROON = "#8B2942";
+
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background },
+    container: { flex: 1, backgroundColor: "#F9F8FF" },
     scrollContent: { flexGrow: 1, justifyContent: "center", padding: theme.spacing.lg, paddingVertical: 40 },
-    card: {
-      backgroundColor: theme.colors.card,
-      borderRadius: theme.radius.lg,
-      padding: theme.spacing.lg,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    iconBox: {
-      width: 48,
-      height: 48,
-      borderRadius: theme.radius.md,
+    brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 28 },
+    logoBox: {
+      width: 52,
+      height: 52,
+      borderRadius: 14,
       backgroundColor: theme.colors.primary,
-      alignSelf: "center",
       alignItems: "center",
       justifyContent: "center",
-      marginBottom: theme.spacing.md,
     },
-    iconText: { color: theme.colors.primaryForeground, fontSize: 18, fontWeight: "700" },
-    title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 4, color: theme.colors.foreground },
-    subtitle: { fontSize: 14, color: theme.colors.mutedForeground, textAlign: "center", marginBottom: 24 },
-    label: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: theme.colors.foreground },
+    brandName: { fontSize: 22, fontWeight: "800", color: theme.colors.primary, fontFamily: theme.fontFamily.heading },
+    title: {
+      fontSize: 28,
+      fontWeight: "800",
+      letterSpacing: -0.3,
+      textAlign: "center",
+      marginBottom: 8,
+      color: "#1a1a2e",
+      fontFamily: theme.fontFamily.heading,
+    },
+    subtitle: { fontSize: 15, color: "#5c5c6f", textAlign: "center", marginBottom: 28 },
     input: {
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: theme.radius.md,
-      padding: 14,
+      borderWidth: 0,
+      borderRadius: 14,
+      padding: 16,
       fontSize: 16,
-      marginBottom: 16,
-      backgroundColor: theme.colors.card,
+      marginBottom: 14,
+      backgroundColor: "rgba(99,102,241,0.08)",
       color: theme.colors.foreground,
     },
     passwordRow: { position: "relative" as const, marginBottom: 8 },
-    passwordInput: { marginBottom: 0, paddingRight: 56 },
+    passwordInput: { marginBottom: 0, paddingRight: 48 },
     eyeButton: { position: "absolute" as const, right: 12, top: 0, bottom: 0, justifyContent: "center" },
-    eyeText: { fontSize: 14, color: theme.colors.mutedForeground },
     forgotLink: { alignSelf: "flex-end", marginBottom: 16 },
-    forgotText: { fontSize: 14, color: theme.colors.primary },
-    verifyLink: { alignSelf: "center", marginTop: 12 },
+    forgotText: { fontSize: 14, color: MAROON, fontWeight: "600" },
     button: {
       backgroundColor: theme.colors.primary,
-      borderRadius: theme.radius.md,
-      padding: 16,
+      borderRadius: theme.radius.full,
+      paddingVertical: 16,
       alignItems: "center",
+      marginBottom: 8,
     },
     buttonDisabled: { opacity: 0.7 },
-    buttonText: { color: theme.colors.primaryForeground, fontSize: 16, fontWeight: "600" },
-    footer: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 20 },
-    footerText: { fontSize: 14, color: theme.colors.mutedForeground },
-    footerLink: { fontSize: 14, color: theme.colors.primary, fontWeight: "600" },
+    buttonText: { color: theme.colors.primaryForeground, fontSize: 16, fontWeight: "800" },
+    orRow: { flexDirection: "row", alignItems: "center", marginVertical: 24, gap: 12 },
+    orLine: { flex: 1, height: 1, backgroundColor: "rgba(0,0,0,0.08)" },
+    orText: { fontSize: 11, fontWeight: "700", color: "#8b8b9a", letterSpacing: 1.2 },
+    socialRow: { flexDirection: "row", gap: 12 },
+    socialBtn: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingVertical: 14,
+      borderRadius: 14,
+      backgroundColor: "#fff",
+      borderWidth: 1,
+      borderColor: "rgba(0,0,0,0.08)",
+    },
+    socialText: { fontSize: 15, fontWeight: "600", color: theme.colors.foreground },
+    footer: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 28, flexWrap: "wrap" },
+    footerText: { fontSize: 14, color: "#5c5c6f" },
+    footerLink: { fontSize: 14, color: theme.colors.primary, fontWeight: "800" },
+    verifyLink: { alignSelf: "center", marginTop: 16 },
+    verifyText: { fontSize: 14, color: theme.colors.primary, fontWeight: "600" },
   });
 }
 
@@ -91,7 +107,8 @@ export function LoginScreen({ navigation }: { navigation: { navigate: (name: str
     setLoading(true);
     try {
       await login({ email: email.trim(), password });
-      (navigation as any).getParent()?.navigate("Main");
+      const parent = (navigation as { getParent?: () => { navigate: (n: string) => void } }).getParent;
+      parent?.().navigate("Main");
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string; response?: { data?: { message?: string } }; isAxiosError?: boolean };
       const isNetworkError =
@@ -109,76 +126,86 @@ export function LoginScreen({ navigation }: { navigation: { navigate: (name: str
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
-          <View style={styles.iconBox}>
-            <Text style={styles.iconText}>EP</Text>
+        <View style={styles.brandRow}>
+          <View style={styles.logoBox}>
+            <Ionicons name="flash" size={28} color="#fff" />
           </View>
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to your EventPro account</Text>
+          <Text style={styles.brandName}>Electric Pulse</Text>
+        </View>
 
-          <Text style={styles.label}>Email</Text>
+        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.subtitle}>Access your curated event dashboard</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Email Address"
+          placeholderTextColor="#8b8b9a"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          editable={!loading}
+        />
+
+        <View style={styles.passwordRow}>
           <TextInput
-            style={styles.input}
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
+            style={[styles.input, styles.passwordInput]}
+            placeholder="Password"
+            placeholderTextColor="#8b8b9a"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
             editable={!loading}
           />
-
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.passwordRow}>
-            <TextInput
-              style={[styles.input, styles.passwordInput]}
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              editable={!loading}
-            />
-            <TouchableOpacity
-              style={styles.eyeButton}
-              onPress={() => setShowPassword(!showPassword)}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Text style={styles.eyeText}>{showPassword ? "Hide" : "Show"}</Text>
-            </TouchableOpacity>
-          </View>
-
           <TouchableOpacity
-            style={styles.forgotLink}
-            onPress={() => navigation.navigate("ForgotPassword")}
+            style={styles.eyeButton}
+            onPress={() => setShowPassword(!showPassword)}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Text style={styles.forgotText}>Forgot password?</Text>
+            <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={22} color="#8b8b9a" />
           </TouchableOpacity>
+        </View>
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={theme.colors.primaryForeground} />
-            ) : (
-              <Text style={styles.buttonText}>Sign in</Text>
-            )}
-          </TouchableOpacity>
+        <TouchableOpacity style={styles.forgotLink} onPress={() => navigation.navigate("ForgotPassword")}>
+          <Text style={styles.forgotText}>Forgot Password?</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity style={styles.verifyLink} onPress={() => navigation.navigate("Verify")}>
-            <Text style={styles.forgotText}>Verify your email</Text>
+        <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleSubmit} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator color={theme.colors.primaryForeground} />
+          ) : (
+            <Text style={styles.buttonText}>Sign In</Text>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.orRow}>
+          <View style={styles.orLine} />
+          <Text style={styles.orText}>OR CONTINUE WITH</Text>
+          <View style={styles.orLine} />
+        </View>
+
+        <View style={styles.socialRow}>
+          <TouchableOpacity style={styles.socialBtn} onPress={() => Alert.alert("Google", "Social sign-in is not wired yet.")}>
+            <Text style={[styles.socialText, { fontSize: 18, fontWeight: "600" }]}>G</Text>
+            <Text style={styles.socialText}>Google</Text>
           </TouchableOpacity>
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
-              <Text style={styles.footerLink}>Sign up</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.socialBtn} onPress={() => Alert.alert("Apple", "Social sign-in is not wired yet.")}>
+            <Ionicons name="logo-apple" size={22} color={theme.colors.foreground} />
+            <Text style={styles.socialText}>Apple</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.verifyLink} onPress={() => navigation.navigate("Verify")}>
+          <Text style={styles.verifyText}>Verify your email</Text>
+        </TouchableOpacity>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Don't have an account? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate("SignUp")}>
+            <Text style={styles.footerLink}>Create Account</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -80,31 +81,30 @@ public class CartServiceImpl implements CartService {
 
         CartEntity cartItem;
         if (existingCartItem != null) {
-            // Update quantity if item already exists
             int newQuantity = existingCartItem.getQuantity() + quantity;
             existingCartItem.setQuantity(newQuantity);
             cartItem = cartRepository.save(existingCartItem);
             log.info("Updated cart item quantity: cartId={}, newQuantity={}", cartItem.getId(), newQuantity);
         } else {
-            // Create new cart item
             cartItem = new CartEntity();
             cartItem.setUser(user);
             cartItem.setTicket(ticket);
             cartItem.setQuantity(quantity);
             cartItem = cartRepository.save(cartItem);
-            log.info("Created new cart item: cartId={}, ticketId={}, quantity={}", 
+            log.info("Created new cart item: cartId={}, ticketId={}, quantity={}",
                     cartItem.getId(), ticketId, quantity);
         }
 
-        // Mark ticket as RESERVED (if not already reserved)
-        if (ticket.getTicketStatus() == TicketStatus.AVAILABLE) {
-            try {
+        try {
+            if (ticket.getTicketStatus() == TicketStatus.AVAILABLE) {
                 ticketService.markTicketAsReserved(ticketId);
                 log.debug("Marked ticket as reserved: ticketId={}", ticketId);
-            } catch (Exception e) {
-                log.error("Failed to mark ticket as reserved: ticketId={}, error={}", ticketId, e.getMessage(), e);
-                // Continue - ticket status update failure shouldn't prevent cart addition
             }
+        } catch (Exception e) {
+            log.error("Failed to mark ticket as reserved, rolling back cart row: ticketId={}, error={}",
+                    ticketId, e.getMessage(), e);
+            cartRepository.delete(cartItem);
+            throw new ValidationException("Could not reserve ticket for cart. Please try again.");
         }
 
         return cartItem;
@@ -266,6 +266,31 @@ public class CartServiceImpl implements CartService {
 
         log.debug("Cart item count for user: userId={}, count={}", userId, totalQuantity);
         return totalQuantity;
+    }
+
+    @Override
+    @Transactional
+    public void removeCartItemsForTicketIds(List<UUID> ticketIds) {
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            return;
+        }
+        int deleted = cartRepository.deleteByTicketIdIn(ticketIds);
+        if (deleted > 0) {
+            log.info("Removed {} cart row(s) whose ticket reservations expired ({} ticket id(s))", deleted, ticketIds.size());
+        }
+    }
+
+    /** Lines older than this with AVAILABLE tickets are treated as orphans (failed reserve or stale UI). */
+    private static final int ORPHAN_CART_MIN_AGE_MINUTES = 5;
+
+    @Override
+    public int removeCartLinesForOrphanAvailableTickets() {
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(ORPHAN_CART_MIN_AGE_MINUTES);
+        int deleted = cartRepository.deleteByTicketStatusAndCreatedAtBefore(TicketStatus.AVAILABLE, cutoff);
+        if (deleted > 0) {
+            log.info("Removed {} stale cart row(s) pointing at AVAILABLE tickets (orphans)", deleted);
+        }
+        return deleted;
     }
 }
 

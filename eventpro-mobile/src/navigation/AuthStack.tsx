@@ -23,12 +23,8 @@ export function AuthStack() {
       }}
     >
       <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: true, title: "Sign up" }} />
-      <Stack.Screen
-        name="ForgotPassword"
-        component={ForgotPasswordScreen}
-        options={{ headerShown: true, title: "Forgot password" }}
-      />
+      <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Verify" component={VerifyScreen} options={{ headerShown: true, title: "Verify email" }} />
       <Stack.Screen
         name="ResetPassword"

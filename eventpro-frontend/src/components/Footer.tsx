@@ -20,30 +20,22 @@ export const Footer = () => {
     }, 800);
   };
 
+  /** Only routes registered in `App.tsx` — avoids 404s from marketing placeholders. */
   const footerLinks = {
     company: [
-      { label: "About Us", href: "/about" },
-      { label: "Careers", href: "/careers" },
-      { label: "Press", href: "/press" },
-      { label: "Blog", href: "/blog" },
+      { label: "Home", href: "/" },
+      { label: "Browse events", href: "/events" },
+      { label: "Partners", href: "/partners" },
     ],
     support: [
       { label: "Help Center", href: "/help" },
-      { label: "Contact Us", href: "/contact" },
-      { label: "FAQs", href: "/faq" },
-      { label: "Accessibility", href: "/accessibility" },
+      { label: "Contact", href: "/contact" },
     ],
-    legal: [
-      { label: "Terms of Service", href: "/terms" },
-      { label: "Privacy Policy", href: "/privacy" },
-      { label: "Cookie Policy", href: "/cookies" },
-      { label: "Refund Policy", href: "/refunds" },
-    ],
+    legal: [{ label: "Privacy Policy", href: "/privacy" }],
     organizers: [
-      { label: "Create Events", href: "/organizer" },
+      { label: "Organizer dashboard", href: "/organizer" },
       { label: "Pricing", href: "/pricing" },
-      { label: "Resources", href: "/resources" },
-      { label: "Partner Program", href: "/partners" },
+      { label: "Partner program", href: "/partners" },
     ],
   };
 
@@ -161,7 +153,7 @@ export const Footer = () => {
               <div className="h-10 w-10 rounded-lg bg-gradient-primary flex items-center justify-center">
                 <Ticket className="h-6 w-6 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              <span className="text-2xl font-bold font-headline bg-gradient-primary bg-clip-text text-transparent">
                 EventPro
               </span>
             </Link>

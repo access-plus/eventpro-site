@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Ticket } from "lucide-react";
 import { motion } from "framer-motion";
+import { AuthPageLayout } from "@/components/AuthPageLayout";
 
 const forgotPasswordSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -33,7 +34,7 @@ const ForgotPassword = () => {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
     try {
-      // API call would go here
+      // No backend route in api.ts yet — same behavior as before (mock delay). Wire apiService when POST /auth/forgot-password exists.
       await new Promise((resolve) => setTimeout(resolve, 1000));
       setSubmitted(true);
       toast({
@@ -52,18 +53,14 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
-      >
-        <Card className="border-border/50">
+    <AuthPageLayout>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <Card className="rounded-2xl border border-border/60 bg-card/95 backdrop-blur-sm shadow-[0_20px_40px_rgba(54,39,78,0.08)]">
           <CardHeader className="text-center">
-            <div className="mx-auto h-12 w-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4">
+            <div className="mx-auto h-12 w-12 rounded-xl bg-gradient-primary flex items-center justify-center mb-4 shadow-[0_12px_28px_rgba(93,63,211,0.25)]">
               <Ticket className="h-7 w-7 text-primary-foreground" />
             </div>
-            <CardTitle className="text-2xl">Forgot password?</CardTitle>
+            <CardTitle className="text-2xl font-extrabold font-headline tracking-tight">Forgot password?</CardTitle>
             <CardDescription>
               {submitted
                 ? "We've sent you a password reset link"
@@ -99,7 +96,7 @@ const ForgotPassword = () => {
 
                 <Button
                   type="submit"
-                  className="w-full bg-gradient-primary"
+                  className="w-full rounded-full bg-gradient-primary shadow-[0_16px_32px_rgba(93,63,211,0.28)] h-12 text-base font-semibold"
                   disabled={isLoading}
                 >
                   {isLoading ? "Sending..." : "Send reset link"}
@@ -116,7 +113,7 @@ const ForgotPassword = () => {
           </CardContent>
         </Card>
       </motion.div>
-    </div>
+    </AuthPageLayout>
   );
 };
 

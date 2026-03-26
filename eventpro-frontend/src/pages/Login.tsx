@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { Ticket, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
+import { AuthPageLayout } from "@/components/AuthPageLayout";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -20,7 +21,10 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+  const from =
+    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/";
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -36,7 +40,7 @@ const Login = () => {
     setIsLoading(true);
     try {
       await login({ email: data.email, password: data.password });
-      navigate("/");
+      navigate(from, { replace: true });
     } catch (error) {
       // Error is handled in AuthContext
     } finally {
@@ -45,19 +49,15 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
-      >
-        <Card className="border-border/50">
+    <AuthPageLayout>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <Card className="rounded-2xl border border-border/60 bg-card/95 backdrop-blur-sm shadow-[0_20px_40px_rgba(54,39,78,0.08)]">
           <CardHeader className="text-center">
-            <div className="mx-auto h-12 w-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4">
+            <div className="mx-auto h-12 w-12 rounded-xl bg-gradient-primary flex items-center justify-center mb-4 shadow-[0_12px_28px_rgba(93,63,211,0.25)]">
               <Ticket className="h-7 w-7 text-primary-foreground" />
             </div>
-            <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-2xl font-extrabold font-headline tracking-tight">Welcome back</CardTitle>
+            <CardDescription className="text-base">
               Sign in to your EventPro account
             </CardDescription>
           </CardHeader>
@@ -109,7 +109,7 @@ const Login = () => {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-primary"
+                className="w-full rounded-full bg-gradient-primary shadow-[0_16px_32px_rgba(93,63,211,0.28)] h-12 text-base font-semibold"
                 disabled={isLoading}
               >
                 {isLoading ? "Signing in..." : "Sign in"}
@@ -125,7 +125,7 @@ const Login = () => {
           </CardContent>
         </Card>
       </motion.div>
-    </div>
+    </AuthPageLayout>
   );
 };
 

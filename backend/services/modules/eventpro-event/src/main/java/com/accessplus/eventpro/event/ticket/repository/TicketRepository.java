@@ -41,8 +41,11 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID>, Tic
 
     long countByTicketStatus(TicketStatus status);
 
-    /** RESERVED tickets whose reserved_until is before the given time (expired). */
-    @Query("SELECT t FROM TicketEntity t WHERE t.ticketStatus = 'RESERVED' AND t.reservedUntil IS NOT NULL AND t.reservedUntil < :before")
+    /**
+     * RESERVED tickets that should be released: past {@code reservedUntil}, or legacy rows with null
+     * {@code reservedUntil} (never picked up by expiry before; stuck for weeks).
+     */
+    @Query("SELECT t FROM TicketEntity t WHERE t.ticketStatus = 'RESERVED' AND (t.reservedUntil IS NULL OR t.reservedUntil < :before)")
     List<TicketEntity> findReservedWithExpiredHold(@Param("before") LocalDateTime before);
 
     /** Max ticket price across the given event IDs (for risk scoring). Returns empty if list is empty or no tickets. */

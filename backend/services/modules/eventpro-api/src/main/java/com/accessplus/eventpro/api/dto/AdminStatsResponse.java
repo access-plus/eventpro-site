@@ -21,5 +21,12 @@ public class AdminStatsResponse {
     private Double eventGrowth; // Percentage
     private Double ticketGrowth; // Percentage
     private Double revenueGrowth; // Percentage
+
+    /** Users with role USER (attendees). */
+    private Long usersAttendeeCount;
+    /** Users with role ORGANIZER. */
+    private Long usersOrganizerCount;
+    /** Users with role ADMIN. */
+    private Long usersAdminCount;
 }
 

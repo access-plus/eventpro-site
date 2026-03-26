@@ -11,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { Ticket } from "lucide-react";
+import { motion } from "framer-motion";
+import { AuthPageLayout } from "@/components/AuthPageLayout";
 
 const signUpSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -72,16 +74,17 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto h-12 w-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4">
-            <Ticket className="h-7 w-7 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl">Create an account</CardTitle>
-          <CardDescription>Enter your details to get started with EventPro</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <AuthPageLayout>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <Card className="w-full rounded-2xl border border-border/60 bg-card/95 backdrop-blur-sm shadow-[0_20px_40px_rgba(54,39,78,0.08)]">
+          <CardHeader className="text-center">
+            <div className="mx-auto h-12 w-12 rounded-xl bg-gradient-primary flex items-center justify-center mb-4 shadow-[0_12px_28px_rgba(93,63,211,0.25)]">
+              <Ticket className="h-7 w-7 text-primary-foreground" />
+            </div>
+            <CardTitle className="text-2xl font-extrabold font-headline tracking-tight">Create an account</CardTitle>
+            <CardDescription className="text-base">Enter your details to get started with EventPro</CardDescription>
+          </CardHeader>
+          <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -164,7 +167,11 @@ const SignUp = () => {
               )}
             </div>
 
-            <Button type="submit" className="w-full bg-gradient-primary" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full rounded-full bg-gradient-primary shadow-[0_16px_32px_rgba(93,63,211,0.28)] h-12 text-base font-semibold"
+              disabled={isLoading}
+            >
               {isLoading ? "Creating account..." : "Sign Up"}
             </Button>
 
@@ -177,7 +184,8 @@ const SignUp = () => {
           </form>
         </CardContent>
       </Card>
-    </div>
+      </motion.div>
+    </AuthPageLayout>
   );
 };
 

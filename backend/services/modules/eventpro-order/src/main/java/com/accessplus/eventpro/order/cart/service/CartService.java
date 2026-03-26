@@ -91,5 +91,19 @@ public interface CartService {
      * @throws com.accessplus.eventpro.core.common.exception.ResourceNotFoundException if user not found
      */
     Integer getCartItemCount(UUID userId);
+
+    /**
+     * Deletes cart line items for the given ticket IDs (e.g. after those reservations expired and
+     * tickets were released back to AVAILABLE). No-op if {@code ticketIds} is null or empty.
+     */
+    void removeCartItemsForTicketIds(List<UUID> ticketIds);
+
+    /**
+     * Removes stale cart rows pointing at {@link com.accessplus.eventpro.shared.enums.TicketStatus#AVAILABLE}
+     * tickets (no hold). Skips lines created in the last few minutes so we do not race with add-to-cart.
+     *
+     * @return number of cart rows deleted
+     */
+    int removeCartLinesForOrphanAvailableTickets();
 }
 

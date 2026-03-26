@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { User, Ticket } from "lucide-react";
 import { apiService } from "@/lib/api";
 import type { FollowedOrganizer } from "@/types/api";
+import { PageShell } from "@/components/PageShell";
 
 const Following = () => {
   const [list, setList] = useState<FollowedOrganizer[]>([]);
@@ -19,21 +20,25 @@ const Following = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
+      <PageShell>
+        <div className="flex min-h-[40vh] items-center justify-center py-16">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4 max-w-2xl">
-        <h1 className="text-3xl font-bold mb-6">Following</h1>
+    <PageShell>
+      <div className="container mx-auto px-4 max-w-2xl py-8 md:py-10">
+        <h1 className="text-3xl md:text-4xl font-extrabold font-headline tracking-tight mb-6 bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+          Following
+        </h1>
         <p className="text-muted-foreground mb-6">
           Organizers you follow. Visit their events from event pages.
         </p>
         {list.length === 0 ? (
-          <Card className="p-8 text-center">
+          <Card className="p-8 text-center rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
             <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <p className="text-muted-foreground">You aren’t following any organizers yet.</p>
             <p className="text-sm text-muted-foreground mt-2">
@@ -74,7 +79,7 @@ const Following = () => {
           </ul>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 };
 

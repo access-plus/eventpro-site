@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Users, Building2, Gift, ArrowRight, CheckCircle2, DollarSign, Megaphone, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
+import { PageShell } from "@/components/PageShell";
 
 const Partners = () => {
   const ambassadorBenefits = [
@@ -45,7 +46,7 @@ const Partners = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <PageShell className="bg-background">
       {/* Hero Section */}
       <section className="relative py-20 px-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
         <div className="container mx-auto text-center max-w-4xl">
@@ -347,7 +348,7 @@ const Partners = () => {
           </div>
         </div>
       </section>
-    </div>
+    </PageShell>
   );
 };
 

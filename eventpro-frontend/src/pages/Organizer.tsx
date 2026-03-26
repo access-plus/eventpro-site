@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { Calendar, Plus, Edit, CheckCircle, Clock, BarChart, Ticket, RefreshCw, ShoppingBag, Mail, QrCode } from "lucide-react";
+import { Calendar, Plus, Edit, CheckCircle, Clock, BarChart, Ticket, RefreshCw, ShoppingBag, Mail, QrCode, Users, Palette, TrendingUp, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -11,12 +11,9 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { getEventImageUrl } from "@/lib/utils";
-import { FinancialHub } from "@/components/FinancialHub";
-import { TaxCenter } from "@/components/TaxCenter";
-import { ExportCenter } from "@/components/ExportCenter";
-import { OrganizerInsightsSection } from "@/components/OrganizerInsightsSection";
-import { LiveTicketFeed } from "@/components/LiveTicketFeed";
 import { EmailAttendeesDialog } from "@/components/EmailAttendeesDialog";
+import { PageShell } from "@/components/PageShell";
+import { OrganizerDashboardStitch } from "@/components/OrganizerDashboardStitch";
 
 /** Merchandise & add-ons are Pro and Enterprise only per pricing page. */
 function canUseAddons(tier: string | undefined): boolean {
@@ -158,6 +155,14 @@ const Organizer = () => {
               Tickets
             </Link>
           </Button>
+          {showEnhance && event.reservedSeatingEnabled ? (
+            <Button variant="outline" className="flex-1 min-w-[100px]" asChild>
+              <Link to={`/organizer/events/${event.id}/seat-map`} title="Seat map editor">
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                Seats
+              </Link>
+            </Button>
+          ) : null}
           {showEnhance ? (
             <Button variant="outline" className="flex-1 min-w-[100px]" asChild>
               <Link to={`/organizer/events/${event.id}/enhancements`}>
@@ -219,27 +224,46 @@ const Organizer = () => {
           eventName={emailAttendeesEvent.name}
         />
       )}
-      <div className="min-h-screen py-8 relative overflow-hidden">
-      {/* Subtle mesh background for vibrant theme */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-[28rem] h-[28rem] rounded-full bg-primary/6 blur-3xl" />
-        <div className="absolute top-1/2 -left-32 w-80 h-80 rounded-full bg-primary-glow/5 blur-3xl" />
-      </div>
-      <div className="container relative mx-auto px-4">
+      <PageShell>
+      <div className="container mx-auto px-4 py-8">
+        <OrganizerDashboardStitch
+          firstName={user?.firstName ?? undefined}
+          publishedEventCount={publishedEvents.length}
+          insights={insights}
+        />
+
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-lg bg-gradient-primary flex items-center justify-center">
               <Calendar className="h-7 w-7 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                Organizer Dashboard
+              <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight text-foreground">
+                Organizer hub
               </h1>
-              <p className="text-muted-foreground">Welcome, {user?.firstName}</p>
+              <p className="text-muted-foreground text-sm">Events, payouts, and team</p>
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
+            <Link to="/organizer/financials">
+              <Button variant="default" className="bg-gradient-primary">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Event insights
+              </Button>
+            </Link>
+            <Link to="/organizer/branding">
+              <Button variant="outline">
+                <Palette className="h-4 w-4 mr-2" />
+                Branding
+              </Button>
+            </Link>
+            <Link to="/organizer/team">
+              <Button variant="outline">
+                <Users className="h-4 w-4 mr-2" />
+                Team
+              </Button>
+            </Link>
             <Link to="/organizer/check-in">
               <Button variant="outline">
                 <QrCode className="h-4 w-4 mr-2" />
@@ -263,41 +287,20 @@ const Organizer = () => {
           </div>
         </div>
 
-        {/* Financial Hub (bento: Total Revenue, Available for Payout, Pending + Instant Payout) */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          className="mb-8 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
         >
-          <FinancialHub />
-        </motion.div>
-
-        {/* 1099-K Tax Center (Compliance Status, Document Vault, W-9) */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.05 }}
-        >
-          <TaxCenter />
-        </motion.div>
-
-        {/* Data & AI Command Center: Export, Insights, Live feed */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.08 }}
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
-        >
-          <ExportCenter />
-          <OrganizerInsightsSection />
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          className="mb-8"
-        >
-          <LiveTicketFeed />
+          <div>
+            <p className="font-semibold text-foreground">Financials &amp; analytics</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Revenue, payouts, AI insights, exports, and live sales — all in one place.
+            </p>
+          </div>
+          <Button asChild className="rounded-full bg-gradient-primary shrink-0">
+            <Link to="/organizer/financials">Open event insights</Link>
+          </Button>
         </motion.div>
 
         {/* Stats Cards */}
@@ -334,19 +337,21 @@ const Organizer = () => {
             </CardHeader>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Analytics</p>
-                  <p className="text-sm text-muted-foreground mt-1">Coming soon</p>
+          <Link to="/organizer/financials" className="block">
+            <Card className="cursor-pointer hover:ring-2 hover:ring-primary/20 transition-shadow h-full">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Analytics</p>
+                    <p className="text-lg font-bold text-foreground mt-1">View insights</p>
+                  </div>
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <BarChart className="h-6 w-6 text-primary" />
+                  </div>
                 </div>
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <BarChart className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
+              </CardHeader>
+            </Card>
+          </Link>
         </motion.div>
 
         {/* Draft Events Section */}
@@ -400,7 +405,7 @@ const Organizer = () => {
           )}
         </motion.div>
       </div>
-    </div>
+      </PageShell>
     </>
   );
 };

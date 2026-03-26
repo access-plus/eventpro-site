@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import type { TicketType } from "@eventpro/shared";
 import { useTheme } from "../contexts/ThemeContext";
 import { theme as staticTheme } from "../theme";
+import { sectionLabel, editorialCard } from "../theme/screenStyles";
 
 export function EventTicketsScreen({ route }: { route: { params: { eventId: string } }; navigation?: any }) {
   const { theme } = useTheme();
@@ -52,15 +53,27 @@ export function EventTicketsScreen({ route }: { route: { params: { eventId: stri
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.hint, { color: theme.colors.mutedForeground }]}>Manage or add ticket types on the web app.</Text>
+      <Text style={[sectionLabel(theme), { marginBottom: 8, paddingHorizontal: staticTheme.spacing.md, paddingTop: staticTheme.spacing.sm }]}>
+        Ticket types
+      </Text>
+      <Text style={[styles.hint, { color: theme.colors.mutedForeground }]}>
+        Manage or add ticket types on the web app.
+      </Text>
       <FlatList
         data={tickets}
         keyExtractor={(item) => item.id}
         contentContainerStyle={tickets.length === 0 ? styles.emptyList : styles.list}
         ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.mutedForeground }]}>No ticket types yet.</Text>}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+          />
+        }
         renderItem={({ item }) => (
-          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={[editorialCard(theme), styles.card]}>
             <View style={styles.cardRow}>
               <Text style={[styles.name, { color: theme.colors.foreground }]}>{item.name}</Text>
               <View style={[styles.badge, { backgroundColor: getStatusColor(item.status) }]}>
@@ -88,7 +101,7 @@ const styles = StyleSheet.create({
   list: { padding: staticTheme.spacing.md, paddingTop: 0 },
   emptyList: { flexGrow: 1, padding: staticTheme.spacing.md },
   empty: { textAlign: "center", marginTop: 24 },
-  card: { padding: 16, borderRadius: staticTheme.radius.lg, marginBottom: 12, borderWidth: 1 },
+  card: { padding: 16, marginBottom: 12 },
   cardRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   name: { fontSize: 17, fontWeight: "600" },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: staticTheme.radius.md },

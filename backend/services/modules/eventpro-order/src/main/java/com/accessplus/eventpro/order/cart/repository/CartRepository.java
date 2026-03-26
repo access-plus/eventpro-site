@@ -2,12 +2,16 @@ package com.accessplus.eventpro.order.cart.repository;
 
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
+import com.accessplus.eventpro.shared.enums.TicketStatus;
 import com.accessplus.eventpro.order.cart.entity.CartEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -88,5 +92,20 @@ public interface CartRepository extends JpaRepository<CartEntity, UUID> {
      */
     @Query("SELECT COUNT(c) FROM CartEntity c WHERE c.user.id = :userId")
     long countByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Removes cart rows pointing at tickets (e.g. after reservation expiry released inventory).
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM CartEntity c WHERE c.ticket.id IN :ids")
+    int deleteByTicketIdIn(@Param("ids") Collection<UUID> ids);
+
+    /**
+     * Cart rows whose ticket was never held (AVAILABLE) and the line is older than {@code before}.
+     * Excludes brand-new lines in the short window before {@code markTicketAsReserved} runs.
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM CartEntity c WHERE c.ticket.ticketStatus = :status AND c.createdAt < :before")
+    int deleteByTicketStatusAndCreatedAtBefore(@Param("status") TicketStatus status, @Param("before") LocalDateTime before);
 }
 

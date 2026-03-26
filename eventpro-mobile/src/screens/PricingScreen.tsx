@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { theme as staticTheme } from "../theme";
+import { sectionLabel, editorialCard } from "../theme/screenStyles";
 
 const WEB_URL = Constants.expoConfig?.extra?.webUrl ?? process.env.EXPO_PUBLIC_WEB_URL ?? "http://localhost:5173";
 
@@ -36,13 +37,13 @@ export function PricingScreen({ navigation }: { navigation?: any }) {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={styles.content}>
-      <Text style={[styles.title, { color: theme.colors.foreground }]}>Pricing</Text>
-      <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+      <Text style={[sectionLabel(theme), { marginBottom: 16 }]}>Plans</Text>
+      <View style={[editorialCard(theme), styles.cardPad]}>
         <Text style={[styles.tier, { color: theme.colors.foreground }]}>Basic</Text>
         <Text style={[styles.price, { color: theme.colors.primary }]}>Free</Text>
         <Text style={[styles.desc, { color: theme.colors.mutedForeground }]}>Create events and sell tickets. Perfect to get started.</Text>
       </View>
-      <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+      <View style={[editorialCard(theme), styles.cardPad]}>
         <Text style={[styles.tier, { color: theme.colors.foreground }]}>Pro</Text>
         <Text style={[styles.price, { color: theme.colors.primary }]}>Paid</Text>
         <Text style={[styles.desc, { color: theme.colors.mutedForeground }]}>More features, team members, and branding.</Text>
@@ -63,7 +64,7 @@ export function PricingScreen({ navigation }: { navigation?: any }) {
           </TouchableOpacity>
         )}
       </View>
-      <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+      <View style={[editorialCard(theme), styles.cardPad]}>
         <Text style={[styles.tier, { color: theme.colors.foreground }]}>Enterprise</Text>
         <Text style={[styles.price, { color: theme.colors.primary }]}>Contact us</Text>
         <Text style={[styles.desc, { color: theme.colors.mutedForeground }]}>Custom needs, API access, and dedicated support.</Text>
@@ -78,8 +79,7 @@ export function PricingScreen({ navigation }: { navigation?: any }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: staticTheme.spacing.lg },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 20 },
-  card: { padding: 20, borderRadius: staticTheme.radius.lg, marginBottom: 12, borderWidth: 1 },
+  cardPad: { padding: 20, marginBottom: 12 },
   tier: { fontSize: 18, fontWeight: "600" },
   price: { fontSize: 20, fontWeight: "700", marginTop: 4 },
   desc: { fontSize: 14, marginTop: 8 },

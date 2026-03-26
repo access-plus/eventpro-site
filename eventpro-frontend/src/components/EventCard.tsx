@@ -14,6 +14,10 @@ import type { Event } from "@/types/api";
 interface EventCardProps {
   event: Event;
   index?: number;
+  /** Stitch discovery_web grid: tall image, price row, no share strip */
+  variant?: "default" | "editorial";
+  /** Lowest ticket price (USD) when variant is editorial; from GET ticket-types */
+  ticketMinPrice?: number | null;
 }
 
 function toDate(value: string | number | undefined | unknown): Date | null {
@@ -38,7 +42,10 @@ function safeFormatDate(value: string | number | undefined | unknown, formatStr:
   return format(d, formatStr);
 }
 
-export const EventCard = ({ event, index = 0 }: EventCardProps) => {
+const usd = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(n);
+
+export const EventCard = ({ event, index = 0, variant = "default", ticketMinPrice }: EventCardProps) => {
   const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
   const viewers = useSimulatedViewers(event.id);
@@ -61,18 +68,107 @@ export const EventCard = ({ event, index = 0 }: EventCardProps) => {
 
   const getCategoryColor = (category?: string) => {
     const colors: Record<string, string> = {
-      "Music": "from-pink-500/40 to-purple-500/40",
-      "Sports": "from-green-500/40 to-emerald-500/40",
-      "Technology": "from-blue-500/40 to-cyan-500/40",
-      "Business": "from-slate-500/40 to-gray-500/40",
-      "Arts": "from-orange-500/40 to-red-500/40",
+      Music: "from-pink-500/40 to-purple-500/40",
+      Sports: "from-green-500/40 to-emerald-500/40",
+      Technology: "from-blue-500/40 to-cyan-500/40",
+      Business: "from-slate-500/40 to-gray-500/40",
+      Arts: "from-orange-500/40 to-red-500/40",
       "Food & Drink": "from-amber-500/40 to-yellow-500/40",
       "Health & Wellness": "from-teal-500/40 to-green-500/40",
-      "Education": "from-indigo-500/40 to-blue-500/40",
-      "Entertainment": "from-purple-500/40 to-pink-500/40",
+      Education: "from-indigo-500/40 to-blue-500/40",
+      Entertainment: "from-purple-500/40 to-pink-500/40",
     };
     return colors[category || ""] || "from-primary/30 to-primary-glow/30";
   };
+
+  if (variant === "editorial") {
+    const dayStr = safeFormatDate(startRaw, "d", "");
+    const monStr = safeFormatDate(startRaw, "MMM", "").toUpperCase();
+    const tagLabels = ["Selling fast", "New", "Premium pick"] as const;
+    const tagClass = [
+      "bg-white/90 backdrop-blur text-primary text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-md",
+      "bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-md",
+      "bg-[hsl(330_48%_42%)] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-md",
+    ];
+    const ti = index % 3;
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.05, duration: 0.35 }}
+        className="group h-full"
+      >
+        <Card
+          className="h-full overflow-hidden cursor-pointer border-0 bg-card editorial-card-shadow rounded-[1.5rem] transition-all duration-300 hover:-translate-y-2 hover:shadow-xl"
+          onClick={() => navigate(`/events/${event.id}`)}
+        >
+          <div className="relative h-80 overflow-hidden">
+            {event.imageUrl && !imgError ? (
+              <img
+                src={getEventImageUrl(event.imageUrl) ?? ""}
+                alt={event.name}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                onError={() => setImgError(true)}
+              />
+            ) : (
+              <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${getCategoryColor(event.categoryName || event.category)}`}>
+                <Ticket className="h-20 w-20 text-white/90" />
+              </div>
+            )}
+            <div className="absolute top-4 left-4 z-[1]">
+              <span className={tagClass[ti]}>{tagLabels[ti]}</span>
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent pointer-events-none" />
+            <div className="absolute bottom-4 left-6 z-[1] text-white">
+              <span className="text-[hsl(330_81%_75%)] font-black text-3xl font-headline leading-none">{dayStr}</span>
+              <span className="font-headline font-bold block text-sm uppercase tracking-wide -mt-0.5">{monStr}</span>
+            </div>
+          </div>
+          <div className="p-8 font-body">
+            {(event.categoryName || event.category) && (
+              <span className="text-[hsl(330_48%_42%)] text-xs font-semibold uppercase tracking-widest mb-2 block">
+                {event.categoryName || event.category}
+              </span>
+            )}
+            <h3 className="text-foreground font-headline font-extrabold text-2xl mb-4 line-clamp-2 group-hover:text-primary transition-colors">
+              {event.name || event.title || "Event"}
+            </h3>
+            <div className="space-y-3 mb-8">
+              {(event.addressCity || event.venue) && (
+                <div className="flex items-center gap-3 text-muted-foreground text-sm">
+                  <MapPin className="h-[18px] w-[18px] text-[hsl(262_83%_58%)] shrink-0" />
+                  <span>
+                    {event.venue
+                      ? `${event.venue}${event.addressCity ? `, ${event.addressCity}` : ""}`
+                      : [event.addressCity, event.addressState].filter(Boolean).join(", ")}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center gap-3 text-muted-foreground text-sm">
+                <Clock className="h-[18px] w-[18px] text-[hsl(262_83%_58%)] shrink-0" />
+                <span>{safeFormatDate(startRaw, "h:mm a · EEE", "Time TBD")}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-6 border-t border-border/60">
+              <span className="text-foreground font-headline font-black text-xl">
+                {ticketMinPrice != null && ticketMinPrice > 0 ? usd(ticketMinPrice) : "—"}
+              </span>
+              <Button
+                type="button"
+                className="rounded-full bg-secondary text-primary hover:bg-primary hover:text-primary-foreground font-headline font-bold px-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/events/${event.id}`);
+                }}
+              >
+                Get tickets
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

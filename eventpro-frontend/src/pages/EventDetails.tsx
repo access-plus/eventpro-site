@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, MapPin, Clock, Ticket, Minus, Plus, Grid3X3, User } from "lucide-react";
+import { Calendar, MapPin, Ticket, Minus, Plus, Grid3X3, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { apiService } from "@/lib/api";
 import type { Event, TicketType, SeatResponse } from "@/types/api";
@@ -79,6 +79,10 @@ const EventDetails = () => {
     return [...main, ...extra].filter(Boolean);
   }, [event?.imageUrl, event?.additionalImageUrls]);
   const showGallery = galleryImages.length > 1;
+  const heroImageSrc = useMemo(() => {
+    if (galleryImages.length > 0) return galleryImages[galleryIndex] ?? "";
+    return event?.imageUrl ?? "";
+  }, [galleryImages, galleryIndex, event?.imageUrl]);
   /** Event has reserved seating enabled but organizer hasn't created a seat map yet */
   const reservedSeatingPending = Boolean(event?.reservedSeatingEnabled && seatsFromApi.length === 0);
   const showSeatingTab = hasReservedSeating || reservedSeatingPending;
@@ -100,6 +104,17 @@ const EventDetails = () => {
       });
     }
     return { ticketsLeft: left, ticketsSold: sold };
+  }, [ticketTypes, hasReservedSeating, seatsFromApi]);
+
+  const minTicketPrice = useMemo(() => {
+    const prices = ticketTypes.map((t) => t.price);
+    if (hasReservedSeating && seatsFromApi.length) {
+      seatsFromApi.forEach((s) => {
+        if (s.status === "available") prices.push(s.price);
+      });
+    }
+    if (!prices.length) return null;
+    return Math.min(...prices);
   }, [ticketTypes, hasReservedSeating, seatsFromApi]);
 
   useEffect(() => {
@@ -195,8 +210,18 @@ const EventDetails = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <div className="min-h-screen bg-background">
+        <div className="h-[min(70vh,28rem)] w-full bg-muted animate-pulse" />
+        <div className="container mx-auto px-4 py-10">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="h-8 w-2/3 rounded-lg bg-muted animate-pulse" />
+              <div className="h-24 rounded-xl bg-muted animate-pulse" />
+              <div className="h-40 rounded-xl bg-muted animate-pulse" />
+            </div>
+            <div className="h-96 rounded-2xl bg-muted animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -247,10 +272,80 @@ const EventDetails = () => {
 
   return (
     <div
-      className="min-h-screen py-8"
+      className="min-h-screen bg-background font-body"
       data-event-template={template}
       style={brandingStyle}
     >
+      <section className="relative min-h-[min(72vh,36rem)] lg:min-h-[min(88vh,52rem)] w-full overflow-hidden bg-[#14052b]">
+        {heroImageSrc && !imgError ? (
+          <img
+            src={getEventImageUrl(heroImageSrc) ?? ""}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover opacity-90"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-muted flex items-center justify-center">
+            <Ticket className="h-24 w-24 text-muted-foreground/50" />
+          </div>
+        )}
+        <div className="absolute inset-0 editorial-gradient" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-transparent pointer-events-none" />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 h-full min-h-[min(72vh,36rem)] lg:min-h-[min(88vh,52rem)] flex flex-col justify-end pb-10 md:pb-16 pt-20 md:pt-28">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap gap-2 mb-4">
+                {(event.categoryName || event.category) && (
+                  <Badge className="bg-[hsl(330_81%_75%)]/90 text-[#63033a] border-0 font-headline text-[10px] uppercase tracking-widest">
+                    {event.categoryName || event.category}
+                  </Badge>
+                )}
+                {event.status && (
+                  <Badge variant="outline" className="bg-white/15 backdrop-blur-md border-white/30 text-white font-headline text-[10px] uppercase tracking-widest">
+                    {event.status}
+                  </Badge>
+                )}
+              </div>
+              <h1 className="font-headline text-4xl md:text-6xl lg:text-7xl font-extrabold text-white tracking-tighter leading-[1.05] mb-4">
+                {event.name}
+              </h1>
+              {event.description && (
+                <p className="text-white/85 text-base md:text-lg max-w-xl line-clamp-3 font-body">
+                  {event.description}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-4 w-full lg:w-auto lg:min-w-[280px]">
+              <div className="rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl p-5 md:p-6 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shrink-0">
+                  <Calendar className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <div>
+                  <p className="text-white/55 text-[10px] font-bold uppercase tracking-widest font-headline">Date &amp; time</p>
+                  <p className="text-white font-bold font-headline">
+                    {(() => {
+                      const raw = event.startTime ?? event.startDateTime;
+                      const d = raw ? new Date(raw) : null;
+                      if (!d || Number.isNaN(d.getTime())) return "TBD";
+                      return `${format(d, "MMM d, yyyy")} · ${format(d, "p")}`;
+                    })()}
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                size="lg"
+                className="rounded-full px-10 py-6 text-lg font-headline font-bold shadow-[0_20px_40px_rgba(93,63,211,0.35)] bg-primary hover:bg-primary/90"
+                onClick={() => document.getElementById("event-tickets")?.scrollIntoView({ behavior: "smooth" })}
+              >
+                Get tickets
+                {minTicketPrice != null && ` — From $${minTicketPrice.toFixed(0)}`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {showOrganizerLogo && (
         <div className="container mx-auto px-4 pb-4 flex justify-center">
           <img
@@ -273,85 +368,41 @@ const EventDetails = () => {
             } ${isVibrant ? "rounded-2xl p-4 md:p-6 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/5" : ""}`}
           >
             {showGallery ? (
-              <>
-                <div className="rounded-xl overflow-hidden h-64 md:h-96">
-                  <img
-                    src={getEventImageUrl(galleryImages[galleryIndex]) ?? ""}
-                    alt={`${event.name} (${galleryIndex + 1}/${galleryImages.length})`}
-                    className="w-full h-full object-cover"
-                    onError={() => setImgError(true)}
-                  />
-                </div>
-                <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
-                  {galleryImages.map((url, i) => (
-                    <button
-                      key={url + i}
-                      type="button"
-                      onClick={() => setGalleryIndex(i)}
-                      className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
-                        i === galleryIndex ? "border-primary ring-2 ring-primary/30" : "border-transparent opacity-80 hover:opacity-100"
-                      }`}
-                    >
-                      <img src={getEventImageUrl(url) ?? ""} alt="" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (event.imageUrl && !imgError) ? (
-              <div className="rounded-xl overflow-hidden h-64 md:h-96">
-                <img
-                  src={getEventImageUrl(event.imageUrl) ?? ""}
-                  alt={event.name}
-                  className="w-full h-full object-cover"
-                  onError={() => setImgError(true)}
-                />
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 hide-scrollbar">
+                {galleryImages.map((url, i) => (
+                  <button
+                    key={url + i}
+                    type="button"
+                    onClick={() => setGalleryIndex(i)}
+                    className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
+                      i === galleryIndex ? "border-primary ring-2 ring-primary/30" : "border-transparent opacity-80 hover:opacity-100"
+                    }`}
+                  >
+                    <img src={getEventImageUrl(url) ?? ""} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
               </div>
-            ) : (
-              <div className="rounded-xl overflow-hidden h-64 md:h-96 bg-muted flex items-center justify-center">
-                <Ticket className="h-24 w-24 text-muted-foreground/50" />
-              </div>
-            )}
+            ) : null}
 
             <div>
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <h1 className="text-4xl font-bold">{event.name}</h1>
-                <Badge className="bg-primary flex-shrink-0">{event.status}</Badge>
-              </div>
-
-              <div className="flex flex-wrap gap-4 text-muted-foreground mb-6">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  <span>
-                    {(() => {
-                      const raw = event.startTime ?? event.startDateTime;
-                      const d = raw ? new Date(raw) : null;
-                      if (!d || Number.isNaN(d.getTime())) return "Date TBD";
-                      return format(d, "PPPP");
-                    })()}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  <span>
-                    {(() => {
-                      const raw = event.startTime ?? event.startDateTime;
-                      const d = raw ? new Date(raw) : null;
-                      if (!d || Number.isNaN(d.getTime())) return "Time TBD";
-                      return format(d, "p");
-                    })()}
-                  </span>
-                </div>
-                {event.venue && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    <span>{event.venue}</span>
-                  </div>
-                )}
-              </div>
-
+              <h2 className="font-headline text-2xl md:text-3xl font-extrabold text-foreground tracking-tight flex items-center gap-4 mb-6">
+                About the experience
+                <span className="h-px flex-1 bg-border" />
+              </h2>
               {event.description && (
-                <div className="prose prose-lg max-w-none dark:prose-invert">
-                  <p>{event.description}</p>
+                <div className="prose prose-lg max-w-none dark:prose-invert text-muted-foreground leading-relaxed">
+                  <p className="whitespace-pre-wrap">{event.description}</p>
+                </div>
+              )}
+
+              {(event.venue || event.addressCity || event.addressState) && (
+                <div className="flex flex-wrap gap-4 text-muted-foreground mt-6 text-sm md:text-base">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-primary shrink-0" />
+                    <span>
+                      {[event.venue, event.addressCity, event.addressState].filter(Boolean).join(", ")}
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -523,7 +574,7 @@ const EventDetails = () => {
           </div>
 
           {/* Ticket Selection */}
-          <div className="space-y-4">
+          <div id="event-tickets" className="space-y-4 scroll-mt-24">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <h2 className="text-2xl font-bold">Tickets</h2>
               {/* Live badge — nudge next to CTA area */}

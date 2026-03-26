@@ -9,6 +9,10 @@ import {
   ShieldCheck,
   TrendingUp,
   CreditCard,
+  Key,
+  ScrollText,
+  UserCog,
+  Activity,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
@@ -54,10 +58,34 @@ const Admin = () => {
       href: "/admin/revenue",
     },
     {
+      title: "API Keys",
+      description: "Enterprise API keys and credentials",
+      icon: Key,
+      href: "/admin/api-keys",
+    },
+    {
+      title: "Audit Logs",
+      description: "Administrative actions and security events",
+      icon: ScrollText,
+      href: "/admin/audit-logs",
+    },
+    {
       title: "Record offline subscription",
       description: "Record invoice/wire subscription payment (Stripe subscriptions are automatic)",
       icon: CreditCard,
       href: "/admin/subscription-payments",
+    },
+    {
+      title: "Event reviewer permissions",
+      description: "Role configuration for editorial and event approval (mock UI)",
+      icon: UserCog,
+      href: "/admin/event-reviewer-permissions",
+    },
+    {
+      title: "System health",
+      description: "Infrastructure status, latency, and regional overview (mock UI)",
+      icon: Activity,
+      href: "/admin/system-health",
     },
   ];
 
@@ -68,8 +96,8 @@ const Admin = () => {
           <Shield className="h-7 w-7 text-primary-foreground" />
         </div>
         <div>
-          <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            Admin Dashboard
+          <h1 className="text-4xl font-bold font-headline tracking-tight bg-gradient-primary bg-clip-text text-transparent">
+            Admin dashboard
           </h1>
           <p className="text-muted-foreground">Welcome, {user?.firstName}</p>
         </div>

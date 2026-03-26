@@ -5,10 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Mail,
-  Calendar,
   PenLine,
   CalendarDays,
   Ticket,
@@ -19,23 +17,25 @@ import {
   ShieldAlert,
   Users,
   Palette,
+  Key,
   TrendingUp,
   AlertCircle,
   Loader2,
   ShieldQuestion,
   Lock,
   ChevronRight,
-  Key,
-  Copy,
-  Trash2,
+  Heart,
+  Bookmark,
+  Bell,
+  Settings,
+  HelpCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { apiService } from "@/lib/api";
-import type { ApiKey, CreateApiKeyResponse, OrganizerSummary, TeamMember } from "@/types/api";
+import type { FollowedOrganizer, OrganizerSummary } from "@/types/api";
 import { IdentityCheckModal } from "@/components/IdentityCheckModal";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { PageShell } from "@/components/PageShell";
 import { toast } from "sonner";
 
 const VERIFIED_CELEBRATION_KEY = "profile_verified_celebration_shown";
@@ -50,22 +50,33 @@ const Profile = () => {
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [showVerifiedCelebration, setShowVerifiedCelebration] = useState(false);
   const [riskRefreshing, setRiskRefreshing] = useState(false);
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
-  const [apiKeysLoading, setApiKeysLoading] = useState(false);
-  const [newKeyResult, setNewKeyResult] = useState<CreateApiKeyResponse | null>(null);
-  const [createKeyName, setCreateKeyName] = useState("");
-  const [createKeySubmitting, setCreateKeySubmitting] = useState(false);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [teamLoading, setTeamLoading] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"ADMIN" | "EDITOR" | "VIEWER">("EDITOR");
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
-  const [brandingLogoUrl, setBrandingLogoUrl] = useState(user?.brandingLogoUrl ?? "");
-  const [brandingPrimaryColor, setBrandingPrimaryColor] = useState(user?.brandingPrimaryColor ?? "");
-  const [brandingHidePlatform, setBrandingHidePlatform] = useState(user?.brandingHidePlatform ?? false);
-  const [brandingSaving, setBrandingSaving] = useState(false);
   const [profilePhotoUploading, setProfilePhotoUploading] = useState(false);
   const profilePhotoInputRef = useRef<HTMLInputElement>(null);
+  const [following, setFollowing] = useState<FollowedOrganizer[]>([]);
+  const [ordersMeta, setOrdersMeta] = useState({ tickets: 0, orders: 0 });
+
+  useEffect(() => {
+    apiService
+      .getFollowing()
+      .then(setFollowing)
+      .catch(() => setFollowing([]));
+    apiService
+      .getOrders(1, 100)
+      .then((raw) => {
+        const list = Array.isArray(raw) ? raw : [];
+        let tickets = 0;
+        list.forEach((o: Record<string, unknown>) => {
+          const items = (o.tickets ?? o.orderItems) as { quantity?: number }[] | undefined;
+          if (Array.isArray(items)) {
+            items.forEach((t) => {
+              tickets += typeof t.quantity === "number" ? t.quantity : 1;
+            });
+          }
+        });
+        setOrdersMeta({ tickets, orders: list.length });
+      })
+      .catch(() => setOrdersMeta({ tickets: 0, orders: 0 }));
+  }, []);
 
   const fetchSummary = useCallback(() => {
     if (!hasRole("ORGANIZER")) {
@@ -106,141 +117,7 @@ const Profile = () => {
       });
   }, [searchParams, refreshUser, setSearchParams]);
 
-  const fetchApiKeys = useCallback(() => {
-    if (user?.subscriptionTier !== "ENTERPRISE") return;
-    setApiKeysLoading(true);
-    apiService
-      .listApiKeys()
-      .then(setApiKeys)
-      .catch(() => setApiKeys([]))
-      .finally(() => setApiKeysLoading(false));
-  }, [user?.subscriptionTier]);
-
-  useEffect(() => {
-    if (user?.subscriptionTier === "ENTERPRISE") fetchApiKeys();
-  }, [user?.subscriptionTier, fetchApiKeys]);
-
   const isProOrEnterprise = user?.subscriptionTier === "PRO" || user?.subscriptionTier === "ENTERPRISE";
-  const fetchTeamMembers = useCallback(() => {
-    if (!isProOrEnterprise) return;
-    setTeamLoading(true);
-    apiService
-      .listTeamMembers()
-      .then(setTeamMembers)
-      .catch(() => setTeamMembers([]))
-      .finally(() => setTeamLoading(false));
-  }, [isProOrEnterprise]);
-
-  useEffect(() => {
-    if (isProOrEnterprise) fetchTeamMembers();
-  }, [isProOrEnterprise, fetchTeamMembers]);
-
-  useEffect(() => {
-    setBrandingLogoUrl(user?.brandingLogoUrl ?? "");
-    setBrandingPrimaryColor(user?.brandingPrimaryColor ?? "");
-    setBrandingHidePlatform(user?.brandingHidePlatform ?? false);
-  }, [user?.brandingLogoUrl, user?.brandingPrimaryColor, user?.brandingHidePlatform]);
-
-  const handleSaveBranding = useCallback(() => {
-    setBrandingSaving(true);
-    apiService
-      .updateUser({
-        brandingLogoUrl: brandingLogoUrl.trim() || null,
-        brandingPrimaryColor: brandingPrimaryColor.trim() || null,
-        brandingHidePlatform,
-      })
-      .then(() => {
-        refreshUser();
-        toast.success("Branding saved. It will appear on your event pages.");
-      })
-      .catch(() => toast.error("Failed to save branding"))
-      .finally(() => setBrandingSaving(false));
-  }, [brandingLogoUrl, brandingPrimaryColor, brandingHidePlatform, refreshUser]);
-
-  const handleInviteTeamMember = useCallback(() => {
-    const email = inviteEmail.trim();
-    if (!email) {
-      toast.error("Enter an email address");
-      return;
-    }
-    setInviteSubmitting(true);
-    apiService
-      .inviteTeamMember(email, inviteRole)
-      .then((member) => {
-        setTeamMembers((prev) => [...prev, member]);
-        setInviteEmail("");
-        toast.success(`${member.email ?? email} added to your team`);
-      })
-      .catch((err: { response?: { data?: { message?: string } } }) => {
-        toast.error(err?.response?.data?.message ?? "Failed to add team member");
-      })
-      .finally(() => setInviteSubmitting(false));
-  }, [inviteEmail, inviteRole]);
-
-  const handleRemoveTeamMember = useCallback(
-    (userId: string) => {
-      if (!confirm("Remove this team member? They will lose access to your events.")) return;
-      apiService
-        .removeTeamMember(userId)
-        .then(() => {
-          setTeamMembers((prev) => prev.filter((m) => m.userId !== userId));
-          toast.success("Team member removed");
-        })
-        .catch(() => toast.error("Failed to remove team member"));
-    },
-    []
-  );
-
-  const handleUpdateTeamMemberRole = useCallback((userId: string, role: "ADMIN" | "EDITOR" | "VIEWER") => {
-    apiService
-      .updateTeamMemberRole(userId, role)
-      .then((updated) => {
-        setTeamMembers((prev) => prev.map((m) => (m.userId === userId ? updated : m)));
-        toast.success("Role updated");
-      })
-      .catch(() => toast.error("Failed to update role"));
-  }, []);
-
-  const handleCreateApiKey = useCallback(() => {
-    const name = createKeyName.trim();
-    if (!name) {
-      toast.error("Enter a name for the API key");
-      return;
-    }
-    setCreateKeySubmitting(true);
-    apiService
-      .createApiKey(name)
-      .then((result) => {
-        setNewKeyResult(result);
-        setCreateKeyName("");
-        fetchApiKeys();
-        toast.success("API key created. Copy it now — it won't be shown again.");
-      })
-      .catch((err: { response?: { data?: { message?: string } } }) => {
-        toast.error(err?.response?.data?.message ?? "Failed to create API key");
-      })
-      .finally(() => setCreateKeySubmitting(false));
-  }, [createKeyName, fetchApiKeys]);
-
-  const handleCopyKey = useCallback((key: string) => {
-    navigator.clipboard.writeText(key);
-    toast.success("API key copied to clipboard");
-  }, []);
-
-  const handleRevokeApiKey = useCallback(
-    (id: string) => {
-      if (!confirm("Revoke this API key? It will stop working immediately.")) return;
-      apiService
-        .revokeApiKey(id)
-        .then(() => {
-          fetchApiKeys();
-          if (newKeyResult?.id === id) setNewKeyResult(null);
-          toast.success("API key revoked");
-        })
-        .catch(() => toast.error("Failed to revoke API key"));
-    },
-    [fetchApiKeys, newKeyResult?.id]
-  );
 
   // Real-time: refetch organizer stats when window regains focus (e.g. after ticket sale in another tab)
   useEffect(() => {
@@ -309,29 +186,26 @@ const Profile = () => {
   }, [hasRole, refreshUser, fetchSummary]);
 
   return (
-    <div className="min-h-screen py-8 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-[28rem] h-[28rem] rounded-full bg-primary/6 blur-3xl" />
-        <div className="absolute top-1/2 -left-32 w-80 h-80 rounded-full bg-primary-glow/5 blur-3xl" />
-        <div className="absolute bottom-20 right-1/4 w-72 h-72 rounded-full bg-accent/5 blur-3xl" />
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.02] via-transparent to-transparent" />
-      </div>
-
-      <div className="container relative mx-auto px-4 max-w-4xl">
+    <PageShell>
+      <div className="container mx-auto px-4 max-w-6xl py-8">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
           className="grid grid-cols-1 md:grid-cols-3 gap-4"
         >
-          {/* Hero tile: avatar, name, badges */}
+          {/* Hero — Stitch-style: member line, avatar, bio, stats, edit */}
           <Card
-            className={`md:col-span-3 rounded-2xl border-0 overflow-hidden bg-gradient-to-br from-primary/15 via-primary-glow/10 to-accent/10 transition-all duration-500 ${
+            className={`md:col-span-3 rounded-3xl border border-primary/10 overflow-hidden bg-gradient-to-br from-primary/[0.12] via-background to-primary-glow/[0.08] shadow-lg transition-all duration-500 ${
               showVerifiedCelebration ? "ring-4 ring-emerald-400/60 shadow-[0_0_40px_hsl(142_70%_45%_/_0.4)] animate-[pulse_1.5s_ease-in-out_2]" : ""
             }`}
           >
-            <CardContent className="p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
-              <div className="relative shrink-0">
+            <CardContent className="p-6 sm:p-8 space-y-6">
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary">
+                Member since {user?.createdAt ? format(new Date(user.createdAt), "yyyy") : "—"}
+              </p>
+              <div className="flex flex-col lg:flex-row lg:items-start gap-8">
+              <div className="relative shrink-0 mx-auto lg:mx-0">
                 <input
                   ref={profilePhotoInputRef}
                   type="file"
@@ -370,13 +244,38 @@ const Profile = () => {
                   {profilePhotoUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}
                 </Button>
               </div>
-              <div className="flex-1 text-center sm:text-left">
-                <h1 className="text-3xl sm:text-4xl font-extrabold font-heading tracking-tight text-foreground">
-                  {displayName}
-                </h1>
-                {specialtyLabel && (
-                  <p className="text-sm text-muted-foreground mt-1">{specialtyLabel}</p>
-                )}
+              <div className="flex-1 text-center sm:text-left min-w-0">
+                <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
+                  <h1 className="text-3xl sm:text-4xl font-extrabold font-heading tracking-tight text-foreground">
+                    {displayName}
+                  </h1>
+                  {(isPro || isEnterprise) && (
+                    <Badge className="bg-primary text-primary-foreground border-0 uppercase text-[10px] tracking-wider">
+                      {isEnterprise ? "Enterprise" : "Pro"} member
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">{user?.email}</p>
+                {user?.bio ? (
+                  <p className="text-sm text-foreground/90 mt-3 leading-relaxed max-w-xl">{user.bio}</p>
+                ) : null}
+                {specialtyLabel ? (
+                  <p className={`text-sm text-muted-foreground ${user?.bio ? "mt-2" : "mt-3"}`}>{specialtyLabel}</p>
+                ) : null}
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-6 max-w-lg mx-auto sm:mx-0">
+                  <div className="rounded-2xl bg-background/70 dark:bg-background/40 border border-border/60 px-3 py-3 text-center">
+                    <p className="text-2xl font-bold font-headline tabular-nums">{ordersMeta.tickets}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mt-1">Tickets</p>
+                  </div>
+                  <div className="rounded-2xl bg-background/70 dark:bg-background/40 border border-border/60 px-3 py-3 text-center">
+                    <p className="text-2xl font-bold font-headline tabular-nums">{ordersMeta.orders}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mt-1">Orders</p>
+                  </div>
+                  <div className="rounded-2xl bg-background/70 dark:bg-background/40 border border-border/60 px-3 py-3 text-center">
+                    <p className="text-2xl font-bold font-headline tabular-nums">{following.length}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mt-1">Following</p>
+                  </div>
+                </div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-3">
                   <Badge className="bg-primary/90 text-primary-foreground border-0 shadow-[0_0_14px_hsl(var(--primary)_/_0.5)]">
                     {user?.role ?? "USER"}
@@ -409,13 +308,15 @@ const Profile = () => {
                     </Badge>
                   )}
                 </div>
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start mt-6">
                 <Button
-                  className="mt-4 bg-gradient-to-r from-primary to-primary-glow text-primary-foreground border-0 shadow-md hover:shadow-glow hover:scale-[1.02] transition-all"
+                  className="bg-gradient-to-r from-primary to-primary-glow text-primary-foreground border-0 shadow-md hover:shadow-glow hover:scale-[1.02] transition-all rounded-2xl px-8"
                   onClick={() => navigate("/profile/edit")}
                 >
                   <PenLine className="mr-2 h-4 w-4" />
                   Edit Profile
                 </Button>
+                </div>
                 {hasRole("ORGANIZER") && !isVerified && !verificationInProgress && (
                   <Button
                     variant="outline"
@@ -426,6 +327,145 @@ const Profile = () => {
                     {verificationStatus === "REJECTED" ? "Resubmit verification" : "Complete Identity Check"}
                   </Button>
                 )}
+              </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick actions */}
+          <Card className="md:col-span-3 rounded-3xl border-border/60 bg-card/90 shadow-sm">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Link
+                  to="/orders"
+                  className="group rounded-2xl border border-border/60 bg-muted/30 p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors flex flex-col gap-2"
+                >
+                  <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center">
+                    <Ticket className="h-5 w-5 text-primary" />
+                  </div>
+                  <p className="font-semibold text-foreground">My orders</p>
+                  <p className="text-xs text-muted-foreground">Upcoming events and ticket history</p>
+                  <span className="text-sm font-semibold text-primary flex items-center gap-1 mt-1">
+                    Manage tickets <ChevronRight className="h-4 w-4" />
+                  </span>
+                </Link>
+                <Link
+                  to="/following"
+                  className="group rounded-2xl border border-border/60 bg-muted/30 p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors flex flex-col gap-2"
+                >
+                  <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center">
+                    <Heart className="h-5 w-5 text-primary" />
+                  </div>
+                  <p className="font-semibold text-foreground">Following</p>
+                  <p className="text-xs text-muted-foreground">Organizers and venues you follow</p>
+                  <span className="text-sm font-semibold text-primary flex items-center gap-1 mt-1">
+                    {following.length} organizers <ChevronRight className="h-4 w-4" />
+                  </span>
+                </Link>
+                <Link
+                  to="/events"
+                  className="group rounded-2xl border border-border/60 bg-muted/30 p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors flex flex-col gap-2"
+                >
+                  <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center">
+                    <Bookmark className="h-5 w-5 text-primary" />
+                  </div>
+                  <p className="font-semibold text-foreground">Discover events</p>
+                  <p className="text-xs text-muted-foreground">Browse and save events you love</p>
+                  <span className="text-sm font-semibold text-primary flex items-center gap-1 mt-1">
+                    Explore <ChevronRight className="h-4 w-4" />
+                  </span>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-3 rounded-3xl border-border/60 bg-card/90 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Following feed</p>
+                <Link to="/following" className="text-sm font-semibold text-primary flex items-center gap-0.5">
+                  View all <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
+              {following.length === 0 ? (
+                <p className="text-sm text-muted-foreground">You are not following any organizers yet.</p>
+              ) : (
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                  {following.map((f) => (
+                    <div
+                      key={f.organizerId}
+                      className="flex flex-col items-center gap-1 shrink-0 w-[72px]"
+                    >
+                      <Avatar className="h-14 w-14 ring-2 ring-primary/20">
+                        <AvatarImage src={f.profilePictureUrl ?? undefined} alt={f.name ?? ""} />
+                        <AvatarFallback className="text-xs bg-primary/10">
+                          {(f.name ?? "?").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-[10px] text-center text-muted-foreground line-clamp-2 leading-tight w-full">
+                        {f.name ?? "Organizer"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-3 rounded-3xl border-border/60 bg-card/90 shadow-sm">
+            <CardContent className="p-6">
+              <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Account</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate("/profile/edit")}
+                  className="flex items-start justify-between gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 text-left hover:border-primary/30 hover:bg-primary/5 transition-colors"
+                >
+                  <div>
+                    <p className="font-semibold">Edit profile</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Name, bio, and personal details</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/settings")}
+                  className="flex items-start justify-between gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 text-left hover:border-primary/30 hover:bg-primary/5 transition-colors"
+                >
+                  <div>
+                    <p className="font-semibold flex items-center gap-2">
+                      <Settings className="h-4 w-4" /> Security
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Password and account preferences</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/notifications")}
+                  className="flex items-start justify-between gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 text-left hover:border-primary/30 hover:bg-primary/5 transition-colors"
+                >
+                  <div>
+                    <p className="font-semibold flex items-center gap-2">
+                      <Bell className="h-4 w-4" /> Notifications
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Event updates and reminders</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/help")}
+                  className="flex items-start justify-between gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 text-left hover:border-primary/30 hover:bg-primary/5 transition-colors"
+                >
+                  <div>
+                    <p className="font-semibold flex items-center gap-2">
+                      <HelpCircle className="h-4 w-4" /> Help &amp; support
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">FAQs and contact</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                </button>
               </div>
             </CardContent>
           </Card>
@@ -475,51 +515,6 @@ const Profile = () => {
             </Card>
           )}
 
-          {/* Info tiles */}
-          <Card className="rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Mail className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</p>
-                <p className="font-medium truncate">{user?.email ?? "—"}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Calendar className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Member since</p>
-                <p className="font-medium">
-                  {user?.createdAt ? format(new Date(user.createdAt), "MMMM yyyy") : "—"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <CalendarDays className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Account type</p>
-                <p className="font-medium">
-                  {user?.subscriptionTier === "ENTERPRISE"
-                    ? "Enterprise"
-                    : user?.subscriptionTier === "PRO"
-                      ? "Pro"
-                      : "Individual"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Payout risk + eligibility (organizers only) */}
           {hasRole("ORGANIZER") && (
             <Card className="rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
@@ -557,7 +552,7 @@ const Profile = () => {
                   <div>
                     <p className="font-semibold text-primary">Access Plus Pro</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Lower fees · Instant payouts · White-label customization
+                      Lower fees · Instant payouts · Manage team and branding under Organizer
                     </p>
                     <Button
                       variant="ghost"
@@ -567,6 +562,16 @@ const Profile = () => {
                     >
                       Manage plan <ChevronRight className="h-4 w-4 ml-0.5 inline" />
                     </Button>
+                    {isEnterprise ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-1 text-primary p-0 h-auto font-medium block"
+                        onClick={() => navigate("/enterprise/subscription")}
+                      >
+                        Enterprise subscription <ChevronRight className="h-4 w-4 ml-0.5 inline" />
+                      </Button>
+                    ) : null}
                   </div>
                 ) : (
                   <div>
@@ -605,242 +610,69 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Pro/Enterprise: Team Management card with list + invite */}
-          {isProOrEnterprise && (
-            <Card className="md:col-span-3 rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
-              <CardContent className="p-6">
-                <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
+          {/* Organizer tools: team & branding live under /organizer/* (not duplicated on Profile) */}
+          {hasRole("ORGANIZER") && isProOrEnterprise && (
+            <Card
+              className="md:col-span-3 rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
+              onClick={() => navigate("/organizer/team")}
+              role="link"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && navigate("/organizer/team")}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Users className="h-5 w-5 text-primary" />
-                  Team Management
-                </h2>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Invite team members by email (they must have an account). They can manage your events based on their role.
-                </p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <Input
-                    type="email"
-                    placeholder="teammate@example.com"
-                    className="max-w-xs"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleInviteTeamMember()}
-                  />
-                  <select
-                    className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as "ADMIN" | "EDITOR" | "VIEWER")}
-                  >
-                    <option value="VIEWER">Viewer</option>
-                    <option value="EDITOR">Editor</option>
-                    <option value="ADMIN">Admin</option>
-                  </select>
-                  <Button
-                    type="button"
-                    onClick={handleInviteTeamMember}
-                    disabled={inviteSubmitting || !inviteEmail.trim()}
-                  >
-                    {inviteSubmitting ? "Adding…" : "Add member"}
-                  </Button>
                 </div>
-                {teamLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading team…
-                  </div>
-                ) : teamMembers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No team members yet. Add one above.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {teamMembers.map((m) => (
-                      <li
-                        key={m.id}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2"
-                      >
-                        <div>
-                          <span className="font-medium">
-                            {[m.firstName, m.lastName].filter(Boolean).join(" ") || m.email || "—"}
-                          </span>
-                          {m.email && <span className="text-muted-foreground text-sm ml-2">{m.email}</span>}
-                          <Badge variant="secondary" className="ml-2 text-xs">
-                            {m.role}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <select
-                            className="rounded-md border border-input bg-background px-2 py-1 text-xs"
-                            value={m.role}
-                            onChange={(e) => handleUpdateTeamMemberRole(m.userId, e.target.value as "ADMIN" | "EDITOR" | "VIEWER")}
-                          >
-                            <option value="VIEWER">Viewer</option>
-                            <option value="EDITOR">Editor</option>
-                            <option value="ADMIN">Admin</option>
-                          </select>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleRemoveTeamMember(m.userId)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Organizer</p>
+                  <p className="font-medium">Team management</p>
+                  <p className="text-sm text-muted-foreground">Invite people, set roles, and manage access — opens the organizer hub</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
               </CardContent>
             </Card>
           )}
 
-          {/* Enterprise only: White-Label (per pricing page) */}
-          {isEnterprise && (
-            <Card className="md:col-span-3 rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
-              <CardContent className="p-6">
-                <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
+          {hasRole("ORGANIZER") && isEnterprise && (
+            <Card
+              className="md:col-span-3 rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
+              onClick={() => navigate("/organizer/branding")}
+              role="link"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && navigate("/organizer/branding")}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Palette className="h-5 w-5 text-primary" />
-                  White-Label Branding
-                </h2>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Custom logo and colors appear on your event pages. Optionally hide &quot;Powered by Access Plus&quot;.
-                </p>
-                <div className="space-y-4 max-w-md">
-                  <div>
-                    <Label htmlFor="branding-logo">Logo URL</Label>
-                    <Input
-                      id="branding-logo"
-                      type="url"
-                      placeholder="https://example.com/logo.png"
-                      value={brandingLogoUrl}
-                      onChange={(e) => setBrandingLogoUrl(e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="branding-color">Primary color (hex)</Label>
-                    <div className="flex gap-2 mt-1">
-                      <input
-                        id="branding-color"
-                        type="color"
-                        value={brandingPrimaryColor.startsWith("#") ? brandingPrimaryColor : "#6366f1"}
-                        onChange={(e) => setBrandingPrimaryColor(e.target.value)}
-                        className="h-10 w-14 rounded border cursor-pointer"
-                      />
-                      <Input
-                        placeholder="#6366f1"
-                        value={brandingPrimaryColor}
-                        onChange={(e) => setBrandingPrimaryColor(e.target.value)}
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      id="branding-hide"
-                      type="checkbox"
-                      checked={brandingHidePlatform}
-                      onChange={(e) => setBrandingHidePlatform(e.target.checked)}
-                      className="rounded border-input"
-                    />
-                    <Label htmlFor="branding-hide" className="cursor-pointer">Hide &quot;Powered by Access Plus&quot; on my event pages</Label>
-                  </div>
-                  <Button type="button" onClick={handleSaveBranding} disabled={brandingSaving}>
-                    {brandingSaving ? "Saving…" : "Save branding"}
-                  </Button>
                 </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Organizer</p>
+                  <p className="font-medium">White-label branding</p>
+                  <p className="text-sm text-muted-foreground">Logo, colors, and footer on public pages — configure in the branding workspace</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
               </CardContent>
             </Card>
           )}
 
-          {/* API keys (Enterprise only) */}
-          {isEnterprise && (
-            <Card className="md:col-span-3 rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md">
-              <CardContent className="p-6">
-                <h2 className="text-lg font-bold flex items-center gap-2 mb-1">
+          {hasRole("ORGANIZER") && isEnterprise && (
+            <Card
+              className="md:col-span-3 rounded-xl border-0 bg-white/70 dark:bg-white/10 backdrop-blur-[10px] shadow-md cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all"
+              onClick={() => navigate("/organizer/api-keys")}
+              role="link"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && navigate("/organizer/api-keys")}
+            >
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Key className="h-5 w-5 text-primary" />
-                  API keys
-                </h2>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Use API keys for programmatic access. Send the key in the <code className="rounded bg-muted px-1 text-xs">X-Api-Key</code> header.
-                </p>
-
-                {newKeyResult && (
-                  <div className="mb-6 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200 mb-2">Your new API key (copy now — it won&apos;t be shown again)</p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <code className="flex-1 min-w-0 break-all rounded bg-muted px-2 py-1.5 text-sm font-mono">
-                        {newKeyResult.key}
-                      </code>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleCopyKey(newKeyResult.key)}
-                      >
-                        <Copy className="h-4 w-4 mr-1" />
-                        Copy
-                      </Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setNewKeyResult(null)}>
-                        Dismiss
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <Label htmlFor="api-key-name" className="sr-only">Key name</Label>
-                  <Input
-                    id="api-key-name"
-                    placeholder="e.g. Production API"
-                    className="max-w-xs"
-                    value={createKeyName}
-                    onChange={(e) => setCreateKeyName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleCreateApiKey()}
-                  />
-                  <Button
-                    type="button"
-                    onClick={handleCreateApiKey}
-                    disabled={createKeySubmitting || !createKeyName.trim()}
-                  >
-                    {createKeySubmitting ? "Creating…" : "Create API key"}
-                  </Button>
                 </div>
-
-                {apiKeysLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading keys…
-                  </div>
-                ) : apiKeys.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No API keys yet. Create one above.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {apiKeys.map((k) => (
-                      <li
-                        key={k.id}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-3 py-2"
-                      >
-                        <div>
-                          <span className="font-medium">{k.name}</span>
-                          <span className="text-muted-foreground text-sm ml-2 font-mono">{k.keyPrefix}…</span>
-                          <span className="text-muted-foreground text-xs ml-2">
-                            {k.createdAt ? format(new Date(k.createdAt), "MMM d, yyyy") : ""}
-                          </span>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleRevokeApiKey(k.id)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Revoke
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Organizer</p>
+                  <p className="font-medium">API keys</p>
+                  <p className="text-sm text-muted-foreground">Create and revoke keys for programmatic access — managed in the organizer hub</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
               </CardContent>
             </Card>
           )}
@@ -969,7 +801,7 @@ const Profile = () => {
           )}
         </motion.div>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

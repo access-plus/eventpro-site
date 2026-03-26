@@ -1,106 +1,104 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
-import { ChevronRight, HelpCircle, Mail } from "lucide-react";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { ChevronRight, Search, ShoppingCart, Tag, User, Wallet } from "lucide-react";
 import { motion } from "framer-motion";
+import { PageShell } from "@/components/PageShell";
+import { cn } from "@/lib/utils";
 
-const faqs = [
-  {
-    q: "How do I buy tickets?",
-    a: "Browse events on the home or Events page, select an event, choose your ticket type and quantity, and proceed to checkout. You can check out as a guest or create an account to track your orders.",
-  },
-  {
-    q: "Can I get a refund?",
-    a: "Refund policies are set by the event organizer. After purchasing, check your order confirmation or contact the organizer. For payment issues, contact our support team.",
-  },
-  {
-    q: "How do I create an event?",
-    a: "Sign up or log in, then go to the Organizer dashboard. Click Create event and fill in the details (name, date, venue, ticket types). You can save as draft and publish when ready.",
-  },
-  {
-    q: "When do I get paid as an organizer?",
-    a: "Basic: standard payout after the event (T+2). Pro and Enterprise tiers may qualify for early or instant payouts based on your account and risk assessment. Complete identity verification to unlock payouts.",
-  },
-  {
-    q: "How do I check in attendees?",
-    a: "Use the Check-in page in the Organizer section (or the Check-in shortcut on the mobile app). Scan the QR code on each ticket to mark the attendee as checked in.",
-  },
-  {
-    q: "Where is my data?",
-    a: "Organizers can export attendee data (CSV) from the event attendees view. Our Privacy Policy explains how we collect and use data. You can request deletion or a copy of your data by contacting us.",
-  },
+const categories = [
+  { icon: ShoppingCart, title: "Buying", sub: "Tickets & payments", className: "text-indigo-600" },
+  { icon: Tag, title: "Selling", sub: "Listings & payouts", className: "text-rose-800" },
+  { icon: User, title: "Account", sub: "Security & profile", className: "text-violet-600" },
+  { icon: Wallet, title: "Payments", sub: "Refunds & credits", className: "text-indigo-700" },
+];
+
+const popular = [
+  "How do I transfer my ticket to a friend?",
+  "My payment was declined but I was charged",
+  "What is the 'Fan-Protect' guarantee?",
 ];
 
 const Help = () => {
+  const [q, setQ] = useState("");
+
   return (
-    <div className="min-h-screen py-12 px-4">
-      <div className="container mx-auto max-w-3xl">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="space-y-8"
-        >
-          <div className="text-center">
-            <div className="inline-flex h-14 w-14 rounded-2xl bg-primary/10 items-center justify-center mb-4">
-              <HelpCircle className="h-7 w-7 text-primary" />
-            </div>
-            <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
-              Help Center
+    <PageShell>
+      <div className="container mx-auto max-w-lg px-4 py-8 pb-24">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+          <div>
+            <h1 className="text-3xl font-extrabold font-headline tracking-tight text-foreground leading-tight">
+              How can we <span className="italic text-primary font-semibold">help</span> you today?
             </h1>
-            <p className="text-muted-foreground text-lg">
-              Find answers to common questions about tickets, events, and payouts.
-            </p>
+            <div className="relative mt-6">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search for FAQs, tickets, or guides…"
+                className="pl-12 h-12 rounded-2xl border-border/80 bg-primary/[0.06] focus-visible:ring-primary/25"
+              />
+            </div>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Frequently asked questions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Accordion type="single" collapsible className="w-full">
-                {faqs.map((faq, i) => (
-                  <AccordionItem key={i} value={`item-${i}`}>
-                    <AccordionTrigger className="text-left">
-                      {faq.q}
-                    </AccordionTrigger>
-                    <AccordionContent className="text-muted-foreground">
-                      {faq.a}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </CardContent>
-          </Card>
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold font-headline text-foreground">Browse categories</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {categories.map((c) => (
+                <Link key={c.title} to="/help#faq" className="block">
+                  <Card className="rounded-2xl border-border/60 bg-card/95 hover:border-primary/30 transition-colors h-full">
+                    <CardContent className="p-4 flex flex-col gap-2">
+                      <c.icon className={cn("h-7 w-7", c.className)} />
+                      <p className="font-bold text-foreground">{c.title}</p>
+                      <p className="text-xs text-muted-foreground leading-snug">{c.sub}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
 
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="pt-6">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div>
-                  <p className="font-semibold text-foreground">Still need help?</p>
-                  <p className="text-sm text-muted-foreground">
-                    Our support team is ready to assist you.
-                  </p>
-                </div>
-                <Button asChild>
-                  <Link to="/contact">
-                    <Mail className="mr-2 h-4 w-4" />
-                    Contact us
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold font-headline text-foreground">Popular questions</h2>
+              <Link to="/help#faq" className="text-sm font-semibold text-primary hover:underline">
+                View all
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {popular.map((p) => (
+                <Link key={p} to="/help#faq">
+                  <Card className="rounded-2xl border-border/60 bg-card/95 hover:bg-primary/[0.04] transition-colors">
+                    <CardContent className="p-4 flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium text-foreground">{p}</span>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div id="faq" className="scroll-mt-24">
+          <Card className="rounded-3xl border-0 bg-gradient-to-br from-primary to-primary-glow text-primary-foreground shadow-lg overflow-hidden">
+            <CardContent className="p-8 text-center space-y-4">
+              <p className="text-xl font-bold font-headline">Need more help?</p>
+              <p className="text-sm text-primary-foreground/90 leading-relaxed">
+                Our support team is active 24/7 to help you with your event experience.
+              </p>
+              <Button asChild variant="secondary" className="rounded-full h-12 px-8 font-semibold bg-background text-primary hover:bg-background/90">
+                <Link to="/contact">Contact support</Link>
+              </Button>
             </CardContent>
           </Card>
+          </div>
         </motion.div>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

@@ -172,6 +172,28 @@ All colors MUST be HSL.
   .badge-glow-category {
     box-shadow: 0 0 10px hsl(250 85% 55% / 0.5);
   }
+
+  /* Stitch discovery_web hero overlay */
+  .hero-gradient-stitch {
+    background: linear-gradient(to right, rgba(93, 63, 211, 0.9), rgba(163, 145, 255, 0.4));
+  }
+
+  /* Event detail hero — Stitch event_details_web bottom fade */
+  .editorial-gradient {
+    background: linear-gradient(180deg, rgba(54, 39, 78, 0) 0%, rgba(54, 39, 78, 0.82) 100%);
+  }
+
+  .editorial-card-shadow {
+    box-shadow: 0 20px 40px rgba(54, 39, 78, 0.06);
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 @keyframes gradient-shift {

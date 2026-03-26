@@ -6,6 +6,7 @@ import { apiService } from "@/lib/api";
 import type { UserNotification } from "@/types/api";
 import { Bell, Check, Loader2, Settings } from "lucide-react";
 import { motion } from "framer-motion";
+import { PageShell } from "@/components/PageShell";
 
 const PAGE_SIZE = 20;
 
@@ -76,10 +77,10 @@ const Notifications = () => {
   const hasMore = page + 1 < totalPages;
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4 max-w-2xl">
+    <PageShell>
+      <div className="container mx-auto px-4 max-w-2xl py-8 md:py-10">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent flex items-center gap-2">
+          <h1 className="text-3xl md:text-4xl font-extrabold font-headline tracking-tight bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent flex items-center gap-2">
             <Bell className="h-8 w-8 text-primary" />
             Notifications
           </h1>
@@ -96,7 +97,7 @@ const Notifications = () => {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : notifications.length === 0 ? (
-          <Card>
+          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
             <CardContent className="py-12 text-center text-muted-foreground">
               <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="font-medium">No notifications yet</p>
@@ -146,7 +147,7 @@ const Notifications = () => {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 };
 

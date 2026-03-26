@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -33,14 +33,26 @@ import AdminVerification from "./pages/AdminVerification";
 import AdminEvents from "./pages/AdminEvents";
 import AdminEventSales from "./pages/AdminEventSales";
 import AdminRevenue from "./pages/AdminRevenue";
+import AdminApiKeys from "./pages/AdminApiKeys";
+import AdminAuditLogs from "./pages/AdminAuditLogs";
 import AdminSubscriptionPayments from "./pages/AdminSubscriptionPayments";
+import AdminEventReviewerPermissions from "./pages/AdminEventReviewerPermissions";
+import AdminSystemHealth from "./pages/AdminSystemHealth";
 import UserManagement from "./pages/UserManagement";
+import EnterpriseSubscription from "./pages/EnterpriseSubscription";
 import Organizer from "./pages/Organizer";
+import TeamManagement from "./pages/TeamManagement";
+import AdminRolesPermissions from "./pages/AdminRolesPermissions";
+import AdminVerificationDetail from "./pages/AdminVerificationDetail";
+import OrganizerBranding from "./pages/OrganizerBranding";
+import OrganizerApiKeys from "./pages/OrganizerApiKeys";
+import OrganizerFinancials from "./pages/OrganizerFinancials";
 import CheckIn from "./pages/CheckIn";
 import EventForm from "./pages/EventForm";
 import EventFormNew from "./pages/EventFormNew";
 import EventTickets from "./pages/EventTickets";
 import EventEnhancements from "./pages/EventEnhancements";
+import SeatMapEditor from "./pages/SeatMapEditor";
 import OrderHistory from "./pages/OrderHistory";
 import Notifications from "./pages/Notifications";
 import Pricing from "./pages/Pricing";
@@ -147,14 +159,21 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Admin />} />
+          <Route index element={<Navigate to="overview" replace />} />
           <Route path="overview" element={<AdminDashboard />} />
+          <Route path="hub" element={<Admin />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="verification" element={<AdminVerification />} />
+          <Route path="verification/:id" element={<AdminVerificationDetail />} />
+          <Route path="roles-permissions" element={<AdminRolesPermissions />} />
           <Route path="events" element={<AdminEvents />} />
           <Route path="event-sales" element={<AdminEventSales />} />
           <Route path="revenue" element={<AdminRevenue />} />
+          <Route path="api-keys" element={<AdminApiKeys />} />
+          <Route path="audit-logs" element={<AdminAuditLogs />} />
           <Route path="subscription-payments" element={<AdminSubscriptionPayments />} />
+          <Route path="event-reviewer-permissions" element={<AdminEventReviewerPermissions />} />
+          <Route path="system-health" element={<AdminSystemHealth />} />
         </Route>
 
         <Route
@@ -162,6 +181,38 @@ const AnimatedRoutes = () => {
           element={
             <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
               <PageTransition><Organizer /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizer/team"
+          element={
+            <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
+              <PageTransition><TeamManagement /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizer/branding"
+          element={
+            <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
+              <PageTransition><OrganizerBranding /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizer/api-keys"
+          element={
+            <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
+              <PageTransition><OrganizerApiKeys /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizer/financials"
+          element={
+            <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
+              <PageTransition><OrganizerFinancials /></PageTransition>
             </ProtectedRoute>
           }
         />
@@ -177,7 +228,7 @@ const AnimatedRoutes = () => {
         <Route
           path="/organizer/events/new"
           element={
-            <ProtectedRoute allowedRoles={["ORGANIZER"]}>
+            <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
               <PageTransition><EventFormNew /></PageTransition>
             </ProtectedRoute>
           }
@@ -186,8 +237,17 @@ const AnimatedRoutes = () => {
         <Route
           path="/organizer/events/:id/edit"
           element={
-            <ProtectedRoute allowedRoles={["ORGANIZER"]}>
+            <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
               <PageTransition><EventFormNew /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/organizer/events/:id/seat-map"
+          element={
+            <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
+              <PageTransition><SeatMapEditor /></PageTransition>
             </ProtectedRoute>
           }
         />
@@ -195,7 +255,7 @@ const AnimatedRoutes = () => {
         <Route
           path="/organizer/events/:id/tickets"
           element={
-            <ProtectedRoute allowedRoles={["ORGANIZER"]}>
+            <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
               <PageTransition><EventTickets /></PageTransition>
             </ProtectedRoute>
           }
@@ -204,11 +264,22 @@ const AnimatedRoutes = () => {
         <Route
           path="/organizer/events/:id/enhancements"
           element={
-            <ProtectedRoute allowedRoles={["ORGANIZER"]}>
+            <ProtectedRoute allowedRoles={["ORGANIZER", "ADMIN"]}>
               <PageTransition><EventEnhancements /></PageTransition>
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/enterprise/subscription"
+          element={
+            <ProtectedRoute>
+              <PageTransition><EnterpriseSubscription /></PageTransition>
+            </ProtectedRoute>
+          }
+        />
+        {/* Profile & legacy links used /subscription/enterprise — keep alias */}
+        <Route path="/subscription/enterprise" element={<Navigate to="/enterprise/subscription" replace />} />
 
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>

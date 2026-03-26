@@ -419,6 +419,42 @@ export interface CreateApiKeyResponse {
   key: string;
 }
 
+/** Admin audit feed row (append-only platform_audit_events + mapped fields). */
+export interface AuditActivity {
+  id: string;
+  occurredAt: string;
+  actor: string;
+  actorInitials: string;
+  action: string;
+  actionDanger?: boolean;
+  entity: string;
+  status: string;
+  statusTone: string;
+  ip?: string;
+  category: string;
+  body: string;
+}
+
+/** Paginated audit list (indexed DB query). */
+export interface AuditActivityPage {
+  content: AuditActivity[];
+  totalElements: number;
+  totalPages: number;
+  page: number;
+  size: number;
+}
+
+/** JVM + DB ping for admin system health. */
+export interface SystemStatus {
+  overallStatus: string;
+  databaseStatus: string;
+  heapUsedMb: number;
+  heapMaxMb: number;
+  heapUsagePercent: number;
+  javaVersion: string;
+  osName: string;
+}
+
 export interface AdminStats {
   totalUsers: number;
   totalEvents: number;
@@ -428,6 +464,10 @@ export interface AdminStats {
   eventGrowth: number;
   ticketGrowth: number;
   revenueGrowth: number;
+  /** Platform-wide counts by role (from backend aggregation). */
+  usersAttendeeCount?: number;
+  usersOrganizerCount?: number;
+  usersAdminCount?: number;
 }
 
 export interface EventSales {

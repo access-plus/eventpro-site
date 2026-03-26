@@ -12,7 +12,7 @@ import { SuccessTicketReveal } from "@/components/SuccessTicketReveal";
 import { TicketPreview } from "@/components/TicketPreview";
 import { apiService } from "@/lib/api";
 import { HOW_DID_YOU_HEAR_OPTIONS } from "@/types/api";
-import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone, CreditCard } from "lucide-react";
+import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone, CreditCard, Lock, ChevronDown, Minus, Plus } from "lucide-react";
 import { CommunityImpactTile } from "@/components/CommunityImpactTile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import type { Event } from "@/types/api";
+import { CheckoutStitchHero } from "@/components/checkout/CheckoutStitchHero";
+import { CheckoutVenuePreview } from "@/components/checkout/CheckoutVenuePreview";
+import { CheckoutPaymentProcessingOverlay } from "@/components/checkout/CheckoutPaymentProcessingOverlay";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface SelectedMerchItem extends MerchandiseItem {
   quantity: number;
@@ -56,8 +61,10 @@ const US_STATE_OPTIONS: { code: string; name: string }[] = [
   { code: "WI", name: "Wisconsin" }, { code: "WY", name: "Wyoming" }, { code: "DC", name: "District of Columbia" },
 ];
 
+const MAX_TICKETS_PER_LINE = 4;
+
 const Checkout = () => {
-  const { items, totalAmount, removeItem, clearCart } = useCart();
+  const { items, totalAmount, removeItem, clearCart, updateQuantity } = useCart();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [checkoutMode, setCheckoutMode] = useState<"select" | "guest" | "login">("select");
@@ -84,6 +91,7 @@ const Checkout = () => {
   const [successEventName, setSuccessEventName] = useState<string | null>(null);
   const [successAttendeeName, setSuccessAttendeeName] = useState<string>("");
   const [successTicketType, setSuccessTicketType] = useState<string>("");
+  const [successTotal, setSuccessTotal] = useState(0);
   /** Live form values for ticket preview (guest only, before submit). */
   const [previewGuest, setPreviewGuest] = useState({ firstName: "", lastName: "", email: "" });
   /** Checkout totals including tax (from GET /payments/checkout-totals). Use total for payment intent when tax enabled. */
@@ -91,6 +99,8 @@ const Checkout = () => {
   /** Buyer state/country for jurisdiction-based sales tax (e.g. state=CA, country=US). */
   const [taxState, setTaxState] = useState<string>("");
   const [taxCountry, setTaxCountry] = useState<string>("US");
+  const [eventDetail, setEventDetail] = useState<Event | null>(null);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   const eventIds = useMemo(() => [...new Set(items.map((i) => i.eventId).filter(Boolean))], [items]);
 
@@ -99,6 +109,7 @@ const Checkout = () => {
     0
   );
   const grandTotal = totalAmount + merchTotal + (donationAmount || 0);
+  const displayTotal = checkoutTotals?.total ?? grandTotal;
 
   // Fetch checkout totals (subtotal + tax) when grandTotal and optional state/country change
   useEffect(() => {
@@ -126,8 +137,14 @@ const Checkout = () => {
       .catch(() => setAddonsByEvent([]));
     apiService
       .getEvent(eventIds[0])
-      .then((event) => setDonationsEnabled(Boolean(event.donationsEnabled)))
-      .catch(() => setDonationsEnabled(false));
+      .then((event) => {
+        setEventDetail(event);
+        setDonationsEnabled(Boolean(event.donationsEnabled));
+      })
+      .catch(() => {
+        setEventDetail(null);
+        setDonationsEnabled(false);
+      });
   }, [eventIds.join(",")]);
 
   // For signed-in users: cart tickets are already reserved; get expiry for countdown
@@ -164,6 +181,240 @@ const Checkout = () => {
     (previewGuest.firstName.trim() !== "" &&
       previewGuest.lastName.trim() !== "" &&
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(previewGuest.email));
+
+  const heroLocation = useMemo(() => {
+    if (!eventDetail) return undefined;
+    const cityState = [eventDetail.addressCity, eventDetail.addressState].filter(Boolean).join(", ");
+    const parts = [eventDetail.venue, cityState].filter(Boolean);
+    return parts.length ? parts.join(", ") : undefined;
+  }, [eventDetail]);
+
+  const eventDateLine = useMemo(() => {
+    const raw = eventDetail?.startTime ?? eventDetail?.startDateTime;
+    if (!raw) return undefined;
+    try {
+      return new Date(raw).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    } catch {
+      return undefined;
+    }
+  }, [eventDetail]);
+
+  const processingOverlayLines = useMemo(() => {
+    const lines: { label: string; amount: number }[] = [];
+    items.forEach((i) => {
+      lines.push({
+        label: `${i.quantity}× ${i.ticketTypeName}`,
+        amount: Number((i.price * i.quantity).toFixed(2)),
+      });
+    });
+    selectedMerch.forEach((m) => {
+      lines.push({
+        label: `${m.quantity > 1 ? `${m.quantity}× ` : ""}${m.name}${m.selectedSize ? ` (${m.selectedSize})` : ""}`,
+        amount: Number((m.price * m.quantity).toFixed(2)),
+      });
+    });
+    if (donationAmount > 0) {
+      lines.push({ label: "Donation", amount: Number(donationAmount.toFixed(2)) });
+    }
+    const taxAmt = checkoutTotals?.tax ?? 0;
+    if (taxAmt > 0) {
+      lines.push({
+        label: checkoutTotals ? `Tax (${checkoutTotals.taxRatePercent}%)` : "Tax",
+        amount: Number(taxAmt.toFixed(2)),
+      });
+    }
+    const sumLines = lines.reduce((s, l) => s + l.amount, 0);
+    const rest = Number((displayTotal - sumLines).toFixed(2));
+    if (rest > 0.015) {
+      lines.push({ label: "Service & processing", amount: rest });
+    }
+    return lines;
+  }, [items, selectedMerch, donationAmount, checkoutTotals, displayTotal]);
+
+  const renderOrderSummaryCardContent = () => (
+    <>
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium text-muted-foreground">Tickets</h4>
+        {items.map((item) => (
+          <div key={item.id} className="flex justify-between text-sm">
+            <span>
+              {item.ticketTypeName} × {item.quantity}
+            </span>
+            <span>${(item.price * item.quantity).toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
+
+      {selectedMerch.length > 0 && (
+        <div className="space-y-2 pt-2 border-t">
+          <h4 className="text-sm font-medium text-muted-foreground">Add-ons</h4>
+          {selectedMerch.map((item) => (
+            <div key={item.id} className="flex justify-between text-sm">
+              <span>
+                {item.name}
+                {item.selectedSize && ` (${item.selectedSize})`}
+                {item.quantity > 1 && ` × ${item.quantity}`}
+              </span>
+              <span>${(item.price * item.quantity).toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-3 pt-2 border-t border-border">
+        <div>
+          <Label className="text-sm font-medium text-muted-foreground">Billing address</Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Used for your receipt and to calculate sales tax where required.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Country</Label>
+            <Select value={taxCountry || "US"} onValueChange={(v) => setTaxCountry(v || "US")}>
+              <SelectTrigger className="rounded-lg border-primary/20 bg-background/80">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="US">United States</SelectItem>
+                <SelectItem value="CA">Canada</SelectItem>
+                <SelectItem value="GB">United Kingdom</SelectItem>
+                <SelectItem value="OTHER">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">State / Province</Label>
+            <Select value={taxState || "__"} onValueChange={(v) => setTaxState(v === "__" ? "" : v)}>
+              <SelectTrigger className="rounded-lg border-primary/20 bg-background/80">
+                <SelectValue placeholder="State" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__">Select state (optional)</SelectItem>
+                {US_STATE_OPTIONS.map((s) => (
+                  <SelectItem key={s.code} value={s.code}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-border pt-4 space-y-2">
+        <div className="flex justify-between text-sm">
+          <span>Tickets Subtotal</span>
+          <span>${totalAmount.toFixed(2)}</span>
+        </div>
+        {merchTotal > 0 && (
+          <div className="flex justify-between text-sm">
+            <span>Add-ons Subtotal</span>
+            <span>${merchTotal.toFixed(2)}</span>
+          </div>
+        )}
+        {donationAmount > 0 && (
+          <div className="flex justify-between text-sm">
+            <span>Donation</span>
+            <span>${donationAmount.toFixed(2)}</span>
+          </div>
+        )}
+        {checkoutTotals && checkoutTotals.tax > 0 && (
+          <div className="flex justify-between text-sm">
+            <span>Tax ({checkoutTotals.taxRatePercent}%)</span>
+            <span>${checkoutTotals.tax.toFixed(2)}</span>
+          </div>
+        )}
+        <div className="flex justify-between items-baseline pt-2 border-t">
+          <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total</span>
+          <span className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight text-foreground">
+            ${displayTotal.toFixed(2)}
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-2 pt-2 border-t border-border">
+        <Label className="text-sm font-medium text-muted-foreground">How did you hear about this event?</Label>
+        <Select value={howDidYouHear} onValueChange={setHowDidYouHear}>
+          <SelectTrigger className="rounded-lg border-primary/20 bg-background/80">
+            <SelectValue placeholder="Select (optional)" />
+          </SelectTrigger>
+          <SelectContent>
+            {HOW_DID_YOU_HEAR_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value || "opt"} value={opt.value === "" ? "__" : opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-3 pt-2 border-t border-border">
+        <Label className="text-sm font-medium text-muted-foreground">Receive ticket via</Label>
+        <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4 text-primary" />
+            <span className="text-sm">WhatsApp</span>
+          </div>
+          <Switch checked={receiveTicketViaWhatsApp} onCheckedChange={setReceiveTicketViaWhatsApp} />
+        </div>
+        <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Smartphone className="h-4 w-4 text-primary" />
+            <span className="text-sm">SMS</span>
+          </div>
+          <Switch checked={receiveTicketViaSMS} onCheckedChange={setReceiveTicketViaSMS} />
+        </div>
+        <p className="text-xs text-muted-foreground">We’ll send your digital ticket to your phone. Great for the diaspora.</p>
+      </div>
+
+      {paymentStep === "review" && (
+        <>
+          {reservedUntil && (
+            <ReservationCountdown
+              reservedUntil={reservedUntil}
+              onExpired={() => {
+                setReservedUntil(null);
+                setReservedTicketIds(null);
+                toast.warning("Reservation expired. Tickets were released. Please try again.");
+              }}
+              className="mb-2"
+            />
+          )}
+          <Button
+            type="button"
+            className={
+              isFormValid
+                ? "w-full rounded-xl bg-gradient-to-r from-primary via-primary to-orange-500 text-white shadow-[0_4px_20px_rgba(147,51,234,0.4)] hover:shadow-[0_6px_28px_rgba(147,51,234,0.5),0_0_0_1px_rgba(251,146,60,0.3)] hover:scale-[1.02] transition-all duration-200 pay-button-shimmer"
+                : "w-full rounded-xl bg-muted text-muted-foreground cursor-not-allowed"
+            }
+            size="lg"
+            disabled={(!isAuthenticated && !guestInfo) || isStartingPayment}
+            onClick={(e) => handleProceedToPayment(e)}
+          >
+            {isStartingPayment ? (
+              "Starting payment…"
+            ) : isFormValid ? (
+              <span className="inline-flex items-center justify-center gap-2">
+                <Lock className="h-4 w-4" />
+                Secure payment
+              </span>
+            ) : (
+              "Complete your details above"
+            )}
+          </Button>
+          {paymentError && <p className="text-sm text-destructive text-center mt-2">{paymentError}</p>}
+        </>
+      )}
+      {!isAuthenticated && !guestInfo && paymentStep === "review" && (
+        <p className="text-xs text-muted-foreground text-center">Please provide your information above to continue</p>
+      )}
+
+      <p className="text-xs text-muted-foreground text-center">
+        By completing this purchase, you agree to our Terms of Service
+      </p>
+    </>
+  );
 
   const handleGuestSubmit = (info: typeof guestInfo & { acceptTerms: boolean }) => {
     setGuestInfo(info);
@@ -253,6 +504,7 @@ const Checkout = () => {
           : `${previewGuest.firstName} ${previewGuest.lastName}`.trim()
     );
     setSuccessTicketType(ticketLabel);
+    setSuccessTotal(checkoutTotals?.total ?? grandTotal);
     setOrderId(id);
     setPaymentStep("success");
     clearCart();
@@ -261,15 +513,15 @@ const Checkout = () => {
 
   if (items.length === 0 && paymentStep !== "success") {
     return (
-      <div className="min-h-screen flex items-center justify-center py-12 px-4">
-        <Card className="p-8 text-center max-w-md">
-          <Ticket className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
-          <p className="text-muted-foreground mb-4">
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-background">
+        <Card className="p-8 text-center max-w-md rounded-2xl border-border/80 shadow-[0_20px_40px_rgba(54,39,78,0.06)] bg-card/95 backdrop-blur-sm">
+          <Ticket className="h-12 w-12 mx-auto mb-4 text-primary" />
+          <h2 className="text-2xl font-extrabold font-headline tracking-tight text-foreground mb-2">Your cart is empty</h2>
+          <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
             Browse events and add tickets to your cart to proceed with checkout.
           </p>
-          <Button onClick={() => navigate("/events")}>
-            Browse Events
+          <Button className="rounded-full bg-gradient-primary px-8" onClick={() => navigate("/events")}>
+            Browse events
           </Button>
         </Card>
       </div>
@@ -283,12 +535,26 @@ const Checkout = () => {
         eventName={successEventName ?? "Event"}
         attendeeName={successAttendeeName}
         ticketType={successTicketType}
+        totalAmount={successTotal}
+        eventImageUrl={eventDetail?.imageUrl ?? undefined}
+        eventDateLine={eventDateLine}
+        venueLine={heroLocation}
       />
     );
   }
 
   return (
     <div className="min-h-screen py-8 relative overflow-hidden">
+      {paymentProcessing && paymentStep === "payment" && (
+        <CheckoutPaymentProcessingOverlay
+          eventName={eventDetail?.name ?? eventDetail?.title ?? items[0]?.eventName ?? "Event"}
+          dateLine={eventDateLine}
+          imageUrl={eventDetail?.imageUrl}
+          lineItems={processingOverlayLines}
+          total={displayTotal}
+          categoryLabel={eventDetail?.categoryName ?? eventDetail?.category}
+        />
+      )}
       {/* Subtle background for vibrant one-page feel */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-40 -right-40 w-[28rem] h-[28rem] rounded-full bg-primary/6 blur-3xl" />
@@ -299,7 +565,7 @@ const Checkout = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+          <h1 className="text-4xl font-extrabold font-headline tracking-tight bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
             Checkout
           </h1>
         </div>
@@ -326,25 +592,31 @@ const Checkout = () => {
               <div className="flex items-baseline justify-between gap-4 border-b border-white/10 pb-4">
                 <span className="text-sm text-muted-foreground uppercase tracking-wider">Order total</span>
                 <span className="text-3xl sm:text-4xl font-bold tabular-nums tracking-tight text-foreground">
-                  ${grandTotal.toFixed(2)}
+                  ${displayTotal.toFixed(2)}
                 </span>
               </div>
               <CheckoutPaymentForm
                 clientSecret={clientSecret}
-                amount={grandTotal}
+                amount={displayTotal}
                 isGuest={!isAuthenticated && !!guestInfo}
                 guestConfirm={!isAuthenticated && guestInfo ? buildGuestConfirm : undefined}
                 authenticatedConfirm={isAuthenticated ? (id) => apiService.confirmPayment(id, taxState?.trim() || undefined, taxCountry?.trim() || undefined) : undefined}
                 onSuccess={handlePaymentSuccess}
                 onError={(msg) => { setPaymentError(msg); toast.error(msg); }}
                 billingDetails={(taxState || taxCountry) ? { state: taxState?.trim() || undefined, country: taxCountry?.trim() || undefined } : undefined}
+                onProcessingChange={setPaymentProcessing}
               />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 className="w-full text-muted-foreground"
-                onClick={() => { setPaymentStep("review"); setPaymentError(null); setReservedUntil(null); }}
+                onClick={() => {
+                  setPaymentStep("review");
+                  setPaymentError(null);
+                  setReservedUntil(null);
+                  setPaymentProcessing(false);
+                }}
               >
                 ← Back to review
               </Button>
@@ -354,9 +626,16 @@ const Checkout = () => {
             </div>
           </motion.div>
         ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <>
+        <CheckoutStitchHero
+          eventName={eventDetail?.name ?? eventDetail?.title ?? items[0]?.eventName ?? "Event"}
+          location={heroLocation}
+          imageUrl={eventDetail?.imageUrl}
+        />
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-8">
           {/* Main Content - one-page vibrant */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="xl:col-span-2 space-y-6">
+            <CheckoutVenuePreview />
             {/* Customer Info Section */}
             {!isAuthenticated && !guestInfo && (
               <motion.div
@@ -503,13 +782,16 @@ const Checkout = () => {
               </motion.div>
             )}
 
-            {/* Cart Items */}
+            {/* Cart Items — Stitch-style quantity steppers */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <h2 className="text-xl font-semibold mb-4">Your Tickets</h2>
+              <div className="flex items-baseline justify-between gap-2 mb-4">
+                <h2 className="text-xl font-semibold font-headline">Select tickets</h2>
+                <span className="text-xs font-medium text-primary">{MAX_TICKETS_PER_LINE} tickets max per type</span>
+              </div>
               <div className="space-y-3">
                 {items.map((item, index) => (
                   <motion.div
@@ -518,24 +800,53 @@ const Checkout = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <Card className="rounded-xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px]">
-                      <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold">{item.ticketTypeName}</h3>
-                          <p className="text-sm text-muted-foreground">{item.eventName}</p>
-                          <p className="text-sm">Quantity: {item.quantity}</p>
+                    <Card className="rounded-2xl border-border/50 bg-card shadow-sm">
+                      <CardContent className="p-4 sm:p-5">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold font-headline">{item.ticketTypeName}</h3>
+                            <p className="text-sm text-muted-foreground mt-0.5">{item.eventName}</p>
+                          </div>
+                          <div className="flex items-center justify-between sm:flex-col sm:items-end gap-3 shrink-0">
+                            <span className="text-lg font-bold text-primary tabular-nums">${item.price.toFixed(2)}</span>
+                            <div className="inline-flex items-center rounded-full border border-primary/25 bg-primary/5 p-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 rounded-full"
+                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                aria-label="Decrease quantity"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <span className="min-w-[2rem] text-center text-sm font-semibold tabular-nums">{item.quantity}</span>
+                              <Button
+                                type="button"
+                                variant="default"
+                                size="icon"
+                                className="h-9 w-9 rounded-full"
+                                disabled={item.quantity >= MAX_TICKETS_PER_LINE}
+                                onClick={() =>
+                                  updateQuantity(item.id, Math.min(MAX_TICKETS_PER_LINE, item.quantity + 1))
+                                }
+                                aria-label="Increase quantity"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <span className="font-bold">
-                            ${(item.price * item.quantity).toFixed(2)}
-                          </span>
+                        <div className="mt-3 flex justify-end">
                           <Button
+                            type="button"
                             variant="ghost"
-                            size="icon"
+                            size="sm"
+                            className="text-destructive hover:text-destructive h-8"
                             onClick={() => removeItem(item.id)}
-                            className="text-destructive hover:text-destructive"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Remove
                           </Button>
                         </div>
                       </CardContent>
@@ -627,209 +938,38 @@ const Checkout = () => {
               eventName={items[0]?.eventName ?? "Event"}
               attendeeName={attendeeName}
               ticketType={ticketLabel}
-              totalAmount={grandTotal}
+              totalAmount={displayTotal}
               isUnlocked={isFormValid}
             />
-            <Card className="sticky top-24 rounded-xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px]">
-              <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
-                <CardDescription>Review your order before payment</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">Tickets</h4>
-                  {items.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span>{item.ticketTypeName} × {item.quantity}</span>
-                      <span>${(item.price * item.quantity).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {selectedMerch.length > 0 && (
-                  <div className="space-y-2 pt-2 border-t">
-                    <h4 className="text-sm font-medium text-muted-foreground">Add-ons</h4>
-                    {selectedMerch.map((item) => (
-                      <div key={item.id} className="flex justify-between text-sm">
-                        <span>
-                          {item.name}
-                          {item.selectedSize && ` (${item.selectedSize})`}
-                          {item.quantity > 1 && ` × ${item.quantity}`}
-                        </span>
-                        <span>${(item.price * item.quantity).toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Billing address: standard checkout field; we use state/country for tax (same as Stripe, TaxJar). */}
-                <div className="space-y-3 pt-2 border-t border-border">
+            <div className="hidden xl:block">
+              <Card className="sticky top-24 rounded-2xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px] shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+                <CardHeader>
+                  <CardTitle className="font-headline text-xl tracking-tight">Order summary</CardTitle>
+                  <CardDescription>Review your order before payment</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">{renderOrderSummaryCardContent()}</CardContent>
+              </Card>
+            </div>
+            <Collapsible defaultOpen={false} className="xl:hidden">
+              <Card className="rounded-2xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px] shadow-[0_20px_40px_rgba(54,39,78,0.06)] overflow-hidden">
+                <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 p-6 text-left hover:bg-muted/5 transition-colors [&[data-state=open]_svg]:rotate-180">
                   <div>
-                    <Label className="text-sm font-medium text-muted-foreground">
-                      Billing address
-                    </Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Used for your receipt and to calculate sales tax where required.
-                    </p>
+                    <p className="font-headline text-lg font-bold tracking-tight">Order summary</p>
+                    <p className="text-xs text-muted-foreground">Tap to expand fees and details</p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Country</Label>
-                      <Select value={taxCountry || "US"} onValueChange={(v) => setTaxCountry(v || "US")}>
-                        <SelectTrigger className="rounded-lg border-primary/20 bg-background/80">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="US">United States</SelectItem>
-                          <SelectItem value="CA">Canada</SelectItem>
-                          <SelectItem value="GB">United Kingdom</SelectItem>
-                          <SelectItem value="OTHER">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">State / Province</Label>
-                      <Select value={taxState || "__"} onValueChange={(v) => setTaxState(v === "__" ? "" : v)}>
-                        <SelectTrigger className="rounded-lg border-primary/20 bg-background/80">
-                          <SelectValue placeholder="State" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__">Select state (optional)</SelectItem>
-                          {US_STATE_OPTIONS.map((s) => (
-                            <SelectItem key={s.code} value={s.code}>
-                              {s.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-lg font-bold text-primary tabular-nums">${displayTotal.toFixed(2)}</span>
+                    <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform duration-200" />
                   </div>
-                </div>
-
-                <div className="border-t border-border pt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Tickets Subtotal</span>
-                    <span>${totalAmount.toFixed(2)}</span>
-                  </div>
-                  {merchTotal > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span>Add-ons Subtotal</span>
-                      <span>${merchTotal.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {donationAmount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span>Donation</span>
-                      <span>${donationAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {checkoutTotals && checkoutTotals.tax > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span>Tax ({checkoutTotals.taxRatePercent}%)</span>
-                      <span>${checkoutTotals.tax.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-baseline pt-2 border-t">
-                    <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total</span>
-                    <span className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight text-foreground">
-                      ${(checkoutTotals?.total ?? grandTotal).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* How did you hear (cultural taxonomy) */}
-                <div className="space-y-2 pt-2 border-t border-border">
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    How did you hear about this event?
-                  </Label>
-                  <Select value={howDidYouHear} onValueChange={setHowDidYouHear}>
-                    <SelectTrigger className="rounded-lg border-primary/20 bg-background/80">
-                      <SelectValue placeholder="Select (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HOW_DID_YOU_HEAR_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value || "opt"} value={opt.value === "" ? "__" : opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Receive ticket via WhatsApp / SMS */}
-                <div className="space-y-3 pt-2 border-t border-border">
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Receive ticket via
-                  </Label>
-                  <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <MessageCircle className="h-4 w-4 text-primary" />
-                      <span className="text-sm">WhatsApp</span>
-                    </div>
-                    <Switch
-                      checked={receiveTicketViaWhatsApp}
-                      onCheckedChange={setReceiveTicketViaWhatsApp}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Smartphone className="h-4 w-4 text-primary" />
-                      <span className="text-sm">SMS</span>
-                    </div>
-                    <Switch
-                      checked={receiveTicketViaSMS}
-                      onCheckedChange={setReceiveTicketViaSMS}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    We’ll send your digital ticket to your phone. Great for the diaspora.
-                  </p>
-                </div>
-
-                {paymentStep === "review" && (
-                  <>
-                    {reservedUntil && (
-                      <ReservationCountdown
-                        reservedUntil={reservedUntil}
-                        onExpired={() => {
-                          setReservedUntil(null);
-                          setReservedTicketIds(null);
-                          toast.warning("Reservation expired. Tickets were released. Please try again.");
-                        }}
-                        className="mb-2"
-                      />
-                    )}
-                    <Button
-                      type="button"
-                      className={
-                        isFormValid
-                          ? "w-full rounded-xl bg-gradient-to-r from-primary via-primary to-orange-500 text-white shadow-[0_4px_20px_rgba(147,51,234,0.4)] hover:shadow-[0_6px_28px_rgba(147,51,234,0.5),0_0_0_1px_rgba(251,146,60,0.3)] hover:scale-[1.02] transition-all duration-200 pay-button-shimmer"
-                          : "w-full rounded-xl bg-muted text-muted-foreground cursor-not-allowed"
-                      }
-                      size="lg"
-                      disabled={(!isAuthenticated && !guestInfo) || isStartingPayment}
-                      onClick={(e) => handleProceedToPayment(e)}
-                    >
-                      {isStartingPayment ? "Starting payment…" : isFormValid ? "Proceed to Payment" : "Complete your details above"}
-                    </Button>
-                    {paymentError && (
-                      <p className="text-sm text-destructive text-center mt-2">{paymentError}</p>
-                    )}
-                  </>
-                )}
-                {!isAuthenticated && !guestInfo && paymentStep === "review" && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    Please provide your information above to continue
-                  </p>
-                )}
-
-                <p className="text-xs text-muted-foreground text-center">
-                  By completing this purchase, you agree to our Terms of Service
-                </p>
-              </CardContent>
-            </Card>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="space-y-4 pt-0 pb-6 px-6">{renderOrderSummaryCardContent()}</CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           </div>
         </div>
+        </>
         )}
       </div>
     </div>

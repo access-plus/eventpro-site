@@ -1,10 +1,12 @@
 package com.accessplus.eventpro.api.service.impl;
 
+import com.accessplus.eventpro.api.audit.AuditLogService;
 import com.accessplus.eventpro.api.dto.PendingVerificationResponse;
 import com.accessplus.eventpro.api.dto.SubmitVerificationRequest;
 import com.accessplus.eventpro.api.dto.VerificationStatusResponse;
 import com.accessplus.eventpro.api.service.RiskScoringService;
 import com.accessplus.eventpro.api.service.VerificationService;
+import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.entity.OrganizerKycSubmissionEntity;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.OrganizerKycSubmissionRepository;
@@ -30,6 +32,7 @@ public class VerificationServiceImpl implements VerificationService {
     private final UserRepository userRepository;
     private final OrganizerKycSubmissionRepository kycSubmissionRepository;
     private final RiskScoringService riskScoringService;
+    private final AuditLogService auditLogService;
 
     @Override
     @Transactional(readOnly = true)
@@ -120,6 +123,7 @@ public class VerificationServiceImpl implements VerificationService {
         user.setIsVerified(true);
         userRepository.save(user);
         log.info("KYC approved: submissionId={}, userId={}", submissionId, submission.getUserId());
+        recordKycDecisionAudit("KYC submission approved", submissionId, submission.getUserId(), "VERIFIED", "success");
     }
 
     @Override
@@ -141,6 +145,25 @@ public class VerificationServiceImpl implements VerificationService {
         user.setIsVerified(false);
         userRepository.save(user);
         log.info("KYC rejected: submissionId={}, userId={}, reason={}", submissionId, submission.getUserId(), reason);
+        recordKycDecisionAudit("KYC submission rejected", submissionId, submission.getUserId(), "REJECTED", "warning");
+    }
+
+    private void recordKycDecisionAudit(
+            String action, UUID submissionId, UUID subjectUserId, String statusLabel, String statusTone) {
+        try {
+            UUID actor = JwtUtils.getCurrentUserId();
+            auditLogService.recordAdminAction(
+                    actor,
+                    action,
+                    "KYC_SUBMISSION",
+                    submissionId.toString(),
+                    "security",
+                    statusLabel,
+                    statusTone,
+                    "Submission " + submissionId + "; organizer " + subjectUserId);
+        } catch (Exception ex) {
+            log.warn("Failed to record KYC audit event for submission {}", submissionId, ex);
+        }
     }
 
     @Override

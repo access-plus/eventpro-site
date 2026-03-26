@@ -73,10 +73,11 @@ public interface TicketService {
     /**
      * Releases tickets that are RESERVED and past their reserved_until time back to AVAILABLE.
      * Call periodically (e.g. every minute) via a scheduled task.
+     * Returned IDs are used to remove stale cart rows that referenced those tickets.
      *
-     * @return number of tickets released
+     * @return ticket IDs that were released (empty if none)
      */
-    int releaseExpiredReservations();
+    List<UUID> releaseExpiredReservations();
 
     /**
      * Returns all tickets for the event that have seat assignment (for reserved seating seat map).

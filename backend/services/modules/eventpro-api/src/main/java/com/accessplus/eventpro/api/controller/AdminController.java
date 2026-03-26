@@ -1,9 +1,12 @@
 package com.accessplus.eventpro.api.controller;
 
+import com.accessplus.eventpro.api.audit.AuditLogService;
 import com.accessplus.eventpro.api.dto.*;
 import com.accessplus.eventpro.api.service.AdminService;
 import com.accessplus.eventpro.api.service.AuthService;
+import com.accessplus.eventpro.api.service.SystemStatusAggregatorService;
 import com.accessplus.eventpro.api.service.VerificationService;
+import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.api.subscription.entity.SubscriptionPaymentEntity;
 import com.accessplus.eventpro.api.subscription.service.SubscriptionPaymentService;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
@@ -38,6 +41,8 @@ import java.util.UUID;
 public class AdminController extends BaseController {
 
     private final AdminService adminService;
+    private final AuditLogService auditLogService;
+    private final SystemStatusAggregatorService systemStatusAggregatorService;
     private final AuthService authService;
     private final UserService userService;
     private final EventService eventService;
@@ -234,6 +239,38 @@ public class AdminController extends BaseController {
         log.debug("Recording subscription payment: userId={}, amount={}, tier={}", request.getUserId(), request.getAmount(), request.getTier());
         SubscriptionPaymentEntity payment = subscriptionPaymentService.recordPayment(
                 request.getUserId(), request.getAmount(), request.getTier(), request.getPeriod());
+        try {
+            UUID adminId = JwtUtils.getCurrentUserId();
+            auditLogService.recordAdminAction(
+                    adminId,
+                    "Subscription payment recorded",
+                    "SUBSCRIPTION_PAYMENT",
+                    payment.getId().toString(),
+                    "finance",
+                    "SUCCESS",
+                    "success",
+                    "Tier " + request.getTier() + " for organizer " + request.getUserId());
+        } catch (Exception ex) {
+            log.warn("Audit log failed after subscription payment record", ex);
+        }
         return ResponseEntity.ok(ApiResponse.success(payment, "Subscription payment recorded"));
+    }
+
+    @GetMapping("/audit-activity")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Audit activity feed", description = "Paginated append-only platform audit trail (indexed queries).")
+    public ResponseEntity<ApiResponse<AuditActivityPageResponse>> getAuditActivity(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(ApiResponse.success(auditLogService.queryPage(page, size, category, search)));
+    }
+
+    @GetMapping("/system-status")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "System status", description = "JVM heap and database reachability for admin health UI (briefly cached).")
+    public ResponseEntity<ApiResponse<SystemStatusResponse>> getSystemStatus() {
+        return ResponseEntity.ok(ApiResponse.success(systemStatusAggregatorService.getStatus()));
     }
 }

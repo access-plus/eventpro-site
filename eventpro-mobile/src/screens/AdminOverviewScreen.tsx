@@ -1,11 +1,19 @@
 import React from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { useAuth } from "../context/AuthContext";
-import { theme } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
+import { lightTheme } from "../theme";
+import { editorialCard, sectionLabel } from "../theme/screenStyles";
 
 const ADMIN_CARDS = [
+  { title: "Agent Workspace", description: "Support queue, live chats, and ticket summary (Stitch)", route: "SupportAgentWorkspace" as const },
+  { title: "Support Analytics", description: "CSAT, resolution trends, and agent performance", route: "SupportAnalytics" as const },
+  { title: "Ticket detail (agent)", description: "Support view: ticket, payment, internal history", route: "TicketDetailAgent" as const },
+  { title: "System Maintenance", description: "Windows, emergency controls, notifications (Stitch)", route: "SystemMaintenance" as const },
+  { title: "System Health", description: "Infrastructure status, latency, and regional health", route: "AdminSystemHealth" as const },
   { title: "Overview", description: "Platform stats: users, events, tickets, revenue", route: "AdminStats" as const },
   { title: "User Management", description: "Manage users, roles, permissions", route: "AdminUsers" as const },
+  { title: "User Roles", description: "Permission control & role templates (Stitch)", route: "UserRolesManagement" as const },
   { title: "Verification (KYC)", description: "Review and approve identity verification", route: "AdminVerification" as const },
   { title: "Events", description: "View all events on the platform", route: "AdminEvents" as const },
   { title: "Event Sales", description: "Tickets sold and revenue per event", route: "AdminEventSales" as const },
@@ -14,12 +22,13 @@ const ADMIN_CARDS = [
 ];
 
 export function AdminOverviewScreen({ navigation }: { navigation: any }) {
+  const { theme } = useTheme();
   const { user } = useAuth();
 
   if (user?.role !== "ADMIN") {
     return (
       <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
-        <Text style={styles.forbidden}>Admin only.</Text>
+        <Text style={[styles.forbidden, { color: theme.colors.mutedForeground }]}>Admin only.</Text>
       </View>
     );
   }
@@ -27,11 +36,11 @@ export function AdminOverviewScreen({ navigation }: { navigation: any }) {
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <View style={styles.headerIcon}>
+        <View style={[styles.headerIcon, { backgroundColor: theme.colors.primary }]}>
           <Text style={styles.headerIconText}>🛡</Text>
         </View>
         <View>
-          <Text style={[styles.title, { color: theme.colors.primary }]}>Admin Dashboard</Text>
+          <Text style={[sectionLabel(theme), { marginBottom: 4 }]}>Console</Text>
           <Text style={[styles.subtitle, { color: theme.colors.mutedForeground }]}>Welcome, {user?.firstName ?? "Admin"}</Text>
         </View>
       </View>
@@ -39,7 +48,7 @@ export function AdminOverviewScreen({ navigation }: { navigation: any }) {
         {ADMIN_CARDS.map((card) => (
           <TouchableOpacity
             key={card.route}
-            style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+            style={[editorialCard(theme), styles.card]}
             onPress={() => navigation.navigate(card.route)}
             activeOpacity={0.8}
           >
@@ -55,19 +64,16 @@ export function AdminOverviewScreen({ navigation }: { navigation: any }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: theme.spacing.lg, paddingBottom: 40 },
+  content: { padding: lightTheme.spacing.lg, paddingBottom: 40 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  forbidden: { fontSize: 16, color: theme.colors.mutedForeground },
+  forbidden: { fontSize: 16 },
   header: { flexDirection: "row", alignItems: "center", marginBottom: 24, gap: 12 },
-  headerIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: theme.colors.primary, justifyContent: "center", alignItems: "center" },
+  headerIcon: { width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center" },
   headerIconText: { fontSize: 24 },
-  title: { fontSize: 22, fontWeight: "700" },
   subtitle: { fontSize: 14, marginTop: 2 },
   grid: { gap: 12 },
   card: {
     padding: 16,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
   },
   cardTitle: { fontSize: 17, fontWeight: "600" },
   cardDesc: { fontSize: 13, marginTop: 4 },
