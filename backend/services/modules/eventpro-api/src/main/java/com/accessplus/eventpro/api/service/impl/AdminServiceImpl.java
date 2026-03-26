@@ -10,14 +10,15 @@ import com.accessplus.eventpro.order.order.repository.OrderItemRepository;
 import com.accessplus.eventpro.order.order.repository.OrderRepository;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
 import com.accessplus.eventpro.shared.entity.OrderItemEntity;
-import com.accessplus.eventpro.event.event.entity.EventEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
+import com.accessplus.eventpro.event.event.entity.EventEntity;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
 import com.accessplus.eventpro.event.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +50,9 @@ public class AdminServiceImpl implements AdminService {
         
         // Get total counts
         long totalUsers = userRepository.count();
+        long usersAttendeeCount = userRepository.countByRole("USER");
+        long usersOrganizerCount = userRepository.countByRole("ORGANIZER");
+        long usersAdminCount = userRepository.countByRole("ADMIN");
         long totalEvents = eventRepository.count();
         long totalTicketsSold = ticketRepository.countByTicketStatus(TicketStatus.SOLD);
         
@@ -75,6 +79,9 @@ public class AdminServiceImpl implements AdminService {
                 .eventGrowth(eventGrowth)
                 .ticketGrowth(ticketGrowth)
                 .revenueGrowth(revenueGrowth)
+                .usersAttendeeCount(usersAttendeeCount)
+                .usersOrganizerCount(usersOrganizerCount)
+                .usersAdminCount(usersAdminCount)
                 .build();
     }
     
@@ -189,7 +196,7 @@ public class AdminServiceImpl implements AdminService {
         
         return revenueData;
     }
-    
+
     /**
      * Parses period string to number of days.
      * 

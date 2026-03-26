@@ -3,11 +3,20 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
+const isDockerDev = process.env.DOCKER === "1" || process.env.CHOKIDAR_USEPOLLING === "true";
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Default cache is node_modules/.vite — in Docker, node_modules is a named volume and a stale
+  // dep cache causes "504 Outdated Optimize Dep" in the browser. Keep the cache on the bind-mounted tree.
+  cacheDir: path.resolve(__dirname, ".vite-cache"),
   server: {
     host: "0.0.0.0", // listen on all interfaces so Docker port mapping works
     port: 5173,
+    watch: {
+      // Bind mounts often miss file events without polling (Docker Desktop, some Linux setups).
+      usePolling: isDockerDev,
+    },
     hmr: {
       overlay: false,
     },

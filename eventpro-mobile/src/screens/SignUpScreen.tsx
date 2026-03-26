@@ -9,11 +9,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Linking,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Constants from "expo-constants";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import type { UserRole } from "@eventpro/shared";
 import { useTheme } from "../contexts/ThemeContext";
 import type { Theme } from "../theme";
+
+const WEB_URL = Constants.expoConfig?.extra?.webUrl ?? process.env.EXPO_PUBLIC_WEB_URL ?? "https://eventpro.com";
 
 /** Extract a user-friendly message from signup API error (backend sends message + optional fields). */
 function getSignUpErrorMessage(err: unknown): string {
@@ -59,96 +65,113 @@ function getSignUpErrorMessage(err: unknown): string {
   return "Sign up failed. Check your entries and try again.";
 }
 
-function createStyles(theme: Theme) {
+const BG = "#faf8ff";
+const PURPLE = "#6342D2";
+
+function createStyles(theme: Theme, bottomInset: number) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background },
-    scrollContent: { padding: theme.spacing.lg, paddingVertical: 24, paddingBottom: 40 },
-    card: {
-      backgroundColor: theme.colors.card,
-      borderRadius: theme.radius.lg,
-      padding: theme.spacing.lg,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    iconBox: {
-      width: 48,
-      height: 48,
-      borderRadius: theme.radius.md,
-      backgroundColor: theme.colors.primary,
-      alignSelf: "center",
+    container: { flex: 1, backgroundColor: BG },
+    scrollContent: { padding: 20, paddingBottom: 120 + bottomInset },
+    topBar: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20 },
+    brand: { fontSize: 18, fontWeight: "800", color: PURPLE },
+    title: { fontSize: 28, fontWeight: "800", color: "#2d1b4e", marginBottom: 8 },
+    subtitle: { fontSize: 15, color: "#6b6b80", marginBottom: 24 },
+    fieldLabel: { fontSize: 11, fontWeight: "800", letterSpacing: 0.8, color: PURPLE, marginBottom: 8 },
+    inputWrap: {
+      flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
-      marginBottom: theme.spacing.md,
-    },
-    iconText: { color: theme.colors.primaryForeground, fontSize: 18, fontWeight: "700" },
-    title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 4, color: theme.colors.foreground },
-    subtitle: { fontSize: 14, color: theme.colors.mutedForeground, textAlign: "center", marginBottom: 24 },
-    label: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: theme.colors.foreground },
-    input: {
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: theme.radius.md,
-      padding: 14,
-      fontSize: 16,
+      backgroundColor: "rgba(99,66,210,0.08)",
+      borderRadius: 14,
+      paddingHorizontal: 14,
       marginBottom: 16,
-      backgroundColor: theme.colors.card,
-      color: theme.colors.foreground,
-    },
-    row: { flexDirection: "row", gap: 12 },
-    half: { flex: 1 },
-    roleRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
-    roleBtn: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: theme.radius.md,
       borderWidth: 1,
-      borderColor: theme.colors.border,
-      alignItems: "center",
+      borderColor: "transparent",
     },
-    roleBtnActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-    roleBtnText: { fontSize: 14, color: theme.colors.mutedForeground },
-    roleBtnTextActive: { color: theme.colors.primaryForeground, fontWeight: "600" },
-    button: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.radius.md,
-      padding: 16,
+    input: { flex: 1, paddingVertical: 14, fontSize: 16, color: theme.colors.foreground },
+    eye: { padding: 8 },
+    termsRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, marginBottom: 20 },
+    termsText: { flex: 1, fontSize: 14, color: "#4a4a5c", lineHeight: 20 },
+    termsLink: { color: PURPLE, fontWeight: "700" },
+    primaryBtn: {
+      backgroundColor: PURPLE,
+      borderRadius: 999,
+      paddingVertical: 16,
       alignItems: "center",
-      marginTop: 8,
+      marginBottom: 16,
+      shadowColor: PURPLE,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.25,
+      shadowRadius: 16,
+      elevation: 6,
     },
-    buttonDisabled: { opacity: 0.7 },
-    buttonText: { color: theme.colors.primaryForeground, fontSize: 16, fontWeight: "600" },
-    footer: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 20 },
-    footerText: { fontSize: 14, color: theme.colors.mutedForeground },
-    footerLink: { fontSize: 14, color: theme.colors.primary, fontWeight: "600" },
+    primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+    footer: { flexDirection: "row", justifyContent: "center", flexWrap: "wrap", marginBottom: 20 },
+    footerText: { fontSize: 14, color: "#6b6b80" },
+    footerLink: { fontSize: 14, color: PURPLE, fontWeight: "700" },
+    orRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
+    orLine: { flex: 1, height: 1, backgroundColor: "rgba(0,0,0,0.08)" },
+    orText: { fontSize: 11, fontWeight: "800", color: "#9ca3af", letterSpacing: 1 },
+    authBar: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      flexDirection: "row",
+      justifyContent: "space-around",
+      alignItems: "center",
+      paddingTop: 12,
+      paddingBottom: Math.max(bottomInset, 12),
+      backgroundColor: "#fff",
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    authItem: { alignItems: "center", gap: 4, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 14 },
+    authItemActive: { backgroundColor: "rgba(99,66,210,0.12)" },
+    authLabel: { fontSize: 11, fontWeight: "800", color: "#6b7280" },
+    authLabelActive: { color: PURPLE },
   });
 }
 
-export function SignUpScreen({ navigation }: { navigation: { navigate: (name: string) => void } }) {
+export function SignUpScreen({ navigation }: { navigation: { navigate: (name: string) => void; goBack: () => void } }) {
   const { theme } = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const styles = React.useMemo(() => createStyles(theme, insets.bottom), [theme, insets.bottom]);
   const { signUp } = useAuth();
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [role, setRole] = useState<UserRole>("USER");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role] = useState<UserRole>("USER");
+  const [terms, setTerms] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const splitName = () => {
+    const t = fullName.trim();
+    const parts = t.split(/\s+/).filter(Boolean);
+    const firstName = parts[0] ?? "";
+    const lastName = parts.length > 1 ? parts.slice(1).join(" ") : firstName || "User";
+    return { firstName, lastName };
+  };
+
   const validate = (): string | null => {
-    if (!firstName.trim()) return "First name is required.";
-    if (!lastName.trim()) return "Last name is required.";
+    if (!fullName.trim()) return "Full name is required.";
     if (!email.trim()) return "Email is required.";
     if (password.length < 8) return "Password must be at least 8 characters.";
     if (!/[a-z]/.test(password)) return "Password must contain at least one lowercase letter.";
     if (!/[A-Z]/.test(password)) return "Password must contain at least one uppercase letter.";
     if (!/[0-9]/.test(password)) return "Password must contain at least one number.";
     if (password !== confirmPassword) return "Passwords don't match.";
+    if (!terms) return "Please accept the terms to continue.";
     return null;
   };
 
@@ -158,13 +181,14 @@ export function SignUpScreen({ navigation }: { navigation: { navigate: (name: st
       Alert.alert("Error", err);
       return;
     }
+    const { firstName, lastName } = splitName();
     setLoading(true);
     try {
       await signUp({
         email: email.trim(),
         password,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+        firstName,
+        lastName,
         phoneNumber: phoneNumber.trim() || undefined,
         role,
       });
@@ -172,11 +196,14 @@ export function SignUpScreen({ navigation }: { navigation: { navigate: (name: st
         { text: "OK", onPress: () => navigation.navigate("Verify") },
       ]);
     } catch (err: unknown) {
-      const msg = getSignUpErrorMessage(err);
-      Alert.alert("Sign up failed", msg);
+      Alert.alert("Sign up failed", getSignUpErrorMessage(err));
     } finally {
       setLoading(false);
     }
+  };
+
+  const openHelp = () => {
+    Linking.openURL(`${WEB_URL}/help`).catch(() => {});
   };
 
   return (
@@ -184,114 +211,151 @@ export function SignUpScreen({ navigation }: { navigation: { navigate: (name: st
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
-          <View style={styles.iconBox}>
-            <Text style={styles.iconText}>EP</Text>
-          </View>
-          <Text style={styles.title}>Create an account</Text>
-          <Text style={styles.subtitle}>Enter your details to get started with EventPro</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={[styles.topBar, { paddingTop: insets.top > 0 ? 0 : 12 }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
+            <Ionicons name="arrow-back" size={24} color={PURPLE} />
+          </TouchableOpacity>
+          <Text style={styles.brand}>Electric Pulse</Text>
+        </View>
 
-          <View style={styles.row}>
-            <View style={styles.half}>
-              <Text style={styles.label}>First Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="John"
-                value={firstName}
-                onChangeText={setFirstName}
-                editable={!loading}
-              />
-            </View>
-            <View style={styles.half}>
-              <Text style={styles.label}>Last Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Doe"
-                value={lastName}
-                onChangeText={setLastName}
-                editable={!loading}
-              />
-            </View>
-          </View>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Start your journey with EventPro today.</Text>
 
-          <Text style={styles.label}>Email</Text>
+        <Text style={styles.fieldLabel}>FULL NAME</Text>
+        <View style={styles.inputWrap}>
+          <Ionicons name="person-outline" size={20} color={PURPLE} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.input}
-            placeholder="you@example.com"
+            placeholder="John Doe"
+            placeholderTextColor="#9ca3af"
+            value={fullName}
+            onChangeText={setFullName}
+            editable={!loading}
+          />
+        </View>
+
+        <Text style={styles.fieldLabel}>USERNAME</Text>
+        <View style={styles.inputWrap}>
+          <Ionicons name="at-outline" size={20} color={PURPLE} style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.input}
+            placeholder="johndoe123"
+            placeholderTextColor="#9ca3af"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            editable={!loading}
+          />
+        </View>
+
+        <Text style={styles.fieldLabel}>PHONE NUMBER</Text>
+        <View style={styles.inputWrap}>
+          <Ionicons name="call-outline" size={20} color={PURPLE} style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.input}
+            placeholder="+1 (555) 000-0000"
+            placeholderTextColor="#9ca3af"
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+            keyboardType="phone-pad"
+            editable={!loading}
+          />
+        </View>
+
+        <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+        <View style={styles.inputWrap}>
+          <Ionicons name="mail-outline" size={20} color={PURPLE} style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.input}
+            placeholder="name@example.com"
+            placeholderTextColor="#9ca3af"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
             editable={!loading}
           />
+        </View>
 
-          <Text style={styles.label}>Phone Number (Optional)</Text>
+        <Text style={styles.fieldLabel}>PASSWORD</Text>
+        <View style={styles.inputWrap}>
+          <Ionicons name="lock-closed-outline" size={20} color={PURPLE} style={{ marginRight: 8 }} />
           <TextInput
-            style={styles.input}
-            placeholder="+1 (555) 000-0000"
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            keyboardType="phone-pad"
-            editable={!loading}
-          />
-
-          <Text style={styles.label}>Account Type</Text>
-          <View style={styles.roleRow}>
-            <TouchableOpacity
-              style={[styles.roleBtn, role === "USER" && styles.roleBtnActive]}
-              onPress={() => setRole("USER")}
-            >
-              <Text style={[styles.roleBtnText, role === "USER" && styles.roleBtnTextActive]}>
-                Event Attendee
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.roleBtn, role === "ORGANIZER" && styles.roleBtnActive]}
-              onPress={() => setRole("ORGANIZER")}
-            >
-              <Text style={[styles.roleBtnText, role === "ORGANIZER" && styles.roleBtnTextActive]}>
-                Event Organizer
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Create a password"
+            style={[styles.input, { paddingRight: 4 }]}
+            placeholder="••••••••"
+            placeholderTextColor="#9ca3af"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={!showPass}
             editable={!loading}
           />
+          <TouchableOpacity style={styles.eye} onPress={() => setShowPass(!showPass)}>
+            <Ionicons name={showPass ? "eye-off-outline" : "eye-outline"} size={22} color={PURPLE} />
+          </TouchableOpacity>
+        </View>
 
-          <Text style={styles.label}>Confirm Password</Text>
+        <Text style={styles.fieldLabel}>CONFIRM PASSWORD</Text>
+        <View style={styles.inputWrap}>
+          <Ionicons name="shield-checkmark-outline" size={20} color={PURPLE} style={{ marginRight: 8 }} />
           <TextInput
-            style={styles.input}
-            placeholder="Confirm your password"
+            style={[styles.input, { paddingRight: 4 }]}
+            placeholder="••••••••"
+            placeholderTextColor="#9ca3af"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            secureTextEntry
+            secureTextEntry={!showConfirm}
             editable={!loading}
           />
-
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSignUp}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>{loading ? "Creating account..." : "Sign Up"}</Text>
+          <TouchableOpacity style={styles.eye} onPress={() => setShowConfirm(!showConfirm)}>
+            <Ionicons name={showConfirm ? "eye-off-outline" : "eye-outline"} size={22} color={PURPLE} />
           </TouchableOpacity>
+        </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-              <Text style={styles.footerLink}>Login</Text>
-            </TouchableOpacity>
-          </View>
+        <TouchableOpacity style={styles.termsRow} onPress={() => setTerms(!terms)} activeOpacity={0.8}>
+          <Ionicons name={terms ? "checkbox" : "square-outline"} size={22} color={PURPLE} />
+          <Text style={styles.termsText}>
+            I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
+            <Text style={styles.termsLink}>Privacy Policy</Text>.
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.primaryBtn, loading && { opacity: 0.75 }]}
+          onPress={handleSignUp}
+          disabled={loading}
+        >
+          <Text style={styles.primaryBtnText}>{loading ? "Creating account…" : "CREATE ACCOUNT"}</Text>
+        </TouchableOpacity>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Already have an account? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate("Login")}>
+            <Text style={styles.footerLink}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.orRow}>
+          <View style={styles.orLine} />
+          <Text style={styles.orText}>OR CONTINUE WITH</Text>
+          <View style={styles.orLine} />
         </View>
       </ScrollView>
+
+      <View style={styles.authBar}>
+        <TouchableOpacity style={styles.authItem} onPress={() => navigation.navigate("Login")}>
+          <Ionicons name="log-in-outline" size={24} color="#6b7280" />
+          <Text style={styles.authLabel}>LOGIN</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.authItem, styles.authItemActive]}>
+          <Ionicons name="person-add-outline" size={24} color={PURPLE} />
+          <Text style={[styles.authLabel, styles.authLabelActive]}>REGISTER</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.authItem} onPress={openHelp}>
+          <Ionicons name="help-circle-outline" size={24} color="#6b7280" />
+          <Text style={styles.authLabel}>HELP</Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }

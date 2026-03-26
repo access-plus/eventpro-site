@@ -83,6 +83,10 @@ interface CategoryFilterProps {
   onCategoryChange: (category: string | null) => void;
   className?: string;
   showCultural?: boolean;
+  /** Stitch discovery_web: rounded-2xl chips on lavender surface */
+  variant?: "glass" | "editorial";
+  /** Hide icons on editorial chips (cleaner pills) */
+  hideIcons?: boolean;
 }
 
 export const CategoryFilter = ({
@@ -90,10 +94,51 @@ export const CategoryFilter = ({
   onCategoryChange,
   className,
   showCultural = true,
+  variant = "glass",
+  hideIcons = false,
 }: CategoryFilterProps) => {
   const categories = showCultural 
     ? [...STANDARD_CATEGORIES, ...CULTURAL_CATEGORIES, "Other"]
     : [...STANDARD_CATEGORIES, "Other"];
+
+  if (variant === "editorial") {
+    return (
+      <div className={cn("flex flex-wrap gap-2 p-1", className)}>
+        <button
+          type="button"
+          onClick={() => onCategoryChange(null)}
+          className={cn(
+            "inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold font-headline tracking-tight transition-all hover:scale-[1.02] active:scale-[0.98]",
+            selectedCategory === null
+              ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+              : "bg-[hsl(270_40%_94%)] dark:bg-secondary text-primary hover:bg-[hsl(270_35%_90%)]"
+          )}
+        >
+          All Events
+        </button>
+        {categories.map((category) => {
+          const Icon = CATEGORY_ICONS[category] || MoreHorizontal;
+          const isSelected = selectedCategory === category;
+          return (
+            <button
+              type="button"
+              key={category}
+              onClick={() => onCategoryChange(isSelected ? null : category)}
+              className={cn(
+                "inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold font-headline tracking-tight transition-all hover:scale-[1.02] active:scale-[0.98]",
+                isSelected
+                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                  : "bg-[hsl(270_40%_94%)] dark:bg-secondary text-primary hover:bg-[hsl(270_35%_90%)]"
+              )}
+            >
+              {!hideIcons && <Icon className="h-4 w-4 shrink-0" />}
+              {category}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("space-y-4", className)}>

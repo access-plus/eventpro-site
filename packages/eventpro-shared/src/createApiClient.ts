@@ -13,6 +13,7 @@ import type {
   CartResponse,
   CheckInResult,
   CheckoutTotals,
+  CreateSeatMapRequest,
   Event,
   EventAddon,
   EventSales,
@@ -28,6 +29,7 @@ import type {
   RecentSale,
   RecordSubscriptionPaymentRequest,
   RevenueData,
+  SeatResponse,
   SignUpRequest,
   TeamMember,
   TicketType,
@@ -103,6 +105,10 @@ export interface EventProApi {
   getOrganizerRecentSales: (limit?: number) => Promise<RecentSale[]>;
   getOrganizerInsights: () => Promise<OrganizerInsights>;
   requestPayout: (amount: number) => Promise<{ id: string; amount: number; status: string }>;
+  /** Public: seat map for an event (empty if not reserved seating). */
+  getEventSeats: (eventId: string) => Promise<SeatResponse[]>;
+  /** Pro/Enterprise: create seat map from section specs. */
+  createEventSeatMap: (eventId: string, body: CreateSeatMapRequest) => Promise<{ seatsCreated: number }>;
 
   // Organizer verification & tax
   getVerificationStatus: () => Promise<VerificationStatusResponse>;
@@ -363,6 +369,17 @@ export function createEventProApi(config: EventProApiConfig): EventProApi {
       const res = await api.get<ApiResponse<Event[]>>("/api/v1/organizer/events");
       return res.data.data ?? [];
     },
+    async getEventSeats(eventId: string) {
+      const res = await api.get<ApiResponse<SeatResponse[]>>(`/api/v1/events/${eventId}/seats`);
+      return res.data.data ?? [];
+    },
+    async createEventSeatMap(eventId: string, body: CreateSeatMapRequest) {
+      const res = await api.post<ApiResponse<{ seatsCreated: number }>>(
+        `/api/v1/organizer/events/${eventId}/seat-map`,
+        body
+      );
+      return res.data.data ?? { seatsCreated: 0 };
+    },
     async publishEvent(eventId: string) {
       return getData(await api.post<ApiResponse<Event>>(`/api/v1/events/${eventId}/publish`));
     },
@@ -423,6 +440,9 @@ export function createEventProApi(config: EventProApiConfig): EventProApi {
         eventGrowth: num(d?.eventGrowth),
         ticketGrowth: num(d?.ticketGrowth),
         revenueGrowth: num(d?.revenueGrowth),
+        usersAttendeeCount: Number(d?.usersAttendeeCount ?? 0),
+        usersOrganizerCount: Number(d?.usersOrganizerCount ?? 0),
+        usersAdminCount: Number(d?.usersAdminCount ?? 0),
       };
     },
     async getUsersPage(page = 1, size = 10) {

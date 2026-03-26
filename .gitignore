@@ -204,3 +204,8 @@ terraform.tfstate.backup
 ticket-**/
 
 **/*.pem
+
+# ============================================
+# Design exports (Stitch) — large binary assets
+# ============================================
+docs/stitch_event_details/

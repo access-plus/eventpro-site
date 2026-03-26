@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { apiService } from "@/lib/api";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { PageShell } from "@/components/PageShell";
 
 /**
  * Stripe redirects here after subscription checkout. We sync tier/role from Stripe
@@ -46,20 +47,31 @@ const SubscriptionReturn = () => {
   }, [searchParams, refreshUser, navigate]);
 
   return (
-    <div className="min-h-[40vh] flex flex-col items-center justify-center gap-4 p-6">
-      {status === "syncing" && (
-        <>
-          <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-          <p className="text-muted-foreground">Setting up your account…</p>
-        </>
-      )}
-      {status === "done" && (
-        <p className="text-muted-foreground">Redirecting to your profile…</p>
-      )}
-      {status === "error" && (
-        <p className="text-muted-foreground">Redirecting to your profile…</p>
-      )}
-    </div>
+    <PageShell>
+      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4 px-6 py-16">
+        <div className="rounded-2xl border border-border/60 bg-card/95 px-8 py-10 shadow-[0_20px_40px_rgba(54,39,78,0.08)] text-center max-w-md w-full">
+          {status === "syncing" && (
+            <>
+              <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+              <h1 className="font-headline text-xl tracking-tight text-foreground mb-2">Setting up your account</h1>
+              <p className="text-muted-foreground text-sm">Syncing your subscription…</p>
+            </>
+          )}
+          {status === "done" && (
+            <>
+              <h1 className="font-headline text-xl tracking-tight text-foreground mb-2">Almost there</h1>
+              <p className="text-muted-foreground text-sm">Redirecting to your profile…</p>
+            </>
+          )}
+          {status === "error" && (
+            <>
+              <h1 className="font-headline text-xl tracking-tight text-foreground mb-2">Taking you back</h1>
+              <p className="text-muted-foreground text-sm">Redirecting to your profile…</p>
+            </>
+          )}
+        </div>
+      </div>
+    </PageShell>
   );
 };
 

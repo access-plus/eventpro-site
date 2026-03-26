@@ -9,9 +9,10 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as SecureStore from "expo-secure-store";
 import { createEventProApi } from "@eventpro/shared";
 import Constants from "expo-constants";
-import { View, ActivityIndicator, StyleSheet, Linking, Alert } from "react-native";
+import { View, Linking, Alert } from "react-native";
 
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
+import { SplashScreen } from "./src/screens/SplashScreen";
 import { CartProvider } from "./src/contexts/CartContext";
 import { NotificationPreferencesProvider } from "./src/contexts/NotificationPreferencesContext";
 import { RecentlyViewedProvider } from "./src/contexts/RecentlyViewedContext";
@@ -19,7 +20,6 @@ import { ThemeProvider } from "./src/contexts/ThemeContext";
 import { AuthStack } from "./src/navigation/AuthStack";
 import { MainTabs } from "./src/navigation/MainTabs";
 import type { RootStackParamList } from "./src/navigation/types";
-import { useTheme } from "./src/contexts/ThemeContext";
 
 const API_URL =
   Constants.expoConfig?.extra?.apiUrl ??
@@ -125,14 +125,9 @@ function AppContent() {
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 function RootNavigator() {
-  const { user, loading } = useAuth();
-  const { theme } = useTheme();
+  const { loading } = useAuth();
   if (loading) {
-    return (
-      <View style={[styles.loading, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
+    return <SplashScreen />;
   }
 
   // Same flow as web: land on Discover (Main), no login prompt. Auth only when user taps Sign in or does protected action.
@@ -147,11 +142,3 @@ function RootNavigator() {
 export default function App() {
   return <AppContent />;
 }
-
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-});

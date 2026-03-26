@@ -1,20 +1,19 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useLayoutEffect } from "react";
 import {
   View,
   Text,
-  FlatList,
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
   Image,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import type { Order, Event } from "@eventpro/shared";
 import type { Theme } from "../theme";
 import { Ionicons } from "@expo/vector-icons";
-
 type OrderWithMeta = Order & {
   _dateLabel?: string;
   _event?: Event;
@@ -47,6 +46,8 @@ function normalizeOrder(raw: Record<string, unknown>): OrderWithMeta {
 }
 
 function getStatusLabel(status: string) {
+  const u = (status || "").toUpperCase();
+  if (u === "PAID" || u === "SUCCESS" || u === "FULFILLED") return "Paid";
   switch (status) {
     case "COMPLETED": return "Confirmed";
     case "PENDING": return "Pending";
@@ -56,9 +57,14 @@ function getStatusLabel(status: string) {
   }
 }
 
+function isPaidOrCompletedStatus(status: string): boolean {
+  const u = (status || "").toUpperCase();
+  return u === "COMPLETED" || u === "PAID" || u === "SUCCESS" || u === "FULFILLED";
+}
+
 function getStatusColor(status: string) {
+  if (isPaidOrCompletedStatus(status)) return "#15803d";
   switch (status) {
-    case "COMPLETED": return "#22c55e";
     case "PENDING": return "#d97706";
     case "CANCELLED": return "#dc2626";
     case "REFUNDED": return "#6b7280";
@@ -72,12 +78,67 @@ function getEventImageUrl(event: Event | undefined): string | undefined {
   return typeof url === "string" ? url : undefined;
 }
 
+function daysUntilEvent(d: Date): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const t = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return Math.round((t.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+/** Stitch-style order reference for receipts (not the raw UUID). */
+function formatOrderDisplayId(orderId: string): string {
+  const compact = orderId.replace(/-/g, "").slice(0, 6).toUpperCase();
+  return compact.length >= 5 ? `XP-${compact}` : `XP-${orderId.slice(0, 8).toUpperCase()}`;
+}
+
+const SCREEN_W = Dimensions.get("window").width;
+const ACTIVE_CARD_W = Math.min(SCREEN_W * 0.88, 360);
+
 export function OrderHistoryScreen({ navigation }: { navigation: any }) {
-  const { api } = useAuth();
+  const { api, user } = useAuth();
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || user?.email?.split("@")[0] || "Member";
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 14, marginRight: 4 }}>
+          <TouchableOpacity
+            onPress={() => navigation.getParent()?.navigate("Search")}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="Search events"
+          >
+            <Ionicons name="search-outline" size={24} color={theme.colors.foreground} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.getParent()?.navigate("Profile", { screen: "ProfileHome" })}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="Profile"
+          >
+            <View
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 17,
+                backgroundColor: theme.colors.primary + "33",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: "800", color: theme.colors.primary }}>
+                {displayName.slice(0, 2).toUpperCase()}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      ),
+    });
+  }, [navigation, theme.colors.foreground, theme.colors.primary, displayName]);
   const [orders, setOrders] = useState<OrderWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [historyFilter, setHistoryFilter] = useState<"all" | "past">("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +146,7 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
       try {
         const data = await api.getOrders(1, 50);
         const rawList = Array.isArray(data) ? data : [];
-        const normalized = rawList.map((o) => normalizeOrder(o as Record<string, unknown>)) as OrderWithMeta[];
+        const normalized = rawList.map((o) => normalizeOrder(o as unknown as Record<string, unknown>)) as OrderWithMeta[];
 
         const eventIds = new Set<string>();
         normalized.forEach((o) => {
@@ -138,6 +199,16 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
     return { upcoming: up, past: pa };
   }, [orders]);
 
+  const historyOrders = useMemo(() => {
+    if (historyFilter === "past") return past;
+    const sorted = [...orders].sort((a, b) => {
+      const ca = new Date(a.createdAt).getTime();
+      const cb = new Date(b.createdAt).getTime();
+      return cb - ca;
+    });
+    return sorted;
+  }, [orders, past, historyFilter]);
+
   const onViewTicket = (order: OrderWithMeta) => {
     navigation.navigate("OrderDetail", {
       orderId: order.id,
@@ -159,9 +230,29 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
     );
   }
 
+  /** Tickets-first (Stitch my_tickets): no duplicate profile block — use Profile tab. */
   if (orders.length === 0) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.ticketsHero}>
+          <Text style={[styles.ticketsHeroTitle, { color: theme.colors.foreground }]}>My tickets</Text>
+          <Text style={[styles.ticketsHeroSub, { color: theme.colors.mutedForeground }]}>
+            Purchases and QR codes live here. Open your wallet when you are at the venue.
+          </Text>
+          <TouchableOpacity
+            style={[styles.walletLinkRow, { backgroundColor: theme.colors.primary + "18" }]}
+            onPress={() => navigation.navigate("MyWallet")}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="wallet-outline" size={22} color={theme.colors.primary} />
+            <Text style={[styles.walletLinkText, { color: theme.colors.primary }]}>Open My Wallet</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.primary} />
+          </TouchableOpacity>
+        </View>
         <View style={[styles.emptyCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
           <View style={[styles.emptyIconWrap, { backgroundColor: theme.colors.muted }]}>
             <Ionicons name="ticket-outline" size={48} color={theme.colors.primary} />
@@ -179,11 +270,19 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
             <Text style={[styles.emptyButtonText, { color: theme.colors.primaryForeground }]}>Find Your Next Experience</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
-  const renderOrderCard = (order: OrderWithMeta, isFeatured: boolean) => {
+  const activeBadge = (order: OrderWithMeta) => {
+    if (!order._eventDate) return null;
+    const du = daysUntilEvent(order._eventDate);
+    if (du === 0) return "TONIGHT";
+    if (du > 0 && du <= 14) return `IN ${du} DAY${du === 1 ? "" : "S"}`;
+    return null;
+  };
+
+  const renderOrderCard = (order: OrderWithMeta, isFeatured: boolean, cardWidth?: number) => {
     const event = order._event;
     const eventDate = order._eventDate;
     const eventImageUrl = getEventImageUrl(event);
@@ -199,6 +298,7 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
           styles.card,
           { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
           isFeatured && styles.cardFeatured,
+          cardWidth != null ? { width: cardWidth } : null,
         ]}
         onPress={() => onPressOrder(order)}
         activeOpacity={0.8}
@@ -215,7 +315,7 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
         <View style={styles.cardBody}>
           <View style={styles.cardRow}>
             <Text style={[styles.orderId, { color: theme.colors.mutedForeground }]}>
-              Order #{order.id.slice(0, 8)}
+              {formatOrderDisplayId(order.id)}
             </Text>
             <View style={[styles.badge, { backgroundColor: getStatusColor(order.status) }]}>
               <Text style={styles.badgeText}>{getStatusLabel(order.status)}</Text>
@@ -266,33 +366,152 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.pageTitle, { color: theme.colors.foreground }]}>Order History</Text>
-      <Text style={[styles.pageSubtitle, { color: theme.colors.mutedForeground }]}>
-        Your tickets and order details
-      </Text>
+      <View style={styles.ticketsHero}>
+        <Text style={[styles.ticketsHeroTitle, { color: theme.colors.foreground }]}>My tickets</Text>
+        <Text style={[styles.ticketsHeroSub, { color: theme.colors.mutedForeground }]}>
+          Upcoming events appear first. Past purchases stay in order history.
+        </Text>
+        <TouchableOpacity
+          style={[styles.walletLinkRow, { backgroundColor: theme.colors.primary + "18" }]}
+          onPress={() => navigation.navigate("MyWallet")}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="wallet-outline" size={22} color={theme.colors.primary} />
+          <Text style={[styles.walletLinkText, { color: theme.colors.primary }]}>My Wallet — QR & passes</Text>
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.primary} />
+        </TouchableOpacity>
+      </View>
 
       {upcoming.length > 0 && (
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionBar, { backgroundColor: theme.colors.primary }]} />
-            <Text style={[styles.sectionTitle, { color: theme.colors.foreground }]}>Upcoming</Text>
+          <View style={styles.activeHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.foreground }]}>Active tickets</Text>
+            <TouchableOpacity onPress={() => navigation.navigate("MyWallet")}>
+              <Text style={[styles.viewWallet, { color: theme.colors.primary }]}>View Wallet</Text>
+            </TouchableOpacity>
           </View>
-          {upcoming.map((order) => (
-            <View key={order.id} style={styles.cardWrap}>
-              {renderOrderCard(order, true)}
-            </View>
-          ))}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.activeCarousel}
+            decelerationRate="fast"
+          >
+            {upcoming.map((order) => (
+              <View key={order.id} style={[styles.cardWrap, styles.carouselCardWrap]}>
+                <View style={styles.activeWrap}>
+                  {activeBadge(order) ? (
+                    <View style={styles.tonightBadge}>
+                      <Text style={styles.tonightBadgeText}>{activeBadge(order)}</Text>
+                    </View>
+                  ) : null}
+                  {renderOrderCard(order, true, ACTIVE_CARD_W)}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
         </View>
       )}
 
-      {past.length > 0 && (
+      {upcoming.length === 0 && orders.length > 0 && (
+        <View style={[styles.upcomingEmpty, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <Ionicons name="calendar-outline" size={22} color={theme.colors.mutedForeground} />
+          <Text style={[styles.upcomingEmptyText, { color: theme.colors.mutedForeground }]}>
+            No upcoming events in your orders — tickets below are from past events or dates we could not load.
+          </Text>
+        </View>
+      )}
+
+      {historyOrders.length > 0 && (
         <View style={styles.section}>
-          <Text style={[styles.sectionTitlePast, { color: theme.colors.mutedForeground }]}>Past</Text>
-          {past.map((order) => (
-            <View key={order.id} style={styles.cardWrap}>
-              {renderOrderCard(order, false)}
+          <View style={styles.orderHistoryHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.foreground }]}>Order history</Text>
+            <View style={[styles.filterToggle, { backgroundColor: theme.colors.muted }]}>
+              <TouchableOpacity
+                style={[styles.filterChip, historyFilter === "all" && { backgroundColor: theme.colors.card }]}
+                onPress={() => setHistoryFilter("all")}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    { color: historyFilter === "all" ? theme.colors.foreground : theme.colors.mutedForeground },
+                  ]}
+                >
+                  ALL
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterChip, historyFilter === "past" && { backgroundColor: theme.colors.card }]}
+                onPress={() => setHistoryFilter("past")}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    { color: historyFilter === "past" ? theme.colors.foreground : theme.colors.mutedForeground },
+                  ]}
+                >
+                  PAST
+                </Text>
+              </TouchableOpacity>
             </View>
-          ))}
+          </View>
+          {historyOrders.map((order) => {
+            const thumb = getEventImageUrl(order._event);
+            const n = order.tickets?.length ?? 0;
+            const statusLine = (() => {
+              if (isPaidOrCompletedStatus(order.status)) {
+                return { text: "PAID", color: "#15803d" };
+              }
+              if ((order.status || "").toUpperCase() === "PENDING") {
+                return { text: "PENDING", color: "#d97706" };
+              }
+              if (order._eventDate) {
+                return {
+                  text: order._eventDate
+                    .toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+                    .toUpperCase(),
+                  color: theme.colors.mutedForeground,
+                };
+              }
+              return {
+                text: getStatusLabel(order.status).toUpperCase(),
+                color: theme.colors.mutedForeground,
+              };
+            })();
+            return (
+              <View key={order.id} style={styles.cardWrap}>
+                <TouchableOpacity
+                  style={[
+                    styles.compactOrder,
+                    { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
+                  ]}
+                  onPress={() => onPressOrder(order)}
+                  activeOpacity={0.85}
+                >
+                  {thumb ? (
+                    <Image source={{ uri: thumb }} style={styles.compactThumb} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.compactThumb, styles.compactThumbPh, { backgroundColor: theme.colors.muted }]}>
+                      <Ionicons name="image-outline" size={22} color={theme.colors.primary} />
+                    </View>
+                  )}
+                  <View style={styles.compactLeft}>
+                    <Text style={[styles.compactTitle, { color: theme.colors.foreground }]} numberOfLines={2}>
+                      {order._event?.name ?? "Event"}
+                    </Text>
+                    <Text style={[styles.compactSub, { color: theme.colors.mutedForeground }]}>
+                      {n} ticket{n !== 1 ? "s" : ""} · {formatOrderDisplayId(order.id)}
+                    </Text>
+                  </View>
+                  <View style={styles.compactRight}>
+                    <Text style={[styles.compactPrice, { color: theme.colors.foreground }]}>
+                      ${Number(order.totalAmount ?? 0).toFixed(2)}
+                    </Text>
+                    <Text style={[styles.compactStatus, { color: statusLine.color }]}>{statusLine.text}</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
       )}
     </ScrollView>
@@ -304,8 +523,86 @@ function createStyles(theme: Theme) {
     container: { flex: 1 },
     scrollContent: { padding: theme.spacing.md, paddingBottom: theme.spacing.xl },
     centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-    pageTitle: { fontSize: 28, fontWeight: "800", marginBottom: 4 },
     pageSubtitle: { fontSize: 15, marginBottom: theme.spacing.lg },
+    ticketsHero: { marginBottom: theme.spacing.lg },
+    ticketsHeroTitle: { fontSize: 26, fontWeight: "800", marginBottom: 6 },
+    ticketsHeroSub: { fontSize: 14, lineHeight: 20, marginBottom: 14 },
+    walletLinkRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: theme.radius.lg,
+    },
+    walletLinkText: { flex: 1, fontSize: 15, fontWeight: "700" },
+    upcomingEmpty: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+      padding: 12,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+      marginBottom: theme.spacing.lg,
+    },
+    upcomingEmptyText: { flex: 1, fontSize: 13, lineHeight: 18 },
+    activeHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+    },
+    viewWallet: { fontSize: 14, fontWeight: "700" },
+    activeCarousel: {
+      flexDirection: "row",
+      paddingRight: theme.spacing.md,
+      paddingBottom: 4,
+    },
+    carouselCardWrap: { marginBottom: 0, width: ACTIVE_CARD_W, marginRight: 12 },
+    activeWrap: { position: "relative" },
+    tonightBadge: {
+      position: "absolute",
+      top: 10,
+      left: 10,
+      zIndex: 2,
+      backgroundColor: "#8B2942",
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: theme.radius.sm,
+    },
+    tonightBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+    orderHistoryHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    filterToggle: { flexDirection: "row", borderRadius: theme.radius.md, padding: 3 },
+    filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: theme.radius.sm },
+    filterChipText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
+    compactOrder: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      padding: 12,
+      borderRadius: theme.radius.lg,
+      borderWidth: 1,
+    },
+    compactThumb: {
+      width: 56,
+      height: 56,
+      borderRadius: theme.radius.md,
+    },
+    compactThumbPh: { alignItems: "center", justifyContent: "center" },
+    compactLeft: { flex: 1, minWidth: 0 },
+    compactRight: { alignItems: "flex-end" },
+    compactTitle: { fontSize: 16, fontWeight: "700" },
+    compactSub: { fontSize: 13, marginTop: 2 },
+    compactPrice: { fontSize: 16, fontWeight: "800" },
+    compactStatus: { fontSize: 10, fontWeight: "800", marginTop: 4 },
     section: { marginBottom: theme.spacing.lg },
     sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
     sectionBar: { width: 4, height: 24, borderRadius: 2, marginRight: 8 },
@@ -353,7 +650,6 @@ function createStyles(theme: Theme) {
       borderRadius: theme.radius.md,
     },
     viewTicketBtnText: { fontSize: 15, fontWeight: "600" },
-    emptyContainer: { flex: 1, padding: theme.spacing.md, justifyContent: "center", alignItems: "center" },
     emptyCard: {
       width: "100%",
       maxWidth: 400,

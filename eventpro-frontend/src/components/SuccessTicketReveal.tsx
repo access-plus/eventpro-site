@@ -1,8 +1,18 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Ticket, Wallet, Smartphone, MessageCircle, Share2 } from "lucide-react";
+import {
+  Ticket,
+  X,
+  Calendar,
+  Armchair,
+  Compass,
+  Share2,
+  Check,
+} from "lucide-react";
 import { toast } from "sonner";
+import { getEventImageUrl } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const QR_BASE = "https://api.qrserver.com/v1/create-qr-code/";
 
@@ -11,6 +21,15 @@ export interface SuccessTicketRevealProps {
   eventName: string;
   attendeeName: string;
   ticketType: string;
+  /** Paid total for display */
+  totalAmount?: number;
+  eventImageUrl?: string;
+  eventDateLine?: string;
+  venueLine?: string;
+}
+
+function shareUrl(): string {
+  return typeof window !== "undefined" ? `${window.location.origin}/events` : "";
 }
 
 export function SuccessTicketReveal({
@@ -18,158 +37,182 @@ export function SuccessTicketReveal({
   eventName,
   attendeeName,
   ticketType,
+  totalAmount = 0,
+  eventImageUrl,
+  eventDateLine,
+  venueLine,
 }: SuccessTicketRevealProps) {
   const navigate = useNavigate();
-  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/events` : "";
-  const shareText = eventName
-    ? `I'm going to ${eventName}! Get your ticket: ${shareUrl}`
-    : `Just got my ticket! Check out events: ${shareUrl}`;
+  const text = eventName ? `I'm going to ${eventName}!` : "Just got tickets!";
+  const url = shareUrl();
+  const heroSrc = eventImageUrl ? getEventImageUrl(eventImageUrl) : undefined;
+
+  const openShare = (kind: string) => {
+    const encoded = encodeURIComponent(`${text} ${url}`);
+    const maps: Record<string, string> = {
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+      x: `https://twitter.com/intent/tweet?text=${encoded}`,
+      whatsapp: `https://wa.me/?text=${encoded}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+    };
+    if (kind === "tiktok" || kind === "snapchat") {
+      toast.message("Open the app to share", { description: `Copy your link and paste in ${kind}.` });
+      void navigator.clipboard.writeText(url);
+      return;
+    }
+    const href = maps[kind];
+    if (href) window.open(href, "_blank", "noopener,noreferrer");
+  };
 
   return (
-    <>
-      <style>{`
-        .success-qr-glow {
-          animation: success-qr-pulse 2s ease-in-out infinite;
-        }
-        @keyframes success-qr-pulse {
-          0%, 100% { box-shadow: 0 0 24px rgba(147,51,234,0.4), 0 0 48px rgba(147,51,234,0.15); }
-          50% { box-shadow: 0 0 36px rgba(147,51,234,0.6), 0 0 64px rgba(147,51,234,0.25); }
-        }
-        .ticket-stub-success {
-          mask-image: radial-gradient(circle at 0 50%, transparent 6px, black 7px);
-          mask-size: 14px 100%;
-          mask-repeat: repeat-x;
-          -webkit-mask-image: radial-gradient(circle at 0 50%, transparent 6px, black 7px);
-          -webkit-mask-size: 14px 100%;
-          -webkit-mask-repeat: repeat-x;
-        }
-      `}</style>
-      <div className="min-h-screen py-8 px-4 flex flex-col items-center justify-center">
-        {/* Mesh gradient behind */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-1/4 left-1/2 w-[32rem] h-[32rem] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" />
-          <div className="absolute top-1/2 -left-20 w-72 h-72 rounded-full bg-pink-500/10 blur-3xl" />
-          <div className="absolute bottom-1/4 right-0 w-96 h-96 rounded-full bg-orange-500/10 blur-3xl" />
-        </div>
+    <div className="min-h-screen bg-[#f9f8ff] dark:bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-card/90 backdrop-blur-md border-b border-border/60">
+        <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate("/events")} aria-label="Close">
+          <X className="h-5 w-5" />
+        </Button>
+        <h1 className="text-base font-bold font-headline text-foreground">Order Confirmed</h1>
+        <span className="text-lg font-extrabold font-headline text-primary w-10 text-right">VIBE</span>
+      </header>
+
+      <div className="max-w-md mx-auto px-4 pb-16 pt-6">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-glow shadow-[0_12px_40px_rgba(99,102,241,0.45)]">
+            <Ticket className="h-10 w-10 text-primary-foreground" />
+          </div>
+          <h2 className="text-2xl font-extrabold font-headline text-foreground tracking-tight">You&apos;re Going!</h2>
+          <p className="mt-2 text-sm text-muted-foreground leading-relaxed px-2">
+            Your seats are secured. Get ready for an unforgettable night at the festival.
+          </p>
+        </motion.div>
 
         <motion.div
-          className="relative w-full max-w-md"
-          initial={{ opacity: 0, y: 80, scale: 0.92 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{
-            type: "spring",
-            stiffness: 260,
-            damping: 24,
-            mass: 0.8,
-          }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mt-8 rounded-3xl border border-border/60 bg-card shadow-[0_20px_50px_rgba(54,39,78,0.08)] overflow-hidden"
         >
-          {/* Ticket card — "arrives" with spring */}
-          <div className="relative rounded-xl border-2 border-primary/40 bg-[rgba(255,255,255,0.08)] backdrop-blur-[16px] p-6 shadow-[0_0_40px_rgba(147,51,234,0.25)] overflow-hidden">
-            <div className="ticket-stub-success absolute right-0 top-0 bottom-0 w-3 bg-[rgba(255,255,255,0.04)]" />
-
-            <div className="flex items-center gap-2 mb-4">
-              <Ticket className="h-6 w-6 text-primary" />
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                Your ticket
-              </span>
-            </div>
-            <h2 className="font-bold uppercase tracking-wide text-foreground text-lg mb-1 line-clamp-2">
+          <div className="relative h-44 w-full overflow-hidden bg-muted">
+            {heroSrc ? (
+              <img src={heroSrc} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="h-full w-full bg-gradient-to-br from-slate-900 via-primary/40 to-pink-500/30" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <span className="absolute left-3 top-3 rounded-md bg-pink-600/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+              Confirmed event
+            </span>
+            <p className="absolute bottom-3 left-3 right-3 text-xl font-bold text-white drop-shadow-md line-clamp-2">
               {eventName || "Event"}
-            </h2>
-            <p className="text-sm text-muted-foreground mb-4">{attendeeName || "Attendee"}</p>
-            <p className="text-xs font-medium text-primary mb-6 inline-block px-2 py-1 rounded-md bg-primary/15 border border-primary/30">
-              {ticketType || "Ticket"}
-            </p>
-
-            {/* QR — high-contrast glow, scan-ready */}
-            <div className="success-qr-glow inline-flex p-4 rounded-2xl bg-white/95">
-              {orderId ? (
-                <img
-                  src={`${QR_BASE}?size=200x200&data=${encodeURIComponent(orderId)}&format=svg`}
-                  alt="Ticket QR code"
-                  className="w-[200px] h-[200px] rounded-lg"
-                />
-              ) : (
-                <div className="w-[200px] h-[200px] rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-sm">
-                  QR
-                </div>
-              )}
-            </div>
-            <p className="text-center text-sm font-medium text-emerald-600 dark:text-emerald-400 mt-3">
-              Scan-ready at the door
             </p>
           </div>
 
-          {/* Actions */}
-          <motion.div
-            className="mt-8 flex flex-col sm:flex-row gap-3 justify-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Button
-              variant="outline"
-              className="rounded-xl border-primary/30 bg-primary/5 text-primary hover:bg-primary/15"
-              onClick={() => window.open("https://support.apple.com/en-us/HT207945", "_blank")}
-            >
-              <Wallet className="h-4 w-4 mr-2" />
-              Apple Wallet
-            </Button>
-            <Button
-              variant="outline"
-              className="rounded-xl border-primary/30 bg-primary/5 text-primary hover:bg-primary/15"
-              onClick={() => window.open("https://pay.google.com/about/passes/", "_blank")}
-            >
-              <Smartphone className="h-4 w-4 mr-2" />
-              Google Wallet
-            </Button>
-          </motion.div>
-          <motion.div
-            className="mt-4 flex flex-wrap gap-3 justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-xl"
-              onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank")}
-            >
-              <MessageCircle className="h-4 w-4 mr-2" />
-              Share on WhatsApp
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-xl"
-              onClick={() => {
-                navigator.clipboard.writeText(shareUrl);
-                toast.success("Link copied!");
-              }}
-            >
-              <Share2 className="h-4 w-4 mr-2" />
-              Copy link
-            </Button>
-          </motion.div>
-          <motion.div
-            className="mt-8 flex flex-col sm:flex-row gap-3 justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-          >
-            <Button variant="outline" className="rounded-xl" onClick={() => navigate("/events")}>
-              Browse more events
-            </Button>
-            <Button
-              className="rounded-xl bg-gradient-to-r from-primary to-primary-glow text-white"
-              onClick={() => navigate("/")}
-            >
-              Back to home
-            </Button>
-          </motion.div>
+          <div className="grid grid-cols-2 gap-4 p-4 border-b border-border/50">
+            <div>
+              <div className="flex items-center gap-1.5 text-primary mb-1">
+                <Calendar className="h-4 w-4 shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Date &amp; time</span>
+              </div>
+              <p className="text-sm font-semibold text-foreground">{eventDateLine ?? "See event page"}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Doors open</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 text-primary mb-1">
+                <Armchair className="h-4 w-4 shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Seats</span>
+              </div>
+              <p className="text-sm font-semibold text-foreground">{ticketType || "General admission"}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{venueLine ?? "Venue TBA"}</p>
+            </div>
+          </div>
+
+          <div className="px-4 py-4 border-b border-border/50">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">Instant access QR</p>
+            <div className="flex justify-center rounded-2xl bg-primary/8 p-4">
+              {orderId ? (
+                <img
+                  src={`${QR_BASE}?size=180x180&data=${encodeURIComponent(orderId)}&format=svg`}
+                  alt="Ticket QR code"
+                  className="h-44 w-44 rounded-xl"
+                />
+              ) : (
+                <div className="h-44 w-44 rounded-xl bg-muted flex items-center justify-center text-muted-foreground text-sm">QR</div>
+              )}
+            </div>
+          </div>
+
+          <div className="p-4 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Total amount paid</p>
+            <p className="text-3xl font-bold font-headline text-foreground tabular-nums mt-1">
+              ${totalAmount > 0 ? totalAmount.toFixed(2) : "—"}
+            </p>
+            <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-primary">
+              <Check className="h-4 w-4" />
+              TRANSACTION SECURE
+            </div>
+          </div>
         </motion.div>
+
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="mt-6 space-y-3">
+          <Button
+            className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary via-indigo-500 to-primary-glow text-primary-foreground font-bold shadow-md"
+            onClick={() => navigate("/orders")}
+          >
+            <Ticket className="h-4 w-4 mr-2" />
+            View my tickets
+          </Button>
+          <Button
+            variant="secondary"
+            className="w-full h-12 rounded-2xl bg-primary/10 text-primary border-0 hover:bg-primary/15 font-semibold"
+            onClick={() => navigate("/events")}
+          >
+            <Compass className="h-4 w-4 mr-2" />
+            Explore more events
+          </Button>
+          <Button
+            className="w-full h-12 rounded-2xl border-0 text-white font-bold bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 shadow-md"
+            onClick={() => toast.success("Use your phone to post to Stories", { description: "Screenshot this page or open tickets in the app." })}
+          >
+            <Share2 className="h-4 w-4 mr-2" />
+            Share to Story
+          </Button>
+
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <SocialBtn label="Facebook" className="bg-[#1877F2] hover:bg-[#1877F2]/90" onClick={() => openShare("facebook")} />
+            <SocialBtn label="X" className="bg-black hover:bg-black/90" onClick={() => openShare("x")} />
+            <SocialBtn label="WhatsApp" className="bg-[#25D366] hover:bg-[#25D366]/90" onClick={() => openShare("whatsapp")} />
+            <SocialBtn label="TikTok" className="bg-black hover:bg-black/90" onClick={() => openShare("tiktok")} />
+            <SocialBtn label="Snapchat" className="bg-[#FFFC00] text-black hover:bg-[#FFFC00]/90" onClick={() => openShare("snapchat")} />
+            <SocialBtn label="LinkedIn" className="bg-[#0A66C2] hover:bg-[#0A66C2]/90" onClick={() => openShare("linkedin")} />
+          </div>
+        </motion.div>
+
+        <p className="mt-8 text-center text-xs text-muted-foreground leading-relaxed">
+          A confirmation email has been sent to your registered address.
+        </p>
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          Need help?{" "}
+          <Link to="/contact" className="font-semibold text-primary underline underline-offset-2">
+            Contact Support
+          </Link>
+        </p>
       </div>
-    </>
+    </div>
+  );
+}
+
+function SocialBtn({
+  label,
+  className,
+  onClick,
+}: {
+  label: string;
+  className?: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button type="button" variant="secondary" className={cn("h-11 rounded-xl text-white font-semibold", className)} onClick={onClick}>
+      {label}
+    </Button>
   );
 }

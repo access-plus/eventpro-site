@@ -25,6 +25,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiService } from "@/lib/api";
 import { toast } from "sonner";
+import { PageShell } from "@/components/PageShell";
 
 const Pricing = () => {
   const [isAnnual, setIsAnnual] = useState(true);
@@ -209,15 +210,15 @@ const Pricing = () => {
   ];
 
   return (
-    <div className="min-h-screen py-12">
-      <div className="container mx-auto px-4">
+    <PageShell>
+      <div className="container mx-auto px-4 py-12 md:py-14">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-12">
           <Badge variant="secondary" className="mb-4">
             <Zap className="h-3 w-3 mr-1" />
             Simple, Transparent Pricing
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-primary bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-5xl font-extrabold font-headline tracking-tight mb-4 bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
             Pricing that grows with your community
           </h1>
           <p className="text-xl text-muted-foreground mb-8">
@@ -564,7 +565,7 @@ const Pricing = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Image } from "react-native";
 import { useTheme } from "../contexts/ThemeContext";
 import { theme as staticTheme } from "../theme";
+import { sectionLabel, editorialCard } from "../theme/screenStyles";
 import type { FollowedOrganizerItem } from "../lib/mobileApi";
 import * as mobileApi from "../lib/mobileApi";
 
@@ -29,10 +30,12 @@ export function FollowingScreen({ navigation }: { navigation: any }) {
   if (list.length === 0) {
     return (
       <View style={[styles.centered, styles.empty, { backgroundColor: theme.colors.background }]}>
-        <Text style={[styles.emptyTitle, { color: theme.colors.foreground }]}>Not following anyone yet</Text>
-        <Text style={[styles.emptyDesc, { color: theme.colors.mutedForeground }]}>
-          Go to an event and tap Follow next to the organizer.
-        </Text>
+        <View style={[editorialCard(theme), { padding: 24, alignItems: "center", maxWidth: 400, width: "100%" }]}>
+          <Text style={[styles.emptyTitle, { color: theme.colors.foreground }]}>Not following anyone yet</Text>
+          <Text style={[styles.emptyDesc, { color: theme.colors.mutedForeground }]}>
+            Go to an event and tap Follow next to the organizer.
+          </Text>
+        </View>
       </View>
     );
   }
@@ -42,10 +45,18 @@ export function FollowingScreen({ navigation }: { navigation: any }) {
       <FlatList
         data={list}
         keyExtractor={(item) => item.organizerId}
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            <Text style={[sectionLabel(theme), { marginBottom: 6 }]}>Your network</Text>
+            <Text style={{ fontSize: 15, color: theme.colors.mutedForeground, lineHeight: 22 }}>
+              Organizers you follow appear here
+            </Text>
+          </View>
+        }
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[styles.row, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+            style={[editorialCard(theme), styles.row]}
             onPress={() => navigation.getParent()?.navigate("Discover", { screen: "EventsList", params: { organizerId: item.organizerId } })}
           >
             {item.profilePictureUrl ? (
@@ -73,14 +84,13 @@ const styles = StyleSheet.create({
   empty: { padding: 24 },
   emptyTitle: { fontSize: 18, fontWeight: "600", marginBottom: 8 },
   emptyDesc: { fontSize: 14, textAlign: "center" },
-  list: { padding: staticTheme.spacing.md },
+  list: { padding: staticTheme.spacing.md, paddingTop: 8 },
+  listHeader: { marginBottom: 12 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     padding: 16,
-    borderRadius: staticTheme.radius.lg,
     marginBottom: 12,
-    borderWidth: 1,
   },
   avatar: { width: 44, height: 44, borderRadius: 22 },
   avatarPlaceholder: { justifyContent: "center", alignItems: "center" },

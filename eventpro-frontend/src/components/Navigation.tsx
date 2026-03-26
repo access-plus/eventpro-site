@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, Ticket, Calendar, User as UserIcon, ShoppingBag, LogOut, Settings, Shield, Heart } from "lucide-react";
+import { Menu, X, Ticket, Calendar, User as UserIcon, ShoppingBag, LogOut, Settings, Shield, Heart, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
-import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/UserMenu";
@@ -13,11 +13,17 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [navSearch, setNavSearch] = useState("");
   const { isAuthenticated, logout, hasRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
   const isActive = (path: string) => location.pathname === path;
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setNavSearch(params.get("q") ?? "");
+  }, [location.pathname, location.search]);
 
   const navLinks = [
     { path: "/", label: "Home", icon: Calendar },
@@ -30,22 +36,43 @@ export const Navigation = () => {
     navLinks.push({ path: "/profile", label: "Profile", icon: UserIcon });
   }
 
+  const submitNavSearch = () => {
+    const q = navSearch.trim();
+    if (q) navigate(`/events?q=${encodeURIComponent(q)}`);
+    else navigate("/events");
+  };
+
   return (
-    <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+    <nav className="sticky top-0 z-50 border-b border-border/60 bg-[hsl(270_40%_98%)]/85 dark:bg-background/90 backdrop-blur-xl shadow-[0_20px_40px_rgba(54,39,78,0.04)]">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between gap-4 min-h-16 md:min-h-[4.5rem] py-2 md:py-0">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 shrink-0">
             <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center">
               <Ticket className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            <span className="text-xl font-bold font-headline bg-gradient-primary bg-clip-text text-transparent">
               EventPro
             </span>
           </Link>
 
+          {/* Desktop: search (Stitch discovery_web) */}
+          <div className="hidden lg:flex flex-1 max-w-md mx-4">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                value={navSearch}
+                onChange={(e) => setNavSearch(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), submitNavSearch())}
+                placeholder="Search events..."
+                className="h-10 pl-9 pr-3 rounded-full border-0 bg-background/80 dark:bg-secondary/80 shadow-sm focus-visible:ring-2 focus-visible:ring-primary/25"
+                aria-label="Search events"
+              />
+            </div>
+          </div>
+
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-4 lg:gap-6 shrink-0">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const active = isActive(link.path);
@@ -84,10 +111,19 @@ export const Navigation = () => {
             )}
           </div>
 
+          <button
+            type="button"
+            onClick={() => navigate("/events")}
+            className="md:hidden p-2 rounded-full text-primary hover:bg-secondary/80 ml-auto"
+            aria-label="Go to events search"
+          >
+            <Search className="h-5 w-5" />
+          </button>
+
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-secondary"
+            className="md:hidden p-2 rounded-lg hover:bg-secondary shrink-0"
           >
             {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -170,7 +206,7 @@ export const Navigation = () => {
                     </Link>
                   )}
 
-                  {hasRole("ORGANIZER") && (
+                  {(hasRole("ORGANIZER") || hasRole("ADMIN")) && (
                     <Link
                       to="/organizer"
                       onClick={() => setIsOpen(false)}

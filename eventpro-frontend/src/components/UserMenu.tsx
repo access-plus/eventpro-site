@@ -66,7 +66,7 @@ export const UserMenu = () => {
             </Link>
           </DropdownMenuItem>
         )}
-        {hasRole("ORGANIZER") && (
+        {(hasRole("ORGANIZER") || hasRole("ADMIN")) && (
           <DropdownMenuItem asChild>
             <Link to="/organizer" className="cursor-pointer">
               <Calendar className="mr-2 h-4 w-4" />

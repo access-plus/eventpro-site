@@ -12,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 import type { UserNotification } from "@eventpro/shared";
 import { useTheme } from "../contexts/ThemeContext";
 import { lightTheme } from "../theme";
+import { sectionLabel, editorialCard } from "../theme/screenStyles";
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -83,6 +84,14 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
         data={list}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />}
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            <Text style={[sectionLabel(theme), { marginBottom: 6 }]}>Inbox</Text>
+            <Text style={[styles.listHeaderSub, { color: theme.colors.mutedForeground }]}>
+              Updates from EventPro
+            </Text>
+          </View>
+        }
         ListEmptyComponent={
           <Text style={[styles.empty, { color: theme.colors.mutedForeground }]}>No notifications yet.</Text>
         }
@@ -92,8 +101,8 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
           return (
             <TouchableOpacity
               style={[
+                editorialCard(theme),
                 styles.card,
-                { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
                 unread && [styles.cardUnread, { borderLeftColor: theme.colors.primary }],
               ]}
               activeOpacity={0.7}
@@ -115,10 +124,12 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  listContent: { padding: lightTheme.spacing.md, paddingBottom: 32 },
+  listHeader: { paddingTop: 8, paddingBottom: 12 },
+  listHeaderSub: { fontSize: 14, marginTop: 4 },
+  listContent: { padding: lightTheme.spacing.md, paddingTop: 0, paddingBottom: 32 },
   emptyList: { flexGrow: 1, padding: lightTheme.spacing.md },
   empty: { textAlign: "center", marginTop: 24 },
-  card: { padding: 16, borderRadius: lightTheme.radius.lg, marginBottom: 12, borderWidth: 1 },
+  card: { padding: 16, marginBottom: 12 },
   cardUnread: { borderLeftWidth: 4 },
   title: { fontSize: 16, fontWeight: "600" },
   message: { fontSize: 14, marginTop: 4 },

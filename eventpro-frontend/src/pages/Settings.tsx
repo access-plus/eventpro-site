@@ -22,6 +22,7 @@ import {
   Bell,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { PageShell } from "@/components/PageShell";
 
 const Settings = () => {
   const { logout, isAuthenticated } = useAuth();
@@ -50,9 +51,9 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4 max-w-2xl">
-        <h1 className="text-4xl font-bold mb-8 bg-gradient-primary bg-clip-text text-transparent">
+    <PageShell>
+      <div className="container mx-auto px-4 max-w-2xl py-8 md:py-10">
+        <h1 className="text-4xl font-extrabold font-headline tracking-tight mb-8 bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
           Settings
         </h1>
 
@@ -62,9 +63,9 @@ const Settings = () => {
           className="space-y-6"
         >
           {/* Quick links */}
-          <Card>
+          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 font-headline text-lg">
                 <User className="h-5 w-5 text-primary" />
                 Account
               </CardTitle>
@@ -99,9 +100,9 @@ const Settings = () => {
           </Card>
 
           {/* Notifications */}
-          <Card id="notifications">
+          <Card id="notifications" className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 font-headline text-lg">
                 <Bell className="h-5 w-5 text-primary" />
                 Notifications
               </CardTitle>
@@ -161,9 +162,9 @@ const Settings = () => {
           </Card>
 
           {/* Appearance */}
-          <Card>
+          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 font-headline text-lg">
                 <Palette className="h-5 w-5 text-primary" />
                 Appearance
               </CardTitle>
@@ -183,9 +184,9 @@ const Settings = () => {
           </Card>
 
           {/* Support */}
-          <Card>
+          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 font-headline text-lg">
                 <HelpCircle className="h-5 w-5 text-primary" />
                 Support
               </CardTitle>
@@ -220,9 +221,9 @@ const Settings = () => {
           </Card>
 
           {/* Privacy */}
-          <Card>
+          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 font-headline text-lg">
                 <Shield className="h-5 w-5 text-primary" />
                 Privacy
               </CardTitle>
@@ -245,7 +246,7 @@ const Settings = () => {
           </Card>
 
           {/* Sign out */}
-          <Card className="border-destructive/20">
+          <Card className="rounded-2xl border-destructive/20 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
             <CardContent className="pt-6">
               <Button
                 variant="destructive"
@@ -259,7 +260,7 @@ const Settings = () => {
           </Card>
         </motion.div>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

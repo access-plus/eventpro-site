@@ -21,6 +21,8 @@ export interface CheckoutPaymentFormProps {
   isGuest: boolean;
   /** Billing address from checkout form; sent to Stripe so it can validate with the card (AVS). */
   billingDetails?: BillingDetailsForStripe;
+  /** Fired when payment is being confirmed (Stripe + order finalize). */
+  onProcessingChange?: (processing: boolean) => void;
 }
 
 declare global {
@@ -77,7 +79,7 @@ function StripeNotConfigured() {
 }
 
 export function CheckoutPaymentForm(props: CheckoutPaymentFormProps) {
-  const { clientSecret, onSuccess, onError, guestConfirm, authenticatedConfirm, isGuest, billingDetails } = props;
+  const { clientSecret, onSuccess, onError, guestConfirm, authenticatedConfirm, isGuest, billingDetails, onProcessingChange } = props;
   const [stripeKey, setStripeKey] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,6 +157,7 @@ export function CheckoutPaymentForm(props: CheckoutPaymentFormProps) {
       return;
     }
     setIsSubmitting(true);
+    onProcessingChange?.(true);
     try {
       const paymentMethodPayload: {
         card: unknown;
@@ -192,6 +195,7 @@ export function CheckoutPaymentForm(props: CheckoutPaymentFormProps) {
       onError(err instanceof Error ? err.message : "Payment failed");
     } finally {
       setIsSubmitting(false);
+      onProcessingChange?.(false);
     }
   };
 

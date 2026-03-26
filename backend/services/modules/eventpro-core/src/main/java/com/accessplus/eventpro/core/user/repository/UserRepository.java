@@ -15,4 +15,6 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
     Optional<UserEntity> findByEmailIgnoreCase(String email);
 
     Optional<UserEntity> findByStripeCustomerId(String stripeCustomerId);
+
+    long countByRole(String role);
 }

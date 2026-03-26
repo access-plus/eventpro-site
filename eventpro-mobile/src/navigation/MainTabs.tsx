@@ -4,6 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import type { MainTabParamList } from "./types";
 import { useAuth } from "../context/AuthContext";
 import { DiscoverStack } from "./DiscoverStack";
+import { SearchStack } from "./SearchStack";
+import { TicketsStack } from "./TicketsStack";
 import { ProfileStack } from "./ProfileStack";
 import { OrganizerStack } from "./OrganizerStack";
 import { AdminStack } from "./AdminStack";
@@ -33,7 +35,31 @@ export function MainTabs() {
         options={{
           title: "Home",
           tabBarLabel: "Home",
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "home" : "home-outline"} size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Search"
+        component={SearchStack}
+        options={{
+          title: "Search",
+          tabBarLabel: "Search",
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "search" : "search-outline"} size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Tickets"
+        component={TicketsStack}
+        options={{
+          title: "Tickets",
+          tabBarLabel: "Tickets",
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "ticket" : "ticket-outline"} size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen
@@ -42,7 +68,9 @@ export function MainTabs() {
         options={{
           title: "Profile",
           tabBarLabel: "Profile",
-          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "person" : "person-outline"} size={size} color={color} />
+          ),
         }}
         listeners={({ navigation }) => ({
           tabPress: (e) => {

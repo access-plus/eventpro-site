@@ -18,8 +18,11 @@ import { lightTheme } from "../theme";
 
 const WEB_URL = Constants.expoConfig?.extra?.webUrl ?? process.env.EXPO_PUBLIC_WEB_URL ?? "https://eventpro.com";
 
+const STITCH_BG = "#F8F4FF";
+const SECTION_HDR = "#881337";
+
 export function SettingsScreen({ navigation }: { navigation: any }) {
-  const { logout, api } = useAuth();
+  const { logout, api, user } = useAuth();
   const { theme, colorScheme, setColorScheme } = useTheme();
   const { notificationPreferences, setNotificationPreferences } = useNotificationPreferences();
   const { clearRecentlyViewed } = useRecentlyViewed();
@@ -53,12 +56,43 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      style={[styles.container, { backgroundColor: STITCH_BG }]}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={[styles.title, { color: theme.colors.foreground }]}>Settings</Text>
+      <View style={[styles.profileHero, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+        <View style={styles.avatarRow}>
+          <View style={[styles.bigAvatar, { backgroundColor: theme.colors.muted }]}>
+            <Ionicons name="person" size={40} color={theme.colors.mutedForeground} />
+          </View>
+          <TouchableOpacity style={[styles.editAvBtn, { backgroundColor: theme.colors.primary }]}>
+            <Ionicons name="pencil" size={14} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        <Text style={[styles.profileName, { color: theme.colors.foreground }]}>
+          {[user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Your account"}
+        </Text>
+        <Text style={[styles.profileEmail, { color: theme.colors.mutedForeground }]}>{user?.email ?? ""}</Text>
+        <TouchableOpacity
+          style={[styles.editProfileBtn, { backgroundColor: theme.colors.primary + "18" }]}
+          onPress={() => navigation.navigate("ProfileEdit")}
+        >
+          <Text style={[styles.editProfileBtnText, { color: theme.colors.primary }]}>Edit Profile</Text>
+        </TouchableOpacity>
+      </View>
 
+      <View style={styles.statusRow}>
+        <View style={[styles.statusMini, { backgroundColor: theme.colors.primary }]}>
+          <Ionicons name="shield-checkmark" size={22} color="#fff" />
+          <Text style={styles.statusMiniText}>Security Score: 95%</Text>
+        </View>
+        <View style={[styles.statusMini, { backgroundColor: "#fce7f3" }]}>
+          <Ionicons name="notifications" size={22} color="#9d174d" />
+          <Text style={[styles.statusMiniText, { color: "#9d174d" }]}>12 New Alerts</Text>
+        </View>
+      </View>
+
+      <Text style={[styles.stitchSection, { color: SECTION_HDR }]}>ACCOUNT & SECURITY</Text>
       {/* Account */}
       <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <View style={styles.cardHeader}>
@@ -95,9 +129,9 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
             <Text style={[styles.cardDesc, { color: theme.colors.mutedForeground }]}>Get help or contact us</Text>
           </View>
         </View>
-        <TouchableOpacity style={[styles.row, { borderTopColor: theme.colors.border }]} onPress={() => openWeb("/help")}>
+        <TouchableOpacity style={[styles.row, { borderTopColor: theme.colors.border }]} onPress={() => navigation.navigate("HelpCenter")}>
           <Text style={[styles.rowText, { color: theme.colors.foreground }]}>Help center</Text>
-          <Ionicons name="open-outline" size={20} color={theme.colors.mutedForeground} />
+          <Ionicons name="chevron-forward" size={20} color={theme.colors.mutedForeground} />
         </TouchableOpacity>
         <TouchableOpacity style={[styles.row, { borderTopColor: theme.colors.border }]} onPress={openMail}>
           <Text style={[styles.rowText, { color: theme.colors.foreground }]}>Contact us (email)</Text>
@@ -113,6 +147,7 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
         </TouchableOpacity>
       </View>
 
+      <Text style={[styles.stitchSection, { color: SECTION_HDR, marginTop: 8 }]}>NOTIFICATIONS</Text>
       {/* Notifications */}
       <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <View style={styles.cardHeader}>
@@ -247,7 +282,48 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: lightTheme.spacing.lg, paddingBottom: 32 },
-  title: { fontSize: 28, fontWeight: "700", marginBottom: 24 },
+  profileHero: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 14,
+    alignItems: "center",
+  },
+  avatarRow: { position: "relative", marginBottom: 12 },
+  bigAvatar: { width: 88, height: 88, borderRadius: 44, justifyContent: "center", alignItems: "center" },
+  editAvBtn: {
+    position: "absolute",
+    right: -4,
+    bottom: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#fff",
+  },
+  profileName: { fontSize: 20, fontWeight: "800" },
+  profileEmail: { fontSize: 14, marginTop: 4 },
+  editProfileBtn: { marginTop: 14, alignSelf: "stretch", paddingVertical: 14, borderRadius: 14, alignItems: "center" },
+  editProfileBtnText: { fontWeight: "800", fontSize: 16 },
+  statusRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
+  statusMini: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 14,
+    borderRadius: 16,
+  },
+  statusMiniText: { fontSize: 12, fontWeight: "800", color: "#fff", flex: 1 },
+  stitchSection: {
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    marginBottom: 10,
+    marginTop: 4,
+  },
   card: {
     borderRadius: lightTheme.radius.lg,
     borderWidth: 1,

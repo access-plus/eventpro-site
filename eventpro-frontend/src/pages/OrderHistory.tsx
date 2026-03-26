@@ -12,9 +12,21 @@ import {
 import { apiService } from "@/lib/api";
 import { getEventImageUrl } from "@/lib/utils";
 import type { Order, Event, Ticket as TicketType } from "@/types/api";
-import { Ticket, Calendar, DollarSign, Download, CalendarPlus, QrCode, Check } from "lucide-react";
+import {
+  Ticket,
+  Calendar,
+  DollarSign,
+  Download,
+  CalendarPlus,
+  QrCode,
+  Check,
+  MapPin,
+  Wallet,
+  Sparkles,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import { PageShell } from "@/components/PageShell";
 
 type OrderWithMeta = Order & {
   _dateLabel?: string;
@@ -82,6 +94,7 @@ const OrderHistory = () => {
   const [orders, setOrders] = useState<OrderWithMeta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewTicketOrderId, setViewTicketOrderId] = useState<string | null>(null);
+  const [ticketTab, setTicketTab] = useState<"upcoming" | "past">("upcoming");
 
   useEffect(() => {
     let cancelled = false;
@@ -146,25 +159,62 @@ const OrderHistory = () => {
     return { upcoming: up, past: pa };
   }, [orders]);
 
+  const visibleOrders = ticketTab === "upcoming" ? upcoming : past;
+
   const viewTicketOrder = viewTicketOrderId ? orders.find((o) => o.id === viewTicketOrderId) : null;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
+      <PageShell>
+        <div className="flex min-h-[50vh] items-center justify-center py-16">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4">
-        <h1 className="text-4xl md:text-5xl font-extrabold font-heading tracking-tight mb-2 bg-gradient-primary bg-clip-text text-transparent">
-          Order History
-        </h1>
-        <p className="text-muted-foreground mb-8">
-          Your tickets and order details
-        </p>
+    <PageShell>
+      <div className="container mx-auto px-4 py-8 md:py-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
+          <div>
+            <p className="text-xs font-semibold tracking-[0.2em] text-primary/80 uppercase mb-1">Your collection</p>
+            <h1 className="text-4xl md:text-5xl font-extrabold font-headline tracking-tight text-foreground">
+              My Tickets
+            </h1>
+          </div>
+          <div
+            className="inline-flex rounded-full p-1 bg-primary/10 border border-primary/15 self-start"
+            role="tablist"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={ticketTab === "upcoming"}
+              onClick={() => setTicketTab("upcoming")}
+              className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${
+                ticketTab === "upcoming"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Upcoming
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={ticketTab === "past"}
+              onClick={() => setTicketTab("past")}
+              className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${
+                ticketTab === "past"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Past Events
+            </button>
+          </div>
+        </div>
 
         {orders.length === 0 ? (
           <motion.div
@@ -194,41 +244,55 @@ const OrderHistory = () => {
         ) : (
           <div className="relative rounded-2xl overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-accent/5 pointer-events-none" />
-            <div className="relative space-y-10 py-2">
-              {upcoming.length > 0 && (
-                <section>
-                  <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
-                    <span className="w-2 h-8 rounded-full bg-gradient-to-b from-primary to-primary-glow" />
-                    Upcoming
-                  </h2>
-                  <div className="space-y-4">
-                    {upcoming.map((order, index) => (
-                      <OrderTicketCard
-                        key={order.id}
-                        order={order as OrderWithMeta}
-                        index={index}
-                        onViewTicket={() => setViewTicketOrderId(order.id)}
-                        isFeatured
-                      />
-                    ))}
-                  </div>
-                </section>
+            <div className="relative space-y-8 py-2">
+              {visibleOrders.length === 0 ? (
+                <p className="text-center text-muted-foreground py-12">
+                  No {ticketTab === "upcoming" ? "upcoming" : "past"} tickets in this view.
+                </p>
+              ) : (
+                <div className="space-y-5">
+                  {visibleOrders.map((order, index) => (
+                    <OrderTicketCard
+                      key={order.id}
+                      order={order as OrderWithMeta}
+                      index={index}
+                      onViewTicket={() => setViewTicketOrderId(order.id)}
+                      isFeatured={ticketTab === "upcoming"}
+                    />
+                  ))}
+                </div>
               )}
-              {past.length > 0 && (
-                <section>
-                  <h2 className="text-xl font-semibold text-muted-foreground mb-4">Past</h2>
-                  <div className="space-y-4">
-                    {past.map((order, index) => (
-                      <OrderTicketCard
-                        key={order.id}
-                        order={order as OrderWithMeta}
-                        index={index}
-                        onViewTicket={() => setViewTicketOrderId(order.id)}
-                      />
-                    ))}
+
+              <div className="grid gap-4 md:grid-cols-[1fr_minmax(200px,280px)] pt-4">
+                <div className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/12 via-primary/5 to-transparent p-6 relative overflow-hidden">
+                  <Sparkles className="absolute right-4 top-4 h-8 w-8 text-primary/40" aria-hidden />
+                  <h3 className="text-lg font-bold text-foreground mb-2">Upgrade your experience</h3>
+                  <p className="text-sm text-muted-foreground mb-4 max-w-md">
+                    Unlock lounge access and fast-track entry when your organizer enables VIP add-ons for these events.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    className="bg-background text-foreground hover:bg-background/90"
+                    onClick={() => navigate("/events")}
+                  >
+                    Add VIP Pass
+                  </Button>
+                </div>
+                <div className="rounded-2xl border border-primary/15 bg-primary/8 p-6 flex flex-col justify-center">
+                  <div className="flex items-center gap-2 text-primary mb-2">
+                    <Wallet className="h-5 w-5" />
+                    <span className="font-bold">Electric Wallet</span>
                   </div>
-                </section>
-              )}
+                  <p className="text-2xl font-extrabold text-foreground tracking-tight">$142.50</p>
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-primary mt-2 text-left hover:underline"
+                    onClick={() => navigate("/settings")}
+                  >
+                    Manage Credits →
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -255,7 +319,7 @@ const OrderHistory = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 };
 
@@ -276,6 +340,10 @@ function OrderTicketCard({
   const eventImageUrl = event?.imageUrl ? getEventImageUrl(event.imageUrl) : undefined;
   const orderDateLabel = order._dateLabel ?? "—";
   const eventDateLabel = eventDate ? format(eventDate, "EEEE, MMMM do, yyyy") : null;
+  const dateTimeLine = eventDate ? format(eventDate, "EEE, MMM d • h:mm a").toUpperCase() : null;
+  const addr = [event?.addressStreet, event?.addressCity].filter(Boolean).join(", ");
+  const venueLine = event?.venue ?? (addr || "Venue TBA");
+  const genre = event?.categoryName ?? event?.category ?? "LIVE / EVENT";
 
   return (
     <motion.div
@@ -285,98 +353,118 @@ function OrderTicketCard({
       className="group"
     >
       <Card
-        className={`relative overflow-visible rounded-xl border-0 shadow-lg transition-all duration-300 cursor-pointer
-          bg-white/60 dark:bg-white/5 backdrop-blur-[10px]
+        className={`relative overflow-hidden rounded-2xl border border-primary/10 shadow-lg transition-all duration-300 cursor-pointer
+          bg-white/80 dark:bg-white/5 backdrop-blur-[10px]
           hover:shadow-[0_0_30px_hsl(var(--primary)_/_0.18)]
-          ${isFeatured ? "ring-1 ring-primary/20 shadow-primary/10" : ""}`}
+          ${isFeatured ? "ring-1 ring-primary/25" : ""}`}
         onClick={() => event?.id && navigate(`/events/${event.id}`)}
       >
-        {/* Perforated ticket notch: circular punch-outs */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-background z-10 border border-border/50" aria-hidden />
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-background z-10 border border-border/50" aria-hidden />
-
-        <CardContent className="p-0 flex flex-col sm:flex-row">
-          {/* Event thumbnail */}
-          <div className={`relative flex-shrink-0 overflow-hidden rounded-l-lg ${isFeatured ? "w-full sm:w-48 h-36 sm:min-h-[160px]" : "w-full sm:w-40 h-32 sm:min-h-[140px]"}`}>
+        <CardContent className="p-0 flex flex-col md:flex-row">
+          <div
+            className={`relative flex-shrink-0 overflow-hidden md:rounded-l-2xl ${isFeatured ? "w-full md:w-[42%] min-h-[200px] md:min-h-[220px]" : "w-full md:w-[38%] min-h-[180px]"}`}
+          >
             {eventImageUrl ? (
-              <img
-                src={eventImageUrl}
-                alt={event?.name ?? "Event"}
-                className="w-full h-full object-cover"
-              />
+              <img src={eventImageUrl} alt={event?.name ?? "Event"} className="w-full h-full object-cover min-h-[200px]" />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary-glow/20 flex items-center justify-center">
-                <Ticket className="h-10 w-10 text-primary/50" />
+              <div className="w-full h-full min-h-[200px] bg-gradient-to-br from-primary/30 to-primary-glow/25 flex items-center justify-center">
+                <Ticket className="h-12 w-12 text-primary/60" />
               </div>
             )}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-card/50 sm:to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+            <div className="absolute top-3 left-3">
+              <span className="inline-block rounded-md bg-black/45 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white/95 border border-white/20">
+                {genre.toUpperCase()}
+              </span>
+            </div>
+            <div className="absolute bottom-3 left-3 right-3">
+              <h3 className="font-bold text-lg text-white drop-shadow-md line-clamp-2">{event?.name ?? "Event"}</h3>
+            </div>
           </div>
 
-          <div className="flex-1 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="font-mono text-sm font-semibold text-muted-foreground tabular-nums tracking-tight">
-                  Order #{order.id.slice(0, 8)}
-                </span>
+          <div className="flex-1 p-5 flex flex-col justify-between gap-4 relative">
+            <Ticket className="absolute right-4 top-4 h-5 w-5 text-primary/70 hidden sm:block" aria-hidden />
+
+            <div className="space-y-3 min-w-0 pr-8">
+              {dateTimeLine && (
+                <p className="text-sm font-bold text-primary tracking-wide">{dateTimeLine}</p>
+              )}
+              <p className="text-sm text-foreground flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <span>{venueLine}</span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {["SECTION: GA-02", "ROW: Floor", "SEAT: N/A"].map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/15"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-mono">Order #{order.id.slice(0, 8)}</span>
                 <Badge className={`inline-flex items-center gap-1.5 ${getStatusBadgeClass(order.status)}`}>
                   {order.status === "COMPLETED" && <Check className="h-3.5 w-3.5 shrink-0" />}
                   {getStatusLabel(order.status)}
                 </Badge>
+                <span>·</span>
+                <span>Ordered {orderDateLabel}</span>
               </div>
-              <h3 className="font-semibold text-lg truncate">
-                {event?.name ?? "Event"}
-              </h3>
               {eventDateLabel && (
-                <p className="text-sm text-foreground font-medium mt-1 flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4 text-primary" />
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5" />
                   {eventDateLabel}
                 </p>
               )}
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Ordered {orderDateLabel}
-              </p>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1 font-bold text-lg">
-                <DollarSign className="h-4 w-4 text-primary" />
-                {Number(order.totalAmount ?? 0).toFixed(2)}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-border/60">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="rounded-lg border bg-muted/40 p-2">
+                  <QrCode className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="text-lg font-bold flex items-center gap-0.5">
+                    <DollarSign className="h-4 w-4 text-primary" />
+                    {Number(order.totalAmount ?? 0).toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {order.tickets?.length ?? 0} ticket{(order.tickets?.length ?? 0) !== 1 ? "s" : ""}
+                  </p>
+                </div>
               </div>
-              <span className="text-sm text-muted-foreground">
-                {order.tickets?.length ?? 0} ticket{(order.tickets?.length ?? 0) !== 1 ? "s" : ""}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-primary to-primary-glow text-primary-foreground border-0 shadow-md hover:shadow-glow hover:scale-105 transition-all"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onViewTicket();
-                }}
-              >
-                <QrCode className="h-4 w-4 mr-1.5" />
-                View Ticket
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-primary hover:bg-primary/10 hover:scale-105 transition-transform"
-                onClick={(e) => e.stopPropagation()}
-                title="Download PDF"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-primary hover:bg-primary/10 hover:scale-105 transition-transform"
-                onClick={(e) => e.stopPropagation()}
-                title="Add to Calendar"
-              >
-                <CalendarPlus className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  className="bg-gradient-to-r from-primary to-primary-glow text-primary-foreground border-0 shadow-md min-w-[140px]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewTicket();
+                  }}
+                >
+                  View Details
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:bg-primary/10"
+                  onClick={(e) => e.stopPropagation()}
+                  title="Download PDF"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-primary hover:bg-primary/10"
+                  onClick={(e) => e.stopPropagation()}
+                  title="Add to Calendar"
+                >
+                  <CalendarPlus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>

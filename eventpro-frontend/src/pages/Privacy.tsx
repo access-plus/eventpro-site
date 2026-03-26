@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Shield, Bell, Mail, FileText, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { PageShell } from "@/components/PageShell";
 
 const Privacy = () => {
   return (
-    <div className="min-h-screen py-12 px-4">
-      <div className="container mx-auto max-w-3xl">
+    <PageShell>
+      <div className="container mx-auto max-w-3xl px-4 py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -18,7 +19,7 @@ const Privacy = () => {
             <div className="inline-flex h-14 w-14 rounded-2xl bg-primary/10 items-center justify-center mb-4">
               <Shield className="h-7 w-7 text-primary" />
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
+            <h1 className="text-4xl font-extrabold font-headline tracking-tight bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent mb-2">
               Privacy Policy
             </h1>
             <p className="text-muted-foreground text-lg">
@@ -137,7 +138,7 @@ const Privacy = () => {
           </Card>
         </motion.div>
       </div>
-    </div>
+    </PageShell>
   );
 };
 

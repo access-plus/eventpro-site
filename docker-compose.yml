@@ -132,6 +132,9 @@ services:
     ports:
       - "5173:5173"
     environment:
+      # Reliable file watching on Docker bind mounts; helps Vite invalidate optimize deps correctly.
+      - CHOKIDAR_USEPOLLING=true
+      - DOCKER=1
       # Vite proxy in dev: forward /api to backend (use hostname "backend" from inside Docker)
       - VITE_PROXY_TARGET=http://backend:8080
       # Vite reads from process.env (Docker) or .env.local file (when running directly)
@@ -141,8 +144,8 @@ services:
       - VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
     # Run Vite directly so --host 0.0.0.0 is passed correctly (npm workspace swallows it otherwise)
     command: sh -c "npm install && cd eventpro-frontend && npx vite --host 0.0.0.0"
-    depends_on:
-      - backend
+    # Intentionally no depends_on: backend — otherwise `compose up frontend` blocks while Gradle boots the API.
+    # Start backend separately (or `docker compose up -d`) when you need /api; Vite proxies once it is reachable.
     networks:
       - eventpro
     stdin_open: true

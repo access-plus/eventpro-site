@@ -352,6 +352,9 @@ export interface AdminStats {
   eventGrowth: number;
   ticketGrowth: number;
   revenueGrowth: number;
+  usersAttendeeCount?: number;
+  usersOrganizerCount?: number;
+  usersAdminCount?: number;
 }
 
 export interface EventSales {

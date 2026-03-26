@@ -20,6 +20,7 @@ import { Users, Loader2, UserPlus } from "lucide-react";
 import { motion } from "framer-motion";
 import type { User, UserRole, UserStatus } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const createAdminSchema = z.object({
   email: z.string().email("Invalid email"),
@@ -142,12 +143,72 @@ const UserManagement = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      className="max-w-6xl mx-auto px-4 py-8 pb-24"
     >
-      <div className="flex items-center gap-3 mb-6">
-        <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-red-500 mb-2">Console &gt; Users</p>
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold font-headline text-foreground">User Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">12,482 total registered users (demo scale — table shows loaded page)</p>
+        </div>
+        <div className="flex items-center gap-2">
           <Users className="h-6 w-6 text-primary" />
         </div>
-        <h1 className="text-2xl font-bold">User Management</h1>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <Card className="rounded-2xl border-border/60">
+          <CardContent className="p-6">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">New this month</p>
+            <p className="text-2xl font-bold mt-1">+1,420</p>
+            <p className="text-xs text-muted-foreground mt-1">12% increase from previous period</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl border-border/60">
+          <CardContent className="p-6">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pending approval</p>
+            <p className="text-2xl font-bold mt-1">42</p>
+            <p className="text-xs text-primary font-medium mt-1">Review now →</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl border-border/60">
+          <CardContent className="p-6">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">System health</p>
+            <p className="text-2xl font-bold mt-1">99.9%</p>
+            <div className="h-1.5 rounded-full bg-muted mt-2 overflow-hidden">
+              <div className="h-full w-[99%] bg-primary rounded-full" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4 mb-4 p-4 rounded-2xl bg-muted/30 border border-border/60">
+        <Input className="max-w-xs rounded-xl" placeholder="Search by name, email or ID..." />
+        <select className="rounded-xl border border-input bg-background px-3 py-2 text-sm">
+          <option>All Roles</option>
+        </select>
+        <select className="rounded-xl border border-input bg-background px-3 py-2 text-sm">
+          <option>All Status</option>
+        </select>
+        <Button variant="outline" size="sm" className="rounded-xl" type="button">
+          Filters
+        </Button>
+      </div>
+      <div className="flex flex-wrap items-center gap-4 mb-4 text-sm text-muted-foreground">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <Checkbox />
+          <span>Select all {users.length} users on this page</span>
+        </label>
+        <span className="font-semibold text-foreground">Bulk actions:</span>
+        <button type="button" className="text-primary font-medium hover:underline">
+          Change role
+        </button>
+        <button type="button" className="text-destructive font-medium hover:underline">
+          Suspend
+        </button>
+        <button type="button" className="text-muted-foreground hover:underline">
+          Delete
+        </button>
       </div>
 
       <Card className="mb-6">

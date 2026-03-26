@@ -1,7 +1,16 @@
 import { useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiService } from "@/lib/api";
-import type { User, Event, AdminStats, EventSales, RevenueData, PendingVerification } from "@/types/api";
+import type {
+  User,
+  Event,
+  AdminStats,
+  EventSales,
+  RevenueData,
+  PendingVerification,
+  AuditActivityPage,
+  SystemStatus,
+} from "@/types/api";
 import type { PageResponse } from "@/types/api";
 import type { RecordSubscriptionPaymentRequest } from "@/types/api";
 
@@ -33,6 +42,13 @@ export function useAdminApi(): {
   getEventsPage: (page?: number, size?: number) => Promise<PageResponse<Event>>;
   updateEventStatus: (eventId: string, status: string) => Promise<Event>;
   recordSubscriptionPayment: (body: RecordSubscriptionPaymentRequest) => Promise<{ id: string }>;
+  getAuditActivityPage: (params?: {
+    page?: number;
+    size?: number;
+    category?: string;
+    search?: string;
+  }) => Promise<AuditActivityPage>;
+  getSystemStatus: () => Promise<SystemStatus>;
 } | null {
   const { user } = useAuth();
 
@@ -65,6 +81,8 @@ export function useAdminApi(): {
         apiService.updateEventStatus(eventId, status),
       recordSubscriptionPayment: (body: RecordSubscriptionPaymentRequest) =>
         apiService.recordSubscriptionPayment(body),
+      getAuditActivityPage: (params) => apiService.getAuditActivityPage(params ?? {}),
+      getSystemStatus: () => apiService.getSystemStatus(),
     };
   }, [user?.id, user?.role]);
 }

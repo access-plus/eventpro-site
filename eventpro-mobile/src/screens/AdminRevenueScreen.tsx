@@ -2,9 +2,12 @@ import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import type { RevenueData } from "@eventpro/shared";
-import { theme } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
+import { lightTheme } from "../theme";
+import { editorialCard, sectionLabel } from "../theme/screenStyles";
 
 export function AdminRevenueScreen() {
+  const { theme } = useTheme();
   const { api } = useAuth();
   const [data, setData] = useState<RevenueData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,10 +43,25 @@ export function AdminRevenueScreen() {
         data={data}
         keyExtractor={(item) => item.date}
         contentContainerStyle={data.length === 0 ? styles.emptyList : styles.list}
+        ListHeaderComponent={
+          <Text style={[sectionLabel(theme), { marginBottom: 12, paddingHorizontal: lightTheme.spacing.lg }]}>
+            Last 30 days
+          </Text>
+        }
         ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.mutedForeground }]}>No revenue data.</Text>}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} color={theme.colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              load();
+            }}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+          />
+        }
         renderItem={({ item }) => (
-          <View style={[styles.card, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <View style={[editorialCard(theme), styles.card]}>
             <Text style={[styles.date, { color: theme.colors.foreground }]}>{item.date}</Text>
             <Text style={[styles.meta, { color: theme.colors.mutedForeground }]}>
               Revenue: ${Number(item.revenue).toFixed(2)} · Tickets: {item.ticketsSold}
@@ -58,10 +76,10 @@ export function AdminRevenueScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  list: { padding: theme.spacing.lg },
-  emptyList: { flexGrow: 1, padding: theme.spacing.lg },
+  list: { padding: lightTheme.spacing.lg, paddingTop: 0 },
+  emptyList: { flexGrow: 1, padding: lightTheme.spacing.lg },
   empty: { textAlign: "center", marginTop: 24 },
-  card: { padding: 16, borderRadius: theme.radius.lg, marginBottom: 12, borderWidth: 1 },
+  card: { padding: 16, marginBottom: 12 },
   date: { fontSize: 17, fontWeight: "600" },
   meta: { fontSize: 14, marginTop: 4 },
 });

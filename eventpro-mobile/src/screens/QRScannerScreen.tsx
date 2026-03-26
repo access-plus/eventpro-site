@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { theme } from "../theme";
+import { useTheme } from "../contexts/ThemeContext";
+import { lightTheme } from "../theme";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export function QRScannerScreen({ navigation }: Props) {
+  const { theme } = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(true);
   const lastScannedRef = useRef<string | null>(null);
@@ -71,8 +73,8 @@ export function QRScannerScreen({ navigation }: Props) {
         barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
       />
       <View style={styles.overlay}>
-        <View style={styles.frame} />
-        <Text style={styles.hint}>Point the camera at the ticket QR code</Text>
+        <View style={[styles.frame, { borderColor: theme.colors.primary }]} />
+        <Text style={[styles.hint, { color: "#fff" }]}>Point the camera at the ticket QR code</Text>
       </View>
       <TouchableOpacity
         style={[styles.closeBtn, { backgroundColor: theme.colors.card }]}
@@ -86,9 +88,9 @@ export function QRScannerScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: theme.spacing.lg },
-  message: { textAlign: "center", marginBottom: theme.spacing.lg },
-  button: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: theme.radius.md },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: lightTheme.spacing.lg },
+  message: { textAlign: "center", marginBottom: lightTheme.spacing.lg },
+  button: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: lightTheme.radius.md },
   buttonText: { fontWeight: "600" },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -98,26 +100,26 @@ const styles = StyleSheet.create({
   frame: {
     width: 240,
     height: 240,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.6)",
+    borderRadius: lightTheme.radius.lg,
+    borderWidth: 3,
+    backgroundColor: "transparent",
   },
   hint: {
     marginTop: 24,
-    fontSize: 16,
-    color: "#fff",
-    textShadowColor: "rgba(0,0,0,0.8)",
+    fontSize: 15,
+    textAlign: "center",
+    paddingHorizontal: 24,
+    textShadowColor: "rgba(0,0,0,0.75)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   closeBtn: {
     position: "absolute",
-    bottom: 40,
-    left: theme.spacing.lg,
-    right: theme.spacing.lg,
+    bottom: 48,
+    alignSelf: "center",
     paddingVertical: 14,
-    borderRadius: theme.radius.md,
-    alignItems: "center",
+    paddingHorizontal: 28,
+    borderRadius: lightTheme.radius.full,
   },
   closeBtnText: { fontSize: 16, fontWeight: "600" },
 });

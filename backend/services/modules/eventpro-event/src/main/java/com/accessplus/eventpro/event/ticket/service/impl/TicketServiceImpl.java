@@ -421,10 +421,12 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     @Transactional
-    public int releaseExpiredReservations() {
+    public List<UUID> releaseExpiredReservations() {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         List<TicketEntity> expired = ticketRepository.findReservedWithExpiredHold(now);
+        List<UUID> releasedIds = new ArrayList<>();
         for (TicketEntity t : expired) {
+            releasedIds.add(t.getId());
             t.setTicketStatus(TicketStatus.AVAILABLE);
             t.setReservedUntil(null);
             ticketRepository.save(t);
@@ -432,7 +434,7 @@ public class TicketServiceImpl implements TicketService {
         if (!expired.isEmpty()) {
             log.info("Released {} expired reservation(s)", expired.size());
         }
-        return expired.size();
+        return releasedIds;
     }
 
     @Override
@@ -450,6 +452,10 @@ public class TicketServiceImpl implements TicketService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", creatorId.toString()));
         if (!Boolean.TRUE.equals(event.getReservedSeatingEnabled())) {
             throw new ValidationException("Event must have reserved seating enabled before creating a seat map");
+        }
+        List<TicketEntity> existingSeats = ticketRepository.findByEventIdWithSeats(eventId);
+        if (!existingSeats.isEmpty()) {
+            throw new ValidationException("A seat map already exists for this event. Remove existing seat inventory before recreating.");
         }
         List<TicketEntity> tickets = new ArrayList<>();
         for (TicketService.SeatSectionSpec spec : sections) {
