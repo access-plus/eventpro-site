@@ -3,7 +3,12 @@
 FROM gradle:9.2.1-jdk25-corretto AS build
 WORKDIR /app
 
+
+
 # Copy entire services directory structure
+# (Jerome's question - why don't we only copy the build.gradle and settings.gradle files first,
+# run a dependencies download step, and then copy the source code) This way, if the code changes but our dependencies don't, we don't have to re-download them.
+# This would also be faster, as we wouldn't have to download the entire source code again.
 COPY services ./services
 
 # Build the application from services directory

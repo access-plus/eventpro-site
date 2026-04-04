@@ -43,6 +43,9 @@ dependencies {
     // Stripe (webhook controller and subscription checkout use Stripe types directly)
     implementation 'com.stripe:stripe-java:24.16.0'
 
+    // CircuitBreakerExceptionHandler (CallNotPermittedException); version from resilience4j-bom in root build.gradle
+    implementation 'io.github.resilience4j:resilience4j-circuitbreaker'
+
     // Lombok
     compileOnly "org.projectlombok:lombok:${project.ext.lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${project.ext.lombokVersion}"
