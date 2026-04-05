@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
-import type { Order, Event } from "@eventpro/shared";
+import { getEventIdFromOrderLineItem, type Order, type Event } from "@eventpro/shared";
 import type { Theme } from "../theme";
 import { Ionicons } from "@expo/vector-icons";
 type OrderWithMeta = Order & {
@@ -150,8 +150,9 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
 
         const eventIds = new Set<string>();
         normalized.forEach((o) => {
-          (o.tickets ?? []).forEach((t: any) => {
-            if (t.eventId) eventIds.add(t.eventId);
+          (o.tickets ?? []).forEach((t) => {
+            const eid = getEventIdFromOrderLineItem(t);
+            if (eid) eventIds.add(eid);
           });
         });
         const eventsMap: Record<string, Event> = {};
@@ -167,8 +168,8 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
         );
 
         normalized.forEach((o) => {
-          const firstTicket = (o.tickets ?? [])[0] as { eventId?: string } | undefined;
-          const event = firstTicket?.eventId ? eventsMap[firstTicket.eventId] : undefined;
+          const firstEventId = getEventIdFromOrderLineItem((o.tickets ?? [])[0]);
+          const event = firstEventId ? eventsMap[firstEventId] : undefined;
           o._event = event;
           if (event?.startTime) {
             const d = new Date(event.startTime);
