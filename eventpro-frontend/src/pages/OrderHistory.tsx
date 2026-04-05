@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { apiService } from "@/lib/api";
 import { getEventImageUrl } from "@/lib/utils";
-import type { Order, Event, Ticket as TicketType } from "@/types/api";
+import type { Order, Event } from "@/types/api";
 import {
   Ticket,
   Calendar,
@@ -27,6 +27,7 @@ import {
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { PageShell } from "@/components/PageShell";
+import { getEventIdFromOrderLineItem } from "@/lib/orderLineItem";
 
 type OrderWithMeta = Order & {
   _dateLabel?: string;
@@ -48,11 +49,24 @@ function normalizeOrder(raw: Record<string, unknown>): Order {
     const d = new Date(createdAt);
     if (!Number.isNaN(d.getTime())) dateLabel = format(d, "PPP");
   }
+  const rawStatus = String(raw.status ?? "").toUpperCase();
+  const status: Order["status"] =
+    rawStatus === "PAID" || rawStatus === "SUCCESS" || rawStatus === "FULFILLED"
+      ? "COMPLETED"
+      : rawStatus === "PENDING"
+        ? "PENDING"
+        : rawStatus === "CANCELLED"
+          ? "CANCELLED"
+          : rawStatus === "REFUNDED"
+            ? "REFUNDED"
+            : rawStatus === "COMPLETED"
+              ? "COMPLETED"
+              : "COMPLETED";
   return {
     id: String(raw.id ?? ""),
     userId: String(raw.userId ?? ""),
     totalAmount,
-    status: (raw.status as Order["status"]) ?? "COMPLETED",
+    status,
     createdAt: createdAt ?? "",
     tickets,
     _dateLabel: dateLabel,
@@ -107,8 +121,9 @@ const OrderHistory = () => {
 
         const eventIds = new Set<string>();
         normalized.forEach((o) => {
-          o.tickets?.forEach((t: { eventId?: string }) => {
-            if (t.eventId) eventIds.add(t.eventId);
+          o.tickets?.forEach((t) => {
+            const eid = getEventIdFromOrderLineItem(t);
+            if (eid) eventIds.add(eid);
           });
         });
         const eventsMap: Record<string, Event> = {};
@@ -124,8 +139,9 @@ const OrderHistory = () => {
         );
 
         normalized.forEach((o) => {
-          const firstTicket = o.tickets?.[0] as TicketType | undefined;
-          const event = firstTicket?.eventId ? eventsMap[firstTicket.eventId] : undefined;
+          const firstLine = o.tickets?.[0];
+          const firstEventId = getEventIdFromOrderLineItem(firstLine);
+          const event = firstEventId ? eventsMap[firstEventId] : undefined;
           o._event = event;
           if (event?.startTime) {
             const d = new Date(event.startTime);

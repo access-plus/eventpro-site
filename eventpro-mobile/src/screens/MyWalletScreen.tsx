@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
-import type { Order, Event } from "@eventpro/shared";
+import { getEventIdFromOrderLineItem, type Order, type Event } from "@eventpro/shared";
 import type { Theme } from "../theme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -121,7 +121,7 @@ export function MyWalletScreen({ navigation }: { navigation: any }) {
         const eventIds = new Set<string>();
         normalized.forEach((o) => {
           (o.tickets ?? []).forEach((t) => {
-            const id = (t as { eventId?: string }).eventId;
+            const id = getEventIdFromOrderLineItem(t);
             if (id) eventIds.add(id);
           });
         });
@@ -138,8 +138,8 @@ export function MyWalletScreen({ navigation }: { navigation: any }) {
         );
 
         normalized.forEach((o) => {
-          const firstTicket = (o.tickets ?? [])[0] as { eventId?: string } | undefined;
-          const event = firstTicket?.eventId ? eventsMap[firstTicket.eventId] : undefined;
+          const firstEventId = getEventIdFromOrderLineItem((o.tickets ?? [])[0]);
+          const event = firstEventId ? eventsMap[firstEventId] : undefined;
           o._event = event;
           if (event?.startTime) {
             const d = new Date(event.startTime);
