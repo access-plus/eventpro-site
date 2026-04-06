@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useMemo, useLayoutEffect } from "react";
+import React, { useState, useMemo, useLayoutEffect, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
   Text,
@@ -7,11 +8,16 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  Dimensions,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
-import { getEventIdFromOrderLineItem, type Order, type Event } from "@eventpro/shared";
+import {
+  getEventIdFromOrderLineItem,
+  getTicketQuantityFromOrderItems,
+  parseOrderTimestamp,
+  type Order,
+  type Event,
+} from "@eventpro/shared";
 import type { Theme } from "../theme";
 import { Ionicons } from "@expo/vector-icons";
 type OrderWithMeta = Order & {
@@ -24,22 +30,43 @@ function normalizeOrder(raw: Record<string, unknown>): OrderWithMeta {
   const totalAmount =
     typeof raw.totalAmount === "number"
       ? raw.totalAmount
-      : typeof (raw as any).amount === "number"
-        ? (raw as any).amount / 100
+      : typeof (raw as { amount?: number }).amount === "number"
+        ? (raw as { amount: number }).amount / 100
         : 0;
-  const tickets = Array.isArray(raw.tickets) ? raw.tickets : Array.isArray((raw as any).orderItems) ? (raw as any).orderItems : [];
-  const createdAt = (raw.createdAt ?? (raw as any).orderDate) as string | undefined;
+  const tickets = Array.isArray(raw.tickets)
+    ? raw.tickets
+    : Array.isArray(raw.orderItems)
+      ? raw.orderItems
+      : [];
+  const rawWhen = raw.createdAt ?? raw.orderDate;
+  const createdAt =
+    typeof rawWhen === "string"
+      ? rawWhen
+      : parseOrderTimestamp(rawWhen) || "";
   let dateLabel = "—";
   if (createdAt) {
     const d = new Date(createdAt);
     if (!Number.isNaN(d.getTime())) dateLabel = d.toLocaleDateString(undefined, { dateStyle: "long" });
   }
+  const rawStatus = String(raw.status ?? "").toUpperCase();
+  const status =
+    rawStatus === "PAID" || rawStatus === "SUCCESS" || rawStatus === "FULFILLED"
+      ? "COMPLETED"
+      : rawStatus === "PENDING"
+        ? "PENDING"
+        : rawStatus === "CANCELLED"
+          ? "CANCELLED"
+          : rawStatus === "REFUNDED"
+            ? "REFUNDED"
+            : rawStatus === "COMPLETED"
+              ? "COMPLETED"
+              : "COMPLETED";
   return {
     id: String(raw.id ?? ""),
-    userId: String((raw as any).userId ?? ""),
+    userId: String((raw as { userId?: string }).userId ?? ""),
     totalAmount,
-    status: ((raw.status as Order["status"]) ?? "COMPLETED") as string,
-    createdAt: createdAt ?? "",
+    status: status as Order["status"],
+    createdAt,
     tickets,
     _dateLabel: dateLabel,
   } as OrderWithMeta;
@@ -91,9 +118,6 @@ function formatOrderDisplayId(orderId: string): string {
   return compact.length >= 5 ? `XP-${compact}` : `XP-${orderId.slice(0, 8).toUpperCase()}`;
 }
 
-const SCREEN_W = Dimensions.get("window").width;
-const ACTIVE_CARD_W = Math.min(SCREEN_W * 0.88, 360);
-
 export function OrderHistoryScreen({ navigation }: { navigation: any }) {
   const { api, user } = useAuth();
   const { theme } = useTheme();
@@ -138,54 +162,60 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
   }, [navigation, theme.colors.foreground, theme.colors.primary, displayName]);
   const [orders, setOrders] = useState<OrderWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
-  const [historyFilter, setHistoryFilter] = useState<"all" | "past">("all");
+  /** Matches web `/orders`: Upcoming vs Past Events */
+  const [ticketTab, setTicketTab] = useState<"upcoming" | "past">("upcoming");
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await api.getOrders(1, 50);
-        const rawList = Array.isArray(data) ? data : [];
-        const normalized = rawList.map((o) => normalizeOrder(o as unknown as Record<string, unknown>)) as OrderWithMeta[];
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        setLoading(true);
+        try {
+          const data = await api.getOrders(1, 50);
+          const rawList = Array.isArray(data) ? data : [];
+          const normalized = rawList.map((o) => normalizeOrder(o as unknown as Record<string, unknown>)) as OrderWithMeta[];
 
-        const eventIds = new Set<string>();
-        normalized.forEach((o) => {
-          (o.tickets ?? []).forEach((t) => {
-            const eid = getEventIdFromOrderLineItem(t);
-            if (eid) eventIds.add(eid);
+          const eventIds = new Set<string>();
+          normalized.forEach((o) => {
+            (o.tickets ?? []).forEach((t) => {
+              const eid = getEventIdFromOrderLineItem(t);
+              if (eid) eventIds.add(eid);
+            });
           });
-        });
-        const eventsMap: Record<string, Event> = {};
-        await Promise.all(
-          Array.from(eventIds).map(async (id) => {
-            try {
-              const ev = await api.getEvent(id);
-              if (!cancelled) eventsMap[id] = ev;
-            } catch {
-              // ignore
+          const eventsMap: Record<string, Event> = {};
+          await Promise.all(
+            Array.from(eventIds).map(async (id) => {
+              try {
+                const ev = await api.getEvent(id);
+                if (!cancelled) eventsMap[id] = ev;
+              } catch {
+                // ignore
+              }
+            })
+          );
+
+          normalized.forEach((o) => {
+            const firstEventId = getEventIdFromOrderLineItem((o.tickets ?? [])[0]);
+            const event = firstEventId ? eventsMap[firstEventId] : undefined;
+            o._event = event;
+            if (event?.startTime) {
+              const d = new Date(event.startTime);
+              o._eventDate = Number.isNaN(d.getTime()) ? undefined : d;
             }
-          })
-        );
+          });
 
-        normalized.forEach((o) => {
-          const firstEventId = getEventIdFromOrderLineItem((o.tickets ?? [])[0]);
-          const event = firstEventId ? eventsMap[firstEventId] : undefined;
-          o._event = event;
-          if (event?.startTime) {
-            const d = new Date(event.startTime);
-            o._eventDate = Number.isNaN(d.getTime()) ? undefined : d;
-          }
-        });
-
-        if (!cancelled) setOrders(normalized);
-      } catch {
-        if (!cancelled) setOrders([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [api]);
+          if (!cancelled) setOrders(normalized);
+        } catch {
+          if (!cancelled) setOrders([]);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [api])
+  );
 
   const { upcoming, past } = useMemo(() => {
     const now = new Date();
@@ -200,15 +230,10 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
     return { upcoming: up, past: pa };
   }, [orders]);
 
-  const historyOrders = useMemo(() => {
-    if (historyFilter === "past") return past;
-    const sorted = [...orders].sort((a, b) => {
-      const ca = new Date(a.createdAt).getTime();
-      const cb = new Date(b.createdAt).getTime();
-      return cb - ca;
-    });
-    return sorted;
-  }, [orders, past, historyFilter]);
+  const visibleOrders = useMemo(
+    () => (ticketTab === "upcoming" ? upcoming : past),
+    [ticketTab, upcoming, past]
+  );
 
   const onViewTicket = (order: OrderWithMeta) => {
     navigation.navigate("OrderDetail", {
@@ -291,7 +316,7 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
     const eventDateLabel = eventDate
       ? eventDate.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })
       : null;
-    const ticketCount = order.tickets?.length ?? 0;
+    const ticketCount = getTicketQuantityFromOrderItems(order.tickets as unknown[] | undefined);
 
     return (
       <TouchableOpacity
@@ -370,7 +395,7 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
       <View style={styles.ticketsHero}>
         <Text style={[styles.ticketsHeroTitle, { color: theme.colors.foreground }]}>My tickets</Text>
         <Text style={[styles.ticketsHeroSub, { color: theme.colors.mutedForeground }]}>
-          Upcoming events appear first. Past purchases stay in order history.
+          Same as the web: switch between upcoming and past ticket purchases.
         </Text>
         <TouchableOpacity
           style={[styles.walletLinkRow, { backgroundColor: theme.colors.primary + "18" }]}
@@ -383,136 +408,58 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
         </TouchableOpacity>
       </View>
 
-      {upcoming.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.activeHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.foreground }]}>Active tickets</Text>
-            <TouchableOpacity onPress={() => navigation.navigate("MyWallet")}>
-              <Text style={[styles.viewWallet, { color: theme.colors.primary }]}>View Wallet</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.activeCarousel}
-            decelerationRate="fast"
+      <View style={[styles.tabBar, { backgroundColor: theme.colors.muted }]}>
+        <TouchableOpacity
+          style={[styles.tabChip, ticketTab === "upcoming" && { backgroundColor: theme.colors.card }]}
+          onPress={() => setTicketTab("upcoming")}
+          activeOpacity={0.85}
+        >
+          <Text
+            style={[
+              styles.tabChipText,
+              { color: ticketTab === "upcoming" ? theme.colors.foreground : theme.colors.mutedForeground },
+            ]}
           >
-            {upcoming.map((order) => (
-              <View key={order.id} style={[styles.cardWrap, styles.carouselCardWrap]}>
-                <View style={styles.activeWrap}>
-                  {activeBadge(order) ? (
-                    <View style={styles.tonightBadge}>
-                      <Text style={styles.tonightBadgeText}>{activeBadge(order)}</Text>
-                    </View>
-                  ) : null}
-                  {renderOrderCard(order, true, ACTIVE_CARD_W)}
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      )}
+            Upcoming
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabChip, ticketTab === "past" && { backgroundColor: theme.colors.card }]}
+          onPress={() => setTicketTab("past")}
+          activeOpacity={0.85}
+        >
+          <Text
+            style={[
+              styles.tabChipText,
+              { color: ticketTab === "past" ? theme.colors.foreground : theme.colors.mutedForeground },
+            ]}
+          >
+            Past events
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-      {upcoming.length === 0 && orders.length > 0 && (
-        <View style={[styles.upcomingEmpty, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-          <Ionicons name="calendar-outline" size={22} color={theme.colors.mutedForeground} />
-          <Text style={[styles.upcomingEmptyText, { color: theme.colors.mutedForeground }]}>
-            No upcoming events in your orders — tickets below are from past events or dates we could not load.
+      {visibleOrders.length === 0 ? (
+        <View style={[styles.tabEmpty, { borderColor: theme.colors.border }]}>
+          <Ionicons name="ticket-outline" size={28} color={theme.colors.mutedForeground} />
+          <Text style={[styles.tabEmptyText, { color: theme.colors.mutedForeground }]}>
+            No {ticketTab === "upcoming" ? "upcoming" : "past"} tickets in this view.
           </Text>
         </View>
-      )}
-
-      {historyOrders.length > 0 && (
+      ) : (
         <View style={styles.section}>
-          <View style={styles.orderHistoryHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.foreground }]}>Order history</Text>
-            <View style={[styles.filterToggle, { backgroundColor: theme.colors.muted }]}>
-              <TouchableOpacity
-                style={[styles.filterChip, historyFilter === "all" && { backgroundColor: theme.colors.card }]}
-                onPress={() => setHistoryFilter("all")}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    { color: historyFilter === "all" ? theme.colors.foreground : theme.colors.mutedForeground },
-                  ]}
-                >
-                  ALL
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.filterChip, historyFilter === "past" && { backgroundColor: theme.colors.card }]}
-                onPress={() => setHistoryFilter("past")}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    { color: historyFilter === "past" ? theme.colors.foreground : theme.colors.mutedForeground },
-                  ]}
-                >
-                  PAST
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          {historyOrders.map((order) => {
-            const thumb = getEventImageUrl(order._event);
-            const n = order.tickets?.length ?? 0;
-            const statusLine = (() => {
-              if (isPaidOrCompletedStatus(order.status)) {
-                return { text: "PAID", color: "#15803d" };
-              }
-              if ((order.status || "").toUpperCase() === "PENDING") {
-                return { text: "PENDING", color: "#d97706" };
-              }
-              if (order._eventDate) {
-                return {
-                  text: order._eventDate
-                    .toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
-                    .toUpperCase(),
-                  color: theme.colors.mutedForeground,
-                };
-              }
-              return {
-                text: getStatusLabel(order.status).toUpperCase(),
-                color: theme.colors.mutedForeground,
-              };
-            })();
-            return (
-              <View key={order.id} style={styles.cardWrap}>
-                <TouchableOpacity
-                  style={[
-                    styles.compactOrder,
-                    { backgroundColor: theme.colors.card, borderColor: theme.colors.border },
-                  ]}
-                  onPress={() => onPressOrder(order)}
-                  activeOpacity={0.85}
-                >
-                  {thumb ? (
-                    <Image source={{ uri: thumb }} style={styles.compactThumb} resizeMode="cover" />
-                  ) : (
-                    <View style={[styles.compactThumb, styles.compactThumbPh, { backgroundColor: theme.colors.muted }]}>
-                      <Ionicons name="image-outline" size={22} color={theme.colors.primary} />
-                    </View>
-                  )}
-                  <View style={styles.compactLeft}>
-                    <Text style={[styles.compactTitle, { color: theme.colors.foreground }]} numberOfLines={2}>
-                      {order._event?.name ?? "Event"}
-                    </Text>
-                    <Text style={[styles.compactSub, { color: theme.colors.mutedForeground }]}>
-                      {n} ticket{n !== 1 ? "s" : ""} · {formatOrderDisplayId(order.id)}
-                    </Text>
+          {visibleOrders.map((order) => (
+            <View key={order.id} style={styles.cardWrap}>
+              <View style={styles.activeWrap}>
+                {ticketTab === "upcoming" && activeBadge(order) ? (
+                  <View style={styles.tonightBadge}>
+                    <Text style={styles.tonightBadgeText}>{activeBadge(order)}</Text>
                   </View>
-                  <View style={styles.compactRight}>
-                    <Text style={[styles.compactPrice, { color: theme.colors.foreground }]}>
-                      ${Number(order.totalAmount ?? 0).toFixed(2)}
-                    </Text>
-                    <Text style={[styles.compactStatus, { color: statusLine.color }]}>{statusLine.text}</Text>
-                  </View>
-                </TouchableOpacity>
+                ) : null}
+                {renderOrderCard(order, ticketTab === "upcoming")}
               </View>
-            );
-          })}
+            </View>
+          ))}
         </View>
       )}
     </ScrollView>
@@ -537,29 +484,30 @@ function createStyles(theme: Theme) {
       borderRadius: theme.radius.lg,
     },
     walletLinkText: { flex: 1, fontSize: 15, fontWeight: "700" },
-    upcomingEmpty: {
+    tabBar: {
       flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 10,
-      padding: 12,
+      alignSelf: "flex-start",
+      borderRadius: theme.radius.full,
+      padding: 4,
+      marginBottom: theme.spacing.lg,
+      gap: 4,
+    },
+    tabChip: {
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      borderRadius: theme.radius.full,
+    },
+    tabChipText: { fontSize: 14, fontWeight: "700" },
+    tabEmpty: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      padding: 20,
       borderRadius: theme.radius.lg,
       borderWidth: 1,
       marginBottom: theme.spacing.lg,
     },
-    upcomingEmptyText: { flex: 1, fontSize: 13, lineHeight: 18 },
-    activeHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 12,
-    },
-    viewWallet: { fontSize: 14, fontWeight: "700" },
-    activeCarousel: {
-      flexDirection: "row",
-      paddingRight: theme.spacing.md,
-      paddingBottom: 4,
-    },
-    carouselCardWrap: { marginBottom: 0, width: ACTIVE_CARD_W, marginRight: 12 },
+    tabEmptyText: { flex: 1, fontSize: 15, lineHeight: 22 },
     activeWrap: { position: "relative" },
     tonightBadge: {
       position: "absolute",
@@ -572,38 +520,6 @@ function createStyles(theme: Theme) {
       borderRadius: theme.radius.sm,
     },
     tonightBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
-    orderHistoryHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 12,
-      flexWrap: "wrap",
-      gap: 8,
-    },
-    filterToggle: { flexDirection: "row", borderRadius: theme.radius.md, padding: 3 },
-    filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: theme.radius.sm },
-    filterChipText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
-    compactOrder: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-      padding: 12,
-      borderRadius: theme.radius.lg,
-      borderWidth: 1,
-    },
-    compactThumb: {
-      width: 56,
-      height: 56,
-      borderRadius: theme.radius.md,
-    },
-    compactThumbPh: { alignItems: "center", justifyContent: "center" },
-    compactLeft: { flex: 1, minWidth: 0 },
-    compactRight: { alignItems: "flex-end" },
-    compactTitle: { fontSize: 16, fontWeight: "700" },
-    compactSub: { fontSize: 13, marginTop: 2 },
-    compactPrice: { fontSize: 16, fontWeight: "800" },
-    compactStatus: { fontSize: 10, fontWeight: "800", marginTop: 4 },
     section: { marginBottom: theme.spacing.lg },
     sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
     sectionBar: { width: 4, height: 24, borderRadius: 2, marginRight: 8 },
