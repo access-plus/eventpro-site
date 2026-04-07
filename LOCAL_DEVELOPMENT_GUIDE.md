@@ -1086,7 +1086,7 @@ Created automatically by `make local-infra`. **You must add JWT keys manually** 
 **Optional (for Stripe payment features):**
 - `STRIPE_SECRET_KEY` - Stripe secret key (defaults to `sk_test_local` if not set)
 - `STRIPE_PUBLISHABLE_KEY` - Stripe publishable key (defaults to `pk_test_local` if not set)
-- `STRIPE_WEBHOOK_SECRET` - Stripe webhook secret (defaults to `whsec_test_local` if not set)
+- `STRIPE_WEBHOOK_SECRET` - Signing secret for verifying Stripe webhooks (defaults to `whsec_test_local` if not set). See [Webhook signing secret (CLI vs Dashboard)](#webhook-signing-secret-cli-vs-dashboard) below.
 
 **Optional subscription price IDs** (Stripe Dashboard → Products → copy each Price ID, e.g. `price_xxx`):
 - `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`
@@ -1132,6 +1132,23 @@ STRIPE_PRICE_ENTERPRISE_YEARLY=price_...
 **5. Running without `.env.stripe`**
 
 - If the file is missing, the backend command skips sourcing it; Stripe-related vars can still come from root `.env` or from defaults in `application-local.yml` for local-only testing.
+
+#### Webhook signing secret (CLI vs Dashboard)
+
+**6.** `STRIPE_WEBHOOK_SECRET` — Ticket checkout uses **confirm-in-app** flows and does **not** require webhooks for basic local testing. The backend **does** expose **`POST /api/v1/webhooks/stripe`** for **subscription** lifecycle events (`invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`). If you set `STRIPE_WEBHOOK_SECRET`, it must match how you deliver webhooks:
+
+| How you test | Where the `whsec_...` secret comes from |
+|----------------|-------------------------------------------|
+| **Stripe CLI** (typical for localhost) | Run **`stripe listen`** and forward to this API. The CLI prints a **Signing secret** (`whsec_...`) in the terminal—paste that into `.env` or `.env.stripe` as `STRIPE_WEBHOOK_SECRET`. You often **will not** see a matching user-created webhook endpoint in **Stripe Dashboard → Developers → Webhooks**; that is normal. The secret can **change** when you start a new `stripe listen` session—update your env if verification starts failing. |
+| **Stripe Dashboard** (typical for deployed HTTPS) | **Developers → Webhooks → Add endpoint** → URL `https://<your-domain>/api/v1/webhooks/stripe` → select events → **Reveal** the endpoint’s **Signing secret** and use that in production. |
+
+Example local forward (backend on port 8080):
+
+```bash
+stripe listen --forward-to localhost:8080/api/v1/webhooks/stripe
+```
+
+Install the [Stripe CLI](https://stripe.com/docs/stripe-cli) and run `stripe login` first.
 
 ### Frontend Environment (`eventpro-frontend/.env.local`)
 
