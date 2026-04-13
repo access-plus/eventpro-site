@@ -9,7 +9,7 @@ Complete guide for setting up and running the EventPro application locally using
 
 | Task | Command |
 |------|---------|
-| **First-time setup** | `make local-infra` → Add JWT keys to `.env` → (optional) add Stripe keys in `.env.stripe` → `make local-up` |
+| **First-time setup** | `make local-infra` → Add JWT keys to `.env` → (optional) add Stripe keys to `.env` → `make local-up` |
 | **Start services** | `make local-up` |
 | **Stop services** | `make local-down` |
 | **Clean everything** | `make local-clean` |
@@ -84,7 +84,7 @@ make local-up
 - **No AWS credentials needed for Lambda builds** - The build script detects local development mode and uses local image tags (e.g., `eventpro-order-processor:latest`) instead of ECR tags
 - **Don't set `AWS_ACCOUNT_ID`** unless you're actually deploying to AWS - see Prerequisites section for details
 - **JWT keys are required** for backend auth - add them to `.env` after `make local-infra` (see Step 2)
-- **Stripe (optional):** use root `.env.stripe` for secret keys and price IDs—see [Optional Stripe file (`.env.stripe`)](#optional-stripe-file-envstripe); put `VITE_STRIPE_PUBLISHABLE_KEY` in `eventpro-frontend/.env.local` for checkout in the browser
+- **Stripe (optional):** add `STRIPE_*` keys and subscription price IDs to root `.env` (see [Environment Files](#environment-files)); for checkout in the browser, set `VITE_STRIPE_PUBLISHABLE_KEY` in `eventpro-frontend/.env.local` (or rely on root `.env` if `make local-infra` copies it there)
 
 **That's it!** Your application is now running:
 
@@ -196,7 +196,7 @@ make local-infra
 5. **Creates environment files**:
    - `.env` (backend configuration)
    - `eventpro-frontend/.env.local` (frontend configuration)
-   - Does **not** create `.env.stripe`—add that file yourself if you use the split Stripe workflow (see [Optional Stripe file (`.env.stripe`)](#optional-stripe-file-envstripe))
+   - Does **not** add Stripe keys—set optional `STRIPE_*` variables in root `.env` if you use payment or subscription features
 
 **Wait time:** ~2-5 minutes (first time, includes Lambda image builds)
 
@@ -1094,52 +1094,15 @@ Created automatically by `make local-infra`. **You must add JWT keys manually** 
 
 **Note:** Database credentials (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`) are set directly in `docker-compose.yml` and do NOT need to be in `.env`. The local profile uses `LocalDataSourceConfig` which reads these environment variables - it does NOT use Secrets Manager.
 
-### Optional Stripe file (`.env.stripe`)
-
-Use a **separate** root-level file `.env.stripe` when you want Stripe secrets and price IDs **outside** the main `.env` (easier rotation, clearer separation, and avoids very long lines cluttering `.env`). The file is **gitignored**—never commit real keys.
-
-**1. Create the file** at the repository root (same directory as `.env`):
-
-```bash
-# Example: create and edit
-touch .env.stripe
-chmod 600 .env.stripe   # optional: restrict read access on Unix
-```
-
-**2. Add variables** (one `KEY=value` per line, no quotes unless the value requires them):
-
-```bash
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_PRO_MONTHLY=price_...
-STRIPE_PRICE_PRO_YEARLY=price_...
-STRIPE_PRICE_ENTERPRISE_MONTHLY=price_...
-STRIPE_PRICE_ENTERPRISE_YEARLY=price_...
-```
-
-**3. How Docker Compose consumes it**
-
-- The **backend** service lists both `env_file: [.env, .env.stripe]` in `docker-compose.yml`, so variables from `.env.stripe` are injected into the container.
-- The backend **startup command** also runs `set -a && . /app/.env.stripe && set +a` before Gradle `bootRun`. That ensures long or multiline values are visible to the Java process reliably (Compose `env_file` can be finicky for some shells with very long secrets).
-
-**4. Frontend (Vite) and publishable key**
-
-- `docker-compose` only auto-loads the root **`.env`** for **variable substitution** in the compose file (e.g. `${STRIPE_PUBLISHABLE_KEY}` for the frontend service). It does **not** read `.env.stripe` for that step.
-- **Recommended:** set `VITE_STRIPE_PUBLISHABLE_KEY` in **`eventpro-frontend/.env.local`** (same publishable key as Stripe Dashboard). Vite reads that file from the mounted repo and works without relying on compose interpolation.
-- **Alternative:** put `STRIPE_PUBLISHABLE_KEY=pk_test_...` in the main root **`.env`** so the frontend container’s `VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}` line is populated when you run `docker compose up`.
-
-**5. Running without `.env.stripe`**
-
-- If the file is missing, the backend command skips sourcing it; Stripe-related vars can still come from root `.env` or from defaults in `application-local.yml` for local-only testing.
+**Frontend (Vite) and publishable key:** put `STRIPE_PUBLISHABLE_KEY=pk_test_...` in root **`.env`** so `docker compose` can pass `VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}` into the frontend container, and/or set **`VITE_STRIPE_PUBLISHABLE_KEY`** in **`eventpro-frontend/.env.local`** (Vite reads that file from the mounted repo).
 
 #### Webhook signing secret (CLI vs Dashboard)
 
-**6.** `STRIPE_WEBHOOK_SECRET` — Ticket checkout uses **confirm-in-app** flows and does **not** require webhooks for basic local testing. The backend **does** expose **`POST /api/v1/webhooks/stripe`** for **subscription** lifecycle events (`invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`). If you set `STRIPE_WEBHOOK_SECRET`, it must match how you deliver webhooks:
+`STRIPE_WEBHOOK_SECRET` — Ticket checkout uses **confirm-in-app** flows and does **not** require webhooks for basic local testing. The backend **does** expose **`POST /api/v1/webhooks/stripe`** for **subscription** lifecycle events (`invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`). If you set `STRIPE_WEBHOOK_SECRET`, it must match how you deliver webhooks:
 
 | How you test | Where the `whsec_...` secret comes from |
 |----------------|-------------------------------------------|
-| **Stripe CLI** (typical for localhost) | Run **`stripe listen`** and forward to this API. The CLI prints a **Signing secret** (`whsec_...`) in the terminal—paste that into `.env` or `.env.stripe` as `STRIPE_WEBHOOK_SECRET`. You often **will not** see a matching user-created webhook endpoint in **Stripe Dashboard → Developers → Webhooks**; that is normal. The secret can **change** when you start a new `stripe listen` session—update your env if verification starts failing. |
+| **Stripe CLI** (typical for localhost) | Run **`stripe listen`** and forward to this API. The CLI prints a **Signing secret** (`whsec_...`) in the terminal—paste that into `.env` as `STRIPE_WEBHOOK_SECRET`. You often **will not** see a matching user-created webhook endpoint in **Stripe Dashboard → Developers → Webhooks**; that is normal. The secret can **change** when you start a new `stripe listen` session—update your env if verification starts failing. |
 | **Stripe Dashboard** (typical for deployed HTTPS) | **Developers → Webhooks → Add endpoint** → URL `https://<your-domain>/api/v1/webhooks/stripe` → select events → **Reveal** the endpoint’s **Signing secret** and use that in production. |
 
 Example local forward (backend on port 8080):
@@ -1160,14 +1123,14 @@ Created automatically by `make local-infra`. Contains:
 - `VITE_S3_BUCKET_NAME` - S3 bucket name (from Terraform output)
 
 **Optional (preserved if already exists):**
-- `VITE_STRIPE_PUBLISHABLE_KEY` - Stripe publishable key (for payment features; must match the key you use in `.env` / `.env.stripe` as `STRIPE_PUBLISHABLE_KEY`)
+- `VITE_STRIPE_PUBLISHABLE_KEY` - Stripe publishable key (for payment features; must match `STRIPE_PUBLISHABLE_KEY` in root `.env`)
 
 **Note:** 
 - These files are automatically generated by `make local-infra`.
 - If you manually edit `eventpro-frontend/.env.local`, your changes may be overwritten when running `make local-infra` again.
 - To preserve Stripe key across regenerations, add it to the root `.env` file before running `make local-infra` (it will be copied to `eventpro-frontend/.env.local`).
 - Alternatively, manually add it to `eventpro-frontend/.env.local` after running `make local-infra`.
-- If you keep Stripe secrets only in **`.env.stripe`**, still add **`VITE_STRIPE_PUBLISHABLE_KEY`** here (or in root `.env` for compose)—see [Optional Stripe file (`.env.stripe`)](#optional-stripe-file-envstripe).
+- Ensure **`VITE_STRIPE_PUBLISHABLE_KEY`** is set here or supplied via root `.env` (see `make local-infra` behavior above) so it matches **`STRIPE_PUBLISHABLE_KEY`** in root `.env`.
 
 ---
 
@@ -1211,7 +1174,7 @@ After local setup is working:
 - **JWT Auth:** Backend uses RS256 keys from `.env`. Update `JWT_PUBLIC_KEY`/`JWT_PRIVATE_KEY` and restart backend if you rotate keys. Keys are **REQUIRED** - backend will not start without them.
 - **LocalStack:** Emulates AWS services locally. All SQS, S3, Secrets Manager, and Lambda operations go through LocalStack at `http://localhost:4566`.
 - **Secrets Manager:** Used by Lambda functions for database credentials. Backend API (local profile) uses environment variables directly from `docker-compose.yml`, not Secrets Manager.
-- **Environment Files:** `.env` and `eventpro-frontend/.env.local` are automatically generated by `make local-infra`. JWT keys must be added manually. Optional **`.env.stripe`** is not generated—create it yourself for Stripe; other values are preserved if they exist.
+- **Environment Files:** `.env` and `eventpro-frontend/.env.local` are automatically generated by `make local-infra`. JWT keys must be added manually. Optional Stripe keys (`STRIPE_*`) go in root **`.env`**; other values are preserved if they exist.
 - **Container Networking:** All services are on the `eventpro` Docker network. Backend connects to PostgreSQL using `postgres:5432` (container name), not `localhost`.
 - **Port Conflicts:** If ports 8080, 5173, 5432, or 4566 are already in use, stop the conflicting services or change ports in `docker-compose.yml`.
 

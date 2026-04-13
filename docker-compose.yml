@@ -55,13 +55,10 @@ services:
     working_dir: /app
     env_file:
       - .env
-      - .env.stripe
     volumes:
       # Mount entire backend directory to access services and lambdas
       # This allows DevTools to detect changes and hot reload
       - ./backend:/app/backend
-      # Mount Stripe keys so the shell can source them (env_file can be unreliable with long values)
-      - ./.env.stripe:/app/.env.stripe:ro
       - gradle_cache:/root/.gradle
     ports:
       - "8080:8080"
@@ -102,9 +99,6 @@ services:
       - SPRING_DEVTOOLS_RESTART_ENABLED=true
     command: >
       sh -c "
-        set -a &&
-        [ -f /app/.env.stripe ] && . /app/.env.stripe &&
-        set +a &&
         cd /app/backend/services &&
         chmod +x ./gradlew &&
         ./gradlew :eventpro-api:bootRun --no-daemon --continuous
