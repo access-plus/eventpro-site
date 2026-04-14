@@ -1291,7 +1291,7 @@ This guide covers:
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only services --apply --image-tag abc1.0.0
+./scripts/pipeline-deploy.sh --env-file .env --only services --apply --image-tag abc4141735
 ```
 
 *deploy existing image*
@@ -1301,7 +1301,7 @@ Make sure the image is in the ECR registry and the image tag is set in the .env 
 ```bash
 export SERVICES_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
 export SERVICES_IMAGE_NAME=eventpro-api
-export SERVICES_IMAGE_TAG=abc1.0.0
+export SERVICES_IMAGE_TAG=abc4141735
 ```
 
 ```bash
@@ -1322,7 +1322,7 @@ export SERVICES_IMAGE_TAG=abc1.0.0
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only frontend --apply --image-tag abc1.0.0
+./scripts/pipeline-deploy.sh --env-file .env --only frontend --apply --image-tag abc4141735
 ```
 
 *preview terraform changes only (no S3 sync / CloudFront invalidation in plan mode)*
@@ -1345,6 +1345,8 @@ export SERVICES_IMAGE_TAG=abc1.0.0
 Notes:
 - `DOMAIN_NAME` is required (loaded from `.env` via `--env-file .env`).
 - `VITE_API_BASE_URL` is optional; if omitted the script uses `https://<workspace>-api.$DOMAIN_NAME`.
+- The script runs **`npm ci` inside `eventpro-frontend/`** (not the repo root). Dependencies must resolve from the public npm registry. Do not list **unpublished** packages (for example a local workspace name like `@eventpro/shared`) unless you publish them or replace them with `file:` paths that exist in the deploy context.
+- `eventpro-frontend/.npmrc` sets **`legacy-peer-deps=true`** so `npm ci` succeeds with React 19 while some UI libraries still declare React 18 peer ranges (this matches older npm’s peer resolution).
 
 </details>
 
@@ -1356,7 +1358,7 @@ Notes:
 *build and deploy all lambdas*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only lambdas --apply --image-tag abc1.0.0
+./scripts/pipeline-deploy.sh --env-file .env --only lambdas --apply --image-tag abc4141735
 ```
 
 *deploy only specific lambdas*
@@ -1366,7 +1368,7 @@ Notes:
   --env-file .env \
   --only lambdas \
   --lambdas order-processor,payment-processor \
-  --apply --image-tag abc1.0.0
+  --apply --image-tag abc4141735
 ```
 
 *deploy existing images (all lambdas)*
@@ -1392,7 +1394,7 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
   --env-file .env \
   --only lambdas \
   --lambdas-image-source existing \
-  --apply --image-tag abc1.0.0
+  --apply --image-tag abc4141735
 ```
 
 *mix build + existing image sources per lambda (example)*
@@ -1404,7 +1406,7 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
   --order-processor-image-source existing \
   --payment-processor-image-source build \
   --notification-sender-image-source build \
-  --apply --image-tag abc1.0.0
+  --apply --image-tag abc4141735
 ```
 
 Notes:
