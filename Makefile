@@ -63,7 +63,7 @@ help:
 	@echo "  make lambda-build-payment - Build payment-processor Lambda image"
 	@echo "  make lambda-build-notification - Build notification-sender Lambda image"
 	@echo ""
-	@echo "AWS Terraform Destroy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env):"
+	@echo "AWS Terraform Destroy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env; DOMAIN_NAME required. Lambda/services image registry+tag default to placeholders if unset):"
 	@echo "  make tf-destroy-frontend            - Destroy frontend Terraform stack"
 	@echo "  make tf-destroy-lambda-order        - Destroy order-processor Lambda stack"
 	@echo "  make tf-destroy-lambda-payment      - Destroy payment-processor Lambda stack"
@@ -286,16 +286,17 @@ tf-destroy-services:
 	@echo "Destroying services Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
 	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
 		[ -n "$$DOMAIN_NAME" ] || { echo "DOMAIN_NAME is required (set in $(TF_ENV_FILE) or env)"; exit 1; }; \
-		[ -n "$$SERVICES_IMAGE_REGISTRY" ] || { echo "SERVICES_IMAGE_REGISTRY is required for terraform destroy"; exit 1; }; \
-		[ -n "$$SERVICES_IMAGE_TAG" ] || { echo "SERVICES_IMAGE_TAG is required for terraform destroy"; exit 1; }; \
 		export TF_VAR_domain_name="$$DOMAIN_NAME"; \
-		export TF_VAR_image_registry="$$SERVICES_IMAGE_REGISTRY"; \
+		export TF_VAR_image_registry="$${SERVICES_IMAGE_REGISTRY:-000000000000.dkr.ecr.us-east-1.amazonaws.com}"; \
 		export TF_VAR_image_name="$${SERVICES_IMAGE_NAME:-eventpro-api}"; \
-		export TF_VAR_image_tag="$$SERVICES_IMAGE_TAG"; \
+		export TF_VAR_image_tag="$${SERVICES_IMAGE_TAG:-destroy}"; \
 		cd backend/services/terraform && \
 		terraform init -upgrade && \
-		terraform workspace select "$(TF_WORKSPACE)" >/dev/null && \
-		terraform destroy -auto-approve
+		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
+			terraform destroy -auto-approve; \
+		else \
+			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
+		fi
 
 tf-destroy-frontend:
 	@echo "Destroying frontend Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
@@ -308,49 +309,55 @@ tf-destroy-frontend:
 			-backend-config=key=frontend/terraform.tfstate \
 			-backend-config=region=$(TF_STATE_REGION) \
 			-backend-config=use_lockfile=true && \
-		terraform workspace select "$(TF_WORKSPACE)" >/dev/null && \
-		terraform destroy -auto-approve
+		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
+			terraform destroy -auto-approve; \
+		else \
+			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
+		fi
 
 tf-destroy-lambda-order:
 	@echo "Destroying order-processor Lambda Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
 	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
-		[ -n "$$ORDER_PROCESSOR_IMAGE_REGISTRY" ] || { echo "ORDER_PROCESSOR_IMAGE_REGISTRY is required for terraform destroy"; exit 1; }; \
-		[ -n "$$ORDER_PROCESSOR_IMAGE_TAG" ] || { echo "ORDER_PROCESSOR_IMAGE_TAG is required for terraform destroy"; exit 1; }; \
-		export TF_VAR_image_registry="$$ORDER_PROCESSOR_IMAGE_REGISTRY"; \
+		export TF_VAR_image_registry="$${ORDER_PROCESSOR_IMAGE_REGISTRY:-000000000000.dkr.ecr.us-east-1.amazonaws.com}"; \
 		export TF_VAR_image_name="$${ORDER_PROCESSOR_IMAGE_NAME:-eventpro-order-processor}"; \
-		export TF_VAR_image_tag="$$ORDER_PROCESSOR_IMAGE_TAG"; \
+		export TF_VAR_image_tag="$${ORDER_PROCESSOR_IMAGE_TAG:-destroy}"; \
 		cd backend/lambdas/order-processor/terraform && \
 		terraform init -upgrade && \
-		terraform workspace select "$(TF_WORKSPACE)" >/dev/null && \
-		terraform destroy -auto-approve
+		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
+			terraform destroy -auto-approve; \
+		else \
+			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
+		fi
 
 tf-destroy-lambda-payment:
 	@echo "Destroying payment-processor Lambda Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
 	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
-		[ -n "$$PAYMENT_PROCESSOR_IMAGE_REGISTRY" ] || { echo "PAYMENT_PROCESSOR_IMAGE_REGISTRY is required for terraform destroy"; exit 1; }; \
-		[ -n "$$PAYMENT_PROCESSOR_IMAGE_TAG" ] || { echo "PAYMENT_PROCESSOR_IMAGE_TAG is required for terraform destroy"; exit 1; }; \
-		export TF_VAR_image_registry="$$PAYMENT_PROCESSOR_IMAGE_REGISTRY"; \
+		export TF_VAR_image_registry="$${PAYMENT_PROCESSOR_IMAGE_REGISTRY:-000000000000.dkr.ecr.us-east-1.amazonaws.com}"; \
 		export TF_VAR_image_name="$${PAYMENT_PROCESSOR_IMAGE_NAME:-eventpro-payment-processor}"; \
-		export TF_VAR_image_tag="$$PAYMENT_PROCESSOR_IMAGE_TAG"; \
+		export TF_VAR_image_tag="$${PAYMENT_PROCESSOR_IMAGE_TAG:-destroy}"; \
 		[ -n "$${STRIPE_SECRET_KEY:-}" ] && export TF_VAR_stripe_secret_key="$$STRIPE_SECRET_KEY" || true; \
 		cd backend/lambdas/payment-processor/terraform && \
 		terraform init -upgrade && \
-		terraform workspace select "$(TF_WORKSPACE)" >/dev/null && \
-		terraform destroy -auto-approve
+		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
+			terraform destroy -auto-approve; \
+		else \
+			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
+		fi
 
 tf-destroy-lambda-notification:
 	@echo "Destroying notification-sender Lambda Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
 	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
-		[ -n "$$NOTIFICATION_SENDER_IMAGE_REGISTRY" ] || { echo "NOTIFICATION_SENDER_IMAGE_REGISTRY is required for terraform destroy"; exit 1; }; \
-		[ -n "$$NOTIFICATION_SENDER_IMAGE_TAG" ] || { echo "NOTIFICATION_SENDER_IMAGE_TAG is required for terraform destroy"; exit 1; }; \
-		export TF_VAR_image_registry="$$NOTIFICATION_SENDER_IMAGE_REGISTRY"; \
+		export TF_VAR_image_registry="$${NOTIFICATION_SENDER_IMAGE_REGISTRY:-000000000000.dkr.ecr.us-east-1.amazonaws.com}"; \
 		export TF_VAR_image_name="$${NOTIFICATION_SENDER_IMAGE_NAME:-eventpro-notification-sender}"; \
-		export TF_VAR_image_tag="$$NOTIFICATION_SENDER_IMAGE_TAG"; \
+		export TF_VAR_image_tag="$${NOTIFICATION_SENDER_IMAGE_TAG:-destroy}"; \
 		[ -n "$${SES_SENDER_EMAIL:-}" ] && export TF_VAR_ses_sender_email="$$SES_SENDER_EMAIL" || true; \
 		cd backend/lambdas/notification-sender/terraform && \
 		terraform init -upgrade && \
-		terraform workspace select "$(TF_WORKSPACE)" >/dev/null && \
-		terraform destroy -auto-approve
+		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
+			terraform destroy -auto-approve; \
+		else \
+			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
+		fi
 
 tf-destroy-lambdas:
 	@$(MAKE) tf-destroy-lambda-order TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
