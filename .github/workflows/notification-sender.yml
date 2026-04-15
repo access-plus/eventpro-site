@@ -29,12 +29,22 @@ on:
         default: true
         type: boolean
 
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
 env:
   AWS_REGION: us-east-1
   DEPLOY_WORKSPACE: ${{ inputs.workspace || github.event.inputs.workspace || 'dev' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.workspace || github.event.inputs.workspace || 'dev' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,6 +66,7 @@ jobs:
         if: ${{ github.event_name == 'push' || inputs.run_deploy }}
         uses: ./.github/actions/docker
         with:
+          aws-role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
@@ -71,6 +82,7 @@ jobs:
         with:
           working-directory: backend/lambdas/notification-sender/terraform
           workspace: ${{ env.DEPLOY_WORKSPACE }}
+          aws-role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           variables: image_registry=${{ steps.ecr-docker-build.outputs.image-registry }},image_name=${{ steps.ecr-docker-build.outputs.image-name }},image_tag=${{ steps.ecr-docker-build.outputs.image-tag }}

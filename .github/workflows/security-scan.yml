@@ -2,10 +2,14 @@
 # Tune severity and exit-code when you are ready to block merges on findings.
 name: Security scan
 
+concurrency:
+  group: security-scan-${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
 on:
   pull_request:
   push:
-    branches: [main, master]
+    branches: [main]
 
 permissions:
   contents: read

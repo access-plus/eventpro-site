@@ -3,10 +3,18 @@ name: Deploy
 on:
   push:
     branches:
-      - mainx
+      - main
   pull_request:
     branches:
-      - mainx
+      - main
+
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   detect-changes:
@@ -49,7 +57,7 @@ jobs:
 
   frontend:
     needs: [detect-changes, services]
-    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.frontend == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
+    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.services == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
     uses: ./.github/workflows/frontend.yml
     with:
       workspace: dev
@@ -58,7 +66,7 @@ jobs:
 
   order_processor:
     needs: [detect-changes, services]
-    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.order_processor == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
+    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.order_processor == 'true' || needs.detect-changes.outputs.services == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
     uses: ./.github/workflows/order-processor.yml
     with:
       workspace: dev
@@ -67,7 +75,7 @@ jobs:
 
   payment_processor:
     needs: [detect-changes, services]
-    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.payment_processor == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
+    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.payment_processor == 'true' || needs.detect-changes.outputs.services == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
     uses: ./.github/workflows/payment-processor.yml
     with:
       workspace: dev
@@ -76,7 +84,7 @@ jobs:
 
   notification_sender:
     needs: [detect-changes, services]
-    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.notification_sender == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
+    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.notification_sender == 'true' || needs.detect-changes.outputs.services == 'true') && (needs.services.result == 'success' || needs.services.result == 'skipped') }}
     uses: ./.github/workflows/notification-sender.yml
     with:
       workspace: dev

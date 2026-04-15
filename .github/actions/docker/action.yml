@@ -6,12 +6,18 @@ inputs:
     description: 'AWS Region'
     required: false
     default: 'us-east-1'
+  aws-role-to-assume:
+    description: 'IAM role ARN for GitHub OIDC (optional; if set, access keys are not used)'
+    required: false
+    default: ''
   aws-access-key-id:
-    description: 'AWS Access Key ID'
-    required: true
+    description: 'AWS Access Key ID (when aws-role-to-assume is empty)'
+    required: false
+    default: ''
   aws-secret-access-key:
-    description: 'AWS Secret Access Key'
-    required: true
+    description: 'AWS Secret Access Key (when aws-role-to-assume is empty)'
+    required: false
+    default: ''
   ecr-repository:
     description: 'ECR repository name (e.g. eventpro-api, eventpro-order-processor)'
     required: true
@@ -40,14 +46,22 @@ outputs:
     description: 'ECR repository name'
     value: ${{ steps.build.outputs.image-name }}
   image-tag:
-    description: 'Image tag'
+    description: 'ECR image tag'
     value: ${{ steps.build.outputs.image-tag }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
+    - name: Configure AWS credentials (OIDC)
+      if: ${{ inputs.aws-role-to-assume != '' }}
+      uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c
+      with:
+        role-to-assume: ${{ inputs.aws-role-to-assume }}
+        aws-region: ${{ inputs.aws-region }}
+
+    - name: Configure AWS credentials (access keys)
+      if: ${{ inputs.aws-role-to-assume == '' }}
+      uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c
       with:
         aws-access-key-id: ${{ inputs.aws-access-key-id }}
         aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
@@ -55,7 +69,7 @@ runs:
 
     - name: Login to Amazon ECR
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
+      uses: aws-actions/amazon-ecr-login@f2e9fc6c2b355c1890b65e6f6f0e2ac3e6e22f78
 
     - name: Build, tag, and push image to Amazon ECR
       id: build

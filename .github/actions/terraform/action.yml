@@ -15,12 +15,18 @@ inputs:
   workspace:
     description: 'Terraform workspace'
     required: true
+  aws-role-to-assume:
+    description: 'IAM role ARN for GitHub OIDC (optional; if set, access keys are not used)'
+    required: false
+    default: ''
   aws-access-key-id:
-    description: 'AWS Access Key ID'
-    required: true
+    description: 'AWS Access Key ID (when aws-role-to-assume is empty)'
+    required: false
+    default: ''
   aws-secret-access-key:
-    description: 'AWS Secret Access Key'
-    required: true
+    description: 'AWS Secret Access Key (when aws-role-to-assume is empty)'
+    required: false
+    default: ''
   destroy:
     description: Terraform destroy
     default: "no"
@@ -44,23 +50,23 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: Print Where I AM
-    run: pwd
-    shell: bash
+  - name: Configure AWS credentials (OIDC)
+    if: ${{ inputs.aws-role-to-assume != '' }}
+    uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c
+    with:
+      role-to-assume: ${{ inputs.aws-role-to-assume }}
+      aws-region: ${{ inputs.aws-region }}
 
-  - name: Print Directory Structure
-    run: ls -al ${{ inputs.working-directory }}
-    shell: bash
-
-  - name: Login to AWS
-    uses: aws-actions/configure-aws-credentials@v4
+  - name: Configure AWS credentials (access keys)
+    if: ${{ inputs.aws-role-to-assume == '' }}
+    uses: aws-actions/configure-aws-credentials@ff717079ee2060e4bcee96c4779b553acc87447c
     with:
       aws-access-key-id: ${{ inputs.aws-access-key-id }}
       aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
       aws-region: ${{ inputs.aws-region }}
 
   - name: Setup Terraform
-    uses: hashicorp/setup-terraform@v3
+    uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
     with:
       terraform_version: ${{ inputs.terraform-version }}
 
@@ -86,7 +92,6 @@ runs:
       else
         echo "No workspace provided, skipping workspace selection."
       fi
-      ls -ltr
     shell: bash
 
   - name: Terraform Validate
@@ -98,7 +103,6 @@ runs:
   - name: Terraform Apply or Destroy
     run: |
       cd ${{ inputs.working-directory }}
-      ls -ltr
       # Iterate through the variables and export each as TF_VAR_
       if [ -n "${{ inputs.variables }}" ]; then
         while IFS= read -r var; do
