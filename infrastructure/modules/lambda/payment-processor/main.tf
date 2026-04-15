@@ -161,7 +161,7 @@ resource "aws_lambda_function" "payment_processor" {
       DB_SECRET_ARN              = var.database_secret_arn
       STRIPE_SECRET_KEY          = var.stripe_secret_key != null ? var.stripe_secret_key : ""
       SQS_NOTIFICATION_QUEUE_URL = var.notification_queue_url
-      AWS_REGION                 = var.aws_region
+      # AWS_REGION is reserved; Lambda injects it — do not set here.
       QUARKUS_LOG_LEVEL          = var.log_level
     }
   }

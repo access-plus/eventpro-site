@@ -165,7 +165,7 @@ resource "aws_lambda_function" "payment_processor" {
       DB_NAME                          = data.terraform_remote_state.services.outputs.rds_name
       DB_SECRET_ARN                    = data.terraform_remote_state.services.outputs.db_master_user_secret_arn
       SQS_NOTIFICATION_QUEUE_URL       = data.terraform_remote_state.services.outputs.notification_queue_url
-      AWS_REGION                       = var.aws_region
+      # AWS_REGION is reserved; Lambda injects it automatically — do not set here.
       spring_cloud_function_definition = "processPayment"
       STRIPE_SECRET_KEY                = var.stripe_secret_key
     }

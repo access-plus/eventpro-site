@@ -158,7 +158,7 @@ resource "aws_lambda_function" "order_processor" {
       DB_NAME                = var.database_name
       DB_SECRET_ARN          = var.database_secret_arn
       SQS_PAYMENT_QUEUE_URL  = var.payment_queue_url
-      AWS_REGION             = var.aws_region
+      # AWS_REGION is reserved; Lambda injects it — do not set here.
       QUARKUS_LOG_LEVEL      = var.log_level
     }
   }

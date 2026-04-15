@@ -416,7 +416,7 @@ resource "aws_lambda_function" "order_processor" {
       DB_USERNAME           = "eventpro"
       DB_PASSWORD           = "eventpro"
       AWS_ENDPOINT_URL      = "http://localstack:4566"
-      AWS_REGION            = "us-east-1"
+      # AWS_REGION is reserved on Lambda; runtime provides it (see AWS docs).
       AWS_ACCESS_KEY_ID     = "test"
       AWS_SECRET_ACCESS_KEY = "test"
       SQS_PAYMENT_QUEUE_URL = aws_sqs_queue.payment_queue.url
@@ -454,7 +454,7 @@ resource "aws_lambda_function" "payment_processor" {
       DB_USERNAME              = "eventpro"
       DB_PASSWORD              = "eventpro"
       AWS_ENDPOINT_URL         = "http://localstack:4566"
-      AWS_REGION               = "us-east-1"
+      # AWS_REGION is reserved on Lambda; runtime provides it (see AWS docs).
       AWS_ACCESS_KEY_ID        = "test"
       AWS_SECRET_ACCESS_KEY    = "test"
       SQS_NOTIFICATION_QUEUE_URL = aws_sqs_queue.notification_queue.url
@@ -493,7 +493,7 @@ resource "aws_lambda_function" "notification_sender" {
       DB_USERNAME        = "eventpro"
       DB_PASSWORD        = "eventpro"
       AWS_ENDPOINT_URL   = "http://localstack:4566"
-      AWS_REGION         = "us-east-1"
+      # AWS_REGION is reserved on Lambda; runtime provides it (see AWS docs).
       AWS_ACCESS_KEY_ID  = "test"
       AWS_SECRET_ACCESS_KEY = "test"
       SES_SENDER_EMAIL   = "noreply@eventpro.com"

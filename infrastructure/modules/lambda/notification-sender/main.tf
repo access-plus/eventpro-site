@@ -189,7 +189,7 @@ resource "aws_lambda_function" "notification_sender" {
       DB_NAME           = var.database_name
       DB_SECRET_ARN     = var.database_secret_arn
       SES_SENDER_EMAIL  = var.ses_sender_email
-      AWS_REGION        = var.aws_region
+      # AWS_REGION is reserved; Lambda injects it — do not set here.
       QUARKUS_LOG_LEVEL = var.log_level
     }
   }

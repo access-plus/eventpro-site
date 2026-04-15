@@ -1,5 +1,5 @@
 .PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build jwt-keys \
-	tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all
+	tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy
 
 # Variables
 API_DIR := backend/services
@@ -71,6 +71,7 @@ help:
 	@echo "  make tf-destroy-services            - Destroy services Terraform stack"
 	@echo "  make tf-destroy-lambdas             - Destroy all lambda Terraform stacks"
 	@echo "  make tf-destroy-all                 - Destroy frontend, lambdas, then services"
+	@echo "  make tf-destroy                     - Same as tf-destroy-all (AWS bill cleanup)"
 	@echo ""
 	@echo "Local Development:"
 	@echo "  make local-setup    - Complete first-time setup (all steps)"
@@ -360,6 +361,9 @@ tf-destroy-all:
 	@$(MAKE) tf-destroy-frontend TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
 	@$(MAKE) tf-destroy-lambdas TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
 	@$(MAKE) tf-destroy-services TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
+
+# Convenience alias: tear down all remote Terraform (frontend + lambdas + services)
+tf-destroy: tf-destroy-all
 
 # ============================================================================
 # Local Development (Docker Compose + LocalStack)

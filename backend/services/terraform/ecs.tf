@@ -132,7 +132,8 @@ resource "aws_ecs_task_definition" "api" {
         { name = "PAYMENT_QUEUE_URL", value = aws_sqs_queue.payment.url },
         { name = "NOTIFICATION_QUEUE_URL", value = aws_sqs_queue.notification.url },
         { name = "JWT_ISSUER", value = var.jwt_issuer },
-        { name = "JWT_ACCESS_TTL_SECONDS", value = tostring(var.jwt_access_ttl_seconds) }
+        { name = "JWT_ACCESS_TTL_SECONDS", value = tostring(var.jwt_access_ttl_seconds) },
+        { name = "EVENTPRO_CORS_ALLOWED_ORIGINS_0", value = "https://${terraform.workspace}-app.${var.domain_name}" }
       ],
       [
         for k, v in {
