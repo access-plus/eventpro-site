@@ -74,7 +74,9 @@ Common options:
   --env-file PATH        Source shell-compatible env file (repeatable)
   --only CSV             Components to run: services,frontend,lambdas (or all)
   --skip CSV             Components to skip: services,frontend,lambdas
-  --lambdas CSV          Lambda subset: order-processor,payment-processor,notification-sender
+  --lambdas CSV          Exact allowlist of lambda stacks (replaces default all-three list).
+                         Values: order-processor,payment-processor,notification-sender and/or all
+                         (all matches every target). Omit to deploy all three in order.
   --image-tag TAG        Default build tag for all built images (defaults to sha-<gitsha>)
   --ecr-registry HOST    ECR registry host (e.g. 123...dkr.ecr.us-east-1.amazonaws.com)
   --push-images          Push built images (default for apply)

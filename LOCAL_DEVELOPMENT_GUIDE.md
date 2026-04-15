@@ -1355,13 +1355,34 @@ Notes:
 <details>
 <summary>lambdas only</summary>
 
+**Default: all three Lambdas.** With `--only lambdas` and **no** `--lambdas` flag, [`scripts/pipeline-deploy.sh`](scripts/pipeline-deploy.sh) runs Terraform for **order-processor**, then **payment-processor**, then **notification-sender** (same order as `run_lambdas` in that script).
+
+**How `--lambdas` works:** Passing `--lambdas <csv>` **replaces** the default list; it is the **exact allowlist** of stacks to run (build + `terraform` for each). Anything **not** listed is skipped—no image build, no Terraform apply for that Lambda. For example, `--lambdas order-processor,payment-processor` **does not** deploy **notification-sender** (it is not created/updated in that run). To name all three explicitly you can use the same CSV as the default, or pass `--lambdas all` (the script treats `all` as “run every known lambda target”).
+
+**Prerequisites**
+
+- The **services** stack for the same Terraform workspace must already exist (Lambdas use `terraform_remote_state` from services for VPC, queues, etc.). Deploy services first, or use a full pipeline run (`--only services,frontend,lambdas` or omit `--only`).
+- **ECR repositories** for container images should match what the script builds and pushes: **`eventpro-order-processor`**, **`eventpro-payment-processor`**, and **`eventpro-notification-sender`** (repository name = `eventpro-` + the Terraform folder name). If you omit `*_IMAGE_NAME` in `.env`, the script fills in these defaults automatically.
+
 *build and deploy all lambdas*
 
 ```bash
 ./scripts/pipeline-deploy.sh --env-file .env --only lambdas --apply --image-tag abc4150605
 ```
 
-*deploy only specific lambdas*
+*explicit CSV for all three (same as omitting `--lambdas`)*
+
+```bash
+./scripts/pipeline-deploy.sh \
+  --env-file .env \
+  --only lambdas \
+  --lambdas order-processor,payment-processor,notification-sender \
+  --apply --image-tag abc4150605
+```
+
+*subset only: order + payment (**skips notification-sender**)*
+
+Use this only when you intentionally do **not** want to build or Terraform the notification stack (e.g. hotfix order/payment). Notification will be unchanged (or still absent if never deployed).
 
 ```bash
 ./scripts/pipeline-deploy.sh \
@@ -1373,7 +1394,7 @@ Notes:
 
 *deploy existing images (all lambdas)*
 
-Make sure the images already exist in ECR and the image tags are set in your environment (or `.env`).
+Images must already exist in ECR. In **`--lambdas-image-source existing`** mode, each Lambda needs **`ORDER_PROCESSOR_IMAGE_TAG`** (and the payment/notification equivalents) set in your environment or `.env`; **`--image-tag` does not replace those** for existing-image mode.
 
 ```bash
 export ORDER_PROCESSOR_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
@@ -1394,7 +1415,7 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
   --env-file .env \
   --only lambdas \
   --lambdas-image-source existing \
-  --apply --image-tag abc4150605
+  --apply
 ```
 
 *mix build + existing image sources per lambda (example)*
@@ -1410,9 +1431,10 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
 ```
 
 Notes:
-- `payment-processor` requires `STRIPE_SECRET_KEY`.
-- `notification-sender` uses `SES_SENDER_EMAIL` when set.
-- `--lambdas` accepts: `order-processor`, `payment-processor`, `notification-sender`.
+- **Workspace:** pass `--workspace <name>` to match your remote Terraform workspace (default `dev`).
+- **`payment-processor`** requires `STRIPE_SECRET_KEY` in `.env` (or the environment) for both build and existing-image deploys.
+- **`notification-sender`** uses `SES_SENDER_EMAIL` when set.
+- **`--lambdas`** sets the **exact** list of lambda stacks to run (comma-separated). Valid tokens: `order-processor`, `payment-processor`, `notification-sender`, or a single `all` (same as all three). **Omit** `--lambdas` to use the default all-three list. If you list only two, the third is **not** deployed in that run.
 - In **build** mode, `--image-tag` (or per-lambda `--*-image-tag`) supplies the tag used for the Docker build and for Terraform. If you have a local `backend/lambdas/*/terraform/terraform.tfvars` (often gitignored) with placeholders such as `image_tag = "REPLACE_ME"`, that file used to override `TF_VAR_*` and could break deploys; the script now passes matching values via `terraform plan` / `apply` **`-var=...`**, which takes precedence over `terraform.tfvars`.
 
 </details>
