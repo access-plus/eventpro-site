@@ -28,7 +28,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/orders")
+@RequestMapping("/orders")
 @RequiredArgsConstructor
 @Tag(name = "Orders", description = "Order management API")
 @SecurityRequirement(name = "bearerAuth")

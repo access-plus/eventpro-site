@@ -55,7 +55,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/events")
+@RequestMapping("/events")
 @RequiredArgsConstructor
 @Tag(name = "Events", description = "Event management API")
 public class EventController extends BaseController {

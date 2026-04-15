@@ -5,7 +5,6 @@ import com.accessplus.eventpro.api.dto.CheckoutTotalsResponse;
 import com.accessplus.eventpro.api.dto.ConfirmPaymentRequest;
 import com.accessplus.eventpro.api.dto.CreatePaymentIntentRequest;
 import com.accessplus.eventpro.api.dto.GuestConfirmPaymentRequest;
-import com.accessplus.eventpro.api.dto.GuestOrderItemRequest;
 import com.accessplus.eventpro.api.dto.GuestReserveRequest;
 import com.accessplus.eventpro.api.dto.OrderResponse;
 import com.accessplus.eventpro.api.notification.service.NotificationPreferenceService;
@@ -45,7 +44,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/payments")
+@RequestMapping("/payments")
 @RequiredArgsConstructor
 @Tag(name = "Payments", description = "Payment processing API")
 public class PaymentController extends BaseController {

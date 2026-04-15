@@ -26,7 +26,7 @@ import java.util.Optional;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/webhooks")
+@RequestMapping("/webhooks")
 @RequiredArgsConstructor
 public class StripeWebhookController {
 

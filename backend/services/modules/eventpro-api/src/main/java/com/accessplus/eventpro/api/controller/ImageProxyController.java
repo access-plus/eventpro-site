@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/images")
+@RequestMapping("/images")
 @RequiredArgsConstructor
 @Tag(name = "Images", description = "Image proxy for S3 objects")
 public class ImageProxyController extends BaseController {

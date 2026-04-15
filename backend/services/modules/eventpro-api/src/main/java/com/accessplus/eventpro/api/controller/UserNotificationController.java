@@ -20,7 +20,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/users/me/notifications")
+@RequestMapping("/users/me/notifications")
 @RequiredArgsConstructor
 @Tag(name = "User notifications", description = "In-app notifications for the current user")
 @SecurityRequirement(name = "bearerAuth")

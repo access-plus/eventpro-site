@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/v1/categories")
+@RequestMapping("/categories")
 @RequiredArgsConstructor
 @Tag(name = "Categories", description = "Event categories API")
 public class CategoryController extends BaseController {
