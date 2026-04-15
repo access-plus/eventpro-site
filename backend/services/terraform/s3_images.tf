@@ -3,7 +3,8 @@
 resource "aws_s3_bucket" "images" {
   bucket = local.images_bucket_name
 
-  tags = merge(local.common_tags, { Name = local.images_bucket_name })
+  force_destroy = true
+  tags          = merge(local.common_tags, { Name = local.images_bucket_name })
 }
 
 resource "aws_s3_bucket_versioning" "images" {
