@@ -1291,7 +1291,7 @@ This guide covers:
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only services --apply --image-tag abc4141735
+./scripts/pipeline-deploy.sh --env-file .env --only services --apply --image-tag abc4150605
 ```
 
 *deploy existing image*
@@ -1301,7 +1301,7 @@ Make sure the image is in the ECR registry and the image tag is set in the .env 
 ```bash
 export SERVICES_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
 export SERVICES_IMAGE_NAME=eventpro-api
-export SERVICES_IMAGE_TAG=abc4141735
+export SERVICES_IMAGE_TAG=abc4150605
 ```
 
 ```bash
@@ -1322,7 +1322,7 @@ export SERVICES_IMAGE_TAG=abc4141735
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only frontend --apply --image-tag abc4141735
+./scripts/pipeline-deploy.sh --env-file .env --only frontend --apply --image-tag abc4150605
 ```
 
 *preview terraform changes only (no S3 sync / CloudFront invalidation in plan mode)*
@@ -1358,7 +1358,7 @@ Notes:
 *build and deploy all lambdas*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only lambdas --apply --image-tag abc4141735
+./scripts/pipeline-deploy.sh --env-file .env --only lambdas --apply --image-tag abc4150605
 ```
 
 *deploy only specific lambdas*
@@ -1368,7 +1368,7 @@ Notes:
   --env-file .env \
   --only lambdas \
   --lambdas order-processor,payment-processor \
-  --apply --image-tag abc4141735
+  --apply --image-tag abc4150605
 ```
 
 *deploy existing images (all lambdas)*
@@ -1394,7 +1394,7 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
   --env-file .env \
   --only lambdas \
   --lambdas-image-source existing \
-  --apply --image-tag abc4141735
+  --apply --image-tag abc4150605
 ```
 
 *mix build + existing image sources per lambda (example)*
@@ -1406,7 +1406,7 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
   --order-processor-image-source existing \
   --payment-processor-image-source build \
   --notification-sender-image-source build \
-  --apply --image-tag abc4141735
+  --apply --image-tag abc4150605
 ```
 
 Notes:
