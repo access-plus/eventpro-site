@@ -4,6 +4,7 @@ resource "aws_s3_bucket" "frontend" {
   bucket = "${terraform.workspace}-eventpro-site-frontend"
 
   tags = merge(var.tags, { Name = "${terraform.workspace}-eventpro-site-frontend", Env = terraform.workspace })
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_versioning" "frontend" {

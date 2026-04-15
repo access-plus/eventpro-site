@@ -565,15 +565,19 @@ terraform_select_workspace() {
   )
 }
 
+# Extra args are passed to terraform plan/apply (e.g. -var=...). CLI -var has highest
+# precedence and overrides both TF_VAR_* and terraform.tfvars — needed when local
+# **/*.tfvars (often gitignored) still contain placeholders like REPLACE_ME.
 terraform_validate_and_run() {
   local tf_dir="$1"
+  shift
   (
     cd "$ROOT_DIR/$tf_dir"
     terraform validate
     if [ "$ACTION" = "plan" ]; then
-      terraform plan
+      terraform plan "$@"
     else
-      terraform apply -auto-approve
+      terraform apply -auto-approve "$@"
     fi
   )
 }
@@ -628,7 +632,10 @@ run_services_stack() {
     [ -n "${JWT_PUBLIC_KEY:-}" ] && export TF_VAR_jwt_public_key="$JWT_PUBLIC_KEY"
     [ -n "${JWT_PRIVATE_KEY:-}" ] && export TF_VAR_jwt_private_key="$JWT_PRIVATE_KEY"
 
-    terraform_validate_and_run backend/services/terraform
+    terraform_validate_and_run backend/services/terraform \
+      -var="image_registry=${SERVICES_IMAGE_REGISTRY}" \
+      -var="image_name=${SERVICES_IMAGE_NAME}" \
+      -var="image_tag=${SERVICES_IMAGE_TAG}"
   )
 }
 
@@ -652,7 +659,8 @@ run_frontend_stack() {
   prepare_stack eventpro-frontend/terraform
   (
     export TF_VAR_domain_name="$DOMAIN_NAME"
-    terraform_validate_and_run eventpro-frontend/terraform
+    terraform_validate_and_run eventpro-frontend/terraform \
+      -var="domain_name=${DOMAIN_NAME}"
   )
 
   if [ "$ACTION" = "plan" ]; then
@@ -835,16 +843,24 @@ run_lambda_stack() {
     export TF_VAR_image_name="$image_name"
     export TF_VAR_image_tag="$image_tag"
 
+    tf_extra_args=(
+      -var="image_registry=${image_registry}"
+      -var="image_name=${image_name}"
+      -var="image_tag=${image_tag}"
+    )
+
     if [ "$lambda" = "payment-processor" ]; then
       require_var STRIPE_SECRET_KEY
       export TF_VAR_stripe_secret_key="$STRIPE_SECRET_KEY"
+      tf_extra_args+=(-var="stripe_secret_key=${STRIPE_SECRET_KEY}")
     fi
 
     if [ "$lambda" = "notification-sender" ] && [ -n "${SES_SENDER_EMAIL:-}" ]; then
       export TF_VAR_ses_sender_email="$SES_SENDER_EMAIL"
+      tf_extra_args+=(-var="ses_sender_email=${SES_SENDER_EMAIL}")
     fi
 
-    terraform_validate_and_run "$tf_dir"
+    terraform_validate_and_run "$tf_dir" "${tf_extra_args[@]}"
   )
 }
 

@@ -1413,6 +1413,7 @@ Notes:
 - `payment-processor` requires `STRIPE_SECRET_KEY`.
 - `notification-sender` uses `SES_SENDER_EMAIL` when set.
 - `--lambdas` accepts: `order-processor`, `payment-processor`, `notification-sender`.
+- In **build** mode, `--image-tag` (or per-lambda `--*-image-tag`) supplies the tag used for the Docker build and for Terraform. If you have a local `backend/lambdas/*/terraform/terraform.tfvars` (often gitignored) with placeholders such as `image_tag = "REPLACE_ME"`, that file used to override `TF_VAR_*` and could break deploys; the script now passes matching values via `terraform plan` / `apply` **`-var=...`**, which takes precedence over `terraform.tfvars`.
 
 </details>
 

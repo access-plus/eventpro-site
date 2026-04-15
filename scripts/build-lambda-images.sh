@@ -219,17 +219,24 @@ build_one_lambda() {
   log "${YELLOW}docker build -f ${dockerfile_path} -t ${primary_ref} ${build_context}${NC}"
   docker image build -f "$dockerfile_path" -t "$primary_ref" "$build_context"
 
-  tags_to_apply=("${EXTRA_TAGS[@]}")
+  # With `set -u`, "${EXTRA_TAGS[@]}" can error when the array is empty on some Bash versions.
+  tags_to_apply=()
+  if [ "${#EXTRA_TAGS[@]}" -gt 0 ]; then
+    tags_to_apply=("${EXTRA_TAGS[@]}")
+  fi
   if [ "$TAG_LATEST_ALIAS" = true ] && [ "$IMAGE_TAG" != "latest" ]; then
     tags_to_apply+=("latest")
   fi
-  if [ ${#tags_to_apply[@]} -gt 1 ]; then
+  if [ "${#tags_to_apply[@]}" -gt 1 ]; then
     local -a deduped_tags=()
     local candidate
+    local i
     for candidate in "${tags_to_apply[@]}"; do
       [ -z "$candidate" ] && continue
       local seen=false
-      for tag in "${deduped_tags[@]}"; do
+      # `set -u` + empty array: `for x in "${deduped_tags[@]}"` errors; use index loop instead.
+      for ((i = 0; i < ${#deduped_tags[@]}; i++)); do
+        tag="${deduped_tags[i]}"
         if [ "$tag" = "$candidate" ]; then
           seen=true
           break
@@ -242,21 +249,26 @@ build_one_lambda() {
     tags_to_apply=("${deduped_tags[@]}")
   fi
 
-  for tag in "${tags_to_apply[@]}"; do
-    local extra_ref="${registry_prefix}${image_name}:${tag}"
-    docker image tag "$primary_ref" "$extra_ref"
-  done
+  # `set -u` + empty array: `for x in "${tags_to_apply[@]}"` errors; only iterate when non-empty.
+  if [ "${#tags_to_apply[@]}" -gt 0 ]; then
+    for tag in "${tags_to_apply[@]}"; do
+      local extra_ref="${registry_prefix}${image_name}:${tag}"
+      docker image tag "$primary_ref" "$extra_ref"
+    done
+  fi
 
   if should_push; then
     login_ecr_once
     log "${YELLOW}Pushing ${primary_ref}${NC}"
     docker image push "$primary_ref"
 
-    for tag in "${tags_to_apply[@]}"; do
-      local extra_ref="${registry_prefix}${image_name}:${tag}"
-      log "${YELLOW}Pushing ${extra_ref}${NC}"
-      docker image push "$extra_ref"
-    done
+    if [ "${#tags_to_apply[@]}" -gt 0 ]; then
+      for tag in "${tags_to_apply[@]}"; do
+        local extra_ref="${registry_prefix}${image_name}:${tag}"
+        log "${YELLOW}Pushing ${extra_ref}${NC}"
+        docker image push "$extra_ref"
+      done
+    fi
 
     log "${GREEN}Pushed ${lambda} image(s) successfully.${NC}"
   else

@@ -143,7 +143,7 @@ resource "aws_lambda_function" "notification_sender" {
 
   environment {
     variables = {
-      AWS_REGION                       = var.aws_region
+      # AWS_REGION is reserved; Lambda injects it automatically — do not set here.
       SES_SENDER_EMAIL                 = var.ses_sender_email
       spring_cloud_function_definition = "sendNotification"
     }
