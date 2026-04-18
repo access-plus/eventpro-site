@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
-@RequestMapping("/tickets")
+@RequestMapping("/api/v1/tickets")
 @RequiredArgsConstructor
 @Tag(name = "Tickets", description = "Ticket management API")
 public class TicketController extends BaseController {

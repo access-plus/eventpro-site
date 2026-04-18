@@ -18,7 +18,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/users/me/notification-preferences")
+@RequestMapping("/api/v1/users/me/notification-preferences")
 @RequiredArgsConstructor
 @Tag(name = "Notification preferences", description = "User notification channel preferences (email, SMS, in-app)")
 @SecurityRequirement(name = "bearerAuth")

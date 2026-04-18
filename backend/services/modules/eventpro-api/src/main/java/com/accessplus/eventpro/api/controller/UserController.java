@@ -41,7 +41,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 @Tag(name = "Users", description = "User management API")
 @SecurityRequirement(name = "bearerAuth")

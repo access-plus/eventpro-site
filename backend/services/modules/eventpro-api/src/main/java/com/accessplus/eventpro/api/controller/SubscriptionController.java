@@ -28,7 +28,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/subscription")
+@RequestMapping("/api/v1/subscription")
 @RequiredArgsConstructor
 @Tag(name = "Subscription", description = "Pro/Enterprise subscription checkout")
 @SecurityRequirement(name = "bearerAuth")

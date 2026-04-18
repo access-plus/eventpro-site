@@ -33,7 +33,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/cart")
+@RequestMapping("/api/v1/cart")
 @RequiredArgsConstructor
 @Tag(name = "Cart", description = "Shopping cart management API")
 @SecurityRequirement(name = "bearerAuth")

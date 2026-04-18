@@ -61,7 +61,7 @@ import static org.springframework.http.HttpHeaders.CONTENT_DISPOSITION;
 
 @Slf4j
 @RestController
-@RequestMapping("/organizer")
+@RequestMapping("/api/v1/organizer")
 @RequiredArgsConstructor
 @Tag(name = "Organizer", description = "Organizer management API")
 @SecurityRequirement(name = "bearerAuth")

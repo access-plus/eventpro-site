@@ -23,9 +23,10 @@ services:
 
   # LocalStack - AWS services emulation for local development
   localstack:
-    image: localstack/localstack:4.10.0
+    image: localstack/localstack-pro
     container_name: localstack
     environment:
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN:?}
       - SERVICES=sqs,s3,secretsmanager,sns,ses,lambda,logs,iam
       - DEBUG=1
       - DATA_DIR=/tmp/localstack/data
