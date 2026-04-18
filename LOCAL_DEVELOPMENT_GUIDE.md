@@ -1291,12 +1291,12 @@ This guide covers:
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only services --apply --image-tag abc4180905
+./scripts/pipeline-deploy.sh --env-file .env.remote --only services --apply --image-tag abc4180905
 ```
 
 *deploy existing image*
 
-Make sure the image is in the ECR registry and the image tag is set in the .env file.
+Make sure the image is in the ECR registry and the image tag is set in the `.env.remote` file.
 
 ```bash
 export SERVICES_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
@@ -1306,7 +1306,7 @@ export SERVICES_IMAGE_TAG=abc4180905
 
 ```bash
 ./scripts/pipeline-deploy.sh \
-  --env-file .env \
+  --env-file .env.remote \
   --only services \
   --services-image-source existing \
   --apply
@@ -1322,20 +1322,20 @@ export SERVICES_IMAGE_TAG=abc4180905
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only frontend --apply --image-tag abc4180905
+./scripts/pipeline-deploy.sh --env-file .env.remote --only frontend --apply --image-tag abc4180905
 ```
 
 *preview terraform changes only (no S3 sync / CloudFront invalidation in plan mode)*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only frontend --plan
+./scripts/pipeline-deploy.sh --env-file .env.remote --only frontend --plan
 ```
 
 *deploy frontend infra/build, but skip asset sync and/or invalidation (apply mode)*
 
 ```bash
 ./scripts/pipeline-deploy.sh \
-  --env-file .env \
+  --env-file .env.remote \
   --only frontend \
   --no-frontend-sync \
   --no-frontend-invalidate \
@@ -1343,7 +1343,7 @@ export SERVICES_IMAGE_TAG=abc4180905
 ```
 
 Notes:
-- `DOMAIN_NAME` is required (loaded from `.env` via `--env-file .env`).
+- `DOMAIN_NAME` is required (loaded from `.env.remote` via `--env-file .env.remote`).
 - `VITE_API_BASE_URL` is optional; if omitted the script uses `https://<workspace>-api.$DOMAIN_NAME`.
 - The script runs **`npm ci` inside `eventpro-frontend/`** (not the repo root). Dependencies must resolve from the public npm registry. Do not list **unpublished** packages (for example a local workspace name like `@eventpro/shared`) unless you publish them or replace them with `file:` paths that exist in the deploy context.
 - `eventpro-frontend/.npmrc` sets **`legacy-peer-deps=true`** so `npm ci` succeeds with React 19 while some UI libraries still declare React 18 peer ranges (this matches older npm’s peer resolution).
@@ -1362,19 +1362,19 @@ Notes:
 **Prerequisites**
 
 - The **services** stack for the same Terraform workspace must already exist (Lambdas use `terraform_remote_state` from services for VPC, queues, etc.). Deploy services first, or use a full pipeline run (`--only services,frontend,lambdas` or omit `--only`).
-- **ECR repositories** for container images should match what the script builds and pushes: **`eventpro-order-processor`**, **`eventpro-payment-processor`**, and **`eventpro-notification-sender`** (repository name = `eventpro-` + the Terraform folder name). If you omit `*_IMAGE_NAME` in `.env`, the script fills in these defaults automatically.
+- **ECR repositories** for container images should match what the script builds and pushes: **`eventpro-order-processor`**, **`eventpro-payment-processor`**, and **`eventpro-notification-sender`** (repository name = `eventpro-` + the Terraform folder name). If you omit `*_IMAGE_NAME` in `.env.remote`, the script fills in these defaults automatically.
 
 *build and deploy all lambdas*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only lambdas --apply --image-tag abc4180905
+./scripts/pipeline-deploy.sh --env-file .env.remote --only lambdas --apply --image-tag abc4180905
 ```
 
 *explicit CSV for all three (same as omitting `--lambdas`)*
 
 ```bash
 ./scripts/pipeline-deploy.sh \
-  --env-file .env \
+  --env-file .env.remote \
   --only lambdas \
   --lambdas order-processor,payment-processor,notification-sender \
   --apply --image-tag abc4180905
@@ -1386,7 +1386,7 @@ Use this only when you intentionally do **not** want to build or Terraform the n
 
 ```bash
 ./scripts/pipeline-deploy.sh \
-  --env-file .env \
+  --env-file .env.remote \
   --only lambdas \
   --lambdas order-processor,payment-processor \
   --apply --image-tag abc4180905
@@ -1394,7 +1394,7 @@ Use this only when you intentionally do **not** want to build or Terraform the n
 
 *deploy existing images (all lambdas)*
 
-Images must already exist in ECR. In **`--lambdas-image-source existing`** mode, each Lambda needs **`ORDER_PROCESSOR_IMAGE_TAG`** (and the payment/notification equivalents) set in your environment or `.env`; **`--image-tag` does not replace those** for existing-image mode.
+Images must already exist in ECR. In **`--lambdas-image-source existing`** mode, each Lambda needs **`ORDER_PROCESSOR_IMAGE_TAG`** (and the payment/notification equivalents) set in your environment or `.env.remote`; **`--image-tag` does not replace those** for existing-image mode.
 
 ```bash
 export ORDER_PROCESSOR_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
@@ -1412,7 +1412,7 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
 
 ```bash
 ./scripts/pipeline-deploy.sh \
-  --env-file .env \
+  --env-file .env.remote \
   --only lambdas \
   --lambdas-image-source existing \
   --apply
@@ -1422,7 +1422,7 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
 
 ```bash
 ./scripts/pipeline-deploy.sh \
-  --env-file .env \
+  --env-file .env.remote \
   --only lambdas \
   --order-processor-image-source existing \
   --payment-processor-image-source build \
@@ -1432,10 +1432,12 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
 
 Notes:
 - **Workspace:** pass `--workspace <name>` to match your remote Terraform workspace (default `dev`).
-- **`payment-processor`** requires `STRIPE_SECRET_KEY` in `.env` (or the environment) for both build and existing-image deploys.
+- **`payment-processor`** requires `STRIPE_SECRET_KEY` in `.env.remote` (or the environment) for both build and existing-image deploys.
 - **`notification-sender`** uses `SES_SENDER_EMAIL` when set.
+- **Lambda image architecture:** Higher-env Lambda images must target exactly one architecture. The deploy script now defaults to **`LAMBDAS_IMAGE_PLATFORM=linux/amd64`**, which matches Terraform **`x86_64`**. This is important on Apple Silicon Macs, where an unpinned Docker build otherwise tends to produce `arm64` images.
+- **If you intentionally deploy Graviton/ARM Lambdas:** set **`LAMBDAS_IMAGE_PLATFORM=linux/arm64`** for the same deploy run so Terraform sets the function architecture to **`arm64`** too.
 - **`--lambdas`** sets the **exact** list of lambda stacks to run (comma-separated). Valid tokens: `order-processor`, `payment-processor`, `notification-sender`, or a single `all` (same as all three). **Omit** `--lambdas` to use the default all-three list. If you list only two, the third is **not** deployed in that run.
-- In **build** mode, `--image-tag` (or per-lambda `--*-image-tag`) supplies the tag used for the Docker build and for Terraform. If you have a local `backend/lambdas/*/terraform/terraform.tfvars` (often gitignored) with placeholders such as `image_tag = "REPLACE_ME"`, that file used to override `TF_VAR_*` and could break deploys; the script now passes matching values via `terraform plan` / `apply` **`-var=...`**, which takes precedence over `terraform.tfvars`.
+- In **build** mode, `--image-tag` (or per-lambda `--*-image-tag`) supplies the tag used for the Docker build and for Terraform. The build now uses a single explicit Docker platform plus **`--provenance=false`**, matching AWS Lambda’s container-image requirements. If you have a local `backend/lambdas/*/terraform/terraform.tfvars` (often gitignored) with placeholders such as `image_tag = "REPLACE_ME"`, that file used to override `TF_VAR_*` and could break deploys; the script now passes matching values via `terraform plan` / `apply` **`-var=...`**, which takes precedence over `terraform.tfvars`.
 
 </details>
 

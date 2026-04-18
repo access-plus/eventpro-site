@@ -15,6 +15,17 @@ variable "image_tag" {
   type        = string
 }
 
+variable "lambda_architecture" {
+  description = "Lambda instruction set architecture that matches the container image"
+  type        = string
+  default     = "x86_64"
+
+  validation {
+    condition     = contains(["x86_64", "arm64"], var.lambda_architecture)
+    error_message = "lambda_architecture must be x86_64 or arm64."
+  }
+}
+
 variable "ses_sender_email" {
   description = "SES verified sender email address"
   type        = string

@@ -155,16 +155,17 @@ resource "aws_lambda_function" "payment_processor" {
   timeout       = var.timeout_seconds
   memory_size   = var.memory_size_mb
 
-  package_type = "Image"
-  image_uri    = local.image_uri
+  package_type  = "Image"
+  image_uri     = local.image_uri
+  architectures = [var.lambda_architecture]
 
   environment {
     variables = {
-      DB_HOST                          = data.terraform_remote_state.services.outputs.rds_endpoint
-      DB_PORT                          = tostring(data.terraform_remote_state.services.outputs.rds_port)
-      DB_NAME                          = data.terraform_remote_state.services.outputs.rds_name
-      DB_SECRET_ARN                    = data.terraform_remote_state.services.outputs.db_master_user_secret_arn
-      SQS_NOTIFICATION_QUEUE_URL       = data.terraform_remote_state.services.outputs.notification_queue_url
+      DB_HOST                    = data.terraform_remote_state.services.outputs.rds_endpoint
+      DB_PORT                    = tostring(data.terraform_remote_state.services.outputs.rds_port)
+      DB_NAME                    = data.terraform_remote_state.services.outputs.rds_name
+      DB_SECRET_ARN              = data.terraform_remote_state.services.outputs.db_master_user_secret_arn
+      SQS_NOTIFICATION_QUEUE_URL = data.terraform_remote_state.services.outputs.notification_queue_url
       # AWS_REGION is reserved; Lambda injects it automatically — do not set here.
       spring_cloud_function_definition = "processPayment"
       STRIPE_SECRET_KEY                = var.stripe_secret_key

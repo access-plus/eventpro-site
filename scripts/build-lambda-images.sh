@@ -15,6 +15,7 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 LAMBDA_NAME="all"
 IMAGE_TAG="latest"
 REGISTRY=""
+IMAGE_PLATFORM="${LAMBDA_IMAGE_PLATFORM:-linux/amd64}"
 PUSH_MODE="auto"     # auto|always|never
 TAG_LATEST_ALIAS=true  # legacy-compatible default
 OUTPUT_MODE="human"   # human|env
@@ -60,6 +61,7 @@ Options:
   -t, --tag TAG            Primary image tag (default: latest)
       --version TAG        Alias for --tag
   -r, --registry HOST      Registry hostname (e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com)
+  -p, --platform PLATFORM  Single Docker platform for Lambda images (default: linux/amd64)
       --push               Push built images to registry (requires --registry)
       --no-push            Build only (do not push)
       --extra-tag TAG      Additional image tag to apply/push (repeatable)
@@ -71,9 +73,11 @@ Options:
 Environment:
   AWS_REGION               AWS region for ECR login (default: us-east-1)
   AWS_ACCOUNT_ID           Used to infer --registry when not provided
+  LAMBDA_IMAGE_PLATFORM    Default platform when --platform is omitted
 
 Notes:
   - Docker build context is always 'backend/' (required by the Dockerfiles).
+  - Lambda images must target exactly one architecture. Do not pass a multi-platform value.
   - In auto push mode, the script attempts ECR push when a registry is configured and AWS CLI is available.
 USAGE
 }
@@ -117,6 +121,11 @@ parse_args() {
       -r|--registry)
         [ $# -ge 2 ] || die "Missing value for $1"
         REGISTRY="$2"
+        shift 2
+        ;;
+      -p|--platform)
+        [ $# -ge 2 ] || die "Missing value for $1"
+        IMAGE_PLATFORM="$2"
         shift 2
         ;;
       --push)
@@ -198,6 +207,19 @@ login_ecr_once() {
   ECR_LOGGED_IN=true
 }
 
+validate_platform() {
+  case "$IMAGE_PLATFORM" in
+    linux/amd64|linux/arm64)
+      ;;
+    *","*)
+      die "Lambda image platform must be a single architecture, not a multi-platform list: ${IMAGE_PLATFORM}"
+      ;;
+    *)
+      die "Unsupported Lambda image platform: ${IMAGE_PLATFORM}. Use linux/amd64 or linux/arm64."
+      ;;
+  esac
+}
+
 build_one_lambda() {
   local lambda="$1"
   local image_name="eventpro-${lambda}"
@@ -206,9 +228,12 @@ build_one_lambda() {
   local primary_ref
   local registry_prefix=""
   local -a tags_to_apply=()
+  local -a push_refs=()
+  local -a build_cmd=()
   local tag
 
   [ -f "$dockerfile_path" ] || die "Dockerfile not found: $dockerfile_path"
+  docker buildx version >/dev/null 2>&1 || die "docker buildx is required for Lambda image builds"
 
   if [ -n "$REGISTRY" ]; then
     registry_prefix="${REGISTRY}/"
@@ -216,8 +241,7 @@ build_one_lambda() {
   primary_ref="${registry_prefix}${image_name}:${IMAGE_TAG}"
 
   log "${GREEN}Building ${lambda} Lambda...${NC}"
-  log "${YELLOW}docker build -f ${dockerfile_path} -t ${primary_ref} ${build_context}${NC}"
-  docker image build -f "$dockerfile_path" -t "$primary_ref" "$build_context"
+  log "${YELLOW}docker buildx build --platform ${IMAGE_PLATFORM} --provenance=false -f ${dockerfile_path} -t ${primary_ref} ${build_context}${NC}"
 
   # With `set -u`, "${EXTRA_TAGS[@]}" can error when the array is empty on some Bash versions.
   tags_to_apply=()
@@ -249,32 +273,48 @@ build_one_lambda() {
     tags_to_apply=("${deduped_tags[@]}")
   fi
 
-  # `set -u` + empty array: `for x in "${tags_to_apply[@]}"` errors; only iterate when non-empty.
-  if [ "${#tags_to_apply[@]}" -gt 0 ]; then
-    for tag in "${tags_to_apply[@]}"; do
-      local extra_ref="${registry_prefix}${image_name}:${tag}"
-      docker image tag "$primary_ref" "$extra_ref"
-    done
-  fi
-
   if should_push; then
     login_ecr_once
-    log "${YELLOW}Pushing ${primary_ref}${NC}"
-    docker image push "$primary_ref"
-
+    push_refs=("$primary_ref")
     if [ "${#tags_to_apply[@]}" -gt 0 ]; then
       for tag in "${tags_to_apply[@]}"; do
-        local extra_ref="${registry_prefix}${image_name}:${tag}"
-        log "${YELLOW}Pushing ${extra_ref}${NC}"
-        docker image push "$extra_ref"
+        push_refs+=("${registry_prefix}${image_name}:${tag}")
       done
     fi
+
+    build_cmd=(
+      docker buildx build
+      --platform "$IMAGE_PLATFORM"
+      --provenance=false
+      -f "$dockerfile_path"
+    )
+    for tag in "${push_refs[@]}"; do
+      build_cmd+=(-t "$tag")
+    done
+    build_cmd+=("$build_context" --push)
+    "${build_cmd[@]}"
 
     log "${GREEN}Pushed ${lambda} image(s) successfully.${NC}"
   else
     if [ -n "$REGISTRY" ] && [ "$PUSH_MODE" = "always" ]; then
       die "--push requires a valid registry and AWS CLI"
     fi
+
+    docker buildx build \
+      --platform "$IMAGE_PLATFORM" \
+      --provenance=false \
+      -f "$dockerfile_path" \
+      -t "$primary_ref" \
+      "$build_context" \
+      --load
+
+    if [ "${#tags_to_apply[@]}" -gt 0 ]; then
+      for tag in "${tags_to_apply[@]}"; do
+        local extra_ref="${registry_prefix}${image_name}:${tag}"
+        docker image tag "$primary_ref" "$extra_ref"
+      done
+    fi
+
     if [ -n "$REGISTRY" ]; then
       warn "Built image(s) for registry tagging but did not push (push mode: ${PUSH_MODE})."
     else
@@ -320,6 +360,7 @@ print_human_summary() {
   log "  Lambda selection: ${LAMBDA_NAME}"
   log "  Primary tag: ${IMAGE_TAG}"
   log "  Registry: ${REGISTRY:-<local>}"
+  log "  Platform: ${IMAGE_PLATFORM}"
   if [ ${#EXTRA_TAGS[@]} -gt 0 ]; then
     log "  Extra tags: ${EXTRA_TAGS[*]}"
   fi
@@ -343,6 +384,7 @@ print_human_summary() {
 main() {
   parse_args "$@"
   resolve_registry
+  validate_platform
 
   if [ -z "$LAMBDA_NAME" ]; then
     die "Lambda name cannot be empty"

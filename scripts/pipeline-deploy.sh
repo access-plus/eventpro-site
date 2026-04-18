@@ -19,6 +19,7 @@ SKIP_COMPONENTS=""
 SERVICES_IMAGE_SOURCE="${SERVICES_IMAGE_SOURCE:-build}"  # build|existing
 SERVICES_IMAGE_PLATFORMS="${SERVICES_IMAGE_PLATFORMS:-${SERVICES_IMAGE_PLATFORM:-linux/amd64,linux/arm64}}"
 LAMBDAS_IMAGE_SOURCE="${LAMBDAS_IMAGE_SOURCE:-build}"    # build|existing
+LAMBDAS_IMAGE_PLATFORM="${LAMBDAS_IMAGE_PLATFORM:-${LAMBDA_IMAGE_PLATFORM:-linux/amd64}}"
 ORDER_PROCESSOR_IMAGE_SOURCE="${ORDER_PROCESSOR_IMAGE_SOURCE:-}"
 PAYMENT_PROCESSOR_IMAGE_SOURCE="${PAYMENT_PROCESSOR_IMAGE_SOURCE:-}"
 NOTIFICATION_SENDER_IMAGE_SOURCE="${NOTIFICATION_SENDER_IMAGE_SOURCE:-}"
@@ -122,6 +123,8 @@ Optional env vars passed to Terraform when set:
 Build behavior env vars:
   SERVICES_IMAGE_PLATFORMS  Docker build platforms for services image in build mode (default: linux/amd64,linux/arm64)
   SERVICES_IMAGE_PLATFORM   Legacy alias for single-platform builds (fallback only)
+  LAMBDAS_IMAGE_PLATFORM    Single Docker platform for lambda images in build/existing modes (default: linux/amd64)
+                           Must be linux/amd64 or linux/arm64 so Terraform can match the function architecture.
 
 Notes:
   - Frontend Terraform backend config is intentionally hardcoded to match CI.
@@ -340,6 +343,11 @@ apply_component_filters() {
 validate_sources() {
   case "$SERVICES_IMAGE_SOURCE" in build|existing) ;; *) die "Invalid SERVICES_IMAGE_SOURCE: $SERVICES_IMAGE_SOURCE" ;; esac
   case "$LAMBDAS_IMAGE_SOURCE" in build|existing) ;; *) die "Invalid LAMBDAS_IMAGE_SOURCE: $LAMBDAS_IMAGE_SOURCE" ;; esac
+  case "$LAMBDAS_IMAGE_PLATFORM" in
+    linux/amd64|linux/arm64) ;;
+    *","*) die "LAMBDAS_IMAGE_PLATFORM must be a single platform, not a multi-platform list: $LAMBDAS_IMAGE_PLATFORM" ;;
+    *) die "Invalid LAMBDAS_IMAGE_PLATFORM: $LAMBDAS_IMAGE_PLATFORM (use linux/amd64 or linux/arm64)" ;;
+  esac
   if [ -n "$ORDER_PROCESSOR_IMAGE_SOURCE" ]; then case "$ORDER_PROCESSOR_IMAGE_SOURCE" in build|existing) ;; *) die "Invalid ORDER_PROCESSOR_IMAGE_SOURCE" ;; esac; fi
   if [ -n "$PAYMENT_PROCESSOR_IMAGE_SOURCE" ]; then case "$PAYMENT_PROCESSOR_IMAGE_SOURCE" in build|existing) ;; *) die "Invalid PAYMENT_PROCESSOR_IMAGE_SOURCE" ;; esac; fi
   if [ -n "$NOTIFICATION_SENDER_IMAGE_SOURCE" ]; then case "$NOTIFICATION_SENDER_IMAGE_SOURCE" in build|existing) ;; *) die "Invalid NOTIFICATION_SENDER_IMAGE_SOURCE" ;; esac; fi
@@ -725,6 +733,15 @@ lambda_env_prefix_for() {
   echo "$1" | tr '[:lower:]-' '[:upper:]_'
 }
 
+lambda_architecture_for_platform() {
+  local platform="$1"
+  case "$platform" in
+    linux/amd64) printf '%s' "x86_64" ;;
+    linux/arm64) printf '%s' "arm64" ;;
+    *) die "Unsupported lambda image platform: $platform" ;;
+  esac
+}
+
 resolve_lambda_tag_override() {
   local lambda="$1"
   case "$lambda" in
@@ -764,6 +781,7 @@ resolve_lambda_image_triplet() {
           --lambda "$lambda" \
           --tag "$primary_tag" \
           --registry "$ECR_REGISTRY" \
+          --platform "$LAMBDAS_IMAGE_PLATFORM" \
           --push \
           --no-latest-alias \
           --extra-tag "$extra_tag" \
@@ -773,6 +791,7 @@ resolve_lambda_image_triplet() {
           --lambda "$lambda" \
           --tag "$primary_tag" \
           --registry "$ECR_REGISTRY" \
+          --platform "$LAMBDAS_IMAGE_PLATFORM" \
           --push \
           --no-latest-alias \
           --metadata-file "$metadata_file"
@@ -783,6 +802,7 @@ resolve_lambda_image_triplet() {
           --lambda "$lambda" \
           --tag "$primary_tag" \
           --registry "$ECR_REGISTRY" \
+          --platform "$LAMBDAS_IMAGE_PLATFORM" \
           --no-push \
           --no-latest-alias \
           --extra-tag "$extra_tag" \
@@ -792,6 +812,7 @@ resolve_lambda_image_triplet() {
           --lambda "$lambda" \
           --tag "$primary_tag" \
           --registry "$ECR_REGISTRY" \
+          --platform "$LAMBDAS_IMAGE_PLATFORM" \
           --no-push \
           --no-latest-alias \
           --metadata-file "$metadata_file"
@@ -823,7 +844,7 @@ resolve_lambda_image_triplet() {
 
 run_lambda_stack() {
   local lambda="$1"
-  local prefix reg_var name_var tag_var tf_dir
+  local prefix reg_var name_var tag_var tf_dir lambda_architecture
   local image_registry image_name image_tag
 
   prefix="$(lambda_env_prefix_for "$lambda")"
@@ -837,6 +858,7 @@ run_lambda_stack() {
   eval "image_name=\${$name_var}"
   eval "image_tag=\${$tag_var}"
   tf_dir="$(lambda_tf_dir_for "$lambda")"
+  lambda_architecture="$(lambda_architecture_for_platform "$LAMBDAS_IMAGE_PLATFORM")"
 
   log "${GREEN}Deploying lambda stack:${NC} $lambda"
   prepare_stack "$tf_dir"
@@ -844,11 +866,13 @@ run_lambda_stack() {
     export TF_VAR_image_registry="$image_registry"
     export TF_VAR_image_name="$image_name"
     export TF_VAR_image_tag="$image_tag"
+    export TF_VAR_lambda_architecture="$lambda_architecture"
 
     tf_extra_args=(
       -var="image_registry=${image_registry}"
       -var="image_name=${image_name}"
       -var="image_tag=${image_tag}"
+      -var="lambda_architecture=${lambda_architecture}"
     )
 
     if [ "$lambda" = "payment-processor" ]; then
@@ -900,6 +924,9 @@ print_plan() {
     log "  Push images: $PUSH_IMAGES"
     if [ "$RUN_SERVICES" = true ] && [ "$SERVICES_IMAGE_SOURCE" = "build" ]; then
       log "  Services image platforms: $SERVICES_IMAGE_PLATFORMS"
+    fi
+    if [ "$RUN_LAMBDAS" = true ]; then
+      log "  Lambdas image platform: $LAMBDAS_IMAGE_PLATFORM ($(lambda_architecture_for_platform "$LAMBDAS_IMAGE_PLATFORM"))"
     fi
   fi
   if [ "$RUN_FRONTEND" = true ]; then
