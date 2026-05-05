@@ -31,7 +31,7 @@ env:
   DEPLOY_WORKSPACE: ${{ inputs.workspace || github.event.inputs.workspace || 'dev' }}
 
 jobs:
-  build:
+  frontend:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

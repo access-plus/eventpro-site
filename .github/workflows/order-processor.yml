@@ -33,7 +33,7 @@ env:
   AWS_REGION: us-east-1
   DEPLOY_WORKSPACE: ${{ inputs.workspace || github.event.inputs.workspace || 'dev' }}
 jobs:
-  build:
+  order-processor:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
