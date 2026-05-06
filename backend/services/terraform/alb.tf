@@ -8,7 +8,7 @@ resource "aws_lb" "main" {
   subnets            = data.terraform_remote_state.shared_infra.outputs.service_subnet_ids
 
   enable_deletion_protection = var.alb_enable_deletion_protection
-  enable_http2               = true
+  enable_http2               = var.use_localstack ? false : true
   idle_timeout               = 60
 
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-alb" })

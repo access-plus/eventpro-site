@@ -1,6 +1,6 @@
 .PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build jwt-keys \
 	tf-destroy-shared-infra tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy \
-	lstk-start lstk-state-bucket lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all
+	lstk-start lstk-state-bucket lstk-route53-zone lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all
 
 # Variables
 API_DIR := backend/services
@@ -81,6 +81,7 @@ help:
 	@echo "Complete LocalStack Pro Terraform (set LSTK_TF_ACTION=plan|apply, default plan):"
 	@echo "  make lstk-start                     - Source .env.lstk and start LocalStack Pro"
 	@echo "  make lstk-state-bucket              - Create the LocalStack Terraform state bucket"
+	@echo "  make lstk-route53-zone              - Create the LocalStack Route53 hosted zone"
 	@echo "  make lstk-tf-shared-infra           - Plan/apply shared-infra against LocalStack"
 	@echo "  make lstk-tf-services               - Plan/apply services against LocalStack"
 	@echo "  make lstk-tf-frontend               - Plan/apply frontend against LocalStack"
@@ -405,105 +406,37 @@ tf-destroy: tf-destroy-all
 # ============================================================================
 
 lstk-start:
-	@echo "Starting LocalStack Pro using $(LSTK_ENV_FILE)..."
-	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
-		[ -n "$${LOCALSTACK_AUTH_TOKEN:-}" ] || { echo "LOCALSTACK_AUTH_TOKEN is required in $(LSTK_ENV_FILE) or env"; exit 1; }; \
-		lstk start
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --start-only
 
 lstk-state-bucket:
-	@echo "Ensuring LocalStack Terraform state bucket exists using $(LSTK_ENV_FILE)..."
-	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
-		AWS_ACCESS_KEY_ID="$${AWS_ACCESS_KEY_ID:-test}" \
-		AWS_SECRET_ACCESS_KEY="$${AWS_SECRET_ACCESS_KEY:-test}" \
-		AWS_DEFAULT_REGION="$${AWS_DEFAULT_REGION:-us-east-1}" \
-		aws --endpoint-url="$${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 mb s3://eventpro-site-state 2>/dev/null || true; \
-		AWS_ACCESS_KEY_ID="$${AWS_ACCESS_KEY_ID:-test}" \
-		AWS_SECRET_ACCESS_KEY="$${AWS_SECRET_ACCESS_KEY:-test}" \
-		AWS_DEFAULT_REGION="$${AWS_DEFAULT_REGION:-us-east-1}" \
-		aws --endpoint-url="$${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 ls
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --bootstrap-state
+
+lstk-route53-zone:
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --bootstrap-route53
 
 lstk-tf-shared-infra:
-	@echo "Running LocalStack shared-infra Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
-	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
-		cd backend/shared-infra && \
-		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
-		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
-		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
-			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
-		else \
-			terraform plan -var-file=terraform.lstk.tfvars; \
-		fi
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only shared-infra
 
 lstk-tf-services:
-	@echo "Running LocalStack services Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
-	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
-		cd backend/services/terraform && \
-		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
-		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
-		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
-			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
-		else \
-			terraform plan -var-file=terraform.lstk.tfvars; \
-		fi
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only services
 
 lstk-tf-frontend:
-	@echo "Running LocalStack frontend Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
-	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
-		cd eventpro-frontend/terraform && \
-		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
-		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
-		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
-			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
-		else \
-			terraform plan -var-file=terraform.lstk.tfvars; \
-		fi
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only frontend
 
 lstk-tf-lambda-order:
-	@echo "Running LocalStack order-processor Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
-	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
-		cd backend/lambdas/order-processor/terraform && \
-		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
-		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
-		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
-			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
-		else \
-			terraform plan -var-file=terraform.lstk.tfvars; \
-		fi
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only order-processor
 
 lstk-tf-lambda-payment:
-	@echo "Running LocalStack payment-processor Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
-	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
-		cd backend/lambdas/payment-processor/terraform && \
-		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
-		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
-		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
-			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
-		else \
-			terraform plan -var-file=terraform.lstk.tfvars; \
-		fi
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only payment-processor
 
 lstk-tf-lambda-notification:
-	@echo "Running LocalStack notification-sender Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
-	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
-		cd backend/lambdas/notification-sender/terraform && \
-		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
-		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
-		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
-			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
-		else \
-			terraform plan -var-file=terraform.lstk.tfvars; \
-		fi
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only notification-sender
 
 lstk-tf-lambdas:
-	@$(MAKE) lstk-tf-lambda-order LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
-	@$(MAKE) lstk-tf-lambda-payment LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
-	@$(MAKE) lstk-tf-lambda-notification LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only lambdas
 
-lstk-tf-all: lstk-state-bucket
-	@$(MAKE) lstk-tf-shared-infra LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
-	@$(MAKE) lstk-tf-services LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
-	@$(MAKE) lstk-tf-frontend LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
-	@$(MAKE) lstk-tf-lambdas LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
+lstk-tf-all:
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only all
 
 # ============================================================================
 # Local Development (Docker Compose + LocalStack)

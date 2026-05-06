@@ -135,6 +135,32 @@ resource "aws_ecs_task_definition" "api" {
         { name = "JWT_ACCESS_TTL_SECONDS", value = tostring(var.jwt_access_ttl_seconds) },
         { name = "EVENTPRO_CORS_ALLOWED_ORIGINS_0", value = "https://${terraform.workspace}-app.${var.domain_name}" }
       ],
+      var.use_localstack ? [
+        { name = "AWS_ACCESS_KEY_ID", value = "test" },
+        { name = "AWS_SECRET_ACCESS_KEY", value = "test" },
+        { name = "AWS_ENDPOINT_URL", value = var.localstack_runtime_endpoint },
+        { name = "AWS_SECRETS_MANAGER_ENDPOINT", value = var.localstack_runtime_endpoint },
+        { name = "SQS_ENDPOINT", value = var.localstack_runtime_endpoint },
+        { name = "SES_ENDPOINT", value = var.localstack_runtime_endpoint },
+        { name = "SPRING_JPA_HIBERNATE_DDL_AUTO", value = "none" },
+        { name = "SPRING_JPA_PROPERTIES_HIBERNATE_BOOT_ALLOW_JDBC_METADATA_ACCESS", value = "false" },
+        {
+          name = "SPRING_APPLICATION_JSON"
+          value = jsonencode({
+            spring = {
+              jpa = {
+                hibernate = {
+                  "ddl-auto" = "none"
+                }
+                properties = {
+                  "hibernate.boot.allow_jdbc_metadata_access" = "false"
+                  "hibernate.temp.use_jdbc_metadata_defaults" = "false"
+                }
+              }
+            }
+          })
+        }
+      ] : [],
       [
         for k, v in {
           STRIPE_SECRET_KEY      = var.stripe_secret_key

@@ -7,6 +7,29 @@ locals {
   name_prefix = local.workspace
   image_uri   = "${var.image_registry}/${var.image_name}:${var.image_tag}"
   common_tags = merge(var.tags, { Env = local.workspace })
+  localstack_spring_application_json = jsonencode({
+    spring = {
+      jpa = {
+        hibernate = {
+          "ddl-auto" = "none"
+        }
+        properties = {
+          "hibernate.boot.allow_jdbc_metadata_access" = "false"
+          "hibernate.temp.use_jdbc_metadata_defaults" = "false"
+        }
+      }
+    }
+  })
+  localstack_runtime_env = var.use_localstack ? {
+    AWS_ACCESS_KEY_ID                                               = "test"
+    AWS_SECRET_ACCESS_KEY                                           = "test"
+    AWS_ENDPOINT_URL                                                = var.localstack_runtime_endpoint
+    AWS_SECRETS_MANAGER_ENDPOINT                                    = var.localstack_runtime_endpoint
+    SQS_ENDPOINT                                                    = var.localstack_runtime_endpoint
+    SPRING_JPA_HIBERNATE_DDL_AUTO                                   = "none"
+    SPRING_JPA_PROPERTIES_HIBERNATE_BOOT_ALLOW_JDBC_METADATA_ACCESS = "false"
+    SPRING_APPLICATION_JSON                                         = local.localstack_spring_application_json
+  } : {}
 
   shared_infra_remote_state_config = merge(
     {
@@ -193,7 +216,7 @@ resource "aws_lambda_function" "payment_processor" {
   image_uri    = local.image_uri
 
   environment {
-    variables = {
+    variables = merge({
       DB_HOST                    = data.terraform_remote_state.shared_infra.outputs.rds_endpoint
       DB_PORT                    = tostring(data.terraform_remote_state.shared_infra.outputs.rds_port)
       DB_NAME                    = data.terraform_remote_state.shared_infra.outputs.rds_name
@@ -202,7 +225,7 @@ resource "aws_lambda_function" "payment_processor" {
       # AWS_REGION is reserved; Lambda injects it automatically — do not set here.
       spring_cloud_function_definition = "processPayment"
       STRIPE_SECRET_KEY                = var.stripe_secret_key
-    }
+    }, local.localstack_runtime_env)
   }
 
   vpc_config {

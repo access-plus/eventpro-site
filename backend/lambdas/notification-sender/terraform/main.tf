@@ -7,6 +7,12 @@ locals {
   name_prefix = local.workspace
   image_uri   = "${var.image_registry}/${var.image_name}:${var.image_tag}"
   common_tags = merge(var.tags, { Env = local.workspace })
+  localstack_runtime_env = var.use_localstack ? {
+    AWS_ACCESS_KEY_ID     = "test"
+    AWS_SECRET_ACCESS_KEY = "test"
+    AWS_ENDPOINT_URL      = var.localstack_runtime_endpoint
+    SES_ENDPOINT          = var.localstack_runtime_endpoint
+  } : {}
 
   shared_infra_remote_state_config = merge(
     {
@@ -175,11 +181,11 @@ resource "aws_lambda_function" "notification_sender" {
   image_uri    = local.image_uri
 
   environment {
-    variables = {
+    variables = merge({
       # AWS_REGION is reserved; Lambda injects it automatically — do not set here.
       SES_SENDER_EMAIL                 = var.ses_sender_email
       spring_cloud_function_definition = "sendNotification"
-    }
+    }, local.localstack_runtime_env)
   }
 
   depends_on = [

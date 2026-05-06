@@ -35,12 +35,12 @@ output "rds_security_group_id" {
 
 output "rds_endpoint" {
   description = "RDS instance endpoint"
-  value       = aws_db_instance.main.address
+  value       = split(":", aws_db_instance.main.endpoint)[0]
 }
 
 output "rds_port" {
   description = "RDS port"
-  value       = aws_db_instance.main.port
+  value       = tonumber(split(":", aws_db_instance.main.endpoint)[1])
 }
 
 output "rds_name" {

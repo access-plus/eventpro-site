@@ -1307,6 +1307,8 @@ shared-infra
 LocalStack Pro uses different credentials and backend/provider wiring:
 - Credentials are mock values: `AWS_ACCESS_KEY_ID=test`, `AWS_SECRET_ACCESS_KEY=test`.
 - LocalStack environment values live in `.env.lstk`.
+- Host-side AWS CLI/Terraform uses `AWS_ENDPOINT_URL=http://localhost:4566`.
+- ECS/Lambda containers use `LOCALSTACK_RUNTIME_ENDPOINT=http://host.docker.internal:4566` so runtime AWS SDK calls can reach the LocalStack gateway from inside Docker.
 - Each stack initializes Terraform state with `backend.lstk.tfbackend`.
 - Each stack plans/applies resource variables with `terraform.lstk.tfvars`.
 - The shared Terraform state bucket must exist inside LocalStack before `terraform init`.
@@ -1355,14 +1357,48 @@ AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
 aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 ls
 ```
 
+*create the emulated Route53 hosted zone*
+
+`backend/shared-infra` intentionally uses a Route53 hosted-zone data source, matching real AWS where the zone must already exist. For LocalStack Pro, create that hosted zone before running shared infra:
+
+```bash
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" route53 create-hosted-zone \
+  --name "$DOMAIN_NAME" \
+  --caller-reference "eventpro-lstk-$DOMAIN_NAME"
+```
+
+If the hosted zone already exists, this command can fail safely. Confirm with:
+
+```bash
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" route53 list-hosted-zones-by-name \
+  --dns-name "$DOMAIN_NAME"
+```
+
 Make shortcuts are available for this full LocalStack Pro flow:
 
 ```bash
 make lstk-start
 make lstk-state-bucket
+make lstk-route53-zone
 make lstk-tf-all                 # defaults to plan
 make lstk-tf-all LSTK_TF_ACTION=apply
 ```
+
+Those Make targets call the dedicated LocalStack deploy script:
+
+```bash
+./scripts/lstk-deploy.sh --plan
+./scripts/lstk-deploy.sh --apply
+./scripts/lstk-deploy.sh --apply --only services
+```
+
+Use `scripts/pipeline-deploy.sh` only for real AWS cloud deployments that load `.env.remote`. Use `scripts/lstk-deploy.sh` for Complete LocalStack Pro deployments that load `.env.lstk`.
 
 Individual stack shortcuts:
 
@@ -1386,9 +1422,16 @@ cd ../..
 
 *deploy services*
 
-Build or tag an API image that the LocalStack/ECS emulation can reference, then apply the stack:
+Build or tag an API image that the LocalStack/ECS emulation can reference, then apply the stack. The script and Make target do this automatically in apply mode by building `localstack/eventpro-api:local`:
 
 ```bash
+./scripts/lstk-deploy.sh --apply --only services
+```
+
+Manual equivalent:
+
+```bash
+docker image build --platform linux/amd64 -f backend/services/Dockerfile -t localstack/eventpro-api:local backend
 cd backend/services/terraform
 terraform init -reconfigure -backend-config=backend.lstk.tfbackend
 terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
@@ -1415,7 +1458,20 @@ cd ../..
 
 *deploy lambdas*
 
-Build or tag Lambda images as `localstack/eventpro-*-processor:local` or update each lambda's `terraform.lstk.tfvars` image values to match your local image names.
+Build or tag Lambda images as `localstack/eventpro-*-processor:local` or update each lambda's `terraform.lstk.tfvars` image values to match your local image names. The script and Make target do this automatically in apply mode.
+
+```bash
+./scripts/lstk-deploy.sh --apply --only lambdas
+```
+
+Manual equivalent:
+
+```bash
+env -u AWS_ACCOUNT_ID ./scripts/build-lambda-local.sh all local
+docker tag eventpro-order-processor:local localstack/eventpro-order-processor:local
+docker tag eventpro-payment-processor:local localstack/eventpro-payment-processor:local
+docker tag eventpro-notification-sender:local localstack/eventpro-notification-sender:local
+```
 
 ```bash
 cd backend/lambdas/order-processor/terraform
@@ -1454,8 +1510,26 @@ aws --endpoint-url="$AWS_ENDPOINT_URL" lambda list-functions
 aws --endpoint-url="$AWS_ENDPOINT_URL" route53 list-hosted-zones
 ```
 
+*access the application*
+
+Use LocalStack TLS with `-k` for curl. Browsers can show certificate warnings for LocalStack wildcard certificates depending on the hostname and trust store.
+
+```bash
+curl -k --http1.1 https://lstk-api.localhost.localstack.cloud/actuator/health
+open https://lstk-app.localhost.localstack.cloud
+```
+
+If the API returns a LocalStack proxy error with `Connection refused` to a private IP/port, the HTTPS route exists but the ECS target is not healthy. Re-run the services apply path so the expected local image is built and the ECS task definition receives LocalStack runtime endpoint variables:
+
+```bash
+./scripts/lstk-deploy.sh --apply --only services
+curl -k --http1.1 https://lstk-api.localhost.localstack.cloud/actuator/health
+```
+
+If curl without `--http1.1` returns a LocalStack proxy error with `RemoteDisconnected`, the API target can still be healthy. LocalStack's HTTPS gateway may negotiate HTTP/2 for these hostnames even when the emulated ALB has HTTP/2 disabled. Verify the API with `curl -k --http1.1`, or test the current ECS container port directly from `docker ps` while debugging.
+
 Route53 and DNS notes:
-- `terraform.lstk.tfvars` uses `eventpro.localhost.localstack.cloud` as the default domain.
+- `terraform.lstk.tfvars` uses `localhost.localstack.cloud` as the default domain.
 - LocalStack can emulate Route53 records, but your host machine will not automatically resolve every emulated hosted-zone record unless you configure DNS resolution or use LocalStack's supported localhost domains.
 - For browser testing, you may still need `/etc/hosts`, LocalStack DNS, or direct localhost URLs depending on which service you are testing.
 - ACM validation records are emulated; do not expect public DNS validation behavior.

@@ -1,5 +1,5 @@
 aws_region  = "us-east-1"
-domain_name = "eventpro.localhost.localstack.cloud"
+domain_name = "localhost.localstack.cloud"
 
 use_localstack      = true
 localstack_endpoint = "http://localhost:4566"

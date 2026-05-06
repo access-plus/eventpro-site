@@ -39,6 +39,12 @@ variable "localstack_endpoint" {
   default     = "http://localhost:4566"
 }
 
+variable "localstack_runtime_endpoint" {
+  description = "LocalStack endpoint visible from ECS/Lambda runtime containers"
+  type        = string
+  default     = "http://host.docker.internal:4566"
+}
+
 variable "shared_infra_state_bucket" {
   description = "S3 bucket containing the shared infrastructure Terraform state"
   type        = string
