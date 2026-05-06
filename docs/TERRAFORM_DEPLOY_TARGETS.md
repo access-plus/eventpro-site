@@ -103,10 +103,15 @@ source .env.lstk
 set +a
 
 : "${LOCALSTACK_AUTH_TOKEN:?Set LOCALSTACK_AUTH_TOKEN for LocalStack Pro}"
-docker compose up -d localstack
+lstk start
 
-aws --endpoint-url="$AWS_ENDPOINT_URL" s3 mb s3://eventpro-site-state
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 mb s3://eventpro-site-state
 ```
+
+If you start LocalStack with `make lstk-start`, Make sources `.env.lstk` only inside its own subshell. Source `.env.lstk` in your current shell before manual `aws` commands, or use `make lstk-state-bucket`.
 
 Make shortcuts wrap the same backend and var-file settings:
 

@@ -3,7 +3,7 @@
 Complete guide for setting up and running the EventPro application locally using Make commands.
 
 <details>
-<summary>localhost</summary>
+<summary><strong>localhost</strong></summary>
 
 ## 📖 Quick Reference
 
@@ -1322,19 +1322,37 @@ set +a
 # Set LOCALSTACK_AUTH_TOKEN in .env.lstk or export it in your shell before starting LocalStack Pro.
 : "${LOCALSTACK_AUTH_TOKEN:?Set LOCALSTACK_AUTH_TOKEN for LocalStack Pro}"
 
-docker compose up -d localstack
+lstk start
 ```
+
+If LocalStack Pro is already running, confirm it is reachable:
+
+```bash
+lstk status
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" sts get-caller-identity
+```
+
+If you used `make lstk-start`, remember that Make sources `.env.lstk` inside a subshell. Run `set -a; source .env.lstk; set +a` in your current terminal before manual `aws` commands, or use the Make shortcuts below.
 
 *create the emulated Terraform state bucket*
 
 ```bash
-aws --endpoint-url="$AWS_ENDPOINT_URL" s3 mb s3://eventpro-site-state
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 mb s3://eventpro-site-state
 ```
 
 If the bucket already exists, this command can fail safely. Confirm with:
 
 ```bash
-aws --endpoint-url="$AWS_ENDPOINT_URL" s3 ls
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 ls
 ```
 
 Make shortcuts are available for this full LocalStack Pro flow:

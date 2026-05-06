@@ -408,12 +408,18 @@ lstk-start:
 	@echo "Starting LocalStack Pro using $(LSTK_ENV_FILE)..."
 	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
 		[ -n "$${LOCALSTACK_AUTH_TOKEN:-}" ] || { echo "LOCALSTACK_AUTH_TOKEN is required in $(LSTK_ENV_FILE) or env"; exit 1; }; \
-		docker compose up -d localstack
+		lstk start
 
 lstk-state-bucket:
 	@echo "Ensuring LocalStack Terraform state bucket exists using $(LSTK_ENV_FILE)..."
 	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
+		AWS_ACCESS_KEY_ID="$${AWS_ACCESS_KEY_ID:-test}" \
+		AWS_SECRET_ACCESS_KEY="$${AWS_SECRET_ACCESS_KEY:-test}" \
+		AWS_DEFAULT_REGION="$${AWS_DEFAULT_REGION:-us-east-1}" \
 		aws --endpoint-url="$${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 mb s3://eventpro-site-state 2>/dev/null || true; \
+		AWS_ACCESS_KEY_ID="$${AWS_ACCESS_KEY_ID:-test}" \
+		AWS_SECRET_ACCESS_KEY="$${AWS_SECRET_ACCESS_KEY:-test}" \
+		AWS_DEFAULT_REGION="$${AWS_DEFAULT_REGION:-us-east-1}" \
 		aws --endpoint-url="$${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 ls
 
 lstk-tf-shared-infra:
