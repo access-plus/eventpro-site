@@ -1,5 +1,6 @@
 .PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build jwt-keys \
-	tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy
+	tf-destroy-shared-infra tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy \
+	lstk-start lstk-state-bucket lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all
 
 # Variables
 API_DIR := backend/services
@@ -7,9 +8,12 @@ WEB_DIR := eventpro-frontend
 ANALYTICS_DIR := backend/lambdas/analytics-service
 # SECRET_ROTATION_DIR := backend/lambdas/secret-rotation  # Removed - RDS manages credential rotation natively
 TF_WORKSPACE ?= dev
-TF_ENV_FILE ?= .env
+TF_ENV_FILE ?= .env.remote
 TF_STATE_BUCKET ?= eventpro-site-state
 TF_STATE_REGION ?= us-east-1
+LSTK_ENV_FILE ?= .env.lstk
+LSTK_WORKSPACE ?= lstk
+LSTK_TF_ACTION ?= plan
 
 # Terraform reserves TF_WORKSPACE as an environment variable. We keep the Make
 # variable name for CLI ergonomics (e.g. `make ... TF_WORKSPACE=dev`) but do not
@@ -63,15 +67,25 @@ help:
 	@echo "  make lambda-build-payment - Build payment-processor Lambda image"
 	@echo "  make lambda-build-notification - Build notification-sender Lambda image"
 	@echo ""
-	@echo "AWS Terraform Destroy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env; DOMAIN_NAME required. Lambda/services image registry+tag default to placeholders if unset):"
+	@echo "AWS Terraform Destroy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env.remote; DOMAIN_NAME required. Lambda/services image registry+tag default to placeholders if unset):"
 	@echo "  make tf-destroy-frontend            - Destroy frontend Terraform stack"
 	@echo "  make tf-destroy-lambda-order        - Destroy order-processor Lambda stack"
 	@echo "  make tf-destroy-lambda-payment      - Destroy payment-processor Lambda stack"
 	@echo "  make tf-destroy-lambda-notification - Destroy notification-sender Lambda stack"
 	@echo "  make tf-destroy-services            - Destroy services Terraform stack"
+	@echo "  make tf-destroy-shared-infra        - Destroy shared infrastructure stack"
 	@echo "  make tf-destroy-lambdas             - Destroy all lambda Terraform stacks"
-	@echo "  make tf-destroy-all                 - Destroy frontend, lambdas, then services"
+	@echo "  make tf-destroy-all                 - Destroy frontend, lambdas, services, then shared infra"
 	@echo "  make tf-destroy                     - Same as tf-destroy-all (AWS bill cleanup)"
+	@echo ""
+	@echo "Complete LocalStack Pro Terraform (set LSTK_TF_ACTION=plan|apply, default plan):"
+	@echo "  make lstk-start                     - Source .env.lstk and start LocalStack Pro"
+	@echo "  make lstk-state-bucket              - Create the LocalStack Terraform state bucket"
+	@echo "  make lstk-tf-shared-infra           - Plan/apply shared-infra against LocalStack"
+	@echo "  make lstk-tf-services               - Plan/apply services against LocalStack"
+	@echo "  make lstk-tf-frontend               - Plan/apply frontend against LocalStack"
+	@echo "  make lstk-tf-lambdas                - Plan/apply all lambda stacks against LocalStack"
+	@echo "  make lstk-tf-all                    - Plan/apply shared, services, frontend, lambdas"
 	@echo ""
 	@echo "Local Development:"
 	@echo "  make local-setup    - Complete first-time setup (all steps)"
@@ -282,6 +296,19 @@ jwt-keys:
 # AWS Terraform Destroy (higher environments)
 # ============================================================================
 
+tf-destroy-shared-infra:
+	@echo "Destroying shared infrastructure Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
+	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
+		[ -n "$$DOMAIN_NAME" ] || { echo "DOMAIN_NAME is required (set in $(TF_ENV_FILE) or env)"; exit 1; }; \
+		export TF_VAR_domain_name="$$DOMAIN_NAME"; \
+		cd backend/shared-infra && \
+		terraform init -upgrade && \
+		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
+			terraform destroy -auto-approve; \
+		else \
+			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
+		fi
+
 tf-destroy-services:
 	@echo "Destroying services Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
 	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
@@ -368,9 +395,109 @@ tf-destroy-all:
 	@$(MAKE) tf-destroy-frontend TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
 	@$(MAKE) tf-destroy-lambdas TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
 	@$(MAKE) tf-destroy-services TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
+	@$(MAKE) tf-destroy-shared-infra TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
 
-# Convenience alias: tear down all remote Terraform (frontend + lambdas + services)
+# Convenience alias: tear down all remote Terraform (frontend + lambdas + services + shared infra)
 tf-destroy: tf-destroy-all
+
+# ============================================================================
+# Complete LocalStack Pro Terraform (full AWS emulation)
+# ============================================================================
+
+lstk-start:
+	@echo "Starting LocalStack Pro using $(LSTK_ENV_FILE)..."
+	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
+		[ -n "$${LOCALSTACK_AUTH_TOKEN:-}" ] || { echo "LOCALSTACK_AUTH_TOKEN is required in $(LSTK_ENV_FILE) or env"; exit 1; }; \
+		docker compose up -d localstack
+
+lstk-state-bucket:
+	@echo "Ensuring LocalStack Terraform state bucket exists using $(LSTK_ENV_FILE)..."
+	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
+		aws --endpoint-url="$${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 mb s3://eventpro-site-state 2>/dev/null || true; \
+		aws --endpoint-url="$${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 ls
+
+lstk-tf-shared-infra:
+	@echo "Running LocalStack shared-infra Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
+	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
+		cd backend/shared-infra && \
+		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
+		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
+		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
+			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
+		else \
+			terraform plan -var-file=terraform.lstk.tfvars; \
+		fi
+
+lstk-tf-services:
+	@echo "Running LocalStack services Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
+	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
+		cd backend/services/terraform && \
+		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
+		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
+		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
+			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
+		else \
+			terraform plan -var-file=terraform.lstk.tfvars; \
+		fi
+
+lstk-tf-frontend:
+	@echo "Running LocalStack frontend Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
+	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
+		cd eventpro-frontend/terraform && \
+		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
+		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
+		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
+			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
+		else \
+			terraform plan -var-file=terraform.lstk.tfvars; \
+		fi
+
+lstk-tf-lambda-order:
+	@echo "Running LocalStack order-processor Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
+	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
+		cd backend/lambdas/order-processor/terraform && \
+		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
+		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
+		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
+			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
+		else \
+			terraform plan -var-file=terraform.lstk.tfvars; \
+		fi
+
+lstk-tf-lambda-payment:
+	@echo "Running LocalStack payment-processor Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
+	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
+		cd backend/lambdas/payment-processor/terraform && \
+		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
+		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
+		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
+			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
+		else \
+			terraform plan -var-file=terraform.lstk.tfvars; \
+		fi
+
+lstk-tf-lambda-notification:
+	@echo "Running LocalStack notification-sender Terraform ($(LSTK_TF_ACTION), workspace=$(LSTK_WORKSPACE))..."
+	@set -a; [ -f "$(LSTK_ENV_FILE)" ] && . "$(LSTK_ENV_FILE)" || { echo "$(LSTK_ENV_FILE) is required"; exit 1; }; set +a; \
+		cd backend/lambdas/notification-sender/terraform && \
+		terraform init -reconfigure -backend-config=backend.lstk.tfbackend && \
+		( terraform workspace select "$(LSTK_WORKSPACE)" >/dev/null 2>&1 || terraform workspace new "$(LSTK_WORKSPACE)" >/dev/null ) && \
+		if [ "$(LSTK_TF_ACTION)" = "apply" ]; then \
+			terraform apply -auto-approve -var-file=terraform.lstk.tfvars; \
+		else \
+			terraform plan -var-file=terraform.lstk.tfvars; \
+		fi
+
+lstk-tf-lambdas:
+	@$(MAKE) lstk-tf-lambda-order LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
+	@$(MAKE) lstk-tf-lambda-payment LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
+	@$(MAKE) lstk-tf-lambda-notification LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
+
+lstk-tf-all: lstk-state-bucket
+	@$(MAKE) lstk-tf-shared-infra LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
+	@$(MAKE) lstk-tf-services LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
+	@$(MAKE) lstk-tf-frontend LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
+	@$(MAKE) lstk-tf-lambdas LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=$(LSTK_TF_ACTION)
 
 # ============================================================================
 # Local Development (Docker Compose + LocalStack)

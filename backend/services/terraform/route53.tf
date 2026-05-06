@@ -2,7 +2,7 @@
 
 resource "aws_route53_record" "api" {
   allow_overwrite = true
-  zone_id         = data.aws_route53_zone.main.zone_id
+  zone_id         = data.terraform_remote_state.shared_infra.outputs.route53_zone_id
   name            = "${terraform.workspace}-api.${var.domain_name}"
   type            = "A"
 
@@ -15,7 +15,7 @@ resource "aws_route53_record" "api" {
 
 resource "aws_route53_record" "api_ipv6" {
   allow_overwrite = true
-  zone_id         = data.aws_route53_zone.main.zone_id
+  zone_id         = data.terraform_remote_state.shared_infra.outputs.route53_zone_id
   name            = "${terraform.workspace}-api.${var.domain_name}"
   type            = "AAAA"
 

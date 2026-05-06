@@ -7,22 +7,55 @@ locals {
   name_prefix = local.workspace
   image_uri   = "${var.image_registry}/${var.image_name}:${var.image_tag}"
   common_tags = merge(var.tags, { Env = local.workspace })
+
+  shared_infra_remote_state_config = merge(
+    {
+      bucket = var.shared_infra_state_bucket
+      key    = var.shared_infra_state_key
+      region = var.shared_infra_state_region
+    },
+    jsondecode(var.use_localstack ? jsonencode({
+      access_key                  = "test"
+      secret_key                  = "test"
+      skip_credentials_validation = true
+      skip_metadata_api_check     = true
+      skip_region_validation      = true
+      skip_requesting_account_id  = true
+      skip_s3_checksum            = true
+      use_path_style              = true
+      endpoints = {
+        s3  = var.localstack_endpoint
+        sts = var.localstack_endpoint
+      }
+    }) : "{}")
+  )
 }
 
 provider "aws" {
-  region = var.aws_region
+  region                      = var.aws_region
+  access_key                  = var.use_localstack ? "test" : null
+  secret_key                  = var.use_localstack ? "test" : null
+  s3_use_path_style           = var.use_localstack
+  skip_credentials_validation = var.use_localstack
+  skip_metadata_api_check     = var.use_localstack
+  skip_requesting_account_id  = var.use_localstack
+
+  endpoints {
+    cloudwatchlogs = var.use_localstack ? var.localstack_endpoint : null
+    iam            = var.use_localstack ? var.localstack_endpoint : null
+    lambda         = var.use_localstack ? var.localstack_endpoint : null
+    ses            = var.use_localstack ? var.localstack_endpoint : null
+    sqs            = var.use_localstack ? var.localstack_endpoint : null
+    sts            = var.use_localstack ? var.localstack_endpoint : null
+  }
 }
 
-# Remote state from services (queues)
-data "terraform_remote_state" "services" {
+# Remote state from shared infra (queues)
+data "terraform_remote_state" "shared_infra" {
   backend   = "s3"
   workspace = terraform.workspace
 
-  config = {
-    bucket = var.services_state_bucket
-    key    = var.services_state_key
-    region = var.services_state_region
-  }
+  config = local.shared_infra_remote_state_config
 }
 
 # CloudWatch Log Group
@@ -69,7 +102,7 @@ resource "aws_iam_role_policy" "sqs" {
           "sqs:GetQueueAttributes",
           "sqs:GetQueueUrl"
         ]
-        Resource = data.terraform_remote_state.services.outputs.notification_queue_arn
+        Resource = data.terraform_remote_state.shared_infra.outputs.notification_queue_arn
       }
     ]
   })
@@ -159,7 +192,7 @@ resource "aws_lambda_function" "notification_sender" {
 
 # SQS Event Source Mapping (notification queue -> Lambda)
 resource "aws_lambda_event_source_mapping" "notification_queue" {
-  event_source_arn = data.terraform_remote_state.services.outputs.notification_queue_arn
+  event_source_arn = data.terraform_remote_state.shared_infra.outputs.notification_queue_arn
   function_name    = aws_lambda_function.notification_sender.arn
   enabled          = true
 

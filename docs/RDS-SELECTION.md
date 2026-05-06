@@ -2,7 +2,7 @@
 
 This guide ties Amazon RDS PostgreSQL sizing to **what EventPro actually stores** (Flyway schema) and gives **three deployment tiers** with **illustrative monthly and yearly cost** (compute + provisioned storage only). Validate numbers in your region and purchase option using [Amazon RDS instance comparison (Vantage)](https://instances.vantage.sh/rds) and the [AWS Pricing Calculator](https://calculator.aws/).
 
-**Defaults in repo today:** [backend/services/terraform/variables.tf](../backend/services/terraform/variables.tf) uses PostgreSQL **16**, **gp3**, **20 GB** initial storage, **100 GB** max autoscaling, default instance **db.t3.micro** (consider **db.t4g.micro** or **db.t4g.small** for better price/performance on Graviton).
+**Defaults in repo today:** [backend/shared-infra/variables.tf](../backend/shared-infra/variables.tf) uses PostgreSQL **16**, **gp3**, **20 GB** initial storage, **100 GB** max autoscaling, default instance **db.t3.micro** (consider **db.t4g.micro** or **db.t4g.small** for better price/performance on Graviton).
 
 ---
 
@@ -70,7 +70,7 @@ Core tables are defined in [V1__create_base_tables.sql](../backend/services/modu
 1. **Estimate rows** using registered users and ratios (organizers %, events per organizer, orders per buyer, line items per order, notifications, audit volume).
 2. **Rough effective row size** (heap + hot indexes): often **~0.5–3 KB** for narrow rows; **TEXT**-heavy audit rows can be larger.
 3. **Sum tables → add 30–50%** for bloat, TOAST, and future columns.
-4. **Set `max_allocated_storage`** well above expected steady state. The Terraform stack already enables **storage autoscaling** with a **maximum** cap ([rds.tf](../backend/services/terraform/rds.tf), [variables.tf](../backend/services/terraform/variables.tf)).
+4. **Set `max_allocated_storage`** well above expected steady state. The Terraform stack already enables **storage autoscaling** with a **maximum** cap ([rds.tf](../backend/shared-infra/rds.tf), [variables.tf](../backend/shared-infra/variables.tf)).
 5. **Watch** `FreeStorageSpace`, `DatabaseConnections`, `CPUUtilization`, and read/write latency in CloudWatch.
 
 ---
@@ -100,4 +100,4 @@ Upgrade or scale out when **sustained** high **CPU**, **connection** pressure, *
 
 - [Amazon RDS instance comparison (Vantage)](https://instances.vantage.sh/rds) — vCPU, memory, and hourly estimates by region and engine.
 - [AWS RDS pricing](https://aws.amazon.com/rds/pricing/) — authoritative list prices and options (Reserved, Savings Plans).
-- Terraform: [backend/services/terraform/rds.tf](../backend/services/terraform/rds.tf), [backend/services/terraform/variables.tf](../backend/services/terraform/variables.tf).
+- Terraform: [backend/shared-infra/rds.tf](../backend/shared-infra/rds.tf), [backend/shared-infra/variables.tf](../backend/shared-infra/variables.tf).

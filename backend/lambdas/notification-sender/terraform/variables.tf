@@ -27,20 +27,32 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "services_state_bucket" {
-  description = "S3 bucket containing the services Terraform state"
+variable "use_localstack" {
+  description = "Route AWS provider calls to LocalStack endpoints"
+  type        = bool
+  default     = false
+}
+
+variable "localstack_endpoint" {
+  description = "LocalStack endpoint used when use_localstack is true"
+  type        = string
+  default     = "http://localhost:4566"
+}
+
+variable "shared_infra_state_bucket" {
+  description = "S3 bucket containing the shared infrastructure Terraform state"
   type        = string
   default     = "eventpro-site-state"
 }
 
-variable "services_state_key" {
-  description = "Key for the services Terraform state file"
+variable "shared_infra_state_key" {
+  description = "Key for the shared infrastructure Terraform state file"
   type        = string
-  default     = "services/terraform.tfstate"
+  default     = "shared-infra/terraform.tfstate"
 }
 
-variable "services_state_region" {
-  description = "AWS region of the services Terraform state bucket"
+variable "shared_infra_state_region" {
+  description = "AWS region of the shared infrastructure Terraform state bucket"
   type        = string
   default     = "us-east-1"
 }

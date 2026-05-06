@@ -1,6 +1,6 @@
-# ACM certificates managed in Terraform (DNS validated via Route53)
-# - ALB certificate: same region as services stack
-# - CloudFront certificate: must be in us-east-1
+# ACM certificates shared by downstream stacks.
+# - ALB certificate: same region as services stack.
+# - CloudFront certificate: must be in us-east-1.
 
 resource "aws_acm_certificate" "alb" {
   domain_name       = "${terraform.workspace}-api.${var.domain_name}"

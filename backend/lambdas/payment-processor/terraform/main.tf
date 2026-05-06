@@ -1,28 +1,62 @@
 # Payment-processor Lambda Terraform - Phase 4
 # Lambda (container image), IAM, SQS event source mapping
-# Uses terraform_remote_state from services for DB/queue outputs
+# Uses terraform_remote_state from shared infra for DB/queue outputs
 
 locals {
   workspace   = terraform.workspace
   name_prefix = local.workspace
   image_uri   = "${var.image_registry}/${var.image_name}:${var.image_tag}"
   common_tags = merge(var.tags, { Env = local.workspace })
+
+  shared_infra_remote_state_config = merge(
+    {
+      bucket = var.shared_infra_state_bucket
+      key    = var.shared_infra_state_key
+      region = var.shared_infra_state_region
+    },
+    jsondecode(var.use_localstack ? jsonencode({
+      access_key                  = "test"
+      secret_key                  = "test"
+      skip_credentials_validation = true
+      skip_metadata_api_check     = true
+      skip_region_validation      = true
+      skip_requesting_account_id  = true
+      skip_s3_checksum            = true
+      use_path_style              = true
+      endpoints = {
+        s3  = var.localstack_endpoint
+        sts = var.localstack_endpoint
+      }
+    }) : "{}")
+  )
 }
 
 provider "aws" {
-  region = var.aws_region
+  region                      = var.aws_region
+  access_key                  = var.use_localstack ? "test" : null
+  secret_key                  = var.use_localstack ? "test" : null
+  s3_use_path_style           = var.use_localstack
+  skip_credentials_validation = var.use_localstack
+  skip_metadata_api_check     = var.use_localstack
+  skip_requesting_account_id  = var.use_localstack
+
+  endpoints {
+    cloudwatchlogs = var.use_localstack ? var.localstack_endpoint : null
+    ec2            = var.use_localstack ? var.localstack_endpoint : null
+    iam            = var.use_localstack ? var.localstack_endpoint : null
+    lambda         = var.use_localstack ? var.localstack_endpoint : null
+    secretsmanager = var.use_localstack ? var.localstack_endpoint : null
+    sqs            = var.use_localstack ? var.localstack_endpoint : null
+    sts            = var.use_localstack ? var.localstack_endpoint : null
+  }
 }
 
-# Remote state from services (DB, queues, VPC)
-data "terraform_remote_state" "services" {
+# Remote state from shared infra (DB, queues, VPC)
+data "terraform_remote_state" "shared_infra" {
   backend   = "s3"
   workspace = terraform.workspace
 
-  config = {
-    bucket = var.services_state_bucket
-    key    = var.services_state_key
-    region = var.services_state_region
-  }
+  config = local.shared_infra_remote_state_config
 }
 
 # CloudWatch Log Group
@@ -70,14 +104,14 @@ resource "aws_iam_role_policy" "sqs" {
           "sqs:GetQueueUrl"
         ]
         Resource = [
-          data.terraform_remote_state.services.outputs.payment_queue_arn,
-          data.terraform_remote_state.services.outputs.notification_queue_arn
+          data.terraform_remote_state.shared_infra.outputs.payment_queue_arn,
+          data.terraform_remote_state.shared_infra.outputs.notification_queue_arn
         ]
       },
       {
         Effect   = "Allow"
         Action   = ["sqs:SendMessage"]
-        Resource = data.terraform_remote_state.services.outputs.notification_queue_arn
+        Resource = data.terraform_remote_state.shared_infra.outputs.notification_queue_arn
       }
     ]
   })
@@ -141,7 +175,7 @@ resource "aws_iam_role_policy" "secrets_manager" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = data.terraform_remote_state.services.outputs.db_master_user_secret_arn
+        Resource = data.terraform_remote_state.shared_infra.outputs.db_master_user_secret_arn
       }
     ]
   })
@@ -160,11 +194,11 @@ resource "aws_lambda_function" "payment_processor" {
 
   environment {
     variables = {
-      DB_HOST                          = data.terraform_remote_state.services.outputs.rds_endpoint
-      DB_PORT                          = tostring(data.terraform_remote_state.services.outputs.rds_port)
-      DB_NAME                          = data.terraform_remote_state.services.outputs.rds_name
-      DB_SECRET_ARN                    = data.terraform_remote_state.services.outputs.db_master_user_secret_arn
-      SQS_NOTIFICATION_QUEUE_URL       = data.terraform_remote_state.services.outputs.notification_queue_url
+      DB_HOST                    = data.terraform_remote_state.shared_infra.outputs.rds_endpoint
+      DB_PORT                    = tostring(data.terraform_remote_state.shared_infra.outputs.rds_port)
+      DB_NAME                    = data.terraform_remote_state.shared_infra.outputs.rds_name
+      DB_SECRET_ARN              = data.terraform_remote_state.shared_infra.outputs.db_master_user_secret_arn
+      SQS_NOTIFICATION_QUEUE_URL = data.terraform_remote_state.shared_infra.outputs.notification_queue_url
       # AWS_REGION is reserved; Lambda injects it automatically — do not set here.
       spring_cloud_function_definition = "processPayment"
       STRIPE_SECRET_KEY                = var.stripe_secret_key
@@ -172,8 +206,8 @@ resource "aws_lambda_function" "payment_processor" {
   }
 
   vpc_config {
-    subnet_ids         = data.terraform_remote_state.services.outputs.lambda_subnet_ids
-    security_group_ids = [data.terraform_remote_state.services.outputs.ecs_security_group_id]
+    subnet_ids         = data.terraform_remote_state.shared_infra.outputs.lambda_subnet_ids
+    security_group_ids = [data.terraform_remote_state.shared_infra.outputs.app_security_group_id]
   }
 
   depends_on = [
@@ -186,7 +220,7 @@ resource "aws_lambda_function" "payment_processor" {
 
 # SQS Event Source Mapping (payment queue -> Lambda)
 resource "aws_lambda_event_source_mapping" "payment_queue" {
-  event_source_arn = data.terraform_remote_state.services.outputs.payment_queue_arn
+  event_source_arn = data.terraform_remote_state.shared_infra.outputs.payment_queue_arn
   function_name    = aws_lambda_function.payment_processor.arn
   enabled          = true
 

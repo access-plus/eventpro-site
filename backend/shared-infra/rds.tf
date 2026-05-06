@@ -1,5 +1,5 @@
 # RDS PostgreSQL with manage_master_user_password (Secrets Manager)
-# Uses default VPC subnets
+# Uses default VPC subnets.
 
 resource "aws_db_subnet_group" "main" {
   name       = "${local.name_prefix}-db-subnet-group"

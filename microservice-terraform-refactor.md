@@ -1,5 +1,7 @@
 # Microservices Terraform Refactoring Plan
 
+> Current architecture update: `backend/shared-infra` is now the sole upstream Terraform state for services, frontend, and lambdas. Shared resources such as RDS, SQS, event-images S3, Route53 hosted-zone outputs, ACM certificates, and shared security groups are owned by `backend/shared-infra` and consumed through `shared-infra/terraform.tfstate`, not `services/terraform.tfstate`.
+
 Refactor the EventPro application into independently deployable microservices with Terraform colocated in each component (frontend, services, lambdas). Remove the shared module dependency by inlining data structures into each service.
 
 ---

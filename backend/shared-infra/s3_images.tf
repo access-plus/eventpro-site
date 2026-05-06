@@ -1,4 +1,4 @@
-# S3 bucket for event images (used by ECS API)
+# S3 bucket for event images shared by runtime compute.
 
 resource "aws_s3_bucket" "images" {
   bucket = local.images_bucket_name
