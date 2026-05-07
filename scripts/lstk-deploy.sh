@@ -271,13 +271,15 @@ build_lambda_images() {
 
 build_frontend() {
   require_cmd npm
-  local vite_api_base_url
+  local vite_api_base_url vite_asset_base_url
   vite_api_base_url="${VITE_API_BASE_URL:-https://${WORKSPACE_NAME}-api.${DOMAIN_NAME}}"
+  vite_asset_base_url="${VITE_ASSET_BASE_URL:-https://localhost.localstack.cloud:4566/${WORKSPACE_NAME}-eventpro-site-frontend/}"
   log "Building frontend with VITE_API_BASE_URL=$vite_api_base_url"
+  log "Building frontend with VITE_ASSET_BASE_URL=$vite_asset_base_url"
   (
     cd "$ROOT_DIR/eventpro-frontend"
     npm ci
-    VITE_API_BASE_URL="$vite_api_base_url" npm run build
+    VITE_API_BASE_URL="$vite_api_base_url" VITE_ASSET_BASE_URL="$vite_asset_base_url" npm run build
   )
 }
 
