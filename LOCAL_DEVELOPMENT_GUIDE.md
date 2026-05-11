@@ -1415,6 +1415,14 @@ LocalStack CORS is configured by the services Terraform stack. In `terraform.lst
 
 The API always includes `https://<workspace>-app.<DOMAIN_NAME>` as an allowed origin, so the normal LocalStack frontend origin is allowed without an extra variable.
 
+LocalStack's edge gateway also enforces its own browser-origin checks before requests reach ECS/ALB targets. Set `EXTRA_CORS_ALLOWED_ORIGINS` in `.env.lstk` (or compose environment) to include your frontend origin, then restart LocalStack:
+
+```bash
+docker compose --env-file .env.lstk -f docker-compose.lstk.yml up -d localstack
+```
+
+If LocalStack blocks browser traffic, `docker logs eventpro-localstack-pro` will show lines like `Blocked CORS request from forbidden origin ...`.
+
 Individual stack shortcuts:
 
 <details>

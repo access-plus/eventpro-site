@@ -10,6 +10,7 @@ services:
       LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:?Set LOCALSTACK_AUTH_TOKEN in .env.lstk}
       LOCALSTACK_HOST: ${LOCALSTACK_HOST:-localhost.localstack.cloud:4566}
       GATEWAY_LISTEN: ${GATEWAY_LISTEN:-0.0.0.0:4566,0.0.0.0:443}
+      EXTRA_CORS_ALLOWED_ORIGINS: ${EXTRA_CORS_ALLOWED_ORIGINS:-https://lstk-app.localhost.localstack.cloud,https://localhost.localstack.cloud:4566,http://localhost.localstack.cloud:4566,http://localhost:4566}
       DNS_ADDRESS: ${DNS_ADDRESS:-0.0.0.0}
       DNS_RESOLVE_IP: ${DNS_RESOLVE_IP:-127.0.0.1}
       EXTERNAL_SERVICE_PORTS_START: ${EXTERNAL_SERVICE_PORTS_START:-4510}
