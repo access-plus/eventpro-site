@@ -30,6 +30,14 @@ locals {
     SPRING_JPA_PROPERTIES_HIBERNATE_BOOT_ALLOW_JDBC_METADATA_ACCESS = "false"
     SPRING_APPLICATION_JSON                                         = local.localstack_spring_application_json
   } : {}
+  new_relic_env = var.new_relic_license_key != "" ? {
+    NEW_RELIC_APP_NAME                    = "eventpro-order-processor-${local.workspace}"
+    NEW_RELIC_LICENSE_KEY                 = var.new_relic_license_key
+    NEW_RELIC_DISTRIBUTED_TRACING_ENABLED = "true"
+    NEW_RELIC_LOG                         = "info"
+    NEW_RELIC_LABELS                      = "env:${local.workspace};service:eventpro-order-processor"
+    JAVA_TOOL_OPTIONS                     = "-javaagent:/opt/newrelic/newrelic.jar"
+  } : {}
 
   shared_infra_remote_state_config = merge(
     {
@@ -225,7 +233,7 @@ resource "aws_lambda_function" "order_processor" {
       SQS_PAYMENT_QUEUE_URL = data.terraform_remote_state.shared_infra.outputs.payment_queue_url
       # AWS_REGION is reserved; Lambda injects it automatically — do not set here.
       spring_cloud_function_definition = "processOrder"
-    }, local.localstack_runtime_env)
+    }, local.localstack_runtime_env, local.new_relic_env)
   }
 
   vpc_config {

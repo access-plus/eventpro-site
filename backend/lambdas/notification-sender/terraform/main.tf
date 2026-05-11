@@ -13,6 +13,14 @@ locals {
     AWS_ENDPOINT_URL      = var.localstack_runtime_endpoint
     SES_ENDPOINT          = var.localstack_runtime_endpoint
   } : {}
+  new_relic_env = var.new_relic_license_key != "" ? {
+    NEW_RELIC_APP_NAME                    = "eventpro-notification-sender-${local.workspace}"
+    NEW_RELIC_LICENSE_KEY                 = var.new_relic_license_key
+    NEW_RELIC_DISTRIBUTED_TRACING_ENABLED = "true"
+    NEW_RELIC_LOG                         = "info"
+    NEW_RELIC_LABELS                      = "env:${local.workspace};service:eventpro-notification-sender"
+    JAVA_TOOL_OPTIONS                     = "-javaagent:/opt/newrelic/newrelic.jar"
+  } : {}
 
   shared_infra_remote_state_config = merge(
     {
@@ -186,7 +194,7 @@ resource "aws_lambda_function" "notification_sender" {
       # AWS_REGION is reserved; Lambda injects it automatically — do not set here.
       SES_SENDER_EMAIL                 = var.ses_sender_email
       spring_cloud_function_definition = "sendNotification"
-    }, local.localstack_runtime_env)
+    }, local.localstack_runtime_env, local.new_relic_env)
   }
 
   depends_on = [

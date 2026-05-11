@@ -169,7 +169,14 @@ resource "aws_ecs_task_definition" "api" {
           JWT_PUBLIC_KEY         = var.jwt_public_key
           JWT_PRIVATE_KEY        = var.jwt_private_key
         } : { name = k, value = v } if v != ""
-      ]
+      ],
+      var.new_relic_license_key != "" ? [
+        { name = "NEW_RELIC_APP_NAME", value = "eventpro-site-${local.workspace}" },
+        { name = "NEW_RELIC_LICENSE_KEY", value = var.new_relic_license_key },
+        { name = "NEW_RELIC_DISTRIBUTED_TRACING_ENABLED", value = "true" },
+        { name = "NEW_RELIC_LOG", value = "info" },
+        { name = "NEW_RELIC_LABELS", value = "env:${local.workspace};service:eventpro-api" }
+      ] : []
     )
 
     logConfiguration = {

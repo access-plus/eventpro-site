@@ -116,6 +116,7 @@ Optional env vars passed to Terraform when set:
   STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET
   JWT_ISSUER, JWT_ACCESS_TTL_SECONDS, JWT_PUBLIC_KEY, JWT_PRIVATE_KEY
   JWT_PUBLIC_KEY_FILE, JWT_PRIVATE_KEY_FILE   (script reads file content into JWT_* vars)
+  NEW_RELIC_LICENSE_KEY (legacy alias: NEWRELIC_LICENSE_KEY)
   SES_SENDER_EMAIL
   VITE_API_BASE_URL
 
@@ -651,11 +652,13 @@ run_services_stack() {
     [ -n "${JWT_ACCESS_TTL_SECONDS:-}" ] && export TF_VAR_jwt_access_ttl_seconds="$JWT_ACCESS_TTL_SECONDS"
     [ -n "${JWT_PUBLIC_KEY:-}" ] && export TF_VAR_jwt_public_key="$JWT_PUBLIC_KEY"
     [ -n "${JWT_PRIVATE_KEY:-}" ] && export TF_VAR_jwt_private_key="$JWT_PRIVATE_KEY"
+    export TF_VAR_new_relic_license_key="$NEW_RELIC_LICENSE_KEY"
 
     terraform_validate_and_run backend/services/terraform \
       -var="image_registry=${SERVICES_IMAGE_REGISTRY}" \
       -var="image_name=${SERVICES_IMAGE_NAME}" \
-      -var="image_tag=${SERVICES_IMAGE_TAG}"
+      -var="image_tag=${SERVICES_IMAGE_TAG}" \
+      -var="new_relic_license_key=${NEW_RELIC_LICENSE_KEY}"
   )
 }
 
@@ -862,11 +865,13 @@ run_lambda_stack() {
     export TF_VAR_image_registry="$image_registry"
     export TF_VAR_image_name="$image_name"
     export TF_VAR_image_tag="$image_tag"
+    export TF_VAR_new_relic_license_key="$NEW_RELIC_LICENSE_KEY"
 
     tf_extra_args=(
       -var="image_registry=${image_registry}"
       -var="image_name=${image_name}"
       -var="image_tag=${image_tag}"
+      -var="new_relic_license_key=${NEW_RELIC_LICENSE_KEY}"
     )
 
     if [ "$lambda" = "payment-processor" ]; then
@@ -889,6 +894,13 @@ run_lambdas() {
   csv_contains "$LAMBDA_TARGETS_CSV" order-processor && run_lambda_stack order-processor
   csv_contains "$LAMBDA_TARGETS_CSV" payment-processor && run_lambda_stack payment-processor
   csv_contains "$LAMBDA_TARGETS_CSV" notification-sender && run_lambda_stack notification-sender
+}
+
+normalize_new_relic_key() {
+  if [ -z "${NEW_RELIC_LICENSE_KEY:-}" ] && [ -n "${NEWRELIC_LICENSE_KEY:-}" ]; then
+    NEW_RELIC_LICENSE_KEY="$NEWRELIC_LICENSE_KEY"
+  fi
+  export NEW_RELIC_LICENSE_KEY="${NEW_RELIC_LICENSE_KEY:-}"
 }
 
 check_prereqs() {
@@ -937,6 +949,7 @@ main() {
 
   validate_sources
   apply_component_filters
+  normalize_new_relic_key
 
   [ "$WORKSPACE" = "dev" ] || [ "$WORKSPACE" = "prod" ] || warn "Workspace '$WORKSPACE' is not one of the expected values (dev, prod)."
 

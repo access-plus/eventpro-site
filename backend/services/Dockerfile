@@ -22,11 +22,15 @@ WORKDIR /app
 # ECS container health check uses curl (/actuator/health)
 RUN apk add --no-cache curl
 
+# Download New Relic Java agent into the runtime image.
+RUN mkdir -p /opt/newrelic \
+  && curl -fsSL "https://download.newrelic.com/newrelic/java-agent/newrelic-agent/current/newrelic.jar" -o /opt/newrelic/newrelic.jar
+
 # Copy the built JAR
 COPY --from=build /app/services/modules/eventpro-api/build/libs/eventpro-api-*.jar app.jar
 
 # Set Java options for container
-ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -javaagent:/opt/newrelic/newrelic.jar"
 
 EXPOSE 8080
 

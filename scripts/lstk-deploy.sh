@@ -167,6 +167,9 @@ set -a
 . "$ENV_FILE_PATH"
 set +a
 
+NEW_RELIC_LICENSE_KEY="${NEW_RELIC_LICENSE_KEY:-${NEWRELIC_LICENSE_KEY:-}}"
+export NEW_RELIC_LICENSE_KEY
+
 export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}"
 export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}"
 export AWS_SESSION_TOKEN="${AWS_SESSION_TOKEN:-test}"
@@ -190,6 +193,7 @@ export TF_VAR_stripe_secret_key="${STRIPE_SECRET_KEY:-sk_test_local}"
 export TF_VAR_stripe_publishable_key="${STRIPE_PUBLISHABLE_KEY:-pk_test_local}"
 export TF_VAR_stripe_webhook_secret="${STRIPE_WEBHOOK_SECRET:-test_webhook_secret}"
 export TF_VAR_ses_sender_email="${SES_SENDER_EMAIL:-noreply@eventpro.com}"
+export TF_VAR_new_relic_license_key="${NEW_RELIC_LICENSE_KEY:-}"
 
 aws_lstk() {
   aws --endpoint-url="$AWS_ENDPOINT_URL" "$@"

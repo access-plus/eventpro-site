@@ -99,6 +99,13 @@ variable "batch_size" {
   default     = 10
 }
 
+variable "new_relic_license_key" {
+  description = "New Relic license key (pass via CI secrets)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
