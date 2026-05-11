@@ -9,6 +9,9 @@ terraform {
   }
 
   backend "s3" {
-    # bucket, key, region, use_lockfile passed via -backend-config in CI
+    bucket       = "eventpro-site-state"
+    key          = "frontend/terraform.tfstate"
+    region       = "us-east-1"
+    use_lockfile = true
   }
 }

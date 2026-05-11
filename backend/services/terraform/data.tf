@@ -29,6 +29,21 @@ locals {
   name_prefix = local.workspace
   image_uri   = "${var.image_registry}/${var.image_name}:${var.image_tag}"
   common_tags = merge(var.tags, { Env = local.workspace })
+  cors_allowed_origins = distinct(concat(
+    ["https://${terraform.workspace}-app.${var.domain_name}"],
+    var.use_localstack ? [
+      "https://localhost.localstack.cloud:4566",
+      "http://localhost.localstack.cloud:4566",
+      "http://localhost:4566"
+    ] : [],
+    var.cors_allowed_origins
+  ))
+  cors_environment_variables = [
+    for index, origin in local.cors_allowed_origins : {
+      name  = "EVENTPRO_CORS_ALLOWED_ORIGINS_${index}"
+      value = origin
+    }
+  ]
 }
 
 data "terraform_remote_state" "shared_infra" {

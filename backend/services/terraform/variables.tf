@@ -45,6 +45,12 @@ variable "localstack_runtime_endpoint" {
   default     = "http://host.docker.internal:4566"
 }
 
+variable "cors_allowed_origins" {
+  description = "Additional browser origins allowed to call the API. The workspace frontend origin is always included."
+  type        = list(string)
+  default     = []
+}
+
 variable "shared_infra_state_bucket" {
   description = "S3 bucket containing the shared infrastructure Terraform state"
   type        = string

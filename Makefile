@@ -1,4 +1,5 @@
 .PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build jwt-keys \
+	tf-deploy-shared-infra tf-deploy-services tf-deploy-frontend tf-deploy-lambda-order tf-deploy-lambda-payment tf-deploy-lambda-notification tf-deploy-lambdas tf-deploy-all \
 	tf-destroy-shared-infra tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy \
 	lstk-start lstk-stop lstk-state-bucket lstk-route53-zone lstk-endpoints lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all lstk-tf-destroy-all lstk-redeploy
 
@@ -15,6 +16,7 @@ LSTK_ENV_FILE ?= .env.lstk
 LSTK_COMPOSE_FILE ?= docker-compose.lstk.yml
 LSTK_WORKSPACE ?= lstk
 LSTK_TF_ACTION ?= plan
+TF_IMAGE_TAG_VAR = $(if $(IMAGE_TAG),-var="image_tag=$(IMAGE_TAG)",)
 
 # Terraform reserves TF_WORKSPACE as an environment variable. We keep the Make
 # variable name for CLI ergonomics (e.g. `make ... TF_WORKSPACE=dev`) but do not
@@ -67,6 +69,16 @@ help:
 	@echo "  make lambda-build   - Build all Lambda Docker images"
 	@echo "  make lambda-build-payment - Build payment-processor Lambda image"
 	@echo "  make lambda-build-notification - Build notification-sender Lambda image"
+	@echo ""
+	@echo "AWS Terraform Deploy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env.remote; IMAGE_TAG optional for services/lambdas):"
+	@echo "  make tf-deploy-shared-infra         - Deploy shared infrastructure stack"
+	@echo "  make tf-deploy-services IMAGE_TAG=x - Deploy services Terraform stack"
+	@echo "  make tf-deploy-frontend             - Deploy frontend Terraform stack"
+	@echo "  make tf-deploy-lambda-order IMAGE_TAG=x - Deploy order lambda Terraform stack"
+	@echo "  make tf-deploy-lambda-payment IMAGE_TAG=x - Deploy payment lambda Terraform stack"
+	@echo "  make tf-deploy-lambda-notification IMAGE_TAG=x - Deploy notification lambda Terraform stack"
+	@echo "  make tf-deploy-lambdas IMAGE_TAG=x  - Deploy all lambda Terraform stacks"
+	@echo "  make tf-deploy-all IMAGE_TAG=x      - Deploy shared, services, frontend, and lambdas"
 	@echo ""
 	@echo "AWS Terraform Destroy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env.remote; DOMAIN_NAME required. Lambda/services image registry+tag default to placeholders if unset):"
 	@echo "  make tf-destroy-frontend            - Destroy frontend Terraform stack"
@@ -299,6 +311,57 @@ jwt-keys:
 	@./scripts/jwt-script.sh --generate-if-missing jwt-private.pem jwt-public.pem .env
 
 # ============================================================================
+# AWS Terraform Deploy (higher environments)
+# ============================================================================
+
+tf-deploy-shared-infra:
+	@cd backend/shared-infra && \
+		terraform init -upgrade && \
+		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform apply -auto-approve -var-file=terraform.tfvars
+
+tf-deploy-services:
+	@cd backend/services/terraform && \
+		terraform init -upgrade && \
+		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
+
+tf-deploy-frontend:
+	@cd eventpro-frontend/terraform && \
+		terraform init -upgrade -reconfigure && \
+		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform apply -auto-approve -var-file=terraform.tfvars
+
+tf-deploy-lambda-order:
+	@cd backend/lambdas/order-processor/terraform && \
+		terraform init -upgrade && \
+		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
+
+tf-deploy-lambda-payment:
+	@cd backend/lambdas/payment-processor/terraform && \
+		terraform init -upgrade && \
+		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
+
+tf-deploy-lambda-notification:
+	@cd backend/lambdas/notification-sender/terraform && \
+		terraform init -upgrade && \
+		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
+
+tf-deploy-lambdas:
+	@$(MAKE) tf-deploy-lambda-order TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG)
+	@$(MAKE) tf-deploy-lambda-payment TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG)
+	@$(MAKE) tf-deploy-lambda-notification TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG)
+
+tf-deploy-all:
+	@$(MAKE) tf-deploy-shared-infra TF_WORKSPACE=$(TF_WORKSPACE)
+	@$(MAKE) tf-deploy-services TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG)
+	@$(MAKE) tf-deploy-frontend TF_WORKSPACE=$(TF_WORKSPACE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
+	@$(MAKE) tf-deploy-lambdas TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG)
+
+# ============================================================================
 # AWS Terraform Destroy (higher environments)
 # ============================================================================
 
@@ -310,7 +373,7 @@ tf-destroy-shared-infra:
 		cd backend/shared-infra && \
 		terraform init -upgrade && \
 		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
-			terraform destroy -auto-approve; \
+			terraform destroy -auto-approve -var-file=terraform.tfvars; \
 		else \
 			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
 		fi
@@ -326,7 +389,7 @@ tf-destroy-services:
 		cd backend/services/terraform && \
 		terraform init -upgrade && \
 		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
-			terraform destroy -auto-approve; \
+			terraform destroy -auto-approve -var-file=terraform.tfvars; \
 		else \
 			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
 		fi
@@ -337,13 +400,9 @@ tf-destroy-frontend:
 		[ -n "$$DOMAIN_NAME" ] || { echo "DOMAIN_NAME is required (set in $(TF_ENV_FILE) or env)"; exit 1; }; \
 		export TF_VAR_domain_name="$$DOMAIN_NAME"; \
 		cd eventpro-frontend/terraform && \
-		terraform init -upgrade \
-			-backend-config=bucket=$(TF_STATE_BUCKET) \
-			-backend-config=key=frontend/terraform.tfstate \
-			-backend-config=region=$(TF_STATE_REGION) \
-			-backend-config=use_lockfile=true && \
+		terraform init -upgrade -reconfigure && \
 		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
-			terraform destroy -auto-approve; \
+			terraform destroy -auto-approve -var-file=terraform.tfvars; \
 		else \
 			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
 		fi
@@ -357,7 +416,7 @@ tf-destroy-lambda-order:
 		cd backend/lambdas/order-processor/terraform && \
 		terraform init -upgrade && \
 		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
-			terraform destroy -auto-approve; \
+			terraform destroy -auto-approve -var-file=terraform.tfvars; \
 		else \
 			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
 		fi
@@ -372,7 +431,7 @@ tf-destroy-lambda-payment:
 		cd backend/lambdas/payment-processor/terraform && \
 		terraform init -upgrade && \
 		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
-			terraform destroy -auto-approve; \
+			terraform destroy -auto-approve -var-file=terraform.tfvars; \
 		else \
 			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
 		fi
@@ -387,21 +446,21 @@ tf-destroy-lambda-notification:
 		cd backend/lambdas/notification-sender/terraform && \
 		terraform init -upgrade && \
 		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
-			terraform destroy -auto-approve; \
+			terraform destroy -auto-approve -var-file=terraform.tfvars; \
 		else \
 			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
 		fi
 
 tf-destroy-lambdas:
-	@$(MAKE) tf-destroy-lambda-order TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
-	@$(MAKE) tf-destroy-lambda-payment TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
-	@$(MAKE) tf-destroy-lambda-notification TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
+	@$(MAKE) tf-destroy-lambda-order TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
+	@$(MAKE) tf-destroy-lambda-payment TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
+	@$(MAKE) tf-destroy-lambda-notification TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
 
 tf-destroy-all:
 	@$(MAKE) tf-destroy-frontend TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
-	@$(MAKE) tf-destroy-lambdas TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
-	@$(MAKE) tf-destroy-services TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
-	@$(MAKE) tf-destroy-shared-infra TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE)
+	@$(MAKE) tf-destroy-lambdas TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
+	@$(MAKE) tf-destroy-services TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
+	@$(MAKE) tf-destroy-shared-infra TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
 
 # Convenience alias: tear down all remote Terraform (frontend + lambdas + services + shared infra)
 tf-destroy: tf-destroy-all

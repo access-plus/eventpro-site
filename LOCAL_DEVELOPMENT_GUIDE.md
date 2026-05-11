@@ -1407,7 +1407,18 @@ Those Make targets call the dedicated LocalStack deploy script:
 
 Use `scripts/pipeline-deploy.sh` only for real AWS cloud deployments that load `.env.remote`. Use `scripts/lstk-deploy.sh` for Complete LocalStack Pro deployments that load `.env.lstk`.
 
+LocalStack CORS is configured by the services Terraform stack. In `terraform.lstk.tfvars`, `cors_allowed_origins` includes:
+- `https://lstk-app.localhost.localstack.cloud`
+- `https://localhost.localstack.cloud:4566`
+- `http://localhost.localstack.cloud:4566`
+- `http://localhost:4566`
+
+The API always includes `https://<workspace>-app.<DOMAIN_NAME>` as an allowed origin, so the normal LocalStack frontend origin is allowed without an extra variable.
+
 Individual stack shortcuts:
+
+<details>
+<summary>tf plan</summary>
 
 ```bash
 make lstk-tf-shared-infra
@@ -1415,6 +1426,19 @@ make lstk-tf-services
 make lstk-tf-frontend
 make lstk-tf-lambdas
 ```
+
+</details>
+
+<details>
+<summary>tf apply</summary>
+
+```bash
+make lstk-tf-shared-infra LSTK_TF_ACTION=apply
+make lstk-tf-services LSTK_TF_ACTION=apply
+make lstk-tf-frontend LSTK_TF_ACTION=apply
+make lstk-tf-lambdas LSTK_TF_ACTION=apply
+```
+</details>
 
 Destroy order is the reverse of deploy order:
 
@@ -1570,6 +1594,26 @@ Full runbook: `docs/TERRAFORM_DEPLOY_TARGETS.md`.
 
 Higher environments use `.env.remote` and `backend/shared-infra` as the only upstream Terraform state. Services, frontend, and lambdas can be deployed independently, but the matching workspace must already have shared infra applied.
 
+Make shortcuts wrap `scripts/pipeline-deploy.sh` and load `.env.remote` by default:
+
+```bash
+make tf-deploy-shared-infra
+make tf-deploy-services IMAGE_TAG=abc05110957
+make tf-deploy-frontend
+make tf-deploy-lambdas IMAGE_TAG=abc05110957
+make tf-deploy-all IMAGE_TAG=abc05110957
+```
+
+For individual lambdas:
+
+```bash
+make tf-deploy-lambda-order IMAGE_TAG=abc05110957
+make tf-deploy-lambda-payment IMAGE_TAG=abc05110957
+make tf-deploy-lambda-notification IMAGE_TAG=abc05110957
+```
+
+`IMAGE_TAG` is only needed when you want to control the Docker image tag for the API service and Lambda container images. If you omit it, the deployment script uses the current git SHA tag. The frontend does not need a Docker image tag because it is built as static assets, uploaded to the frontend S3 bucket, and served through CloudFront.
+
 *deploy shared infrastructure only*
 
 ```bash
@@ -1585,7 +1629,7 @@ Higher environments use `.env.remote` and `backend/shared-infra` as the only ups
 *build and deploy everything in dependency order*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env.remote --apply --image-tag abc4150605
+./scripts/pipeline-deploy.sh --env-file .env.remote --apply --image-tag abc05110957
 ```
 
 Notes:
@@ -1601,7 +1645,7 @@ Notes:
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env.remote --only services --apply --image-tag abc4150605
+./scripts/pipeline-deploy.sh --env-file .env.remote --only services --apply --image-tag abc05110957
 ```
 
 If shared infra is not already applied for the workspace, run this first:
@@ -1617,7 +1661,7 @@ Make sure the image is in the ECR registry and the image tag is set in the .env 
 ```bash
 export SERVICES_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
 export SERVICES_IMAGE_NAME=eventpro-api
-export SERVICES_IMAGE_TAG=abc4150605
+export SERVICES_IMAGE_TAG=abc05110957
 ```
 
 ```bash
@@ -1638,7 +1682,7 @@ export SERVICES_IMAGE_TAG=abc4150605
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env.remote --only frontend --apply --image-tag abc4150605
+./scripts/pipeline-deploy.sh --env-file .env.remote --only frontend --apply --image-tag abc05110957
 ```
 
 *preview terraform changes only (no S3 sync / CloudFront invalidation in plan mode)*
@@ -1675,7 +1719,7 @@ Notes:
 *build and deploy all lambdas*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env.remote --only lambdas --apply --image-tag abc4150605
+./scripts/pipeline-deploy.sh --env-file .env.remote --only lambdas --apply --image-tag abc05110957
 ```
 
 *deploy only specific lambdas*
@@ -1685,7 +1729,7 @@ Notes:
   --env-file .env.remote \
   --only lambdas \
   --lambdas order-processor,payment-processor \
-  --apply --image-tag abc4150605
+  --apply --image-tag abc05110957
 ```
 
 *deploy existing images (all lambdas)*
@@ -1711,7 +1755,7 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
   --env-file .env.remote \
   --only lambdas \
   --lambdas-image-source existing \
-  --apply --image-tag abc4150605
+  --apply --image-tag abc05110957
 ```
 
 *mix build + existing image sources per lambda (example)*
@@ -1723,7 +1767,7 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
   --order-processor-image-source existing \
   --payment-processor-image-source build \
   --notification-sender-image-source build \
-  --apply --image-tag abc4150605
+  --apply --image-tag abc05110957
 ```
 
 Notes:

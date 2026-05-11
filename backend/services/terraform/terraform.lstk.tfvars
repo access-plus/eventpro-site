@@ -4,6 +4,13 @@ use_localstack              = true
 localstack_endpoint         = "http://localhost:4566"
 localstack_runtime_endpoint = "http://host.docker.internal:4566"
 
+cors_allowed_origins = [
+  "https://lstk-app.localhost.localstack.cloud",
+  "https://localhost.localstack.cloud:4566",
+  "http://localhost.localstack.cloud:4566",
+  "http://localhost:4566"
+]
+
 image_registry = "localstack"
 image_name     = "eventpro-api"
 image_tag      = "local"
