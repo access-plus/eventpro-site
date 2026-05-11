@@ -327,10 +327,22 @@ tf-deploy-services:
 		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
 
 tf-deploy-frontend:
-	@cd eventpro-frontend/terraform && \
+	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
+		DOMAIN_NAME="$${DOMAIN_NAME:-$$(sed -n 's/^domain_name[[:space:]]*=[[:space:]]*"\(.*\)"/\1/p' eventpro-frontend/terraform/terraform.tfvars | head -n 1)}"; \
+		[ -n "$$DOMAIN_NAME" ] || { echo "DOMAIN_NAME is required (set in $(TF_ENV_FILE) or eventpro-frontend/terraform/terraform.tfvars)"; exit 1; }; \
+		VITE_API_BASE_URL="$${VITE_API_BASE_URL:-https://$(TF_WORKSPACE)-api.$$DOMAIN_NAME}"; \
+		cd eventpro-frontend && \
+		npm ci && \
+		VITE_API_BASE_URL="$$VITE_API_BASE_URL" npm run build && \
+		cd terraform && \
 		terraform init -upgrade -reconfigure && \
 		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
-		terraform apply -auto-approve -var-file=terraform.tfvars
+		terraform apply -auto-approve -var-file=terraform.tfvars && \
+		BUCKET_NAME="$$(terraform output -raw bucket_name)" && \
+		DISTRIBUTION_ID="$$(terraform output -raw distribution_id)" && \
+		cd ../.. && \
+		aws s3 sync eventpro-frontend/dist/ "s3://$$BUCKET_NAME/" --delete && \
+		aws cloudfront create-invalidation --distribution-id "$$DISTRIBUTION_ID" --paths '/*' >/dev/null
 
 tf-deploy-lambda-order:
 	@cd backend/lambdas/order-processor/terraform && \
