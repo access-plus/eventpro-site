@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local pipeline-mimic deploy script (services -> frontend -> lambdas)
+# Local pipeline-mimic deploy script (shared-infra -> services -> frontend -> lambdas)
 # Mirrors the GitHub workflows' image variable format: image_registry/image_name/image_tag.
 
 set -euo pipefail
@@ -9,6 +9,7 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 WORKSPACE="${WORKSPACE:-dev}"
 ACTION="apply" # plan|apply
 
+RUN_SHARED_INFRA=true
 RUN_SERVICES=true
 RUN_FRONTEND=true
 RUN_LAMBDAS=true
@@ -61,9 +62,10 @@ Usage:
   ./scripts/pipeline-deploy.sh [options]
 
 What it does (in order):
-  1) services (build image + terraform) [optional existing image mode]
-  2) frontend (npm build + terraform + S3 sync + CloudFront invalidation)
-  3) lambdas (order, payment, notification) [optional existing image mode]
+  1) shared-infra (terraform)
+  2) services (build image + terraform) [optional existing image mode]
+  3) frontend (npm build + terraform + S3 sync + CloudFront invalidation)
+  4) lambdas (order, payment, notification) [optional existing image mode]
 
 Modes:
   --plan                 Run terraform plan for selected stacks (no S3 sync/invalidation)
@@ -72,8 +74,8 @@ Modes:
 Common options:
   --workspace NAME       Terraform workspace (default: dev)
   --env-file PATH        Source shell-compatible env file (repeatable)
-  --only CSV             Components to run: services,frontend,lambdas (or all)
-  --skip CSV             Components to skip: services,frontend,lambdas
+  --only CSV             Components to run: shared-infra,services,frontend,lambdas (or all)
+  --skip CSV             Components to skip: shared-infra,services,frontend,lambdas
   --lambdas CSV          Lambda subset: order-processor,payment-processor,notification-sender
   --image-tag TAG        Default build tag for all built images (defaults to sha-<gitsha>)
   --ecr-registry HOST    ECR registry host (e.g. 123...dkr.ecr.us-east-1.amazonaws.com)
@@ -120,6 +122,7 @@ Optional env vars passed to Terraform when set:
 Build behavior env vars:
   SERVICES_IMAGE_PLATFORMS  Docker build platforms for services image in build mode (default: linux/amd64,linux/arm64)
   SERVICES_IMAGE_PLATFORM   Legacy alias for single-platform builds (fallback only)
+  LAMBDA_IMAGE_PLATFORM     Docker platform for Lambda images in build mode (default: linux/amd64)
 
 Notes:
   - Frontend Terraform backend config is intentionally hardcoded to match CI.
@@ -320,15 +323,18 @@ csv_contains() {
 
 apply_component_filters() {
   if [ -n "$ONLY_COMPONENTS" ]; then
+    RUN_SHARED_INFRA=false
     RUN_SERVICES=false
     RUN_FRONTEND=false
     RUN_LAMBDAS=false
+    csv_contains "$ONLY_COMPONENTS" "shared-infra" && RUN_SHARED_INFRA=true
     csv_contains "$ONLY_COMPONENTS" "services" && RUN_SERVICES=true
     csv_contains "$ONLY_COMPONENTS" "frontend" && RUN_FRONTEND=true
     csv_contains "$ONLY_COMPONENTS" "lambdas" && RUN_LAMBDAS=true
   fi
 
   if [ -n "$SKIP_COMPONENTS" ]; then
+    csv_contains "$SKIP_COMPONENTS" "shared-infra" && RUN_SHARED_INFRA=false
     csv_contains "$SKIP_COMPONENTS" "services" && RUN_SERVICES=false
     csv_contains "$SKIP_COMPONENTS" "frontend" && RUN_FRONTEND=false
     csv_contains "$SKIP_COMPONENTS" "lambdas" && RUN_LAMBDAS=false
@@ -597,6 +603,20 @@ prepare_stack() {
   terraform_init "$tf_dir"
   log "${GREEN}Terraform workspace:${NC} $WORKSPACE ($tf_dir)"
   terraform_select_workspace "$tf_dir"
+}
+
+run_shared_infra_stack() {
+  log "${GREEN}Deploying shared infrastructure stack${NC}"
+
+  require_var DOMAIN_NAME
+
+  prepare_stack backend/shared-infra
+  (
+    export TF_VAR_domain_name="$DOMAIN_NAME"
+
+    terraform_validate_and_run backend/shared-infra \
+      -var="domain_name=${DOMAIN_NAME}"
+  )
 }
 
 run_services_stack() {
@@ -887,7 +907,7 @@ print_plan() {
   log "  Workspace: $WORKSPACE"
   log "  Action: $ACTION"
   log "  AWS_REGION: $AWS_REGION"
-  log "  Components: services=$RUN_SERVICES frontend=$RUN_FRONTEND lambdas=$RUN_LAMBDAS"
+  log "  Components: shared-infra=$RUN_SHARED_INFRA services=$RUN_SERVICES frontend=$RUN_FRONTEND lambdas=$RUN_LAMBDAS"
   if [ "$RUN_LAMBDAS" = true ]; then
     log "  Lambda targets: $LAMBDA_TARGETS_CSV"
   fi
@@ -928,6 +948,10 @@ main() {
   print_plan
 
   export AWS_REGION
+
+  if [ "$RUN_SHARED_INFRA" = true ]; then
+    run_shared_infra_stack
+  fi
 
   if [ "$RUN_SERVICES" = true ]; then
     run_services_stack

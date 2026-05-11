@@ -7,6 +7,7 @@ const isDockerDev = process.env.DOCKER === "1" || process.env.CHOKIDAR_USEPOLLIN
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: process.env.VITE_ASSET_BASE_URL || "/",
   // Default cache is node_modules/.vite — in Docker, node_modules is a named volume and a stale
   // dep cache causes "504 Outdated Optimize Dep" in the browser. Keep the cache on the bind-mounted tree.
   cacheDir: path.resolve(__dirname, ".vite-cache"),

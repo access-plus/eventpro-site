@@ -3,7 +3,7 @@
 Complete guide for setting up and running the EventPro application locally using Make commands.
 
 <details>
-<summary>localhost</summary>
+<summary><strong>localhost</strong></summary>
 
 ## 📖 Quick Reference
 
@@ -1283,7 +1283,369 @@ This guide covers:
 ---
 
 <details>
+<summary><strong>Complete LocalStack Pro deployment</strong></summary>
+
+This is the full AWS-emulation path for the production-shaped Terraform stacks. It is separate from the Docker Compose hybrid local development flow that uses `make local-infra` and `infrastructure/environments/local`.
+
+This flow starts LocalStack Pro with `docker-compose.lstk.yml`. If you previously started LocalStack with another launcher, stop that instance first so ports `443`, `4566`, and `4510-4559` are available.
+
+Use this path when you want to exercise:
+- `backend/shared-infra`
+- `backend/services/terraform`
+- `eventpro-frontend/terraform`
+- `backend/lambdas/*/terraform`
+
+The deploy order is the same as higher environments:
+
+```text
+shared-infra
+  -> services
+  -> frontend
+  -> order-processor
+  -> payment-processor
+  -> notification-sender
+```
+
+LocalStack Pro uses different credentials and backend/provider wiring:
+- Credentials are mock values: `AWS_ACCESS_KEY_ID=test`, `AWS_SECRET_ACCESS_KEY=test`.
+- LocalStack environment values live in `.env.lstk`.
+- Host-side AWS CLI/Terraform uses `AWS_ENDPOINT_URL=http://localhost:4566`.
+- ECS/Lambda containers use `LOCALSTACK_RUNTIME_ENDPOINT=http://host.docker.internal:4566` so runtime AWS SDK calls can reach the LocalStack gateway from inside Docker.
+- Each stack initializes Terraform state with `backend.lstk.tfbackend`.
+- Each stack plans/applies resource variables with `terraform.lstk.tfvars`.
+- The shared Terraform state bucket must exist inside LocalStack before `terraform init`.
+- Do not use `terraform.tfvars` for this flow.
+
+*load LocalStack Pro environment and start LocalStack*
+
+```bash
+set -a
+source .env.lstk
+set +a
+
+# Set LOCALSTACK_AUTH_TOKEN in .env.lstk or export it in your shell before starting LocalStack Pro.
+: "${LOCALSTACK_AUTH_TOKEN:?Set LOCALSTACK_AUTH_TOKEN for LocalStack Pro}"
+
+docker compose --env-file .env.lstk -f docker-compose.lstk.yml up -d localstack
+```
+
+If LocalStack Pro is already running, confirm it is reachable:
+
+```bash
+docker compose --env-file .env.lstk -f docker-compose.lstk.yml ps localstack
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" sts get-caller-identity
+```
+
+If you used `make lstk-start`, remember that Make loads `.env.lstk` inside the compose command. Run `set -a; source .env.lstk; set +a` in your current terminal before manual `aws` commands, or use the Make shortcuts below.
+
+*create the emulated Terraform state bucket*
+
+```bash
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 mb s3://eventpro-site-state
+```
+
+If the bucket already exists, this command can fail safely. Confirm with:
+
+```bash
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" s3 ls
+```
+
+*create the emulated Route53 hosted zone*
+
+`backend/shared-infra` intentionally uses a Route53 hosted-zone data source, matching real AWS where the zone must already exist. For LocalStack Pro, create that hosted zone before running shared infra:
+
+```bash
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" route53 create-hosted-zone \
+  --name "$DOMAIN_NAME" \
+  --caller-reference "eventpro-lstk-$DOMAIN_NAME"
+```
+
+If the hosted zone already exists, this command can fail safely. Confirm with:
+
+```bash
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
+AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
+aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" route53 list-hosted-zones-by-name \
+  --dns-name "$DOMAIN_NAME"
+```
+
+Make shortcuts are available for this full LocalStack Pro flow:
+
+```bash
+make lstk-start
+make lstk-state-bucket
+make lstk-route53-zone
+make lstk-endpoints
+make lstk-tf-all                 # defaults to plan
+make lstk-tf-all LSTK_TF_ACTION=apply
+make lstk-tf-destroy-all
+make lstk-redeploy
+```
+
+Those Make targets call the dedicated LocalStack deploy script:
+
+```bash
+./scripts/lstk-deploy.sh --plan
+./scripts/lstk-deploy.sh --apply
+./scripts/lstk-deploy.sh --destroy
+./scripts/lstk-deploy.sh --print-endpoints
+./scripts/lstk-deploy.sh --apply --only services
+```
+
+Use `scripts/pipeline-deploy.sh` only for real AWS cloud deployments that load `.env.remote`. Use `scripts/lstk-deploy.sh` for Complete LocalStack Pro deployments that load `.env.lstk`.
+
+LocalStack CORS is configured by the services Terraform stack. In `terraform.lstk.tfvars`, `cors_allowed_origins` includes:
+- `https://lstk-app.localhost.localstack.cloud`
+- `https://localhost.localstack.cloud:4566`
+- `http://localhost.localstack.cloud:4566`
+- `http://localhost:4566`
+
+The API always includes `https://<workspace>-app.<DOMAIN_NAME>` as an allowed origin, so the normal LocalStack frontend origin is allowed without an extra variable.
+
+LocalStack's edge gateway also enforces its own browser-origin checks before requests reach ECS/ALB targets. Set `EXTRA_CORS_ALLOWED_ORIGINS` in `.env.lstk` (or compose environment) to include your frontend origin, then restart LocalStack:
+
+```bash
+docker compose --env-file .env.lstk -f docker-compose.lstk.yml up -d localstack
+```
+
+If LocalStack blocks browser traffic, `docker logs eventpro-localstack-pro` will show lines like `Blocked CORS request from forbidden origin ...`.
+
+Individual stack shortcuts:
+
+<details>
+<summary>tf plan</summary>
+
+```bash
+make lstk-tf-shared-infra
+make lstk-tf-services
+make lstk-tf-frontend
+make lstk-tf-lambdas
+```
+
+</details>
+
+<details>
+<summary>tf apply</summary>
+
+```bash
+make lstk-tf-shared-infra LSTK_TF_ACTION=apply
+make lstk-tf-services LSTK_TF_ACTION=apply
+make lstk-tf-frontend LSTK_TF_ACTION=apply
+make lstk-tf-lambdas LSTK_TF_ACTION=apply
+```
+</details>
+
+Destroy order is the reverse of deploy order:
+
+```text
+frontend
+  -> notification-sender
+  -> payment-processor
+  -> order-processor
+  -> services
+  -> shared-infra
+```
+
+Use `make lstk-redeploy` when you want a fresh LocalStack run: it starts LocalStack with `docker-compose.lstk.yml`, destroys all Terraform-owned LocalStack resources, and applies all stacks again.
+
+*deploy shared infrastructure first*
+
+```bash
+cd backend/shared-infra
+terraform init -reconfigure -backend-config=backend.lstk.tfbackend
+terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
+terraform plan -var-file=terraform.lstk.tfvars
+terraform apply -var-file=terraform.lstk.tfvars
+cd ../..
+```
+
+*deploy services*
+
+Build or tag an API image that the LocalStack/ECS emulation can reference, then apply the stack. The script and Make target do this automatically in apply mode by building `localstack/eventpro-api:local`:
+
+```bash
+./scripts/lstk-deploy.sh --apply --only services
+```
+
+Manual equivalent:
+
+```bash
+docker image build --platform linux/amd64 -f backend/services/Dockerfile -t localstack/eventpro-api:local backend
+cd backend/services/terraform
+terraform init -reconfigure -backend-config=backend.lstk.tfbackend
+terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
+terraform plan -var-file=terraform.lstk.tfvars
+terraform apply -var-file=terraform.lstk.tfvars
+cd ../../..
+```
+
+*deploy frontend*
+
+Build frontend assets before applying if you need to sync or inspect the generated S3/CloudFront resources:
+
+```bash
+cd eventpro-frontend
+npm ci
+npm run build
+cd terraform
+terraform init -reconfigure -backend-config=backend.lstk.tfbackend
+terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
+terraform plan -var-file=terraform.lstk.tfvars
+terraform apply -var-file=terraform.lstk.tfvars
+cd ../..
+```
+
+*deploy lambdas*
+
+Build or tag Lambda images as `localstack/eventpro-*-processor:local` or update each lambda's `terraform.lstk.tfvars` image values to match your local image names. The script and Make target do this automatically in apply mode.
+
+```bash
+./scripts/lstk-deploy.sh --apply --only lambdas
+```
+
+Manual equivalent:
+
+```bash
+env -u AWS_ACCOUNT_ID ./scripts/build-lambda-local.sh all local
+docker tag eventpro-order-processor:local localstack/eventpro-order-processor:local
+docker tag eventpro-payment-processor:local localstack/eventpro-payment-processor:local
+docker tag eventpro-notification-sender:local localstack/eventpro-notification-sender:local
+```
+
+```bash
+cd backend/lambdas/order-processor/terraform
+terraform init -reconfigure -backend-config=backend.lstk.tfbackend
+terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
+terraform plan -var-file=terraform.lstk.tfvars
+terraform apply -var-file=terraform.lstk.tfvars
+cd ../../../..
+```
+
+```bash
+cd backend/lambdas/payment-processor/terraform
+terraform init -reconfigure -backend-config=backend.lstk.tfbackend
+terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
+terraform plan -var-file=terraform.lstk.tfvars
+terraform apply -var-file=terraform.lstk.tfvars
+cd ../../../..
+```
+
+```bash
+cd backend/lambdas/notification-sender/terraform
+terraform init -reconfigure -backend-config=backend.lstk.tfbackend
+terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
+terraform plan -var-file=terraform.lstk.tfvars
+terraform apply -var-file=terraform.lstk.tfvars
+cd ../../../..
+```
+
+*verify LocalStack resources*
+
+```bash
+aws --endpoint-url="$AWS_ENDPOINT_URL" s3 ls
+aws --endpoint-url="$AWS_ENDPOINT_URL" sqs list-queues
+aws --endpoint-url="$AWS_ENDPOINT_URL" rds describe-db-instances
+aws --endpoint-url="$AWS_ENDPOINT_URL" lambda list-functions
+aws --endpoint-url="$AWS_ENDPOINT_URL" route53 list-hosted-zones
+```
+
+*access the application*
+
+Use LocalStack TLS with `-k` for curl. Browsers can show certificate warnings for LocalStack wildcard certificates depending on the hostname and trust store.
+
+```bash
+curl -k --http1.1 https://lstk-api.localhost.localstack.cloud/actuator/health
+open https://lstk-app.localhost.localstack.cloud
+```
+
+If the API returns a LocalStack proxy error with `Connection refused` to a private IP/port, the HTTPS route exists but the ECS target is not healthy. Re-run the services apply path so the expected local image is built and the ECS task definition receives LocalStack runtime endpoint variables:
+
+```bash
+./scripts/lstk-deploy.sh --apply --only services
+curl -k --http1.1 https://lstk-api.localhost.localstack.cloud/actuator/health
+```
+
+If curl without `--http1.1` returns a LocalStack proxy error with `RemoteDisconnected`, the API target can still be healthy. LocalStack's HTTPS gateway may negotiate HTTP/2 for these hostnames even when the emulated ALB has HTTP/2 disabled. Verify the API with `curl -k --http1.1`, or test the current ECS container port directly from `docker ps` while debugging.
+
+Route53 and DNS notes:
+- `terraform.lstk.tfvars` uses `localhost.localstack.cloud` as the default domain.
+- LocalStack can emulate Route53 records, but your host machine will not automatically resolve every emulated hosted-zone record unless you configure DNS resolution or use LocalStack's supported localhost domains.
+- For browser testing, you may still need `/etc/hosts`, LocalStack DNS, or direct localhost URLs depending on which service you are testing.
+- ACM validation records are emulated; do not expect public DNS validation behavior.
+
+Switching notes:
+- To switch a stack back to real AWS, run `terraform init -reconfigure` without `backend.lstk.tfbackend`, then use `terraform.tfvars`.
+- If Terraform asks to migrate state while switching between AWS and LocalStack, stop unless you intentionally want to copy state between targets.
+- Keep the same workspace name across all stacks so downstream state reads find the matching `shared-infra` outputs.
+
+Full runbook: `docs/TERRAFORM_DEPLOY_TARGETS.md`.
+
+</details>
+
+---
+
+<details>
 <summary><strong>higher env deployment from local</strong></summary>
+
+Higher environments use `.env.remote` and `backend/shared-infra` as the only upstream Terraform state. Services, frontend, and lambdas can be deployed independently, but the matching workspace must already have shared infra applied.
+
+Make shortcuts wrap `scripts/pipeline-deploy.sh` and load `.env.remote` by default:
+
+```bash
+make tf-deploy-shared-infra
+make tf-deploy-services IMAGE_TAG=abc05110957
+make tf-deploy-frontend
+make tf-deploy-lambdas IMAGE_TAG=abc05110957
+make tf-deploy-all IMAGE_TAG=abc05110957
+```
+
+For individual lambdas:
+
+```bash
+make tf-deploy-lambda-order IMAGE_TAG=abc05110957
+make tf-deploy-lambda-payment IMAGE_TAG=abc05110957
+make tf-deploy-lambda-notification IMAGE_TAG=abc05110957
+```
+
+`IMAGE_TAG` is only needed when you want to control the Docker image tag for the API service and Lambda container images. If you omit it, the deployment script uses the current git SHA tag. The frontend does not need a Docker image tag because it is built as static assets, uploaded to the frontend S3 bucket, and served through CloudFront.
+
+*deploy shared infrastructure only*
+
+```bash
+./scripts/pipeline-deploy.sh --env-file .env.remote --only shared-infra --apply
+```
+
+*preview shared infrastructure only*
+
+```bash
+./scripts/pipeline-deploy.sh --env-file .env.remote --only shared-infra --plan
+```
+
+*build and deploy everything in dependency order*
+
+```bash
+./scripts/pipeline-deploy.sh --env-file .env.remote --apply --image-tag abc05110957
+```
+
+Notes:
+- `DOMAIN_NAME` is required in `.env.remote`.
+- Dependency order is `shared-infra -> services/frontend/lambdas`.
+- If you run `--only services`, `--only frontend`, or `--only lambdas`, shared infra must already be applied for that workspace.
+- For existing deployed environments, migrate Terraform state from `services/terraform.tfstate` to `shared-infra/terraform.tfstate` before applying this refactor.
+- The full Terraform AWS-emulation stacks keep LocalStack values in each stack's `terraform.lstk.tfvars` and LocalStack backend settings in `backend.lstk.tfbackend`; see `docs/TERRAFORM_DEPLOY_TARGETS.md` before switching between real AWS and LocalStack Pro.
 
 <details>
 <summary>services only</summary>
@@ -1291,7 +1653,13 @@ This guide covers:
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only services --apply --image-tag abc4150605
+./scripts/pipeline-deploy.sh --env-file .env.remote --only services --apply --image-tag abc05110957
+```
+
+If shared infra is not already applied for the workspace, run this first:
+
+```bash
+./scripts/pipeline-deploy.sh --env-file .env.remote --only shared-infra --apply
 ```
 
 *deploy existing image*
@@ -1301,12 +1669,12 @@ Make sure the image is in the ECR registry and the image tag is set in the .env 
 ```bash
 export SERVICES_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
 export SERVICES_IMAGE_NAME=eventpro-api
-export SERVICES_IMAGE_TAG=abc4150605
+export SERVICES_IMAGE_TAG=abc05110957
 ```
 
 ```bash
 ./scripts/pipeline-deploy.sh \
-  --env-file .env \
+  --env-file .env.remote \
   --only services \
   --services-image-source existing \
   --apply
@@ -1322,20 +1690,20 @@ export SERVICES_IMAGE_TAG=abc4150605
 *build and deploy*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only frontend --apply --image-tag abc4150605
+./scripts/pipeline-deploy.sh --env-file .env.remote --only frontend --apply --image-tag abc05110957
 ```
 
 *preview terraform changes only (no S3 sync / CloudFront invalidation in plan mode)*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only frontend --plan
+./scripts/pipeline-deploy.sh --env-file .env.remote --only frontend --plan
 ```
 
 *deploy frontend infra/build, but skip asset sync and/or invalidation (apply mode)*
 
 ```bash
 ./scripts/pipeline-deploy.sh \
-  --env-file .env \
+  --env-file .env.remote \
   --only frontend \
   --no-frontend-sync \
   --no-frontend-invalidate \
@@ -1343,8 +1711,9 @@ export SERVICES_IMAGE_TAG=abc4150605
 ```
 
 Notes:
-- `DOMAIN_NAME` is required (loaded from `.env` via `--env-file .env`).
+- `DOMAIN_NAME` is required (loaded from `.env.remote` via `--env-file .env.remote`).
 - `VITE_API_BASE_URL` is optional; if omitted the script uses `https://<workspace>-api.$DOMAIN_NAME`.
+- Frontend reads the CloudFront certificate and hosted zone from `shared-infra/terraform.tfstate`.
 - The script runs **`npm ci` inside `eventpro-frontend/`** (not the repo root). Dependencies must resolve from the public npm registry. Do not list **unpublished** packages (for example a local workspace name like `@eventpro/shared`) unless you publish them or replace them with `file:` paths that exist in the deploy context.
 - `eventpro-frontend/.npmrc` sets **`legacy-peer-deps=true`** so `npm ci` succeeds with React 19 while some UI libraries still declare React 18 peer ranges (this matches older npm’s peer resolution).
 
@@ -1358,22 +1727,22 @@ Notes:
 *build and deploy all lambdas*
 
 ```bash
-./scripts/pipeline-deploy.sh --env-file .env --only lambdas --apply --image-tag abc4150605
+./scripts/pipeline-deploy.sh --env-file .env.remote --only lambdas --apply --image-tag abc05110957
 ```
 
 *deploy only specific lambdas*
 
 ```bash
 ./scripts/pipeline-deploy.sh \
-  --env-file .env \
+  --env-file .env.remote \
   --only lambdas \
   --lambdas order-processor,payment-processor \
-  --apply --image-tag abc4150605
+  --apply --image-tag abc05110957
 ```
 
 *deploy existing images (all lambdas)*
 
-Make sure the images already exist in ECR and the image tags are set in your environment (or `.env`).
+Make sure the images already exist in ECR and the image tags are set in your environment (or `.env.remote`).
 
 ```bash
 export ORDER_PROCESSOR_IMAGE_REGISTRY=123456789012.dkr.ecr.us-east-1.amazonaws.com
@@ -1391,25 +1760,26 @@ export NOTIFICATION_SENDER_IMAGE_TAG=sha-123456789012
 
 ```bash
 ./scripts/pipeline-deploy.sh \
-  --env-file .env \
+  --env-file .env.remote \
   --only lambdas \
   --lambdas-image-source existing \
-  --apply --image-tag abc4150605
+  --apply --image-tag abc05110957
 ```
 
 *mix build + existing image sources per lambda (example)*
 
 ```bash
 ./scripts/pipeline-deploy.sh \
-  --env-file .env \
+  --env-file .env.remote \
   --only lambdas \
   --order-processor-image-source existing \
   --payment-processor-image-source build \
   --notification-sender-image-source build \
-  --apply --image-tag abc4150605
+  --apply --image-tag abc05110957
 ```
 
 Notes:
+- Lambdas read queues, database outputs, subnets, and security groups from `shared-infra/terraform.tfstate`.
 - `payment-processor` requires `STRIPE_SECRET_KEY`.
 - `notification-sender` uses `SES_SENDER_EMAIL` when set.
 - `--lambdas` accepts: `order-processor`, `payment-processor`, `notification-sender`.

@@ -116,6 +116,7 @@ vite.config.*.timestamp-*
 .env
 .env.example
 .env.remote
+.env.lstk
 .env.stripe
 .env.example
 .env.backup
@@ -196,6 +197,7 @@ z_old_project/**
 
 **/*.lock.hcl
 **/*.tfvars
+!**/terraform.lstk.tfvars
 **/.terraform/**
 **/*.tfstate
 **/*.tfstate.backup

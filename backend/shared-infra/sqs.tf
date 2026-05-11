@@ -1,4 +1,4 @@
-# SQS queues for order, payment, and notification processing
+# SQS queues for order, payment, and notification processing.
 
 resource "aws_sqs_queue" "order" {
   name                       = "${local.name_prefix}-order-queue"

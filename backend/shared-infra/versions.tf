@@ -10,7 +10,7 @@ terraform {
 
   backend "s3" {
     bucket       = "eventpro-site-state"
-    key          = "frontend/terraform.tfstate"
+    key          = "shared-infra/terraform.tfstate"
     region       = "us-east-1"
     use_lockfile = true
   }

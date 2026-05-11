@@ -1,19 +1,14 @@
 # Application Load Balancer for ECS API
-# HTTPS is enabled when an ACM cert ARN is provided or created by Terraform
-
-locals {
-  alb_cert_arn = aws_acm_certificate_validation.alb.certificate_arn
-}
 
 resource "aws_lb" "main" {
   name               = "${local.name_prefix}-alb"
   internal           = var.alb_internal
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = data.aws_subnets.default.ids
+  security_groups    = [data.terraform_remote_state.shared_infra.outputs.alb_security_group_id]
+  subnets            = data.terraform_remote_state.shared_infra.outputs.service_subnet_ids
 
   enable_deletion_protection = var.alb_enable_deletion_protection
-  enable_http2               = true
+  enable_http2               = var.use_localstack ? false : true
   idle_timeout               = 60
 
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-alb" })
@@ -23,7 +18,7 @@ resource "aws_lb_target_group" "api" {
   name        = "${local.name_prefix}-api-primary"
   port        = var.ecs_container_port
   protocol    = "HTTP"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = data.terraform_remote_state.shared_infra.outputs.vpc_id
   target_type = "ip"
 
   health_check {
@@ -68,7 +63,7 @@ resource "aws_lb_listener" "https" {
   port              = "443"
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-  certificate_arn   = local.alb_cert_arn
+  certificate_arn   = data.terraform_remote_state.shared_infra.outputs.alb_certificate_arn
 
   default_action {
     type             = "forward"

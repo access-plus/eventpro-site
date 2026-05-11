@@ -1,5 +1,5 @@
 # RDS PostgreSQL with manage_master_user_password (Secrets Manager)
-# Uses default VPC subnets
+# Uses default VPC subnets.
 
 resource "aws_db_subnet_group" "main" {
   name       = "${local.name_prefix}-db-subnet-group"
@@ -47,7 +47,7 @@ resource "aws_db_instance" "main" {
   db_name                     = var.db_name
   username                    = "accessplus"
   manage_master_user_password = true
-  port                        = 5432
+  port                        = var.use_localstack ? null : 5432
 
   allocated_storage     = var.db_allocated_storage
   max_allocated_storage = var.db_max_allocated_storage

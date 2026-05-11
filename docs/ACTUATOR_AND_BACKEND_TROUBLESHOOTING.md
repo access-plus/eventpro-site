@@ -193,7 +193,7 @@ The backend uses `S3_BUCKET_NAME` (default `eventpro-images-local`) for event im
 
   In `.env` (or your deployment config): `S3_BUCKET_NAME=your-unique-bucket-name`.
 
-If you use Terraform for local or deployed infra (e.g. `make local-infra` or backend/services/terraform), the images bucket is usually created for you and `S3_BUCKET_NAME` is set in the generated env.
+If you use Terraform for local or deployed infra (e.g. `make local-infra` or `backend/shared-infra`), the images bucket is usually created for you and `S3_BUCKET_NAME` is set from shared infrastructure outputs.
 
 ---
 

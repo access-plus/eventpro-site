@@ -66,15 +66,15 @@ resource "aws_iam_role_policy" "ecs_task" {
         Effect = "Allow"
         Action = ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
         Resource = [
-          aws_sqs_queue.order.arn,
-          aws_sqs_queue.payment.arn,
-          aws_sqs_queue.notification.arn
+          data.terraform_remote_state.shared_infra.outputs.order_queue_arn,
+          data.terraform_remote_state.shared_infra.outputs.payment_queue_arn,
+          data.terraform_remote_state.shared_infra.outputs.notification_queue_arn
         ]
       },
       {
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-        Resource = "${aws_s3_bucket.images.arn}/*"
+        Resource = "${data.terraform_remote_state.shared_infra.outputs.s3_images_bucket_arn}/*"
       },
       {
         Effect   = "Allow"
@@ -89,7 +89,7 @@ resource "aws_iam_role_policy" "ecs_task" {
       {
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
-        Resource = [aws_db_instance.main.master_user_secret[0].secret_arn]
+        Resource = [data.terraform_remote_state.shared_infra.outputs.db_master_user_secret_arn]
       }
     ]
   })
@@ -122,19 +122,45 @@ resource "aws_ecs_task_definition" "api" {
     environment = concat(
       [
         { name = "SPRING_PROFILES_ACTIVE", value = local.workspace },
-        { name = "DB_HOST", value = aws_db_instance.main.address },
-        { name = "DB_PORT", value = tostring(aws_db_instance.main.port) },
-        { name = "DB_NAME", value = aws_db_instance.main.db_name },
+        { name = "DB_HOST", value = data.terraform_remote_state.shared_infra.outputs.rds_endpoint },
+        { name = "DB_PORT", value = tostring(data.terraform_remote_state.shared_infra.outputs.rds_port) },
+        { name = "DB_NAME", value = data.terraform_remote_state.shared_infra.outputs.rds_name },
         { name = "AWS_REGION", value = data.aws_region.current.id },
-        { name = "DB_SECRET_ARN", value = aws_db_instance.main.master_user_secret[0].secret_arn },
-        { name = "S3_BUCKET_NAME", value = aws_s3_bucket.images.id },
-        { name = "ORDER_QUEUE_URL", value = aws_sqs_queue.order.url },
-        { name = "PAYMENT_QUEUE_URL", value = aws_sqs_queue.payment.url },
-        { name = "NOTIFICATION_QUEUE_URL", value = aws_sqs_queue.notification.url },
+        { name = "DB_SECRET_ARN", value = data.terraform_remote_state.shared_infra.outputs.db_master_user_secret_arn },
+        { name = "S3_BUCKET_NAME", value = data.terraform_remote_state.shared_infra.outputs.s3_images_bucket_id },
+        { name = "ORDER_QUEUE_URL", value = data.terraform_remote_state.shared_infra.outputs.order_queue_url },
+        { name = "PAYMENT_QUEUE_URL", value = data.terraform_remote_state.shared_infra.outputs.payment_queue_url },
+        { name = "NOTIFICATION_QUEUE_URL", value = data.terraform_remote_state.shared_infra.outputs.notification_queue_url },
         { name = "JWT_ISSUER", value = var.jwt_issuer },
-        { name = "JWT_ACCESS_TTL_SECONDS", value = tostring(var.jwt_access_ttl_seconds) },
-        { name = "EVENTPRO_CORS_ALLOWED_ORIGINS_0", value = "https://${terraform.workspace}-app.${var.domain_name}" }
+        { name = "JWT_ACCESS_TTL_SECONDS", value = tostring(var.jwt_access_ttl_seconds) }
       ],
+      local.cors_environment_variables,
+      var.use_localstack ? [
+        { name = "AWS_ACCESS_KEY_ID", value = "test" },
+        { name = "AWS_SECRET_ACCESS_KEY", value = "test" },
+        { name = "AWS_ENDPOINT_URL", value = var.localstack_runtime_endpoint },
+        { name = "AWS_SECRETS_MANAGER_ENDPOINT", value = var.localstack_runtime_endpoint },
+        { name = "SQS_ENDPOINT", value = var.localstack_runtime_endpoint },
+        { name = "SES_ENDPOINT", value = var.localstack_runtime_endpoint },
+        { name = "SPRING_JPA_HIBERNATE_DDL_AUTO", value = "none" },
+        { name = "SPRING_JPA_PROPERTIES_HIBERNATE_BOOT_ALLOW_JDBC_METADATA_ACCESS", value = "false" },
+        {
+          name = "SPRING_APPLICATION_JSON"
+          value = jsonencode({
+            spring = {
+              jpa = {
+                hibernate = {
+                  "ddl-auto" = "none"
+                }
+                properties = {
+                  "hibernate.boot.allow_jdbc_metadata_access" = "false"
+                  "hibernate.temp.use_jdbc_metadata_defaults" = "false"
+                }
+              }
+            }
+          })
+        }
+      ] : [],
       [
         for k, v in {
           STRIPE_SECRET_KEY      = var.stripe_secret_key
@@ -176,8 +202,8 @@ resource "aws_ecs_service" "api" {
   platform_version = "LATEST"
 
   network_configuration {
-    subnets          = data.aws_subnets.default.ids
-    security_groups  = [aws_security_group.ecs.id]
+    subnets          = data.terraform_remote_state.shared_infra.outputs.service_subnet_ids
+    security_groups  = [data.terraform_remote_state.shared_infra.outputs.app_security_group_id]
     assign_public_ip = true # Default VPC subnets are typically public
   }
 

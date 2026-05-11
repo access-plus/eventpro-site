@@ -1,7 +1,7 @@
 # Route53 A record: ${workspace}-app.${domain_name} -> CloudFront
 
 resource "aws_route53_record" "app" {
-  zone_id = data.aws_route53_zone.main.zone_id
+  zone_id = data.terraform_remote_state.shared_infra.outputs.route53_zone_id
   name    = "${terraform.workspace}-app.${var.domain_name}"
   type    = "A"
 

@@ -1,7 +1,6 @@
-# Security groups for ALB, ECS, and RDS in default VPC
-# Resource names: ${terraform.workspace}-<name>
+# Shared security groups in the default VPC.
+# Resource names match the previous services stack names where ownership moved.
 
-# ALB - allow HTTP/HTTPS from internet
 resource "aws_security_group" "alb" {
   name        = "${local.name_prefix}-alb-sg"
   description = "Security group for Application Load Balancer"
@@ -34,14 +33,13 @@ resource "aws_security_group" "alb" {
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-alb-sg" })
 }
 
-# ECS Fargate - allow traffic from ALB on container port
-resource "aws_security_group" "ecs" {
+resource "aws_security_group" "app" {
   name        = "${local.name_prefix}-ecs-sg"
-  description = "Security group for ECS Fargate tasks"
+  description = "Security group for EventPro application compute"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description     = "Allow traffic from ALB"
+    description     = "Allow API traffic from ALB"
     from_port       = var.ecs_container_port
     to_port         = var.ecs_container_port
     protocol        = "tcp"
@@ -59,18 +57,17 @@ resource "aws_security_group" "ecs" {
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-ecs-sg" })
 }
 
-# RDS - allow PostgreSQL from ECS
 resource "aws_security_group" "rds" {
   name        = "${local.name_prefix}-rds-sg"
   description = "Security group for RDS PostgreSQL"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description     = "PostgreSQL from ECS"
+    description     = "PostgreSQL from EventPro app compute"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [aws_security_group.ecs.id]
+    security_groups = [aws_security_group.app.id]
   }
 
   egress {

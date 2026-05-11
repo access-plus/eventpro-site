@@ -10,18 +10,16 @@ provider "aws" {
   skip_requesting_account_id  = var.use_localstack
 
   endpoints {
-    applicationautoscaling = var.use_localstack ? var.localstack_endpoint : null
-    cloudwatch             = var.use_localstack ? var.localstack_endpoint : null
-    cloudwatchlogs         = var.use_localstack ? var.localstack_endpoint : null
-    ec2                    = var.use_localstack ? var.localstack_endpoint : null
-    ecs                    = var.use_localstack ? var.localstack_endpoint : null
-    elasticloadbalancing   = var.use_localstack ? var.localstack_endpoint : null
-    iam                    = var.use_localstack ? var.localstack_endpoint : null
-    route53                = var.use_localstack ? var.localstack_endpoint : null
-    s3                     = var.use_localstack ? var.localstack_endpoint : null
-    secretsmanager         = var.use_localstack ? var.localstack_endpoint : null
-    sqs                    = var.use_localstack ? var.localstack_endpoint : null
-    sts                    = var.use_localstack ? var.localstack_endpoint : null
+    acm            = var.use_localstack ? var.localstack_endpoint : null
+    cloudfront     = var.use_localstack ? var.localstack_endpoint : null
+    ec2            = var.use_localstack ? var.localstack_endpoint : null
+    iam            = var.use_localstack ? var.localstack_endpoint : null
+    rds            = var.use_localstack ? var.localstack_endpoint : null
+    route53        = var.use_localstack ? var.localstack_endpoint : null
+    s3             = var.use_localstack ? var.localstack_endpoint : null
+    secretsmanager = var.use_localstack ? var.localstack_endpoint : null
+    sqs            = var.use_localstack ? var.localstack_endpoint : null
+    sts            = var.use_localstack ? var.localstack_endpoint : null
   }
 
   default_tags {
@@ -41,7 +39,10 @@ provider "aws" {
   skip_requesting_account_id  = var.use_localstack
 
   endpoints {
-    sts = var.use_localstack ? var.localstack_endpoint : null
+    acm        = var.use_localstack ? var.localstack_endpoint : null
+    cloudfront = var.use_localstack ? var.localstack_endpoint : null
+    route53    = var.use_localstack ? var.localstack_endpoint : null
+    sts        = var.use_localstack ? var.localstack_endpoint : null
   }
 
   default_tags {

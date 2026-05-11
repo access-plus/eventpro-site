@@ -74,4 +74,4 @@ jobs:
           workspace: ${{ env.DEPLOY_WORKSPACE }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          variables: image_registry=${{ steps.ecr-docker-build.outputs.image-registry }},image_name=${{ steps.ecr-docker-build.outputs.image-name }},image_tag=${{ steps.ecr-docker-build.outputs.image-tag }},domain_name=${{ vars.DOMAIN_NAME }},alb_certificate_arn=${{ secrets.ACM_CERTIFICATE_ARN }},cloudfront_certificate_arn=${{ secrets.ACM_CERTIFICATE_ARN }}
+          variables: image_registry=${{ steps.ecr-docker-build.outputs.image-registry }},image_name=${{ steps.ecr-docker-build.outputs.image-name }},image_tag=${{ steps.ecr-docker-build.outputs.image-tag }},domain_name=${{ vars.DOMAIN_NAME }}
