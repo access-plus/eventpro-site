@@ -11,6 +11,7 @@ set -euo pipefail
 
 DEFAULT_LAMBDAS=(order-processor payment-processor notification-sender)
 AWS_REGION="${AWS_REGION:-us-east-1}"
+LAMBDA_IMAGE_PLATFORM="${LAMBDA_IMAGE_PLATFORM:-linux/amd64}"
 
 LAMBDA_NAME="all"
 IMAGE_TAG="latest"
@@ -71,9 +72,11 @@ Options:
 Environment:
   AWS_REGION               AWS region for ECR login (default: us-east-1)
   AWS_ACCOUNT_ID           Used to infer --registry when not provided
+  LAMBDA_IMAGE_PLATFORM    Docker platform for Lambda images (default: linux/amd64)
 
 Notes:
   - Docker build context is always 'backend/' (required by the Dockerfiles).
+  - Lambda images are built as single-platform images with provenance/SBOM disabled.
   - In auto push mode, the script attempts ECR push when a registry is configured and AWS CLI is available.
 USAGE
 }
@@ -216,8 +219,15 @@ build_one_lambda() {
   primary_ref="${registry_prefix}${image_name}:${IMAGE_TAG}"
 
   log "${GREEN}Building ${lambda} Lambda...${NC}"
-  log "${YELLOW}docker build -f ${dockerfile_path} -t ${primary_ref} ${build_context}${NC}"
-  docker image build -f "$dockerfile_path" -t "$primary_ref" "$build_context"
+  log "${YELLOW}docker buildx build --platform ${LAMBDA_IMAGE_PLATFORM} --provenance=false --sbom=false --load -f ${dockerfile_path} -t ${primary_ref} ${build_context}${NC}"
+  docker buildx build \
+    --platform "$LAMBDA_IMAGE_PLATFORM" \
+    --provenance=false \
+    --sbom=false \
+    --load \
+    -f "$dockerfile_path" \
+    -t "$primary_ref" \
+    "$build_context"
 
   # With `set -u`, "${EXTRA_TAGS[@]}" can error when the array is empty on some Bash versions.
   tags_to_apply=()
@@ -320,6 +330,7 @@ print_human_summary() {
   log "  Lambda selection: ${LAMBDA_NAME}"
   log "  Primary tag: ${IMAGE_TAG}"
   log "  Registry: ${REGISTRY:-<local>}"
+  log "  Platform: ${LAMBDA_IMAGE_PLATFORM}"
   if [ ${#EXTRA_TAGS[@]} -gt 0 ]; then
     log "  Extra tags: ${EXTRA_TAGS[*]}"
   fi

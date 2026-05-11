@@ -76,6 +76,17 @@ variable "memory_size_mb" {
   default     = 512
 }
 
+variable "lambda_architecture" {
+  description = "Instruction set architecture for the Lambda container image"
+  type        = string
+  default     = "x86_64"
+
+  validation {
+    condition     = contains(["x86_64", "arm64"], var.lambda_architecture)
+    error_message = "lambda_architecture must be either x86_64 or arm64."
+  }
+}
+
 variable "log_retention_in_days" {
   description = "CloudWatch log retention in days"
   type        = number

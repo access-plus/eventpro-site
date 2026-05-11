@@ -177,8 +177,9 @@ resource "aws_lambda_function" "notification_sender" {
   timeout       = var.timeout_seconds
   memory_size   = var.memory_size_mb
 
-  package_type = "Image"
-  image_uri    = local.image_uri
+  package_type  = "Image"
+  image_uri     = local.image_uri
+  architectures = [var.lambda_architecture]
 
   environment {
     variables = merge({

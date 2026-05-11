@@ -122,6 +122,7 @@ Optional env vars passed to Terraform when set:
 Build behavior env vars:
   SERVICES_IMAGE_PLATFORMS  Docker build platforms for services image in build mode (default: linux/amd64,linux/arm64)
   SERVICES_IMAGE_PLATFORM   Legacy alias for single-platform builds (fallback only)
+  LAMBDA_IMAGE_PLATFORM     Docker platform for Lambda images in build mode (default: linux/amd64)
 
 Notes:
   - Frontend Terraform backend config is intentionally hardcoded to match CI.

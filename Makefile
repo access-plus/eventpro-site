@@ -361,6 +361,20 @@ tf-deploy-all:
 	@$(MAKE) tf-deploy-frontend TF_WORKSPACE=$(TF_WORKSPACE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
 	@$(MAKE) tf-deploy-lambdas TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG)
 
+tf-services-output:
+	@cd backend/services/terraform && \
+		terraform init -upgrade && \
+		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform output -json
+
+tf-frontend-output:
+	@cd eventpro-frontend/terraform && \
+		terraform init -upgrade -reconfigure && \
+		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform output -json
+
+tf-outputs: tf-services-output tf-frontend-output
+
 # ============================================================================
 # AWS Terraform Destroy (higher environments)
 # ============================================================================
