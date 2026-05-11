@@ -1,6 +1,6 @@
 .PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build jwt-keys \
 	tf-destroy-shared-infra tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy \
-	lstk-start lstk-state-bucket lstk-route53-zone lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all
+	lstk-start lstk-stop lstk-state-bucket lstk-route53-zone lstk-endpoints lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all lstk-tf-destroy-all lstk-redeploy
 
 # Variables
 API_DIR := backend/services
@@ -12,6 +12,7 @@ TF_ENV_FILE ?= .env.remote
 TF_STATE_BUCKET ?= eventpro-site-state
 TF_STATE_REGION ?= us-east-1
 LSTK_ENV_FILE ?= .env.lstk
+LSTK_COMPOSE_FILE ?= docker-compose.lstk.yml
 LSTK_WORKSPACE ?= lstk
 LSTK_TF_ACTION ?= plan
 
@@ -78,15 +79,19 @@ help:
 	@echo "  make tf-destroy-all                 - Destroy frontend, lambdas, services, then shared infra"
 	@echo "  make tf-destroy                     - Same as tf-destroy-all (AWS bill cleanup)"
 	@echo ""
-	@echo "Complete LocalStack Pro Terraform (set LSTK_TF_ACTION=plan|apply, default plan):"
-	@echo "  make lstk-start                     - Source .env.lstk and start LocalStack Pro"
+	@echo "Complete LocalStack Pro Terraform (set LSTK_TF_ACTION=plan|apply|destroy, default plan):"
+	@echo "  make lstk-start                     - Start LocalStack Pro with docker-compose.lstk.yml"
+	@echo "  make lstk-stop                      - Stop LocalStack Pro compose service"
 	@echo "  make lstk-state-bucket              - Create the LocalStack Terraform state bucket"
 	@echo "  make lstk-route53-zone              - Create the LocalStack Route53 hosted zone"
+	@echo "  make lstk-endpoints                 - Print LocalStack application endpoints"
 	@echo "  make lstk-tf-shared-infra           - Plan/apply shared-infra against LocalStack"
 	@echo "  make lstk-tf-services               - Plan/apply services against LocalStack"
 	@echo "  make lstk-tf-frontend               - Plan/apply frontend against LocalStack"
 	@echo "  make lstk-tf-lambdas                - Plan/apply all lambda stacks against LocalStack"
 	@echo "  make lstk-tf-all                    - Plan/apply shared, services, frontend, lambdas"
+	@echo "  make lstk-tf-destroy-all            - Destroy frontend, lambdas, services, then shared infra in LocalStack"
+	@echo "  make lstk-redeploy                  - Destroy all LocalStack resources, then apply all fresh"
 	@echo ""
 	@echo "Local Development:"
 	@echo "  make local-setup    - Complete first-time setup (all steps)"
@@ -406,37 +411,50 @@ tf-destroy: tf-destroy-all
 # ============================================================================
 
 lstk-start:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --start-only
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start-only
+
+lstk-stop:
+	@docker compose --env-file "$(LSTK_ENV_FILE)" -f "$(LSTK_COMPOSE_FILE)" down
 
 lstk-state-bucket:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --bootstrap-state
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --bootstrap-state
 
 lstk-route53-zone:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --bootstrap-route53
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --bootstrap-route53
+
+lstk-endpoints:
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --print-endpoints
 
 lstk-tf-shared-infra:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only shared-infra
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only shared-infra
 
 lstk-tf-services:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only services
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only services
 
 lstk-tf-frontend:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only frontend
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only frontend
 
 lstk-tf-lambda-order:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only order-processor
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only order-processor
 
 lstk-tf-lambda-payment:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only payment-processor
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only payment-processor
 
 lstk-tf-lambda-notification:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only notification-sender
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only notification-sender
 
 lstk-tf-lambdas:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only lambdas
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only lambdas
 
 lstk-tf-all:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only all
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --$(LSTK_TF_ACTION) --only all
+
+lstk-tf-destroy-all:
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --destroy --only all
+
+lstk-redeploy:
+	@$(MAKE) lstk-tf-destroy-all LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-all LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=apply
 
 # ============================================================================
 # Local Development (Docker Compose + LocalStack)

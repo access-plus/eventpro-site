@@ -1287,6 +1287,8 @@ This guide covers:
 
 This is the full AWS-emulation path for the production-shaped Terraform stacks. It is separate from the Docker Compose hybrid local development flow that uses `make local-infra` and `infrastructure/environments/local`.
 
+This flow starts LocalStack Pro with `docker-compose.lstk.yml`. If you previously started LocalStack with another launcher, stop that instance first so ports `443`, `4566`, and `4510-4559` are available.
+
 Use this path when you want to exercise:
 - `backend/shared-infra`
 - `backend/services/terraform`
@@ -1324,20 +1326,20 @@ set +a
 # Set LOCALSTACK_AUTH_TOKEN in .env.lstk or export it in your shell before starting LocalStack Pro.
 : "${LOCALSTACK_AUTH_TOKEN:?Set LOCALSTACK_AUTH_TOKEN for LocalStack Pro}"
 
-lstk start
+docker compose --env-file .env.lstk -f docker-compose.lstk.yml up -d localstack
 ```
 
 If LocalStack Pro is already running, confirm it is reachable:
 
 ```bash
-lstk status
+docker compose --env-file .env.lstk -f docker-compose.lstk.yml ps localstack
 AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}" \
 AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}" \
 AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" \
 aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" sts get-caller-identity
 ```
 
-If you used `make lstk-start`, remember that Make sources `.env.lstk` inside a subshell. Run `set -a; source .env.lstk; set +a` in your current terminal before manual `aws` commands, or use the Make shortcuts below.
+If you used `make lstk-start`, remember that Make loads `.env.lstk` inside the compose command. Run `set -a; source .env.lstk; set +a` in your current terminal before manual `aws` commands, or use the Make shortcuts below.
 
 *create the emulated Terraform state bucket*
 
@@ -1386,8 +1388,11 @@ Make shortcuts are available for this full LocalStack Pro flow:
 make lstk-start
 make lstk-state-bucket
 make lstk-route53-zone
+make lstk-endpoints
 make lstk-tf-all                 # defaults to plan
 make lstk-tf-all LSTK_TF_ACTION=apply
+make lstk-tf-destroy-all
+make lstk-redeploy
 ```
 
 Those Make targets call the dedicated LocalStack deploy script:
@@ -1395,6 +1400,8 @@ Those Make targets call the dedicated LocalStack deploy script:
 ```bash
 ./scripts/lstk-deploy.sh --plan
 ./scripts/lstk-deploy.sh --apply
+./scripts/lstk-deploy.sh --destroy
+./scripts/lstk-deploy.sh --print-endpoints
 ./scripts/lstk-deploy.sh --apply --only services
 ```
 
@@ -1408,6 +1415,19 @@ make lstk-tf-services
 make lstk-tf-frontend
 make lstk-tf-lambdas
 ```
+
+Destroy order is the reverse of deploy order:
+
+```text
+frontend
+  -> notification-sender
+  -> payment-processor
+  -> order-processor
+  -> services
+  -> shared-infra
+```
+
+Use `make lstk-redeploy` when you want a fresh LocalStack run: it starts LocalStack with `docker-compose.lstk.yml`, destroys all Terraform-owned LocalStack resources, and applies all stacks again.
 
 *deploy shared infrastructure first*
 

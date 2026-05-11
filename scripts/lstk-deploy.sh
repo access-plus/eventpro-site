@@ -6,11 +6,13 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE=".env.lstk"
+COMPOSE_FILE="docker-compose.lstk.yml"
 WORKSPACE_NAME="${WORKSPACE:-lstk}"
 ACTION="plan"
 ONLY="all"
 START_LOCALSTACK=false
 START_ONLY=false
+PRINT_ENDPOINTS_ONLY=false
 BOOTSTRAP_STATE_ONLY=false
 BOOTSTRAP_ROUTE53_ONLY=false
 BUILD_IMAGES=true
@@ -29,13 +31,16 @@ Usage: scripts/lstk-deploy.sh [options]
 Options:
   --plan                     Run Terraform plan (default)
   --apply                    Run Terraform apply -auto-approve
+  --destroy                  Run Terraform destroy -auto-approve
   --only TARGET              all|shared-infra|services|frontend|lambdas|order-processor|payment-processor|notification-sender
   --env-file FILE            LocalStack env file (default: .env.lstk)
+  --compose-file FILE        LocalStack compose file (default: docker-compose.lstk.yml)
   --workspace NAME           Terraform workspace (default: WORKSPACE env or lstk)
-  --start                    Start LocalStack Pro before deploying
-  --start-only               Start LocalStack Pro and exit
+  --start                    Start LocalStack Pro via docker compose before running
+  --start-only               Start LocalStack Pro via docker compose and exit
   --bootstrap-state          Create the LocalStack Terraform state bucket and exit
   --bootstrap-route53        Create the LocalStack Route53 hosted zone and exit
+  --print-endpoints          Print LocalStack application endpoints and exit
   --skip-build-images        Do not build/tag API and Lambda images before apply
   --no-frontend-sync         Do not sync eventpro-frontend/dist to S3 after frontend apply
   --no-frontend-invalidate   Do not create a CloudFront invalidation after frontend apply
@@ -43,6 +48,8 @@ Options:
 
 Examples:
   scripts/lstk-deploy.sh --apply
+  scripts/lstk-deploy.sh --destroy
+  scripts/lstk-deploy.sh --print-endpoints
   scripts/lstk-deploy.sh --apply --only services
   scripts/lstk-deploy.sh --plan --only lambdas
 EOF
@@ -71,6 +78,10 @@ while [ $# -gt 0 ]; do
       ACTION="apply"
       shift
       ;;
+    --destroy)
+      ACTION="destroy"
+      shift
+      ;;
     --only)
       [ $# -ge 2 ] || die "Missing value for --only"
       ONLY="$2"
@@ -79,6 +90,11 @@ while [ $# -gt 0 ]; do
     --env-file)
       [ $# -ge 2 ] || die "Missing value for --env-file"
       ENV_FILE="$2"
+      shift 2
+      ;;
+    --compose-file)
+      [ $# -ge 2 ] || die "Missing value for --compose-file"
+      COMPOSE_FILE="$2"
       shift 2
       ;;
     --workspace)
@@ -101,6 +117,10 @@ while [ $# -gt 0 ]; do
       ;;
     --bootstrap-route53)
       BOOTSTRAP_ROUTE53_ONLY=true
+      shift
+      ;;
+    --print-endpoints)
+      PRINT_ENDPOINTS_ONLY=true
       shift
       ;;
     --skip-build-images)
@@ -136,6 +156,12 @@ if [ "${ENV_FILE_PATH#/}" = "$ENV_FILE_PATH" ]; then
 fi
 [ -f "$ENV_FILE_PATH" ] || die "$ENV_FILE_PATH is required"
 
+COMPOSE_FILE_PATH="$COMPOSE_FILE"
+if [ "${COMPOSE_FILE_PATH#/}" = "$COMPOSE_FILE_PATH" ]; then
+  COMPOSE_FILE_PATH="$ROOT_DIR/$COMPOSE_FILE_PATH"
+fi
+[ -f "$COMPOSE_FILE_PATH" ] || die "$COMPOSE_FILE_PATH is required"
+
 set -a
 # shellcheck disable=SC1090
 . "$ENV_FILE_PATH"
@@ -169,19 +195,32 @@ aws_lstk() {
   aws --endpoint-url="$AWS_ENDPOINT_URL" "$@"
 }
 
+compose_lstk() {
+  docker compose --env-file "$ENV_FILE_PATH" -f "$COMPOSE_FILE_PATH" "$@"
+}
+
 start_localstack() {
-  require_cmd lstk
+  require_cmd docker
   [ -n "${LOCALSTACK_AUTH_TOKEN:-}" ] || die "LOCALSTACK_AUTH_TOKEN is required in $ENV_FILE_PATH or env"
-  log "Starting LocalStack Pro with lstk..."
-  lstk start
+  log "Starting LocalStack Pro with docker compose..."
+  compose_lstk up -d localstack
 }
 
 check_localstack() {
-  require_cmd lstk
+  require_cmd docker
   require_cmd aws
   log "Checking LocalStack Pro status..."
-  lstk status
-  aws_lstk sts get-caller-identity >/dev/null
+  compose_lstk ps localstack
+
+  local attempt
+  for attempt in $(seq 1 60); do
+    if aws_lstk sts get-caller-identity >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+
+  die "LocalStack did not become reachable at $AWS_ENDPOINT_URL"
 }
 
 bootstrap_state_bucket() {
@@ -228,6 +267,8 @@ run_terraform_stack() {
     cd "$ROOT_DIR/$stack_dir"
     if [ "$ACTION" = "apply" ]; then
       terraform apply -auto-approve -var-file=terraform.lstk.tfvars
+    elif [ "$ACTION" = "destroy" ]; then
+      terraform destroy -auto-approve -var-file=terraform.lstk.tfvars
     else
       terraform plan -var-file=terraform.lstk.tfvars
     fi
@@ -270,6 +311,7 @@ build_lambda_images() {
 }
 
 build_frontend() {
+  [ "$ACTION" != "destroy" ] || return 0
   require_cmd npm
   local vite_api_base_url vite_asset_base_url
   vite_api_base_url="${VITE_API_BASE_URL:-https://${WORKSPACE_NAME}-api.${DOMAIN_NAME}}"
@@ -335,15 +377,17 @@ run_lambda_notification() {
 }
 
 print_endpoints() {
-  if [ "$ACTION" = "apply" ]; then
-    log ""
-    log "LocalStack endpoints:"
-    log "  Frontend: https://${WORKSPACE_NAME}-app.${DOMAIN_NAME}"
-    log "  API:      https://${WORKSPACE_NAME}-api.${DOMAIN_NAME}"
-    log ""
-    log "Use curl -k --http1.1 for LocalStack TLS, for example:"
-    log "  curl -k --http1.1 https://${WORKSPACE_NAME}-api.${DOMAIN_NAME}/actuator/health"
-  fi
+  log ""
+  log "LocalStack endpoints:"
+  log "  Frontend:       https://${WORKSPACE_NAME}-app.${DOMAIN_NAME}"
+  log "  API:            https://${WORKSPACE_NAME}-api.${DOMAIN_NAME}"
+  log "  API health:     https://${WORKSPACE_NAME}-api.${DOMAIN_NAME}/actuator/health"
+  log "  Frontend S3:    https://localhost.localstack.cloud:4566/${WORKSPACE_NAME}-eventpro-site-frontend/index.html"
+  log "  LocalStack API: ${AWS_ENDPOINT_URL}"
+  log ""
+  log "Fetch examples:"
+  log "  curl -k --http1.1 https://${WORKSPACE_NAME}-api.${DOMAIN_NAME}/actuator/health"
+  log "  aws --endpoint-url=\"${AWS_ENDPOINT_URL}\" s3 ls"
 }
 
 if [ "$START_LOCALSTACK" = true ]; then
@@ -351,6 +395,11 @@ if [ "$START_LOCALSTACK" = true ]; then
 fi
 
 if [ "$START_ONLY" = true ]; then
+  exit 0
+fi
+
+if [ "$PRINT_ENDPOINTS_ONLY" = true ]; then
+  print_endpoints
   exit 0
 fi
 
@@ -371,13 +420,23 @@ bootstrap_route53_zone
 
 case "$ONLY" in
   all)
-    run_shared_infra
-    run_services
-    run_frontend
-    build_lambda_images
-    run_terraform_stack backend/lambdas/order-processor/terraform
-    run_terraform_stack backend/lambdas/payment-processor/terraform
-    run_terraform_stack backend/lambdas/notification-sender/terraform
+    if [ "$ACTION" = "destroy" ]; then
+      run_terraform_stack eventpro-frontend/terraform
+      build_lambda_images
+      run_terraform_stack backend/lambdas/notification-sender/terraform
+      run_terraform_stack backend/lambdas/payment-processor/terraform
+      run_terraform_stack backend/lambdas/order-processor/terraform
+      run_terraform_stack backend/services/terraform
+      run_terraform_stack backend/shared-infra
+    else
+      run_shared_infra
+      run_services
+      run_frontend
+      build_lambda_images
+      run_terraform_stack backend/lambdas/order-processor/terraform
+      run_terraform_stack backend/lambdas/payment-processor/terraform
+      run_terraform_stack backend/lambdas/notification-sender/terraform
+    fi
     ;;
   shared-infra)
     run_shared_infra
@@ -390,9 +449,15 @@ case "$ONLY" in
     ;;
   lambdas)
     build_lambda_images
-    run_terraform_stack backend/lambdas/order-processor/terraform
-    run_terraform_stack backend/lambdas/payment-processor/terraform
-    run_terraform_stack backend/lambdas/notification-sender/terraform
+    if [ "$ACTION" = "destroy" ]; then
+      run_terraform_stack backend/lambdas/notification-sender/terraform
+      run_terraform_stack backend/lambdas/payment-processor/terraform
+      run_terraform_stack backend/lambdas/order-processor/terraform
+    else
+      run_terraform_stack backend/lambdas/order-processor/terraform
+      run_terraform_stack backend/lambdas/payment-processor/terraform
+      run_terraform_stack backend/lambdas/notification-sender/terraform
+    fi
     ;;
   order-processor)
     run_lambda_order
@@ -405,4 +470,6 @@ case "$ONLY" in
     ;;
 esac
 
-print_endpoints
+if [ "$ACTION" = "apply" ]; then
+  print_endpoints
+fi
