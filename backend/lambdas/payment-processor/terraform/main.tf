@@ -31,12 +31,15 @@ locals {
     SPRING_APPLICATION_JSON                                         = local.localstack_spring_application_json
   } : {}
   new_relic_env = var.new_relic_license_key != "" ? {
+    AWS_LAMBDA_EXEC_WRAPPER               = "/opt/newrelic-java-handler"
+    NEW_RELIC_ACCOUNT_ID                  = var.new_relic_account_id
     NEW_RELIC_APP_NAME                    = "eventpro-payment-processor-${local.workspace}"
-    NEW_RELIC_LICENSE_KEY                 = var.new_relic_license_key
     NEW_RELIC_DISTRIBUTED_TRACING_ENABLED = "true"
-    NEW_RELIC_LOG                         = "info"
+    NEW_RELIC_LAMBDA_HANDLER              = "org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest"
     NEW_RELIC_LABELS                      = "env:${local.workspace};service:eventpro-payment-processor"
-    JAVA_TOOL_OPTIONS                     = "-javaagent:/opt/newrelic/newrelic.jar"
+    NEW_RELIC_LICENSE_KEY                 = var.new_relic_license_key
+    NEW_RELIC_LOG_LEVEL                   = "info"
+    NEW_RELIC_TRUSTED_ACCOUNT_KEY         = var.new_relic_account_id
   } : {}
 
   shared_infra_remote_state_config = merge(
@@ -224,6 +227,10 @@ resource "aws_lambda_function" "payment_processor" {
   image_uri     = local.image_uri
   architectures = [var.lambda_architecture]
 
+  image_config {
+    command = var.new_relic_license_key != "" ? ["com.newrelic.java.HandlerWrapper::handleStreamsRequest"] : ["org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest"]
+  }
+
   environment {
     variables = merge({
       DB_HOST                    = data.terraform_remote_state.shared_infra.outputs.rds_endpoint
@@ -247,7 +254,18 @@ resource "aws_lambda_function" "payment_processor" {
     aws_iam_role_policy.cloudwatch_logs
   ]
 
-  tags = merge(local.common_tags, { Name = "${local.name_prefix}-payment-processor" })
+  lifecycle {
+    precondition {
+      condition     = var.new_relic_license_key == "" || var.new_relic_account_id != ""
+      error_message = "new_relic_account_id is required when new_relic_license_key is set for New Relic Lambda monitoring."
+    }
+  }
+
+  tags = merge(
+    local.common_tags,
+    { Name = "${local.name_prefix}-payment-processor" },
+    var.new_relic_license_key != "" ? { "NR.Apm.Lambda.Mode" = "true" } : {}
+  )
 }
 
 # SQS Event Source Mapping (payment queue -> Lambda)

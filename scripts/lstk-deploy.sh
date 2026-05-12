@@ -169,6 +169,8 @@ set +a
 
 NEW_RELIC_LICENSE_KEY="${NEW_RELIC_LICENSE_KEY:-${NEWRELIC_LICENSE_KEY:-}}"
 export NEW_RELIC_LICENSE_KEY
+NEW_RELIC_ACCOUNT_ID="${NEW_RELIC_ACCOUNT_ID:-${NEW_RELIC_TRUSTED_ACCOUNT_KEY:-}}"
+export NEW_RELIC_ACCOUNT_ID
 
 export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}"
 export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}"
@@ -194,6 +196,7 @@ export TF_VAR_stripe_publishable_key="${STRIPE_PUBLISHABLE_KEY:-pk_test_local}"
 export TF_VAR_stripe_webhook_secret="${STRIPE_WEBHOOK_SECRET:-test_webhook_secret}"
 export TF_VAR_ses_sender_email="${SES_SENDER_EMAIL:-noreply@eventpro.com}"
 export TF_VAR_new_relic_license_key="${NEW_RELIC_LICENSE_KEY:-}"
+export TF_VAR_new_relic_account_id="${NEW_RELIC_ACCOUNT_ID:-}"
 
 aws_lstk() {
   aws --endpoint-url="$AWS_ENDPOINT_URL" "$@"

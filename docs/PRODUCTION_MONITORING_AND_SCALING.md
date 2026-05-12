@@ -80,6 +80,19 @@ Use **Prometheus + Alertmanager** (or your cloud’s alerting) to fire when thes
 - **Log aggregation** (structured JSON logs + ELK/Datadog/CloudWatch) with correlation IDs.
 - **Business metrics:** orders/min, payments confirmed/min, reservation release rate.
 
+### New Relic deployment variables
+
+The ECS API uses the New Relic Java agent bundled in the service image. Set `NEW_RELIC_LICENSE_KEY` in the deploy environment to enable APM for the API service.
+
+The Java Lambda processors use New Relic's Lambda layer and handler wrapper. Set both values before deploying Lambda stacks:
+
+```bash
+export NEW_RELIC_LICENSE_KEY="..."
+export NEW_RELIC_ACCOUNT_ID="..."
+```
+
+`NEW_RELIC_ACCOUNT_ID` is passed to the Lambda extension as the trusted account key for distributed tracing. In GitHub Actions, configure `NEW_RELIC_LICENSE_KEY` and `NEW_RELIC_ACCOUNT_ID` as repository secrets.
+
 ### Health endpoint security
 
 - Keep `/actuator/health` **public** for load balancers.

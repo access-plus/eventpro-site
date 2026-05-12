@@ -99,6 +99,12 @@ variable "new_relic_license_key" {
   sensitive   = true
 }
 
+variable "new_relic_account_id" {
+  description = "New Relic account ID used by the Lambda extension for distributed tracing"
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

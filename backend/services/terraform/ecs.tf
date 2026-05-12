@@ -173,8 +173,10 @@ resource "aws_ecs_task_definition" "api" {
       var.new_relic_license_key != "" ? [
         { name = "NEW_RELIC_APP_NAME", value = "eventpro-site-${local.workspace}" },
         { name = "NEW_RELIC_LICENSE_KEY", value = var.new_relic_license_key },
+        { name = "NEW_RELIC_AGENT_ENABLED", value = "true" },
         { name = "NEW_RELIC_DISTRIBUTED_TRACING_ENABLED", value = "true" },
-        { name = "NEW_RELIC_LOG", value = "info" },
+        { name = "NEW_RELIC_LOG_LEVEL", value = "info" },
+        { name = "NEW_RELIC_LOG_FILE_NAME", value = "STDOUT" },
         { name = "NEW_RELIC_LABELS", value = "env:${local.workspace};service:eventpro-api" }
       ] : []
     )

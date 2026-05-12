@@ -117,6 +117,7 @@ Optional env vars passed to Terraform when set:
   JWT_ISSUER, JWT_ACCESS_TTL_SECONDS, JWT_PUBLIC_KEY, JWT_PRIVATE_KEY
   JWT_PUBLIC_KEY_FILE, JWT_PRIVATE_KEY_FILE   (script reads file content into JWT_* vars)
   NEW_RELIC_LICENSE_KEY (legacy alias: NEWRELIC_LICENSE_KEY)
+  NEW_RELIC_ACCOUNT_ID (legacy alias: NEW_RELIC_TRUSTED_ACCOUNT_KEY)
   SES_SENDER_EMAIL
   VITE_API_BASE_URL
 
@@ -866,12 +867,14 @@ run_lambda_stack() {
     export TF_VAR_image_name="$image_name"
     export TF_VAR_image_tag="$image_tag"
     export TF_VAR_new_relic_license_key="$NEW_RELIC_LICENSE_KEY"
+    export TF_VAR_new_relic_account_id="$NEW_RELIC_ACCOUNT_ID"
 
     tf_extra_args=(
       -var="image_registry=${image_registry}"
       -var="image_name=${image_name}"
       -var="image_tag=${image_tag}"
       -var="new_relic_license_key=${NEW_RELIC_LICENSE_KEY}"
+      -var="new_relic_account_id=${NEW_RELIC_ACCOUNT_ID}"
     )
 
     if [ "$lambda" = "payment-processor" ]; then
@@ -901,6 +904,8 @@ normalize_new_relic_key() {
     NEW_RELIC_LICENSE_KEY="$NEWRELIC_LICENSE_KEY"
   fi
   export NEW_RELIC_LICENSE_KEY="${NEW_RELIC_LICENSE_KEY:-}"
+  NEW_RELIC_ACCOUNT_ID="${NEW_RELIC_ACCOUNT_ID:-${NEW_RELIC_TRUSTED_ACCOUNT_KEY:-}}"
+  export NEW_RELIC_ACCOUNT_ID="${NEW_RELIC_ACCOUNT_ID:-}"
 }
 
 check_prereqs() {
