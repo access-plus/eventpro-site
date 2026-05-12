@@ -633,6 +633,12 @@ run_services_stack() {
     run_gradle_build_no_tests backend/services
     build_service_image "$primary_tag" "$extra_tag"
   else
+    if [ -n "$OVERRIDE_SERVICES_IMAGE_TAG" ]; then
+      SERVICES_IMAGE_TAG="$OVERRIDE_SERVICES_IMAGE_TAG"
+    elif [ -n "$GLOBAL_IMAGE_TAG" ]; then
+      SERVICES_IMAGE_TAG="$GLOBAL_IMAGE_TAG"
+    fi
+
     require_var SERVICES_IMAGE_REGISTRY
     SERVICES_IMAGE_NAME="${SERVICES_IMAGE_NAME:-eventpro-api}"
     require_var SERVICES_IMAGE_TAG
@@ -759,7 +765,7 @@ resolve_lambda_tag_override() {
 
 resolve_lambda_image_triplet() {
   local lambda="$1"
-  local source_mode prefix repo_name name_var reg_var tag_var
+  local source_mode prefix repo_name name_var reg_var tag_var existing_tag_override
   local primary_tag extra_tag metadata_file
 
   source_mode="$(lambda_image_source_for "$lambda")"
@@ -828,6 +834,14 @@ resolve_lambda_image_triplet() {
     eval "$name_var=\${${prefix}_IMAGE_NAME}"
     eval "$tag_var=\${${prefix}_IMAGE_TAG}"
   else
+    existing_tag_override="$(resolve_lambda_tag_override "$lambda")"
+    if [ -z "$existing_tag_override" ]; then
+      existing_tag_override="$GLOBAL_IMAGE_TAG"
+    fi
+    if [ -n "$existing_tag_override" ]; then
+      eval "$tag_var=\$existing_tag_override"
+    fi
+
     eval "current_registry=\${$reg_var-}"
     eval "current_name=\${$name_var-}"
     eval "current_tag=\${$tag_var-}"

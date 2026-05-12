@@ -93,6 +93,8 @@ export NEW_RELIC_ACCOUNT_ID="..."
 
 `NEW_RELIC_ACCOUNT_ID` is passed to the Lambda extension as the trusted account key for distributed tracing. In GitHub Actions, configure `NEW_RELIC_LICENSE_KEY` and `NEW_RELIC_ACCOUNT_ID` as repository secrets.
 
+Lambda telemetry is emitted only when the function is invoked. After deploying a new Lambda image and Terraform config, run an order/payment/notification flow or publish a test SQS message, then check the Lambda CloudWatch log stream for New Relic extension lines and New Relic serverless entities. The Java Lambda entity name is driven by Lambda function metadata; `NEW_RELIC_APP_NAME` is retained for agent config but is not the primary UI name for Lambda entities.
+
 ### Health endpoint security
 
 - Keep `/actuator/health` **public** for load balancers.

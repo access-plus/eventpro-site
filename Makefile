@@ -17,6 +17,12 @@ LSTK_COMPOSE_FILE ?= docker-compose.lstk.yml
 LSTK_WORKSPACE ?= lstk
 LSTK_TF_ACTION ?= plan
 TF_IMAGE_TAG_VAR = $(if $(IMAGE_TAG),-var="image_tag=$(IMAGE_TAG)",)
+PIPELINE_ACTION ?= apply
+PIPELINE_ACTION_FLAG := --$(PIPELINE_ACTION)
+PIPELINE_IMAGE_TAG_ARG = $(if $(IMAGE_TAG),--image-tag "$(IMAGE_TAG)",)
+SERVICES_IMAGE_SOURCE ?= build
+LAMBDAS_IMAGE_SOURCE ?= build
+LAMBDA_TARGETS ?= order-processor,payment-processor,notification-sender
 
 # Terraform reserves TF_WORKSPACE as an environment variable. We keep the Make
 # variable name for CLI ergonomics (e.g. `make ... TF_WORKSPACE=dev`) but do not
@@ -72,13 +78,15 @@ help:
 	@echo ""
 	@echo "AWS Terraform Deploy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env.remote; IMAGE_TAG optional for services/lambdas):"
 	@echo "  make tf-deploy-shared-infra         - Deploy shared infrastructure stack"
-	@echo "  make tf-deploy-services IMAGE_TAG=x - Deploy services Terraform stack"
+	@echo "  make tf-deploy-services IMAGE_TAG=x - Build/push/deploy services via pipeline-deploy.sh"
 	@echo "  make tf-deploy-frontend             - Deploy frontend Terraform stack"
-	@echo "  make tf-deploy-lambda-order IMAGE_TAG=x - Deploy order lambda Terraform stack"
-	@echo "  make tf-deploy-lambda-payment IMAGE_TAG=x - Deploy payment lambda Terraform stack"
-	@echo "  make tf-deploy-lambda-notification IMAGE_TAG=x - Deploy notification lambda Terraform stack"
-	@echo "  make tf-deploy-lambdas IMAGE_TAG=x  - Deploy all lambda Terraform stacks"
+	@echo "  make tf-deploy-lambda-order IMAGE_TAG=x - Build/push/deploy order lambda via pipeline-deploy.sh"
+	@echo "  make tf-deploy-lambda-payment IMAGE_TAG=x - Build/push/deploy payment lambda via pipeline-deploy.sh"
+	@echo "  make tf-deploy-lambda-notification IMAGE_TAG=x - Build/push/deploy notification lambda via pipeline-deploy.sh"
+	@echo "  make tf-deploy-lambdas IMAGE_TAG=x  - Build/push/deploy all lambdas via pipeline-deploy.sh"
 	@echo "  make tf-deploy-all IMAGE_TAG=x      - Deploy shared, services, frontend, and lambdas"
+	@echo "  Existing image mode: make tf-deploy-services SERVICES_IMAGE_SOURCE=existing IMAGE_TAG=x"
+	@echo "  Existing lambda mode: make tf-deploy-lambdas LAMBDAS_IMAGE_SOURCE=existing IMAGE_TAG=x"
 	@echo ""
 	@echo "AWS Terraform Destroy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env.remote; DOMAIN_NAME required. Lambda/services image registry+tag default to placeholders if unset):"
 	@echo "  make tf-destroy-frontend            - Destroy frontend Terraform stack"
@@ -325,14 +333,13 @@ tf-deploy-shared-infra:
 		terraform apply -auto-approve -var-file=terraform.tfvars
 
 tf-deploy-services:
-	@cd backend/services/terraform && \
-		terraform init -upgrade -reconfigure \
-			-backend-config=bucket=$(TF_STATE_BUCKET) \
-			-backend-config=key=services/terraform.tfstate \
-			-backend-config=region=$(TF_STATE_REGION) \
-			-backend-config=use_lockfile=true && \
-		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
-		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
+	@./scripts/pipeline-deploy.sh \
+		--env-file "$(TF_ENV_FILE)" \
+		--workspace "$(TF_WORKSPACE)" \
+		--only services \
+		--services-image-source "$(SERVICES_IMAGE_SOURCE)" \
+		$(PIPELINE_IMAGE_TAG_ARG) \
+		$(PIPELINE_ACTION_FLAG)
 
 tf-deploy-frontend:
 	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
@@ -357,45 +364,50 @@ tf-deploy-frontend:
 		aws cloudfront create-invalidation --distribution-id "$$DISTRIBUTION_ID" --paths '/*' >/dev/null
 
 tf-deploy-lambda-order:
-	@cd backend/lambdas/order-processor/terraform && \
-		terraform init -upgrade -reconfigure \
-			-backend-config=bucket=$(TF_STATE_BUCKET) \
-			-backend-config=key=order/terraform.tfstate \
-			-backend-config=region=$(TF_STATE_REGION) \
-			-backend-config=use_lockfile=true && \
-		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
-		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
+	@./scripts/pipeline-deploy.sh \
+		--env-file "$(TF_ENV_FILE)" \
+		--workspace "$(TF_WORKSPACE)" \
+		--only lambdas \
+		--lambdas order-processor \
+		--lambdas-image-source "$(LAMBDAS_IMAGE_SOURCE)" \
+		$(PIPELINE_IMAGE_TAG_ARG) \
+		$(PIPELINE_ACTION_FLAG)
 
 tf-deploy-lambda-payment:
-	@cd backend/lambdas/payment-processor/terraform && \
-		terraform init -upgrade -reconfigure \
-			-backend-config=bucket=$(TF_STATE_BUCKET) \
-			-backend-config=key=payment/terraform.tfstate \
-			-backend-config=region=$(TF_STATE_REGION) \
-			-backend-config=use_lockfile=true && \
-		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
-		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
+	@./scripts/pipeline-deploy.sh \
+		--env-file "$(TF_ENV_FILE)" \
+		--workspace "$(TF_WORKSPACE)" \
+		--only lambdas \
+		--lambdas payment-processor \
+		--lambdas-image-source "$(LAMBDAS_IMAGE_SOURCE)" \
+		$(PIPELINE_IMAGE_TAG_ARG) \
+		$(PIPELINE_ACTION_FLAG)
 
 tf-deploy-lambda-notification:
-	@cd backend/lambdas/notification-sender/terraform && \
-		terraform init -upgrade -reconfigure \
-			-backend-config=bucket=$(TF_STATE_BUCKET) \
-			-backend-config=key=notification/terraform.tfstate \
-			-backend-config=region=$(TF_STATE_REGION) \
-			-backend-config=use_lockfile=true && \
-		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
-		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
+	@./scripts/pipeline-deploy.sh \
+		--env-file "$(TF_ENV_FILE)" \
+		--workspace "$(TF_WORKSPACE)" \
+		--only lambdas \
+		--lambdas notification-sender \
+		--lambdas-image-source "$(LAMBDAS_IMAGE_SOURCE)" \
+		$(PIPELINE_IMAGE_TAG_ARG) \
+		$(PIPELINE_ACTION_FLAG)
 
 tf-deploy-lambdas:
-	@$(MAKE) tf-deploy-lambda-order TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
-	@$(MAKE) tf-deploy-lambda-payment TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
-	@$(MAKE) tf-deploy-lambda-notification TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
+	@./scripts/pipeline-deploy.sh \
+		--env-file "$(TF_ENV_FILE)" \
+		--workspace "$(TF_WORKSPACE)" \
+		--only lambdas \
+		--lambdas "$(LAMBDA_TARGETS)" \
+		--lambdas-image-source "$(LAMBDAS_IMAGE_SOURCE)" \
+		$(PIPELINE_IMAGE_TAG_ARG) \
+		$(PIPELINE_ACTION_FLAG)
 
 tf-deploy-all:
 	@$(MAKE) tf-deploy-shared-infra TF_WORKSPACE=$(TF_WORKSPACE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
-	@$(MAKE) tf-deploy-services TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
+	@$(MAKE) tf-deploy-services TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) IMAGE_TAG=$(IMAGE_TAG) SERVICES_IMAGE_SOURCE=$(SERVICES_IMAGE_SOURCE) PIPELINE_ACTION=$(PIPELINE_ACTION)
 	@$(MAKE) tf-deploy-frontend TF_WORKSPACE=$(TF_WORKSPACE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
-	@$(MAKE) tf-deploy-lambdas TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
+	@$(MAKE) tf-deploy-lambdas TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) IMAGE_TAG=$(IMAGE_TAG) LAMBDAS_IMAGE_SOURCE=$(LAMBDAS_IMAGE_SOURCE) LAMBDA_TARGETS=$(LAMBDA_TARGETS) PIPELINE_ACTION=$(PIPELINE_ACTION)
 
 tf-services-output:
 	@cd backend/services/terraform && \

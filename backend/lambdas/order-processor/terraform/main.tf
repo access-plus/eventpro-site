@@ -33,6 +33,7 @@ locals {
   new_relic_env = var.new_relic_license_key != "" ? {
     AWS_LAMBDA_EXEC_WRAPPER               = "/opt/newrelic-java-handler"
     NEW_RELIC_ACCOUNT_ID                  = var.new_relic_account_id
+    NEW_RELIC_APM_LAMBDA_MODE             = "true"
     NEW_RELIC_APP_NAME                    = "eventpro-order-processor-${local.workspace}"
     NEW_RELIC_DISTRIBUTED_TRACING_ENABLED = "true"
     NEW_RELIC_LAMBDA_HANDLER              = "org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest"
