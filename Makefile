@@ -316,14 +316,22 @@ jwt-keys:
 
 tf-deploy-shared-infra:
 	@cd backend/shared-infra && \
-		terraform init -upgrade && \
-		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=shared-infra/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
 		terraform apply -auto-approve -var-file=terraform.tfvars
 
 tf-deploy-services:
 	@cd backend/services/terraform && \
-		terraform init -upgrade && \
-		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=services/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
 		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
 
 tf-deploy-frontend:
@@ -335,8 +343,12 @@ tf-deploy-frontend:
 		npm ci && \
 		VITE_API_BASE_URL="$$VITE_API_BASE_URL" npm run build && \
 		cd terraform && \
-		terraform init -upgrade -reconfigure && \
-		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=frontend/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
 		terraform apply -auto-approve -var-file=terraform.tfvars && \
 		BUCKET_NAME="$$(terraform output -raw bucket_name)" && \
 		DISTRIBUTION_ID="$$(terraform output -raw distribution_id)" && \
@@ -346,43 +358,63 @@ tf-deploy-frontend:
 
 tf-deploy-lambda-order:
 	@cd backend/lambdas/order-processor/terraform && \
-		terraform init -upgrade && \
-		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=order/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
 		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
 
 tf-deploy-lambda-payment:
 	@cd backend/lambdas/payment-processor/terraform && \
-		terraform init -upgrade && \
-		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=payment/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
 		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
 
 tf-deploy-lambda-notification:
 	@cd backend/lambdas/notification-sender/terraform && \
-		terraform init -upgrade && \
-		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=notification/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
 		terraform apply -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
 
 tf-deploy-lambdas:
-	@$(MAKE) tf-deploy-lambda-order TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG)
-	@$(MAKE) tf-deploy-lambda-payment TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG)
-	@$(MAKE) tf-deploy-lambda-notification TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG)
+	@$(MAKE) tf-deploy-lambda-order TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
+	@$(MAKE) tf-deploy-lambda-payment TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
+	@$(MAKE) tf-deploy-lambda-notification TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
 
 tf-deploy-all:
-	@$(MAKE) tf-deploy-shared-infra TF_WORKSPACE=$(TF_WORKSPACE)
-	@$(MAKE) tf-deploy-services TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG)
+	@$(MAKE) tf-deploy-shared-infra TF_WORKSPACE=$(TF_WORKSPACE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
+	@$(MAKE) tf-deploy-services TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
 	@$(MAKE) tf-deploy-frontend TF_WORKSPACE=$(TF_WORKSPACE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
-	@$(MAKE) tf-deploy-lambdas TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG)
+	@$(MAKE) tf-deploy-lambdas TF_WORKSPACE=$(TF_WORKSPACE) IMAGE_TAG=$(IMAGE_TAG) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
 
 tf-services-output:
 	@cd backend/services/terraform && \
-		terraform init -upgrade && \
-		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=services/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
 		terraform output -json
 
 tf-frontend-output:
 	@cd eventpro-frontend/terraform && \
-		terraform init -upgrade -reconfigure && \
-		(terraform workspace select "$(TF_WORKSPACE)" || terraform workspace new "$(TF_WORKSPACE)") && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=frontend/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
 		terraform output -json
 
 tf-outputs: tf-services-output tf-frontend-output
@@ -397,7 +429,11 @@ tf-destroy-shared-infra:
 		[ -n "$$DOMAIN_NAME" ] || { echo "DOMAIN_NAME is required (set in $(TF_ENV_FILE) or env)"; exit 1; }; \
 		export TF_VAR_domain_name="$$DOMAIN_NAME"; \
 		cd backend/shared-infra && \
-		terraform init -upgrade && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=shared-infra/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
 		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
 			terraform destroy -auto-approve -var-file=terraform.tfvars; \
 		else \
@@ -406,76 +442,58 @@ tf-destroy-shared-infra:
 
 tf-destroy-services:
 	@echo "Destroying services Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
-	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
-		[ -n "$$DOMAIN_NAME" ] || { echo "DOMAIN_NAME is required (set in $(TF_ENV_FILE) or env)"; exit 1; }; \
-		export TF_VAR_domain_name="$$DOMAIN_NAME"; \
-		export TF_VAR_image_registry="$${SERVICES_IMAGE_REGISTRY:-000000000000.dkr.ecr.us-east-1.amazonaws.com}"; \
-		export TF_VAR_image_name="$${SERVICES_IMAGE_NAME:-eventpro-api}"; \
-		export TF_VAR_image_tag="$${SERVICES_IMAGE_TAG:-destroy}"; \
-		cd backend/services/terraform && \
-		terraform init -upgrade && \
-		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
-			terraform destroy -auto-approve -var-file=terraform.tfvars; \
-		else \
-			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
-		fi
+	@cd backend/services/terraform && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=services/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
+		terraform destroy -auto-approve -var-file=terraform.tfvars
 
 tf-destroy-frontend:
 	@echo "Destroying frontend Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
-	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
-		[ -n "$$DOMAIN_NAME" ] || { echo "DOMAIN_NAME is required (set in $(TF_ENV_FILE) or env)"; exit 1; }; \
-		export TF_VAR_domain_name="$$DOMAIN_NAME"; \
-		cd eventpro-frontend/terraform && \
-		terraform init -upgrade -reconfigure && \
-		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
-			terraform destroy -auto-approve -var-file=terraform.tfvars; \
-		else \
-			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
-		fi
+	@cd eventpro-frontend/terraform && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=frontend/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
+		terraform destroy -auto-approve -var-file=terraform.tfvars $(TF_IMAGE_TAG_VAR)
 
 tf-destroy-lambda-order:
 	@echo "Destroying order-processor Lambda Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
-	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
-		export TF_VAR_image_registry="$${ORDER_PROCESSOR_IMAGE_REGISTRY:-000000000000.dkr.ecr.us-east-1.amazonaws.com}"; \
-		export TF_VAR_image_name="$${ORDER_PROCESSOR_IMAGE_NAME:-eventpro-order-processor}"; \
-		export TF_VAR_image_tag="$${ORDER_PROCESSOR_IMAGE_TAG:-destroy}"; \
-		cd backend/lambdas/order-processor/terraform && \
-		terraform init -upgrade && \
-		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
-			terraform destroy -auto-approve -var-file=terraform.tfvars; \
-		else \
-			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
-		fi
+	@cd backend/lambdas/order-processor/terraform && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=order/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
+		terraform destroy -auto-approve -var-file=terraform.tfvars
 
 tf-destroy-lambda-payment:
 	@echo "Destroying payment-processor Lambda Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
-	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
-		export TF_VAR_image_registry="$${PAYMENT_PROCESSOR_IMAGE_REGISTRY:-000000000000.dkr.ecr.us-east-1.amazonaws.com}"; \
-		export TF_VAR_image_name="$${PAYMENT_PROCESSOR_IMAGE_NAME:-eventpro-payment-processor}"; \
-		export TF_VAR_image_tag="$${PAYMENT_PROCESSOR_IMAGE_TAG:-destroy}"; \
-		[ -n "$${STRIPE_SECRET_KEY:-}" ] && export TF_VAR_stripe_secret_key="$$STRIPE_SECRET_KEY" || true; \
-		cd backend/lambdas/payment-processor/terraform && \
-		terraform init -upgrade && \
-		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
-			terraform destroy -auto-approve -var-file=terraform.tfvars; \
-		else \
-			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
-		fi
+	@cd backend/lambdas/payment-processor/terraform && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=payment/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
+		terraform destroy -auto-approve -var-file=terraform.tfvars
 
 tf-destroy-lambda-notification:
 	@echo "Destroying notification-sender Lambda Terraform (workspace=$(TF_WORKSPACE), env=$(TF_ENV_FILE))..."
-	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
-		export TF_VAR_image_registry="$${NOTIFICATION_SENDER_IMAGE_REGISTRY:-000000000000.dkr.ecr.us-east-1.amazonaws.com}"; \
-		export TF_VAR_image_name="$${NOTIFICATION_SENDER_IMAGE_NAME:-eventpro-notification-sender}"; \
-		export TF_VAR_image_tag="$${NOTIFICATION_SENDER_IMAGE_TAG:-destroy}"; \
-		[ -n "$${SES_SENDER_EMAIL:-}" ] && export TF_VAR_ses_sender_email="$$SES_SENDER_EMAIL" || true; \
-		cd backend/lambdas/notification-sender/terraform && \
-		terraform init -upgrade && \
-		if terraform workspace select "$(TF_WORKSPACE)" >/dev/null 2>&1; then \
-			terraform destroy -auto-approve -var-file=terraform.tfvars; \
-		else \
-			echo "Workspace \"$(TF_WORKSPACE)\" not found in this backend; skipping destroy."; \
-		fi
+	@cd backend/lambdas/notification-sender/terraform && \
+		terraform init -upgrade -reconfigure \
+			-backend-config=bucket=$(TF_STATE_BUCKET) \
+			-backend-config=key=notification/terraform.tfstate \
+			-backend-config=region=$(TF_STATE_REGION) \
+			-backend-config=use_lockfile=true && \
+		(terraform workspace select -or-create "$(TF_WORKSPACE)") && \
+		terraform destroy -auto-approve -var-file=terraform.tfvars
 
 tf-destroy-lambdas:
 	@$(MAKE) tf-destroy-lambda-order TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) TF_STATE_BUCKET=$(TF_STATE_BUCKET) TF_STATE_REGION=$(TF_STATE_REGION)
@@ -496,50 +514,50 @@ tf-destroy: tf-destroy-all
 # ============================================================================
 
 lstk-start:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start-only
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --start-only
 
 lstk-stop:
 	@docker compose --env-file "$(LSTK_ENV_FILE)" -f "$(LSTK_COMPOSE_FILE)" down
 
 lstk-state-bucket:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --bootstrap-state
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --start --bootstrap-state
 
 lstk-route53-zone:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --bootstrap-route53
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --start --bootstrap-route53
 
 lstk-endpoints:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --print-endpoints
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --print-endpoints
 
 lstk-tf-shared-infra:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only shared-infra
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --$(LSTK_TF_ACTION) --only shared-infra
 
 lstk-tf-services:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only services
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --$(LSTK_TF_ACTION) --only services
 
 lstk-tf-frontend:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only frontend
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --$(LSTK_TF_ACTION) --only frontend
 
 lstk-tf-lambda-order:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only order-processor
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --$(LSTK_TF_ACTION) --only order-processor
 
 lstk-tf-lambda-payment:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only payment-processor
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --$(LSTK_TF_ACTION) --only payment-processor
 
 lstk-tf-lambda-notification:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only notification-sender
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --$(LSTK_TF_ACTION) --only notification-sender
 
 lstk-tf-lambdas:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only lambdas
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --$(LSTK_TF_ACTION) --only lambdas
 
 lstk-tf-all:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --$(LSTK_TF_ACTION) --only all
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --start --$(LSTK_TF_ACTION) --only all
 
 lstk-tf-destroy-all:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --destroy --only all
+	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "lstk" --start --destroy --only all
 
 lstk-redeploy:
-	@$(MAKE) lstk-tf-destroy-all LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
-	@$(MAKE) lstk-tf-all LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE) LSTK_TF_ACTION=apply
+	@$(MAKE) lstk-tf-destroy-all LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=lstk
+	@$(MAKE) lstk-tf-all LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=lstk LSTK_TF_ACTION=apply
 
 # ============================================================================
 # Local Development (Docker Compose + LocalStack)
@@ -725,3 +743,11 @@ local-event-mappings:
 	@echo "Event Source Mappings in LocalStack:"
 	@aws --endpoint-url=http://localhost:4566 lambda list-event-source-mappings --query 'EventSourceMappings[*].[EventSourceArn,FunctionArn,State,LastModified]' --output table 2>/dev/null || \
 		(echo "⚠️  Could not list event source mappings. Is LocalStack running?"; exit 1)
+
+clean-terraform-init:
+	@echo "Cleaning Terraform init..."
+	find . -type d -name ".terraform" -exec rm -rf {} \; -o -type f -name ".terraform.lock.hcl" -delete
+
+clean-terraform-init-dry-run:
+	@echo "Cleaning Terraform init..."
+	find . -type d -name ".terraform" -o -type f -name ".terraform.lock.hcl"

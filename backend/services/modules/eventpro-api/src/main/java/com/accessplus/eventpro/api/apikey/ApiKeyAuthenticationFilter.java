@@ -20,7 +20,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 
 /**
  * Runs before JWT filter. If X-Api-Key header is present and no Bearer token, resolves user and sets auth (Enterprise API access).

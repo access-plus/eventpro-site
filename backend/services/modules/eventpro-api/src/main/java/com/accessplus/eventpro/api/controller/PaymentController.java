@@ -5,7 +5,6 @@ import com.accessplus.eventpro.api.dto.CheckoutTotalsResponse;
 import com.accessplus.eventpro.api.dto.ConfirmPaymentRequest;
 import com.accessplus.eventpro.api.dto.CreatePaymentIntentRequest;
 import com.accessplus.eventpro.api.dto.GuestConfirmPaymentRequest;
-import com.accessplus.eventpro.api.dto.GuestOrderItemRequest;
 import com.accessplus.eventpro.api.dto.GuestReserveRequest;
 import com.accessplus.eventpro.api.dto.OrderResponse;
 import com.accessplus.eventpro.api.notification.service.NotificationPreferenceService;
