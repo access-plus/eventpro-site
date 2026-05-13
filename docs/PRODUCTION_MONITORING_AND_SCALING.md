@@ -84,16 +84,45 @@ Use **Prometheus + Alertmanager** (or your cloud’s alerting) to fire when thes
 
 The ECS API uses the New Relic Java agent bundled in the service image. Set `NEW_RELIC_LICENSE_KEY` in the deploy environment to enable APM for the API service.
 
-The Java Lambda processors use New Relic's Lambda layer and handler wrapper. Set both values before deploying Lambda stacks:
+The Java Lambda processors use New Relic’s container layer (`newrelic-lambda-layers-java:21` copied into `/opt` in each Lambda Dockerfile), **`AWS_LAMBDA_EXEC_WRAPPER=/opt/newrelic-java-handler`**, and **`com.newrelic.java.HandlerWrapper::handleStreamsRequest`** as the image `command`, with **`NEW_RELIC_LAMBDA_HANDLER`** pointing at Spring’s `FunctionInvoker::handleRequest`. Terraform sets these when `new_relic_license_key` is non-empty.
+
+#### Required deploy env (real AWS)
+
+Set **both** before deploying Lambda stacks (never one without the other — partial config can drop telemetry with no obvious error):
 
 ```bash
 export NEW_RELIC_LICENSE_KEY="..."
 export NEW_RELIC_ACCOUNT_ID="..."
 ```
 
-`NEW_RELIC_ACCOUNT_ID` is passed to the Lambda extension as the trusted account key for distributed tracing. In GitHub Actions, configure `NEW_RELIC_LICENSE_KEY` and `NEW_RELIC_ACCOUNT_ID` as repository secrets.
+- `NEW_RELIC_ACCOUNT_ID` is the numeric New Relic account ID (same value as `NEW_RELIC_TRUSTED_ACCOUNT_KEY` in Lambda env).
+- The license key and account ID **must be from the same New Relic account** (mismatch → silent drop).
+- In GitHub Actions, both are passed as Terraform variables via repository secrets.
 
-Lambda telemetry is emitted only when the function is invoked. After deploying a new Lambda image and Terraform config, run an order/payment/notification flow or publish a test SQS message, then check the Lambda CloudWatch log stream for New Relic extension lines and New Relic serverless entities. The Java Lambda entity name is driven by Lambda function metadata; `NEW_RELIC_APP_NAME` is retained for agent config but is not the primary UI name for Lambda entities.
+Terraform also sets **`NEW_RELIC_CLOUD_AWS_ACCOUNT_ID`** from `data.aws_caller_identity` so New Relic can map AWS entities.
+
+#### Preflight (local / CI)
+
+- Run `make newrelic-lambda-preflight` or `scripts/check-newrelic-lambda-prereqs.sh` after sourcing your `.env.remote` (validates paired license + account).
+- `scripts/pipeline-deploy.sh` runs this automatically when `--lambdas` is included.
+
+#### After deploy: prove telemetry
+
+1. **Invoke each function** (SQS test messages or a full order flow). Lambdas only emit serverless telemetry when invoked.
+2. **CloudWatch Logs**: search the function log stream for `NR_EXT`, `NewRelic`, or extension/agent lines.
+3. **New Relic**: run NRQL such as `FROM AwsLambdaInvocation SELECT count(*) SINCE 30 minutes ago FACET aws.lambda.functionName` (exact attributes vary by data type).
+4. **AWS config audit**: `make newrelic-lambda-verify-config` (requires `aws` + `jq`; uses `WORKSPACE` / `TF_WORKSPACE`, default `dev`) runs `scripts/verify-newrelic-lambda-telemetry.sh` against `${WORKSPACE}-order-processor`, `-payment-processor`, `-notification-sender`.
+
+#### Troubleshooting (functions not “instrumented” or no data)
+
+| Symptom | What to check |
+|--------|----------------|
+| No Lambda entities / no invocation data | **Duplicate AWS integrations** in New Relic for the same AWS account (API polling **and** CloudWatch Metric Streams). Unlink one per [New Relic docs](https://docs.newrelic.com/docs/serverless-function-monitoring/aws-lambda-monitoring/troubleshooting/troubleshoot-not-instrumented-lambda-function/). |
+| No data, no errors | **License key vs account ID** mismatch (different NR accounts). |
+| Partial GitHub secrets | Only `NEW_RELIC_LICENSE_KEY` or only `NEW_RELIC_ACCOUNT_ID` set — deploy will fail preflight. |
+| Tag missing | Lambda must have tag **`NR.Apm.Lambda.Mode=true`** when New Relic is enabled (Terraform applies it). |
+
+The Java Lambda entity name in the UI is driven primarily by **Lambda function metadata**, not `NEW_RELIC_APP_NAME` (retained for agent config).
 
 ### Health endpoint security
 

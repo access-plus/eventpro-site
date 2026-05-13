@@ -93,7 +93,7 @@ resource "aws_iam_role_policy" "ecs_task" {
   role = aws_iam_role.ecs_task.id
 
   policy = var.task_role_policy != null ? var.task_role_policy : jsonencode({
-    Version = "2012-10-17"
+    Version   = "2012-10-17"
     Statement = []
   })
 }
@@ -151,11 +151,11 @@ data "aws_region" "current" {}
 
 # ECS Service
 resource "aws_ecs_service" "main" {
-  name            = "${var.name_prefix}-${var.service_name}"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.main.arn
-  desired_count   = var.desired_count
-  launch_type     = "FARGATE"
+  name             = "${var.name_prefix}-${var.service_name}"
+  cluster          = aws_ecs_cluster.main.id
+  task_definition  = aws_ecs_task_definition.main.arn
+  desired_count    = var.desired_count
+  launch_type      = "FARGATE"
   platform_version = var.platform_version
 
   network_configuration {

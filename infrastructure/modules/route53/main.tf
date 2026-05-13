@@ -51,8 +51,8 @@ resource "aws_route53_record" "records" {
   dynamic "geolocation_routing_policy" {
     for_each = each.value.geolocation_routing_policy != null ? [each.value.geolocation_routing_policy] : []
     content {
-      continent  = geolocation_routing_policy.value.continent
-      country    = geolocation_routing_policy.value.country
+      continent   = geolocation_routing_policy.value.continent
+      country     = geolocation_routing_policy.value.country
       subdivision = geolocation_routing_policy.value.subdivision
     }
   }

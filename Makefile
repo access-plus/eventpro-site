@@ -1,7 +1,8 @@
 .PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build jwt-keys \
 	tf-deploy-shared-infra tf-deploy-services tf-deploy-frontend tf-deploy-lambda-order tf-deploy-lambda-payment tf-deploy-lambda-notification tf-deploy-lambdas tf-deploy-all \
 	tf-destroy-shared-infra tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy \
-	lstk-start lstk-stop lstk-state-bucket lstk-route53-zone lstk-endpoints lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all lstk-tf-destroy-all lstk-redeploy
+	lstk-start lstk-stop lstk-state-bucket lstk-route53-zone lstk-endpoints lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all lstk-tf-destroy-all lstk-redeploy \
+	newrelic-lambda-preflight newrelic-lambda-verify-config
 
 # Variables
 API_DIR := backend/services
@@ -85,6 +86,8 @@ help:
 	@echo "  make tf-deploy-lambda-notification IMAGE_TAG=x - Build/push/deploy notification lambda via pipeline-deploy.sh"
 	@echo "  make tf-deploy-lambdas IMAGE_TAG=x  - Build/push/deploy all lambdas via pipeline-deploy.sh"
 	@echo "  make tf-deploy-all IMAGE_TAG=x      - Deploy shared, services, frontend, and lambdas"
+	@echo "  make newrelic-lambda-preflight      - Validate NEW_RELIC_* env for Lambda deploys (sources TF_ENV_FILE)"
+	@echo "  make newrelic-lambda-verify-config  - AWS audit: Lambda NR image command + env keys (needs aws, jq; sources TF_ENV_FILE)"
 	@echo "  Existing image mode: make tf-deploy-services SERVICES_IMAGE_SOURCE=existing IMAGE_TAG=x"
 	@echo "  Existing lambda mode: make tf-deploy-lambdas LAMBDAS_IMAGE_SOURCE=existing IMAGE_TAG=x"
 	@echo ""
@@ -362,6 +365,15 @@ tf-deploy-frontend:
 		cd ../.. && \
 		aws s3 sync eventpro-frontend/dist/ "s3://$$BUCKET_NAME/" --delete && \
 		aws cloudfront create-invalidation --distribution-id "$$DISTRIBUTION_ID" --paths '/*' >/dev/null
+
+# New Relic (Java Lambdas): validate deploy env and optional AWS-side config audit
+newrelic-lambda-preflight:
+	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
+		./scripts/check-newrelic-lambda-prereqs.sh
+
+newrelic-lambda-verify-config:
+	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
+		WORKSPACE="$(TF_WORKSPACE)" ./scripts/verify-newrelic-lambda-telemetry.sh
 
 tf-deploy-lambda-order:
 	@./scripts/pipeline-deploy.sh \

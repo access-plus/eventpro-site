@@ -264,6 +264,9 @@ select_workspace() {
 run_terraform_stack() {
   local stack_dir="$1"
   require_cmd terraform
+  if [[ "${stack_dir}" == *"/lambdas/"* ]]; then
+    "$ROOT_DIR/scripts/check-newrelic-lambda-prereqs.sh"
+  fi
   log "Running LocalStack Terraform ${ACTION}: $stack_dir (workspace=$WORKSPACE_NAME)"
   (
     cd "$ROOT_DIR/$stack_dir"

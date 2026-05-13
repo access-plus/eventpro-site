@@ -35,6 +35,7 @@ locals {
     NEW_RELIC_ACCOUNT_ID                  = var.new_relic_account_id
     NEW_RELIC_APM_LAMBDA_MODE             = "true"
     NEW_RELIC_APP_NAME                    = "eventpro-order-processor-${local.workspace}"
+    NEW_RELIC_CLOUD_AWS_ACCOUNT_ID        = data.aws_caller_identity.current.account_id
     NEW_RELIC_DISTRIBUTED_TRACING_ENABLED = "true"
     NEW_RELIC_LAMBDA_HANDLER              = "org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest"
     NEW_RELIC_LABELS                      = "env:${local.workspace};service:eventpro-order-processor"
@@ -65,6 +66,8 @@ locals {
     }) : "{}")
   )
 }
+
+data "aws_caller_identity" "current" {}
 
 provider "aws" {
   region                      = var.aws_region

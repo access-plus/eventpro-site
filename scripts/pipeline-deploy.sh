@@ -118,6 +118,7 @@ Optional env vars passed to Terraform when set:
   JWT_PUBLIC_KEY_FILE, JWT_PRIVATE_KEY_FILE   (script reads file content into JWT_* vars)
   NEW_RELIC_LICENSE_KEY (legacy alias: NEWRELIC_LICENSE_KEY)
   NEW_RELIC_ACCOUNT_ID (legacy alias: NEW_RELIC_TRUSTED_ACCOUNT_KEY)
+    When deploying lambdas: both must be set together or both unset (see scripts/check-newrelic-lambda-prereqs.sh).
   SES_SENDER_EMAIL
   VITE_API_BASE_URL
 
@@ -922,6 +923,13 @@ normalize_new_relic_key() {
   export NEW_RELIC_ACCOUNT_ID="${NEW_RELIC_ACCOUNT_ID:-}"
 }
 
+validate_new_relic_for_lambda_deploys() {
+  if [ "$RUN_LAMBDAS" != true ]; then
+    return 0
+  fi
+  "$ROOT_DIR/scripts/check-newrelic-lambda-prereqs.sh"
+}
+
 check_prereqs() {
   require_cmd terraform
   require_cmd aws
@@ -994,6 +1002,7 @@ main() {
   fi
 
   if [ "$RUN_LAMBDAS" = true ]; then
+    validate_new_relic_for_lambda_deploys
     run_lambdas
   fi
 

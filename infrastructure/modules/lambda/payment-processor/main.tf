@@ -162,7 +162,7 @@ resource "aws_lambda_function" "payment_processor" {
       STRIPE_SECRET_KEY          = var.stripe_secret_key != null ? var.stripe_secret_key : ""
       SQS_NOTIFICATION_QUEUE_URL = var.notification_queue_url
       # AWS_REGION is reserved; Lambda injects it — do not set here.
-      QUARKUS_LOG_LEVEL          = var.log_level
+      QUARKUS_LOG_LEVEL = var.log_level
     }
   }
 
@@ -191,8 +191,8 @@ resource "aws_lambda_function" "payment_processor" {
 # SQS Event Source Mapping
 resource "aws_lambda_event_source_mapping" "payment_queue" {
   event_source_arn = var.payment_queue_arn
-  function_name   = aws_lambda_function.payment_processor.arn
-  enabled         = var.enable_event_source_mapping
+  function_name    = aws_lambda_function.payment_processor.arn
+  enabled          = var.enable_event_source_mapping
 
   batch_size                         = var.batch_size
   maximum_batching_window_in_seconds = var.maximum_batching_window_in_seconds
