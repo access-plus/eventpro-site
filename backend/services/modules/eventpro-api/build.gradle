@@ -40,6 +40,10 @@ dependencies {
     // PDF generation (1099-K)
     implementation 'org.apache.pdfbox:pdfbox:2.0.29'
 
+    // AWS SDK
+    implementation platform("software.amazon.awssdk:bom:${project.ext.awsSdkVersion}")
+    implementation 'software.amazon.awssdk:sqs'
+
     // Stripe (webhook controller and subscription checkout use Stripe types directly)
     implementation 'com.stripe:stripe-java:24.16.0'
 

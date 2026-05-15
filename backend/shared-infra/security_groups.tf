@@ -70,6 +70,18 @@ resource "aws_security_group" "rds" {
     security_groups = [aws_security_group.app.id]
   }
 
+  dynamic "ingress" {
+    for_each = terraform.workspace == "dev" && !var.use_localstack ? [1] : []
+
+    content {
+      description = "PostgreSQL public dev DB UI access"
+      from_port   = 5432
+      to_port     = 5432
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+
   egress {
     description = "Allow all outbound traffic"
     from_port   = 0
