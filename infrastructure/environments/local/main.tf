@@ -52,8 +52,8 @@ resource "aws_sqs_queue" "order_queue" {
 
   name                       = "order-queue"
   message_retention_seconds  = 345600 # 4 days
-  visibility_timeout_seconds = 360 # 6 minutes (must be >= Lambda timeout)
-  receive_wait_time_seconds  = 20 # Long polling
+  visibility_timeout_seconds = 360    # 6 minutes (must be >= Lambda timeout)
+  receive_wait_time_seconds  = 20     # Long polling
 
   # Dead-letter queue configuration
   redrive_policy = jsonencode({
@@ -73,8 +73,8 @@ resource "aws_sqs_queue" "payment_queue" {
 
   name                       = "payment-queue"
   message_retention_seconds  = 345600 # 4 days
-  visibility_timeout_seconds = 360 # 6 minutes (must be >= Lambda timeout)
-  receive_wait_time_seconds  = 20 # Long polling
+  visibility_timeout_seconds = 360    # 6 minutes (must be >= Lambda timeout)
+  receive_wait_time_seconds  = 20     # Long polling
 
   # Dead-letter queue configuration
   redrive_policy = jsonencode({
@@ -94,8 +94,8 @@ resource "aws_sqs_queue" "notification_queue" {
 
   name                       = "notification-queue"
   message_retention_seconds  = 345600 # 4 days
-  visibility_timeout_seconds = 360 # 6 minutes (must be >= Lambda timeout)
-  receive_wait_time_seconds  = 20 # Long polling
+  visibility_timeout_seconds = 360    # 6 minutes (must be >= Lambda timeout)
+  receive_wait_time_seconds  = 20     # Long polling
 
   # Dead-letter queue configuration
   redrive_policy = jsonencode({
@@ -400,7 +400,7 @@ resource "aws_lambda_function" "order_processor" {
   provider = aws.localstack
 
   function_name = "local-order-processor"
-  description    = "Processes orders from SQS, validates them, reserves tickets, and publishes to payment queue"
+  description   = "Processes orders from SQS, validates them, reserves tickets, and publishes to payment queue"
   role          = aws_iam_role.lambda_order_processor.arn
   handler       = "io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"
   runtime       = "provided.al2"
@@ -412,10 +412,10 @@ resource "aws_lambda_function" "order_processor" {
 
   environment {
     variables = {
-      DB_URL                = "jdbc:postgresql://postgres:5432/eventpro"
-      DB_USERNAME           = "eventpro"
-      DB_PASSWORD           = "eventpro"
-      AWS_ENDPOINT_URL      = "http://localstack:4566"
+      DB_URL           = "jdbc:postgresql://postgres:5432/eventpro"
+      DB_USERNAME      = "eventpro"
+      DB_PASSWORD      = "eventpro"
+      AWS_ENDPOINT_URL = "http://localstack:4566"
       # AWS_REGION is reserved on Lambda; runtime provides it (see AWS docs).
       AWS_ACCESS_KEY_ID     = "test"
       AWS_SECRET_ACCESS_KEY = "test"
@@ -450,15 +450,15 @@ resource "aws_lambda_function" "payment_processor" {
 
   environment {
     variables = {
-      DB_URL                   = "jdbc:postgresql://postgres:5432/eventpro"
-      DB_USERNAME              = "eventpro"
-      DB_PASSWORD              = "eventpro"
-      AWS_ENDPOINT_URL         = "http://localstack:4566"
+      DB_URL           = "jdbc:postgresql://postgres:5432/eventpro"
+      DB_USERNAME      = "eventpro"
+      DB_PASSWORD      = "eventpro"
+      AWS_ENDPOINT_URL = "http://localstack:4566"
       # AWS_REGION is reserved on Lambda; runtime provides it (see AWS docs).
-      AWS_ACCESS_KEY_ID        = "test"
-      AWS_SECRET_ACCESS_KEY    = "test"
+      AWS_ACCESS_KEY_ID          = "test"
+      AWS_SECRET_ACCESS_KEY      = "test"
       SQS_NOTIFICATION_QUEUE_URL = aws_sqs_queue.notification_queue.url
-      STRIPE_SECRET_KEY        = "sk_test_local"
+      STRIPE_SECRET_KEY          = "sk_test_local"
     }
   }
 
@@ -489,14 +489,14 @@ resource "aws_lambda_function" "notification_sender" {
 
   environment {
     variables = {
-      DB_URL             = "jdbc:postgresql://postgres:5432/eventpro"
-      DB_USERNAME        = "eventpro"
-      DB_PASSWORD        = "eventpro"
-      AWS_ENDPOINT_URL   = "http://localstack:4566"
+      DB_URL           = "jdbc:postgresql://postgres:5432/eventpro"
+      DB_USERNAME      = "eventpro"
+      DB_PASSWORD      = "eventpro"
+      AWS_ENDPOINT_URL = "http://localstack:4566"
       # AWS_REGION is reserved on Lambda; runtime provides it (see AWS docs).
-      AWS_ACCESS_KEY_ID  = "test"
+      AWS_ACCESS_KEY_ID     = "test"
       AWS_SECRET_ACCESS_KEY = "test"
-      SES_SENDER_EMAIL   = "noreply@eventpro.com"
+      SES_SENDER_EMAIL      = "noreply@eventpro.com"
     }
   }
 

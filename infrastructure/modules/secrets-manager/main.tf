@@ -7,7 +7,7 @@ resource "aws_secretsmanager_secret" "secrets" {
 
   name                    = "${var.name_prefix}-${each.value.name}"
   description             = each.value.description
-  kms_key_id             = each.value.kms_key_id
+  kms_key_id              = each.value.kms_key_id
   recovery_window_in_days = each.value.recovery_window_in_days
 
   tags = merge(
@@ -56,8 +56,8 @@ resource "aws_secretsmanager_secret_policy" "secrets" {
     if v.policy != null
   }
 
-  secret_arn        = aws_secretsmanager_secret.secrets[each.key].arn
-  policy            = each.value.policy
+  secret_arn          = aws_secretsmanager_secret.secrets[each.key].arn
+  policy              = each.value.policy
   block_public_policy = each.value.block_public_policy
 }
 

@@ -167,6 +167,11 @@ set -a
 . "$ENV_FILE_PATH"
 set +a
 
+NEW_RELIC_LICENSE_KEY="${NEW_RELIC_LICENSE_KEY:-${NEWRELIC_LICENSE_KEY:-}}"
+export NEW_RELIC_LICENSE_KEY
+NEW_RELIC_ACCOUNT_ID="${NEW_RELIC_ACCOUNT_ID:-${NEW_RELIC_TRUSTED_ACCOUNT_KEY:-}}"
+export NEW_RELIC_ACCOUNT_ID
+
 export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-test}"
 export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}"
 export AWS_SESSION_TOKEN="${AWS_SESSION_TOKEN:-test}"
@@ -190,6 +195,8 @@ export TF_VAR_stripe_secret_key="${STRIPE_SECRET_KEY:-sk_test_local}"
 export TF_VAR_stripe_publishable_key="${STRIPE_PUBLISHABLE_KEY:-pk_test_local}"
 export TF_VAR_stripe_webhook_secret="${STRIPE_WEBHOOK_SECRET:-test_webhook_secret}"
 export TF_VAR_ses_sender_email="${SES_SENDER_EMAIL:-noreply@eventpro.com}"
+export TF_VAR_new_relic_license_key="${NEW_RELIC_LICENSE_KEY:-}"
+export TF_VAR_new_relic_account_id="${NEW_RELIC_ACCOUNT_ID:-}"
 
 aws_lstk() {
   aws --endpoint-url="$AWS_ENDPOINT_URL" "$@"
@@ -257,6 +264,9 @@ select_workspace() {
 run_terraform_stack() {
   local stack_dir="$1"
   require_cmd terraform
+  if [[ "${stack_dir}" == *"/lambdas/"* ]]; then
+    "$ROOT_DIR/scripts/check-newrelic-lambda-prereqs.sh"
+  fi
   log "Running LocalStack Terraform ${ACTION}: $stack_dir (workspace=$WORKSPACE_NAME)"
   (
     cd "$ROOT_DIR/$stack_dir"

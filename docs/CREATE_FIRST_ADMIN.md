@@ -34,6 +34,17 @@ The migration only runs once. To avoid affecting production, you can:
 - Use it only in dev/staging, or  
 - Remove/rename it before deploying to production and use Option 1 or 3 instead.
 
+## Option 2b: Local/Dev startup seed
+
+The API also seeds a development admin account on startup for the `local`, `lstk`, and `dev` Spring profiles:
+
+- Email: `admin@event.com`
+- Password: `Password@123`
+
+This seed is idempotent and only inserts the account when that email does not already exist. It is intentionally not active for production profiles.
+
+For AWS dev RDS, connect with the live RDS endpoint, port `5432`, database `eventprodb`, username `accessplus`, and the password from the RDS managed master user secret in AWS Secrets Manager.
+
 ---
 
 ## Option 3: Insert admin manually in the DB

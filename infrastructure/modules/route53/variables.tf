@@ -21,7 +21,7 @@ variable "records" {
     }))
 
     # Routing Policies
-    set_identifier = optional(string)
+    set_identifier  = optional(string)
     health_check_id = optional(string)
 
     failover_routing_policy = optional(object({

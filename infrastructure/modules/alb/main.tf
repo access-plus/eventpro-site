@@ -10,8 +10,8 @@ resource "aws_lb" "main" {
   subnets            = var.subnet_ids
 
   enable_deletion_protection = var.enable_deletion_protection
-  enable_http2              = true
-  idle_timeout              = var.idle_timeout
+  enable_http2               = true
+  idle_timeout               = var.idle_timeout
 
   # Access logs (optional)
   dynamic "access_logs" {
@@ -113,7 +113,7 @@ resource "aws_lb_target_group" "secondary" {
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = "80"
-  protocol           = "HTTP"
+  protocol          = "HTTP"
 
   default_action {
     type = "redirect"
@@ -160,7 +160,7 @@ resource "aws_lb_listener_rule" "path_routing" {
   for_each = var.path_routing_rules
 
   listener_arn = aws_lb_listener.https.arn
-  priority      = each.value.priority
+  priority     = each.value.priority
 
   action {
     type             = "forward"

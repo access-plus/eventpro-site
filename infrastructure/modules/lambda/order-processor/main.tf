@@ -153,13 +153,13 @@ resource "aws_lambda_function" "order_processor" {
   # Environment variables
   environment {
     variables = {
-      DB_HOST                = var.database_host
-      DB_PORT                = tostring(var.database_port)
-      DB_NAME                = var.database_name
-      DB_SECRET_ARN          = var.database_secret_arn
-      SQS_PAYMENT_QUEUE_URL  = var.payment_queue_url
+      DB_HOST               = var.database_host
+      DB_PORT               = tostring(var.database_port)
+      DB_NAME               = var.database_name
+      DB_SECRET_ARN         = var.database_secret_arn
+      SQS_PAYMENT_QUEUE_URL = var.payment_queue_url
       # AWS_REGION is reserved; Lambda injects it — do not set here.
-      QUARKUS_LOG_LEVEL      = var.log_level
+      QUARKUS_LOG_LEVEL = var.log_level
     }
   }
 
@@ -188,8 +188,8 @@ resource "aws_lambda_function" "order_processor" {
 # SQS Event Source Mapping
 resource "aws_lambda_event_source_mapping" "order_queue" {
   event_source_arn = var.order_queue_arn
-  function_name   = aws_lambda_function.order_processor.arn
-  enabled         = var.enable_event_source_mapping
+  function_name    = aws_lambda_function.order_processor.arn
+  enabled          = var.enable_event_source_mapping
 
   batch_size                         = var.batch_size
   maximum_batching_window_in_seconds = var.maximum_batching_window_in_seconds

@@ -99,6 +99,24 @@ variable "batch_size" {
   default     = 10
 }
 
+variable "new_relic_license_key" {
+  description = "New Relic license key (pass via CI secrets)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "new_relic_account_id" {
+  description = "New Relic account ID used by the Lambda extension for distributed tracing"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.new_relic_account_id == "" || can(regex("^[0-9]+$", var.new_relic_account_id))
+    error_message = "new_relic_account_id must be a numeric New Relic account ID (or empty)."
+  }
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

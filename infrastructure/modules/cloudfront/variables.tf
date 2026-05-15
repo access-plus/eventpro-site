@@ -50,10 +50,10 @@ variable "aliases" {
 variable "origins" {
   description = "List of origins for this distribution"
   type = list(object({
-    origin_id          = string
-    domain_name        = string
-    origin_type        = string # "s3" or "custom"
-    origin_path        = optional(string)
+    origin_id           = string
+    domain_name         = string
+    origin_type         = string # "s3" or "custom"
+    origin_path         = optional(string)
     connection_attempts = optional(number)
     connection_timeout  = optional(number)
     custom_origin_config = optional(object({
@@ -68,7 +68,7 @@ variable "origins" {
       name  = string
       value = string
     })), [])
-    origin_shield_enabled  = optional(bool, false)
+    origin_shield_enabled = optional(bool, false)
     origin_shield_region  = optional(string)
   }))
 }
@@ -76,18 +76,18 @@ variable "origins" {
 variable "default_cache_behavior" {
   description = "Default cache behavior for this distribution"
   type = object({
-    allowed_methods          = list(string)
-    cached_methods           = list(string)
-    target_origin_id         = string
-    compress                 = optional(bool, true)
-    viewer_protocol_policy  = string
-    cache_policy_id          = optional(string)
-    origin_request_policy_id = optional(string)
+    allowed_methods            = list(string)
+    cached_methods             = list(string)
+    target_origin_id           = string
+    compress                   = optional(bool, true)
+    viewer_protocol_policy     = string
+    cache_policy_id            = optional(string)
+    origin_request_policy_id   = optional(string)
     response_headers_policy_id = optional(string)
-    field_level_encryption_id = optional(string)
-    realtime_log_config_arn  = optional(string)
-    trusted_key_groups       = optional(list(string))
-    trusted_signers          = optional(list(string))
+    field_level_encryption_id  = optional(string)
+    realtime_log_config_arn    = optional(string)
+    trusted_key_groups         = optional(list(string))
+    trusted_signers            = optional(list(string))
     lambda_function_associations = optional(list(object({
       event_type   = string
       lambda_arn   = string
@@ -98,28 +98,28 @@ variable "default_cache_behavior" {
       function_arn = string
     })), [])
     smooth_streaming = optional(bool, false)
-    min_ttl         = optional(number, 0)
-    default_ttl     = optional(number, 86400)
-    max_ttl         = optional(number, 31536000)
+    min_ttl          = optional(number, 0)
+    default_ttl      = optional(number, 86400)
+    max_ttl          = optional(number, 31536000)
   })
 }
 
 variable "ordered_cache_behaviors" {
   description = "Ordered list of cache behaviors for this distribution"
   type = list(object({
-    path_pattern            = string
-    allowed_methods         = list(string)
-    cached_methods          = list(string)
-    target_origin_id        = string
-    compress                = optional(bool, true)
-    viewer_protocol_policy  = string
-    cache_policy_id         = optional(string)
-    origin_request_policy_id = optional(string)
+    path_pattern               = string
+    allowed_methods            = list(string)
+    cached_methods             = list(string)
+    target_origin_id           = string
+    compress                   = optional(bool, true)
+    viewer_protocol_policy     = string
+    cache_policy_id            = optional(string)
+    origin_request_policy_id   = optional(string)
     response_headers_policy_id = optional(string)
-    field_level_encryption_id = optional(string)
-    realtime_log_config_arn  = optional(string)
-    trusted_key_groups       = optional(list(string))
-    trusted_signers          = optional(list(string))
+    field_level_encryption_id  = optional(string)
+    realtime_log_config_arn    = optional(string)
+    trusted_key_groups         = optional(list(string))
+    trusted_signers            = optional(list(string))
     lambda_function_associations = optional(list(object({
       event_type   = string
       lambda_arn   = string
@@ -130,9 +130,9 @@ variable "ordered_cache_behaviors" {
       function_arn = string
     })), [])
     smooth_streaming = optional(bool, false)
-    min_ttl         = optional(number, 0)
-    default_ttl     = optional(number, 86400)
-    max_ttl         = optional(number, 31536000)
+    min_ttl          = optional(number, 0)
+    default_ttl      = optional(number, 86400)
+    max_ttl          = optional(number, 31536000)
   }))
   default = []
 }

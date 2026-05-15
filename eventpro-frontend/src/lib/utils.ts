@@ -13,11 +13,24 @@ export function getEventImageUrl(imageUrl: string | undefined): string | undefin
   // Ignore non-http URLs (e.g. chrome-extension:, data:) so they are never used as img src
   if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return undefined;
   if (trimmed.startsWith("chrome-extension:") || trimmed.startsWith("moz-extension:")) return undefined;
-  if (trimmed.includes(":4566")) {
+  if (isAppOwnedS3ImageUrl(trimmed)) {
     const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
     return `${base}/api/v1/images/proxy?url=${encodeURIComponent(trimmed)}`;
   }
   return trimmed;
+}
+
+function isAppOwnedS3ImageUrl(url: string): boolean {
+  const hasAllowedImagePath = url.includes("/events/") || url.includes("/profile-pictures/");
+  if (!hasAllowedImagePath) return false;
+  if (url.includes(":4566")) return true;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname.includes(".s3.") && parsed.hostname.endsWith(".amazonaws.com");
+  } catch {
+    return false;
+  }
 }
 
 /** Convert YouTube or Vimeo URL to embed URL for iframe. Returns null if not supported. */

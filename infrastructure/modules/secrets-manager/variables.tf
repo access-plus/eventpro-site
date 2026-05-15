@@ -19,12 +19,12 @@ variable "secrets" {
     secret_key_value = optional(map(string))
 
     # Rotation Configuration
-    rotation_enabled                = optional(bool, false)
-    rotation_lambda_arn            = optional(string)
-    rotate_immediately              = optional(bool, true)
+    rotation_enabled                  = optional(bool, false)
+    rotation_lambda_arn               = optional(string)
+    rotate_immediately                = optional(bool, true)
     rotation_automatically_after_days = optional(number) # 30-90 days
-    rotation_duration               = optional(string)   # e.g., "3h"
-    rotation_schedule_expression    = optional(string)   # cron() or rate() expression
+    rotation_duration                 = optional(string) # e.g., "3h"
+    rotation_schedule_expression      = optional(string) # cron() or rate() expression
 
     # IAM Policy
     policy              = optional(string)

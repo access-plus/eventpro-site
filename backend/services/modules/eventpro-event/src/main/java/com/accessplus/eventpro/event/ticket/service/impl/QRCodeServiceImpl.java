@@ -1,6 +1,5 @@
 package com.accessplus.eventpro.event.ticket.service.impl;
 
-import com.accessplus.eventpro.event.config.S3AclConfig.S3AclProperties;
 import com.accessplus.eventpro.event.config.S3Properties;
 import com.accessplus.eventpro.event.ticket.service.QRCodeService;
 import com.google.zxing.BarcodeFormat;
@@ -15,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.ObjectCannedACL;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
@@ -51,7 +49,6 @@ public class QRCodeServiceImpl implements QRCodeService {
 
     private final S3Client s3Client;
     private final S3Properties s3Properties;
-    private final S3AclProperties s3AclProperties;
     private final QRCodeWriter qrCodeWriter = new QRCodeWriter();
 
     /**
@@ -104,20 +101,12 @@ public class QRCodeServiceImpl implements QRCodeService {
         String s3Key = S3_KEY_PREFIX + ticketId + ".png";
 
         try {
-            // Build PutObjectRequest
-            // ACL usage is determined by profile-specific configuration
-            PutObjectRequest.Builder putObjectRequestBuilder = PutObjectRequest.builder()
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(s3Properties.getBucketName())
                     .key(s3Key)
                     .contentType(QR_CODE_CONTENT_TYPE)
-                    .contentLength((long) qrCodeImage.length);
-
-            // Set ACL based on profile configuration (disabled for local/LocalStack)
-            if (s3AclProperties.isUseAcl()) {
-                putObjectRequestBuilder.acl(ObjectCannedACL.PUBLIC_READ);
-            }
-
-            PutObjectRequest putObjectRequest = putObjectRequestBuilder.build();
+                    .contentLength((long) qrCodeImage.length)
+                    .build();
 
             // Upload QR code to S3
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(qrCodeImage));
@@ -173,4 +162,3 @@ public class QRCodeServiceImpl implements QRCodeService {
         return uploadQRCodeToS3(qrCodeImage, ticketId);
     }
 }
-

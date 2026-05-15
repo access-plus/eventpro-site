@@ -203,6 +203,13 @@ variable "jwt_private_key" {
   sensitive   = true
 }
 
+variable "new_relic_license_key" {
+  description = "New Relic license key (pass via CI secrets)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "tags" {
   description = "Common tags"
   type        = map(string)

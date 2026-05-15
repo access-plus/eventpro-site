@@ -116,6 +116,9 @@ Optional env vars passed to Terraform when set:
   STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET
   JWT_ISSUER, JWT_ACCESS_TTL_SECONDS, JWT_PUBLIC_KEY, JWT_PRIVATE_KEY
   JWT_PUBLIC_KEY_FILE, JWT_PRIVATE_KEY_FILE   (script reads file content into JWT_* vars)
+  NEW_RELIC_LICENSE_KEY (legacy alias: NEWRELIC_LICENSE_KEY)
+  NEW_RELIC_ACCOUNT_ID (legacy alias: NEW_RELIC_TRUSTED_ACCOUNT_KEY)
+    When deploying lambdas: both must be set together or both unset (see scripts/check-newrelic-lambda-prereqs.sh).
   SES_SENDER_EMAIL
   VITE_API_BASE_URL
 
@@ -631,6 +634,12 @@ run_services_stack() {
     run_gradle_build_no_tests backend/services
     build_service_image "$primary_tag" "$extra_tag"
   else
+    if [ -n "$OVERRIDE_SERVICES_IMAGE_TAG" ]; then
+      SERVICES_IMAGE_TAG="$OVERRIDE_SERVICES_IMAGE_TAG"
+    elif [ -n "$GLOBAL_IMAGE_TAG" ]; then
+      SERVICES_IMAGE_TAG="$GLOBAL_IMAGE_TAG"
+    fi
+
     require_var SERVICES_IMAGE_REGISTRY
     SERVICES_IMAGE_NAME="${SERVICES_IMAGE_NAME:-eventpro-api}"
     require_var SERVICES_IMAGE_TAG
@@ -651,11 +660,13 @@ run_services_stack() {
     [ -n "${JWT_ACCESS_TTL_SECONDS:-}" ] && export TF_VAR_jwt_access_ttl_seconds="$JWT_ACCESS_TTL_SECONDS"
     [ -n "${JWT_PUBLIC_KEY:-}" ] && export TF_VAR_jwt_public_key="$JWT_PUBLIC_KEY"
     [ -n "${JWT_PRIVATE_KEY:-}" ] && export TF_VAR_jwt_private_key="$JWT_PRIVATE_KEY"
+    export TF_VAR_new_relic_license_key="$NEW_RELIC_LICENSE_KEY"
 
     terraform_validate_and_run backend/services/terraform \
       -var="image_registry=${SERVICES_IMAGE_REGISTRY}" \
       -var="image_name=${SERVICES_IMAGE_NAME}" \
-      -var="image_tag=${SERVICES_IMAGE_TAG}"
+      -var="image_tag=${SERVICES_IMAGE_TAG}" \
+      -var="new_relic_license_key=${NEW_RELIC_LICENSE_KEY}"
   )
 }
 
@@ -755,7 +766,7 @@ resolve_lambda_tag_override() {
 
 resolve_lambda_image_triplet() {
   local lambda="$1"
-  local source_mode prefix repo_name name_var reg_var tag_var
+  local source_mode prefix repo_name name_var reg_var tag_var existing_tag_override
   local primary_tag extra_tag metadata_file
 
   source_mode="$(lambda_image_source_for "$lambda")"
@@ -824,6 +835,14 @@ resolve_lambda_image_triplet() {
     eval "$name_var=\${${prefix}_IMAGE_NAME}"
     eval "$tag_var=\${${prefix}_IMAGE_TAG}"
   else
+    existing_tag_override="$(resolve_lambda_tag_override "$lambda")"
+    if [ -z "$existing_tag_override" ]; then
+      existing_tag_override="$GLOBAL_IMAGE_TAG"
+    fi
+    if [ -n "$existing_tag_override" ]; then
+      eval "$tag_var=\$existing_tag_override"
+    fi
+
     eval "current_registry=\${$reg_var-}"
     eval "current_name=\${$name_var-}"
     eval "current_tag=\${$tag_var-}"
@@ -862,11 +881,15 @@ run_lambda_stack() {
     export TF_VAR_image_registry="$image_registry"
     export TF_VAR_image_name="$image_name"
     export TF_VAR_image_tag="$image_tag"
+    export TF_VAR_new_relic_license_key="$NEW_RELIC_LICENSE_KEY"
+    export TF_VAR_new_relic_account_id="$NEW_RELIC_ACCOUNT_ID"
 
     tf_extra_args=(
       -var="image_registry=${image_registry}"
       -var="image_name=${image_name}"
       -var="image_tag=${image_tag}"
+      -var="new_relic_license_key=${NEW_RELIC_LICENSE_KEY}"
+      -var="new_relic_account_id=${NEW_RELIC_ACCOUNT_ID}"
     )
 
     if [ "$lambda" = "payment-processor" ]; then
@@ -889,6 +912,22 @@ run_lambdas() {
   csv_contains "$LAMBDA_TARGETS_CSV" order-processor && run_lambda_stack order-processor
   csv_contains "$LAMBDA_TARGETS_CSV" payment-processor && run_lambda_stack payment-processor
   csv_contains "$LAMBDA_TARGETS_CSV" notification-sender && run_lambda_stack notification-sender
+}
+
+normalize_new_relic_key() {
+  if [ -z "${NEW_RELIC_LICENSE_KEY:-}" ] && [ -n "${NEWRELIC_LICENSE_KEY:-}" ]; then
+    NEW_RELIC_LICENSE_KEY="$NEWRELIC_LICENSE_KEY"
+  fi
+  export NEW_RELIC_LICENSE_KEY="${NEW_RELIC_LICENSE_KEY:-}"
+  NEW_RELIC_ACCOUNT_ID="${NEW_RELIC_ACCOUNT_ID:-${NEW_RELIC_TRUSTED_ACCOUNT_KEY:-}}"
+  export NEW_RELIC_ACCOUNT_ID="${NEW_RELIC_ACCOUNT_ID:-}"
+}
+
+validate_new_relic_for_lambda_deploys() {
+  if [ "$RUN_LAMBDAS" != true ]; then
+    return 0
+  fi
+  "$ROOT_DIR/scripts/check-newrelic-lambda-prereqs.sh"
 }
 
 check_prereqs() {
@@ -937,6 +976,7 @@ main() {
 
   validate_sources
   apply_component_filters
+  normalize_new_relic_key
 
   [ "$WORKSPACE" = "dev" ] || [ "$WORKSPACE" = "prod" ] || warn "Workspace '$WORKSPACE' is not one of the expected values (dev, prod)."
 
@@ -962,6 +1002,7 @@ main() {
   fi
 
   if [ "$RUN_LAMBDAS" = true ]; then
+    validate_new_relic_for_lambda_deploys
     run_lambdas
   fi
 

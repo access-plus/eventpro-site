@@ -1,6 +1,5 @@
 package com.accessplus.eventpro.event.service.impl;
 
-import com.accessplus.eventpro.event.config.S3AclConfig.S3AclProperties;
 import com.accessplus.eventpro.event.config.S3Properties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +22,7 @@ import java.net.URL;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.*;
 
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -45,9 +45,6 @@ class AWSS3ImageServiceImplTest {
     @Mock
     private S3Properties s3Properties;
 
-    @Mock
-    private S3AclProperties s3AclProperties;
-
     @InjectMocks
     private AWSS3ImageServiceImpl imageService;
 
@@ -59,7 +56,6 @@ class AWSS3ImageServiceImplTest {
         when(s3Properties.getBucketName()).thenReturn(BUCKET_NAME);
         when(s3Properties.getEndpoint()).thenReturn("");
         when(s3Properties.getRegion()).thenReturn("us-east-1");
-        when(s3AclProperties.isUseAcl()).thenReturn(true);
     }
 
     @Test
@@ -119,7 +115,13 @@ class AWSS3ImageServiceImplTest {
 
         assertNotNull(result);
         assertTrue(result.contains(TEST_KEY));
-        verify(s3Client, times(1)).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+        var requestCaptor = forClass(PutObjectRequest.class);
+        verify(s3Client, times(1)).putObject(requestCaptor.capture(), any(RequestBody.class));
+        PutObjectRequest putObjectRequest = requestCaptor.getValue();
+        assertEquals(BUCKET_NAME, putObjectRequest.bucket());
+        assertEquals(TEST_KEY, putObjectRequest.key());
+        assertEquals("image/jpeg", putObjectRequest.contentType());
+        assertNull(putObjectRequest.acl());
     }
 
     @Test

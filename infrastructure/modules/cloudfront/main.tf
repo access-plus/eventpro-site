@@ -28,11 +28,11 @@ resource "aws_cloudfront_distribution" "main" {
   dynamic "origin" {
     for_each = var.origins
     content {
-      domain_name              = origin.value.domain_name
-      origin_id                = origin.value.origin_id
-      origin_path              = origin.value.origin_path
-      connection_attempts      = origin.value.connection_attempts != null ? origin.value.connection_attempts : 3
-      connection_timeout       = origin.value.connection_timeout != null ? origin.value.connection_timeout : 10
+      domain_name         = origin.value.domain_name
+      origin_id           = origin.value.origin_id
+      origin_path         = origin.value.origin_path
+      connection_attempts = origin.value.connection_attempts != null ? origin.value.connection_attempts : 3
+      connection_timeout  = origin.value.connection_timeout != null ? origin.value.connection_timeout : 10
 
       # S3 Origin with Origin Access Control
       origin_access_control_id = origin.value.origin_type == "s3" ? aws_cloudfront_origin_access_control.s3_oac[origin.value.origin_id].id : null
@@ -132,11 +132,11 @@ resource "aws_cloudfront_distribution" "main" {
     for_each = var.ordered_cache_behaviors
     content {
       path_pattern           = ordered_cache_behavior.value.path_pattern
-      allowed_methods         = ordered_cache_behavior.value.allowed_methods
-      cached_methods          = ordered_cache_behavior.value.cached_methods
-      target_origin_id        = ordered_cache_behavior.value.target_origin_id
-      compress                = ordered_cache_behavior.value.compress
-      viewer_protocol_policy  = ordered_cache_behavior.value.viewer_protocol_policy
+      allowed_methods        = ordered_cache_behavior.value.allowed_methods
+      cached_methods         = ordered_cache_behavior.value.cached_methods
+      target_origin_id       = ordered_cache_behavior.value.target_origin_id
+      compress               = ordered_cache_behavior.value.compress
+      viewer_protocol_policy = ordered_cache_behavior.value.viewer_protocol_policy
 
       # Cache Policy
       cache_policy_id = ordered_cache_behavior.value.cache_policy_id
@@ -203,7 +203,7 @@ resource "aws_cloudfront_distribution" "main" {
   restrictions {
     geo_restriction {
       restriction_type = var.geo_restriction_type
-      locations      = var.geo_restriction_locations
+      locations        = var.geo_restriction_locations
     }
   }
 

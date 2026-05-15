@@ -1287,6 +1287,8 @@ This guide covers:
 
 This is the full AWS-emulation path for the production-shaped Terraform stacks. It is separate from the Docker Compose hybrid local development flow that uses `make local-infra` and `infrastructure/environments/local`.
 
+**Makefile command contract:** use **`make lstk-*`** targets (they call `scripts/lstk-deploy.sh`) for this LocalStack Pro flow. Do **not** use **`make tf-deploy*`** / **`make tf-destroy*`** here; those targets are for **real AWS** and clear LocalStack-style endpoint env vars before Terraform runs.
+
 This flow starts LocalStack Pro with `docker-compose.lstk.yml`. If you previously started LocalStack with another launcher, stop that instance first so ports `443`, `4566`, and `4510-4559` are available.
 
 Use this path when you want to exercise:

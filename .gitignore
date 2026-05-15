@@ -197,7 +197,7 @@ z_old_project/**
 
 **/*.lock.hcl
 **/*.tfvars
-!**/terraform.lstk.tfvars
+**/terraform.lstk.tfvars
 **/.terraform/**
 **/*.tfstate
 **/*.tfstate.backup

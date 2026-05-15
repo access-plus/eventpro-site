@@ -13,6 +13,19 @@ locals {
     AWS_ENDPOINT_URL      = var.localstack_runtime_endpoint
     SES_ENDPOINT          = var.localstack_runtime_endpoint
   } : {}
+  new_relic_env = var.new_relic_license_key != "" ? {
+    AWS_LAMBDA_EXEC_WRAPPER               = "/opt/newrelic-java-handler"
+    NEW_RELIC_ACCOUNT_ID                  = var.new_relic_account_id
+    NEW_RELIC_APM_LAMBDA_MODE             = "true"
+    NEW_RELIC_APP_NAME                    = "eventpro-notification-sender-${local.workspace}"
+    NEW_RELIC_CLOUD_AWS_ACCOUNT_ID        = data.aws_caller_identity.current.account_id
+    NEW_RELIC_DISTRIBUTED_TRACING_ENABLED = "true"
+    NEW_RELIC_LAMBDA_HANDLER              = "org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest"
+    NEW_RELIC_LABELS                      = "env:${local.workspace};service:eventpro-notification-sender"
+    NEW_RELIC_LICENSE_KEY                 = var.new_relic_license_key
+    NEW_RELIC_LOG_LEVEL                   = "info"
+    NEW_RELIC_TRUSTED_ACCOUNT_KEY         = var.new_relic_account_id
+  } : {}
 
   shared_infra_remote_state_config = merge(
     {
@@ -36,6 +49,8 @@ locals {
     }) : "{}")
   )
 }
+
+data "aws_caller_identity" "current" {}
 
 provider "aws" {
   region                      = var.aws_region
@@ -181,12 +196,16 @@ resource "aws_lambda_function" "notification_sender" {
   image_uri     = local.image_uri
   architectures = [var.lambda_architecture]
 
+  image_config {
+    command = var.new_relic_license_key != "" ? ["com.newrelic.java.HandlerWrapper::handleStreamsRequest"] : ["org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest"]
+  }
+
   environment {
     variables = merge({
       # AWS_REGION is reserved; Lambda injects it automatically — do not set here.
       SES_SENDER_EMAIL                 = var.ses_sender_email
       spring_cloud_function_definition = "sendNotification"
-    }, local.localstack_runtime_env)
+    }, local.localstack_runtime_env, local.new_relic_env)
   }
 
   depends_on = [
@@ -194,7 +213,18 @@ resource "aws_lambda_function" "notification_sender" {
     aws_iam_role_policy.cloudwatch_logs
   ]
 
-  tags = merge(local.common_tags, { Name = "${local.name_prefix}-notification-sender" })
+  lifecycle {
+    precondition {
+      condition     = var.new_relic_license_key == "" || var.new_relic_account_id != ""
+      error_message = "new_relic_account_id is required when new_relic_license_key is set for New Relic Lambda monitoring."
+    }
+  }
+
+  tags = merge(
+    local.common_tags,
+    { Name = "${local.name_prefix}-notification-sender" },
+    var.new_relic_license_key != "" ? { "NR.Apm.Lambda.Mode" = "true" } : {}
+  )
 }
 
 # SQS Event Source Mapping (notification queue -> Lambda)

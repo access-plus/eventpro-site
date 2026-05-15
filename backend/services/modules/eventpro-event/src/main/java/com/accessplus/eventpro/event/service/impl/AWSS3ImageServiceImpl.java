@@ -1,6 +1,5 @@
 package com.accessplus.eventpro.event.service.impl;
 
-import com.accessplus.eventpro.event.config.S3AclConfig.S3AclProperties;
 import com.accessplus.eventpro.event.config.S3Properties;
 import com.accessplus.eventpro.event.service.AWSS3ImageService;
 import com.accessplus.eventpro.event.service.ImageAccessDeniedException;
@@ -41,7 +40,6 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
-    private final S3AclProperties s3AclProperties;
 
     @Override
     public String uploadImage(MultipartFile file, String key) throws IOException {
@@ -63,20 +61,12 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
             // Read file bytes into memory to avoid stream reset issues with AWS SDK signing
             byte[] fileBytes = file.getBytes();
 
-            // Build PutObjectRequest
-            // ACL usage is determined by profile-specific configuration
-            PutObjectRequest.Builder putObjectRequestBuilder = PutObjectRequest.builder()
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(s3Properties.getBucketName())
                     .key(finalKey)
                     .contentType(contentType)
-                    .contentLength((long) fileBytes.length);
-
-            // Set ACL based on profile configuration (disabled for local/LocalStack)
-            if (s3AclProperties.isUseAcl()) {
-                putObjectRequestBuilder.acl(ObjectCannedACL.PUBLIC_READ);
-            }
-
-            PutObjectRequest putObjectRequest = putObjectRequestBuilder.build();
+                    .contentLength((long) fileBytes.length)
+                    .build();
 
             // Upload file using bytes (allows AWS SDK to read multiple times for signing)
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileBytes));
@@ -319,4 +309,3 @@ public class AWSS3ImageServiceImpl implements AWSS3ImageService {
         return input;
     }
 }
-
