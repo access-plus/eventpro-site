@@ -660,13 +660,19 @@ run_services_stack() {
     [ -n "${JWT_ACCESS_TTL_SECONDS:-}" ] && export TF_VAR_jwt_access_ttl_seconds="$JWT_ACCESS_TTL_SECONDS"
     [ -n "${JWT_PUBLIC_KEY:-}" ] && export TF_VAR_jwt_public_key="$JWT_PUBLIC_KEY"
     [ -n "${JWT_PRIVATE_KEY:-}" ] && export TF_VAR_jwt_private_key="$JWT_PRIVATE_KEY"
-    export TF_VAR_new_relic_license_key="$NEW_RELIC_LICENSE_KEY"
 
-    terraform_validate_and_run backend/services/terraform \
-      -var="image_registry=${SERVICES_IMAGE_REGISTRY}" \
-      -var="image_name=${SERVICES_IMAGE_NAME}" \
-      -var="image_tag=${SERVICES_IMAGE_TAG}" \
-      -var="new_relic_license_key=${NEW_RELIC_LICENSE_KEY}"
+    tf_extra_args=(
+      -var="image_registry=${SERVICES_IMAGE_REGISTRY}"
+      -var="image_name=${SERVICES_IMAGE_NAME}"
+      -var="image_tag=${SERVICES_IMAGE_TAG}"
+    )
+
+    if [ -n "$NEW_RELIC_LICENSE_KEY" ]; then
+      export TF_VAR_new_relic_license_key="$NEW_RELIC_LICENSE_KEY"
+      tf_extra_args+=(-var="new_relic_license_key=${NEW_RELIC_LICENSE_KEY}")
+    fi
+
+    terraform_validate_and_run backend/services/terraform "${tf_extra_args[@]}"
   )
 }
 
@@ -881,16 +887,21 @@ run_lambda_stack() {
     export TF_VAR_image_registry="$image_registry"
     export TF_VAR_image_name="$image_name"
     export TF_VAR_image_tag="$image_tag"
-    export TF_VAR_new_relic_license_key="$NEW_RELIC_LICENSE_KEY"
-    export TF_VAR_new_relic_account_id="$NEW_RELIC_ACCOUNT_ID"
 
     tf_extra_args=(
       -var="image_registry=${image_registry}"
       -var="image_name=${image_name}"
       -var="image_tag=${image_tag}"
-      -var="new_relic_license_key=${NEW_RELIC_LICENSE_KEY}"
-      -var="new_relic_account_id=${NEW_RELIC_ACCOUNT_ID}"
     )
+
+    if [ -n "$NEW_RELIC_LICENSE_KEY" ] || [ -n "$NEW_RELIC_ACCOUNT_ID" ]; then
+      export TF_VAR_new_relic_license_key="$NEW_RELIC_LICENSE_KEY"
+      export TF_VAR_new_relic_account_id="$NEW_RELIC_ACCOUNT_ID"
+      tf_extra_args+=(
+        -var="new_relic_license_key=${NEW_RELIC_LICENSE_KEY}"
+        -var="new_relic_account_id=${NEW_RELIC_ACCOUNT_ID}"
+      )
+    fi
 
     if [ "$lambda" = "payment-processor" ]; then
       require_var STRIPE_SECRET_KEY
