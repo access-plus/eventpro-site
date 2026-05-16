@@ -12,7 +12,7 @@ import { SuccessTicketReveal } from "@/components/SuccessTicketReveal";
 import { TicketPreview } from "@/components/TicketPreview";
 import { apiService } from "@/lib/api";
 import { HOW_DID_YOU_HEAR_OPTIONS } from "@/types/api";
-import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone, CreditCard, Lock, ChevronDown, Minus, Plus } from "lucide-react";
+import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone, Lock, ChevronDown, Minus, Plus } from "lucide-react";
 import { CommunityImpactTile } from "@/components/CommunityImpactTile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -597,7 +597,6 @@ const Checkout = () => {
               </div>
               <CheckoutPaymentForm
                 clientSecret={clientSecret}
-                amount={displayTotal}
                 isGuest={!isAuthenticated && !!guestInfo}
                 guestConfirm={!isAuthenticated && guestInfo ? buildGuestConfirm : undefined}
                 authenticatedConfirm={isAuthenticated ? (id) => apiService.confirmPayment(id, taxState?.trim() || undefined, taxCountry?.trim() || undefined) : undefined}
@@ -678,34 +677,11 @@ const Checkout = () => {
                 )}
 
                 {checkoutMode === "guest" && (
-                  <>
-                    {/* One-tap at top — same width as form */}
-                    <div className="grid grid-cols-2 gap-3 mb-6">
-                      <button
-                        type="button"
-                        className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/10 py-3 px-4 text-sm font-medium text-primary hover:bg-primary/20 transition-all disabled:opacity-50"
-                        disabled
-                        title="Enable in Stripe for one-tap checkout"
-                      >
-                        <CreditCard className="h-5 w-5" />
-                        Apple Pay
-                      </button>
-                      <button
-                        type="button"
-                        className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary/40 bg-primary/10 py-3 px-4 text-sm font-medium text-primary hover:bg-primary/20 transition-all disabled:opacity-50"
-                        disabled
-                        title="Enable in Stripe for one-tap checkout"
-                      >
-                        <Smartphone className="h-5 w-5" />
-                        Google Pay
-                      </button>
-                    </div>
-                    <GuestCheckoutFormBento
-                      onSubmit={handleGuestSubmit}
-                      onLoginClick={() => navigate("/login", { state: { from: { pathname: "/checkout" } } })}
-                      onFormChange={setPreviewGuest}
-                    />
-                  </>
+                  <GuestCheckoutFormBento
+                    onSubmit={handleGuestSubmit}
+                    onLoginClick={() => navigate("/login", { state: { from: { pathname: "/checkout" } } })}
+                    onFormChange={setPreviewGuest}
+                  />
                 )}
               </motion.div>
             )}

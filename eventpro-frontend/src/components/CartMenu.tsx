@@ -1,9 +1,9 @@
+import { useState } from "react";
 import { ShoppingCart, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -14,11 +14,17 @@ import { useCart } from "@/contexts/CartContext";
 export const CartMenu = () => {
   const { items, itemCount, totalAmount, removeItem } = useCart();
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+
+  const handleProceedToCheckout = () => {
+    setOpen(false);
+    navigate("/checkout");
+  };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative" aria-label="Open shopping cart">
           <ShoppingCart className="h-5 w-5" />
           {itemCount > 0 && (
             <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-accent text-accent-foreground">
@@ -55,6 +61,7 @@ export const CartMenu = () => {
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6"
+                      aria-label={`Remove ${item.ticketTypeName}`}
                       onClick={() => removeItem(item.id)}
                     >
                       <Trash2 className="h-3 w-3" />
@@ -74,7 +81,7 @@ export const CartMenu = () => {
               </div>
               <Button
                 className="w-full bg-gradient-primary"
-                onClick={() => navigate("/checkout")}
+                onClick={handleProceedToCheckout}
               >
                 Proceed to Checkout
               </Button>

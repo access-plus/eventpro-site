@@ -69,6 +69,7 @@ public class StripeServiceImpl implements StripeService {
                 .setAutomaticPaymentMethods(
                         PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
                                 .setEnabled(true)
+                                .setAllowRedirects(PaymentIntentCreateParams.AutomaticPaymentMethods.AllowRedirects.NEVER)
                                 .build()
                 )
                 .build();
@@ -251,4 +252,3 @@ public class StripeServiceImpl implements StripeService {
         return transfer.getId();
     }
 }
-
