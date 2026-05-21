@@ -44,7 +44,6 @@ jobs:
 
   shared_infra:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' }}
     uses: ./.github/workflows/shared-infra.yml
     with:
       workspace: dev
@@ -53,7 +52,7 @@ jobs:
 
   services:
     needs: [detect-changes, shared_infra]
-    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.services == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
+    if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.services == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/services.yml
     with:
       workspace: dev
@@ -62,7 +61,7 @@ jobs:
 
   frontend:
     needs: [detect-changes, shared_infra]
-    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.frontend == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
+    if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.frontend == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/frontend.yml
     with:
       workspace: dev
@@ -71,7 +70,7 @@ jobs:
 
   order_processor:
     needs: [detect-changes, shared_infra]
-    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.order_processor == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
+    if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.order_processor == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/order-processor.yml
     with:
       workspace: dev
@@ -80,7 +79,7 @@ jobs:
 
   payment_processor:
     needs: [detect-changes, shared_infra]
-    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.payment_processor == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
+    if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.payment_processor == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/payment-processor.yml
     with:
       workspace: dev
@@ -89,7 +88,7 @@ jobs:
 
   notification_sender:
     needs: [detect-changes, shared_infra]
-    if: ${{ (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.notification_sender == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
+    if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.notification_sender == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/notification-sender.yml
     with:
       workspace: dev
