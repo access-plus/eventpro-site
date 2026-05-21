@@ -54,7 +54,7 @@ jobs:
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
 
       - name: Terraform
-        # if: ${{ github.event_name == 'push' || inputs.run_deploy }}
+        if: ${{ github.event_name == 'push' || inputs.run_deploy || github.event_name == 'pull_request' }}
         uses: ./.github/actions/terraform
         with:
           working-directory: eventpro-frontend/terraform
@@ -67,7 +67,7 @@ jobs:
             domain_name=${{ vars.DOMAIN_NAME || secrets.DOMAIN_NAME }}
 
       - name: Sync to S3
-        # if: ${{ github.event_name == 'push' || inputs.run_deploy }}
+        if: ${{ github.event_name == 'push' || inputs.run_deploy || github.event_name == 'pull_request' }}
         run: |
           cd eventpro-frontend/terraform
           terraform init -backend-config=bucket=eventpro-site-state -backend-config=key=frontend/terraform.tfstate -backend-config=region=${{ env.AWS_REGION }} -backend-config=use_lockfile=true
@@ -77,7 +77,7 @@ jobs:
           aws s3 sync eventpro-frontend/dist/ "s3://$BUCKET/" --delete
 
       - name: CloudFront invalidation
-        # if: ${{ github.event_name == 'push' || inputs.run_deploy }}
+        if: ${{ github.event_name == 'push' || inputs.run_deploy || github.event_name == 'pull_request' }}
         run: |
           cd eventpro-frontend/terraform
           DIST_ID=$(terraform output -raw distribution_id)
