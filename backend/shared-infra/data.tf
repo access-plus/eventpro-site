@@ -26,3 +26,4 @@ locals {
   default_images_bucket_name = "eventpro-${lower(local.workspace)}-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.region}-images"
   images_bucket_name         = var.images_bucket_name != "" ? var.images_bucket_name : local.default_images_bucket_name
 }
+ 
