@@ -27,7 +27,7 @@ inputs:
     required: false
   terraform-version:
     description: 'Terraform version'
-    default: "1.12.5"
+    default: "1.12.0"
     required: false
   backend-bucket:
     description: 'S3 backend bucket (e.g. eventpro-site-state)'
