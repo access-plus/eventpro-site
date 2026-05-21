@@ -163,11 +163,15 @@ resource "aws_ecs_task_definition" "api" {
       ] : [],
       [
         for k, v in {
-          STRIPE_SECRET_KEY      = var.stripe_secret_key
-          STRIPE_PUBLISHABLE_KEY = var.stripe_publishable_key
-          STRIPE_WEBHOOK_SECRET  = var.stripe_webhook_secret
-          JWT_PUBLIC_KEY         = var.jwt_public_key
-          JWT_PRIVATE_KEY        = var.jwt_private_key
+          STRIPE_SECRET_KEY               = var.stripe_secret_key
+          STRIPE_PUBLISHABLE_KEY          = var.stripe_publishable_key
+          STRIPE_WEBHOOK_SECRET           = var.stripe_webhook_secret
+          STRIPE_PRICE_PRO_MONTHLY        = var.stripe_price_pro_monthly
+          STRIPE_PRICE_PRO_YEARLY         = var.stripe_price_pro_yearly
+          STRIPE_PRICE_ENTERPRISE_MONTHLY = var.stripe_price_enterprise_monthly
+          STRIPE_PRICE_ENTERPRISE_YEARLY  = var.stripe_price_enterprise_yearly
+          JWT_PUBLIC_KEY                  = var.jwt_public_key
+          JWT_PRIVATE_KEY                 = var.jwt_private_key
         } : { name = k, value = v } if v != ""
       ],
       var.new_relic_license_key != "" ? [

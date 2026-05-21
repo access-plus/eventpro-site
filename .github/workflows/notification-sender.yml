@@ -8,7 +8,7 @@ on:
     inputs:
       workspace:
         description: 'Workspace to deploy to'
-        required: true
+        required: false
         default: 'dev'
         type: string
       run_deploy:
@@ -20,7 +20,7 @@ on:
     inputs:
       workspace:
         description: 'Workspace to deploy to'
-        required: true
+        required: false
         default: 'dev'
         type: string
       run_deploy:
@@ -73,4 +73,10 @@ jobs:
           workspace: ${{ env.DEPLOY_WORKSPACE }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          variables: image_registry=${{ steps.ecr-docker-build.outputs.image-registry }},image_name=${{ steps.ecr-docker-build.outputs.image-name }},image_tag=${{ steps.ecr-docker-build.outputs.image-tag }},new_relic_license_key=${{ secrets.NEW_RELIC_LICENSE_KEY }},new_relic_account_id=${{ secrets.NEW_RELIC_ACCOUNT_ID }}
+          variables: |
+            image_registry=${{ steps.ecr-docker-build.outputs.image-registry }}
+            image_name=${{ steps.ecr-docker-build.outputs.image-name }}
+            image_tag=${{ steps.ecr-docker-build.outputs.image-tag }}
+            ses_sender_email=${{ secrets.SES_SENDER_EMAIL }}
+            new_relic_license_key=${{ secrets.NEW_RELIC_LICENSE_KEY }}
+            new_relic_account_id=${{ secrets.NEW_RELIC_ACCOUNT_ID }}

@@ -177,6 +177,34 @@ variable "stripe_webhook_secret" {
   sensitive   = true
 }
 
+variable "stripe_price_pro_monthly" {
+  description = "Stripe recurring price ID for the Pro monthly subscription"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "stripe_price_pro_yearly" {
+  description = "Stripe recurring price ID for the Pro yearly subscription"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "stripe_price_enterprise_monthly" {
+  description = "Stripe recurring price ID for the Enterprise monthly subscription"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "stripe_price_enterprise_yearly" {
+  description = "Stripe recurring price ID for the Enterprise yearly subscription"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "jwt_issuer" {
   description = "JWT issuer"
   type        = string

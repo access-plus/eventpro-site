@@ -10,7 +10,7 @@ inputs:
     description: 'Directory of the Terraform configuration'
     required: true
   variables:
-    description: 'Variables to pass to Terraform'
+    description: 'Newline-delimited Terraform variables as key=value entries'
     required: false
   workspace:
     description: 'Terraform workspace'
@@ -27,7 +27,7 @@ inputs:
     required: false
   terraform-version:
     description: 'Terraform version'
-    default: "1.9.0"
+    default: "1.12.5"
     required: false
   backend-bucket:
     description: 'S3 backend bucket (e.g. eventpro-site-state)'
@@ -82,7 +82,11 @@ runs:
     run: |
       cd ${{ inputs.working-directory }}
       if [ -n "${{ inputs.workspace }}" ]; then
-          terraform workspace select ${{ inputs.workspace }} || terraform workspace new ${{ inputs.workspace }}
+        if [ "${{ inputs.destroy }}" = "yes" ]; then
+          terraform workspace select "${{ inputs.workspace }}"
+          exit 0
+        fi
+          terraform workspace select "${{ inputs.workspace }}" || terraform workspace new "${{ inputs.workspace }}"
       else
         echo "No workspace provided, skipping workspace selection."
       fi
@@ -96,11 +100,13 @@ runs:
     shell: bash
 
   - name: Terraform Apply or Destroy
+    env:
+      TERRAFORM_VARIABLES: ${{ inputs.variables }}
     run: |
       cd ${{ inputs.working-directory }}
       ls -ltr
       # Iterate through the variables and export each as TF_VAR_
-      if [ -n "${{ inputs.variables }}" ]; then
+      if [ -n "$TERRAFORM_VARIABLES" ]; then
         while IFS= read -r var; do
           [ -z "$var" ] && continue
           key="${var%%=*}"
@@ -109,9 +115,13 @@ runs:
             echo "Invalid variable format: '$var' (expected key=value)" >&2
             exit 1
           fi
+          if [ -z "$value" ]; then
+            echo "Skipping TF_VAR_${key} because value is empty"
+            continue
+          fi
           echo "Exporting TF_VAR_${key}=[REDACTED]"
           export "TF_VAR_${key}=$value"
-        done < <(printf '%s\n' "${{ inputs.variables }}" | tr ',' '\n')
+        done < <(printf '%s\n' "$TERRAFORM_VARIABLES")
       fi
       if [ "${{ inputs.destroy }}" = "yes" ]; then
         echo "Destroying the infrastructure"
