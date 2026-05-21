@@ -111,9 +111,7 @@ class OrderServiceImplTest {
         order.setOrderItems(new ArrayList<>());
 
         orderService = new OrderServiceImpl(orderRepository, orderItemRepository, cartService, userRepository,
-                ticketService, sqsMessagePublisher, Optional.of(platformFeeProvider));
-        when(platformFeeProvider.getFeePercent()).thenReturn(0.0);
-        when(platformFeeProvider.getFeePerTicket()).thenReturn(java.math.BigDecimal.ZERO);
+                ticketService, sqsMessagePublisher, Optional.empty());
     }
 
     // ========== createOrderFromCart Tests ==========
@@ -459,4 +457,3 @@ class OrderServiceImplTest {
         assertEquals(6, parts[2].length()); // 6-digit random
     }
 }
-
