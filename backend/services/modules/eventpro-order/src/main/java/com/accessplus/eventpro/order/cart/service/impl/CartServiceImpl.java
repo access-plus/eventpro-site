@@ -178,8 +178,6 @@ public class CartServiceImpl implements CartService {
             throw new ResourceNotFoundException("User", userId.toString());
         }
 
-        releaseExpiredCartReservations(userId);
-
         List<CartEntity> cartItems = cartRepository.findByUserId(userId);
         log.debug("Found {} items in cart for user: userId={}", cartItems.size(), userId);
         return cartItems;
@@ -233,8 +231,6 @@ public class CartServiceImpl implements CartService {
             throw new ResourceNotFoundException("User", userId.toString());
         }
 
-        releaseExpiredCartReservations(userId);
-
         List<CartEntity> cartItems = cartRepository.findByUserId(userId);
         BigDecimal total = BigDecimal.ZERO;
 
@@ -263,8 +259,6 @@ public class CartServiceImpl implements CartService {
             throw new ResourceNotFoundException("User", userId.toString());
         }
 
-        releaseExpiredCartReservations(userId);
-
         List<CartEntity> cartItems = cartRepository.findByUserId(userId);
         int totalQuantity = cartItems.stream()
                 .mapToInt(CartEntity::getQuantity)
@@ -274,11 +268,13 @@ public class CartServiceImpl implements CartService {
         return totalQuantity;
     }
 
-    private void releaseExpiredCartReservations(UUID userId) {
+    @Override
+    @Transactional
+    public int releaseExpiredCartReservations(UUID userId) {
         List<CartEntity> expiredItems = cartRepository.findByUserIdAndExpiredReservation(
                 userId, TicketStatus.RESERVED, LocalDateTime.now());
         if (expiredItems == null || expiredItems.isEmpty()) {
-            return;
+            return 0;
         }
 
         int released = 0;
@@ -299,6 +295,7 @@ public class CartServiceImpl implements CartService {
         if (released > 0) {
             log.info("Released {} expired cart reservation(s) for user {}", released, userId);
         }
+        return released;
     }
 
     @Override

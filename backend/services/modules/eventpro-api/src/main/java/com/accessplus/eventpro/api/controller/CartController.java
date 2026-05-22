@@ -75,6 +75,7 @@ public class CartController extends BaseController {
         cartService.addItemToCart(userId, ticketId, request.getQuantity());
 
         // Get updated cart
+        cartService.releaseExpiredCartReservations(userId);
         List<CartEntity> cartItems = cartService.getUserCart(userId);
         BigDecimal totalCost = cartService.calculateCartTotal(userId);
         CartResponse response = CartResponse.fromCartEntities(cartItems, userId, totalCost);
@@ -132,6 +133,7 @@ public class CartController extends BaseController {
         UUID userId = JwtUtils.getCurrentUserId();
 
         // Get cart items
+        cartService.releaseExpiredCartReservations(userId);
         List<CartEntity> cartItems = cartService.getUserCart(userId);
         BigDecimal totalCost = cartService.calculateCartTotal(userId);
         CartResponse response = CartResponse.fromCartEntities(cartItems, userId, totalCost);
@@ -155,6 +157,7 @@ public class CartController extends BaseController {
         cartService.updateCartItemQuantity(userId, ticketId, request.getQuantity());
 
         // Get updated cart
+        cartService.releaseExpiredCartReservations(userId);
         List<CartEntity> cartItems = cartService.getUserCart(userId);
         BigDecimal totalCost = cartService.calculateCartTotal(userId);
         CartResponse response = CartResponse.fromCartEntities(cartItems, userId, totalCost);

@@ -93,6 +93,15 @@ public interface CartService {
     Integer getCartItemCount(UUID userId);
 
     /**
+     * Releases expired ticket reservations still represented in the user's cart and removes
+     * the corresponding cart rows.
+     *
+     * @param userId the UUID of the user
+     * @return number of cart rows released and removed
+     */
+    int releaseExpiredCartReservations(UUID userId);
+
+    /**
      * Deletes cart line items for the given ticket IDs (e.g. after those reservations expired and
      * tickets were released back to AVAILABLE). No-op if {@code ticketIds} is null or empty.
      */
@@ -106,4 +115,3 @@ public interface CartService {
      */
     int removeCartLinesForOrphanAvailableTickets();
 }
-
