@@ -16,7 +16,6 @@ import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.event.service.AWSS3ImageService;
-import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
 import org.springframework.security.access.AccessDeniedException;
 import io.swagger.v3.oas.annotations.Operation;

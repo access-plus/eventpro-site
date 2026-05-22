@@ -19,10 +19,6 @@ import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Proxies S3 image requests so the browser can load event images when direct S3/LocalStack
- * access returns 403 (e.g. LocalStack bucket policy not applied to anonymous browser requests).
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/images")

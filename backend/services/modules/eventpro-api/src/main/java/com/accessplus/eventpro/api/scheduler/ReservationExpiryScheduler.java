@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,7 +24,6 @@ public class ReservationExpiryScheduler {
 
     /** Run every minute to release expired reservations. */
     @Scheduled(fixedRate = 60_000)
-    @Transactional
     public void releaseExpiredReservations() {
         try {
             List<UUID> releasedIds = ticketService.releaseExpiredReservations();
@@ -35,7 +33,7 @@ public class ReservationExpiryScheduler {
             }
             cartService.removeCartLinesForOrphanAvailableTickets();
         } catch (Exception e) {
-            log.warn("Failed to release expired reservations: {}", e.getMessage());
+            log.warn("Failed to release expired reservations", e);
         }
     }
 }

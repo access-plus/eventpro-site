@@ -21,9 +21,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Handles Stripe webhooks (subscription lifecycle). No auth - verified by Stripe signature.
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/webhooks")

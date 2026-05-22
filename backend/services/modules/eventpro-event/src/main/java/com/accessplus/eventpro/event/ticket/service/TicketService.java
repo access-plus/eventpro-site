@@ -80,6 +80,13 @@ public interface TicketService {
     List<UUID> releaseExpiredReservations();
 
     /**
+     * Releases expired RESERVED tickets for one event before inventory is reported.
+     *
+     * @return ticket IDs that were released (empty if none)
+     */
+    List<UUID> releaseExpiredReservationsForEvent(UUID eventId);
+
+    /**
      * Returns all tickets for the event that have seat assignment (for reserved seating seat map).
      */
     List<TicketEntity> getSeatsForEvent(UUID eventId);
@@ -95,4 +102,3 @@ public interface TicketService {
     /** Spec for one section in a seat map. */
     record SeatSectionSpec(String name, int rowCount, int seatsPerRow, java.math.BigDecimal price) {}
 }
-
