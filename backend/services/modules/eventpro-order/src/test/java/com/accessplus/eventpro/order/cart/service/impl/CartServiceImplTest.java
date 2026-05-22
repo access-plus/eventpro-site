@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -344,6 +345,8 @@ class CartServiceImplTest {
         assertEquals(cartItem.getId(), result.get(0).getId());
         verify(userRepository).existsById(userId);
         verify(cartRepository).findByUserId(userId);
+        verify(cartRepository, never()).findByUserIdAndExpiredReservation(any(), any(), any());
+        verify(ticketService, never()).markTicketAsAvailable(any());
     }
 
     @Test
@@ -369,6 +372,59 @@ class CartServiceImplTest {
         // Then
         assertNotNull(result);
         assertTrue(result.isEmpty());
+    }
+
+    // ========== releaseExpiredCartReservations Tests ==========
+
+    @Test
+    void testReleaseExpiredCartReservations_ReleasesTicketAndDeletesCartRow() {
+        // Given
+        ticket.setTicketStatus(TicketStatus.RESERVED);
+        ticket.setReservedUntil(LocalDateTime.now().minusMinutes(1));
+        when(cartRepository.findByUserIdAndExpiredReservation(eq(userId), eq(TicketStatus.RESERVED), any(LocalDateTime.class)))
+                .thenReturn(List.of(cartItem));
+        doNothing().when(ticketService).markTicketAsAvailable(ticketId);
+
+        // When
+        int result = cartService.releaseExpiredCartReservations(userId);
+
+        // Then
+        assertEquals(1, result);
+        verify(ticketService).markTicketAsAvailable(ticketId);
+        verify(cartRepository).delete(cartItem);
+    }
+
+    @Test
+    void testReleaseExpiredCartReservations_NoExpiredReservations() {
+        // Given
+        when(cartRepository.findByUserIdAndExpiredReservation(eq(userId), eq(TicketStatus.RESERVED), any(LocalDateTime.class)))
+                .thenReturn(List.of());
+
+        // When
+        int result = cartService.releaseExpiredCartReservations(userId);
+
+        // Then
+        assertEquals(0, result);
+        verify(ticketService, never()).markTicketAsAvailable(any());
+        verify(cartRepository, never()).delete(any());
+    }
+
+    @Test
+    void testReleaseExpiredCartReservations_ContinuesWhenTicketReleaseFails() {
+        // Given
+        ticket.setTicketStatus(TicketStatus.RESERVED);
+        ticket.setReservedUntil(LocalDateTime.now().minusMinutes(1));
+        when(cartRepository.findByUserIdAndExpiredReservation(eq(userId), eq(TicketStatus.RESERVED), any(LocalDateTime.class)))
+                .thenReturn(List.of(cartItem));
+        doThrow(new IllegalStateException("Cannot release")).when(ticketService).markTicketAsAvailable(ticketId);
+
+        // When
+        int result = cartService.releaseExpiredCartReservations(userId);
+
+        // Then
+        assertEquals(0, result);
+        verify(ticketService).markTicketAsAvailable(ticketId);
+        verify(cartRepository, never()).delete(any());
     }
 
     // ========== clearCart Tests ==========
@@ -451,6 +507,8 @@ class CartServiceImplTest {
         assertEquals(new BigDecimal("325.00"), result);
         verify(userRepository).existsById(userId);
         verify(cartRepository).findByUserId(userId);
+        verify(cartRepository, never()).findByUserIdAndExpiredReservation(any(), any(), any());
+        verify(ticketService, never()).markTicketAsAvailable(any());
     }
 
     @Test
@@ -517,6 +575,8 @@ class CartServiceImplTest {
         assertEquals(7, result); // 2 + 5 = 7
         verify(userRepository).existsById(userId);
         verify(cartRepository).findByUserId(userId);
+        verify(cartRepository, never()).findByUserIdAndExpiredReservation(any(), any(), any());
+        verify(ticketService, never()).markTicketAsAvailable(any());
     }
 
     @Test
@@ -543,4 +603,3 @@ class CartServiceImplTest {
         assertEquals(0, result);
     }
 }
-

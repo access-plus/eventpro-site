@@ -123,6 +123,41 @@ const EventDetails = () => {
     }
   }, [id]);
 
+  useEffect(() => {
+    if (!id) return;
+
+    const handleCartChanged = (event: globalThis.Event) => {
+      const detail = (event as CustomEvent<{ eventIds?: string[] }>).detail;
+      if (!detail?.eventIds?.length || detail.eventIds.includes(id)) {
+        void refreshInventory();
+      }
+    };
+
+    window.addEventListener("eventpro:cart-changed", handleCartChanged);
+    return () => window.removeEventListener("eventpro:cart-changed", handleCartChanged);
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refreshInventory();
+      }
+    }, 15_000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshInventory();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [id]);
+
   // Load other events by same organizer (for "More from this organizer" section)
   useEffect(() => {
     if (!event?.userId || !id) return;
@@ -165,26 +200,56 @@ const EventDetails = () => {
     }
   };
 
+  const refreshInventory = async () => {
+    if (!id) return;
+    try {
+      const [ticketsData, seatsData] = await Promise.all([
+        apiService.getTicketTypes(id),
+        apiService.getEventSeats(id).catch(() => []),
+      ]);
+      setTicketTypes(ticketsData);
+      setSeatResponses(Array.isArray(seatsData) ? seatsData : []);
+    } catch (error) {
+      console.error("Failed to refresh ticket inventory:", error);
+    }
+  };
+
   const updateQuantity = (ticketTypeId: string, delta: number) => {
     setQuantities((prev) => {
       const current = prev[ticketTypeId] || 0;
-      const newValue = Math.max(0, current + delta);
+      const available = ticketTypes.find((ticket) => ticket.id === ticketTypeId)?.availableQuantity ?? 0;
+      const newValue = Math.min(available, Math.max(0, current + delta));
       return { ...prev, [ticketTypeId]: newValue };
     });
   };
 
-  const handleAddToCart = (ticketType: TicketType) => {
+  const handleAddToCart = async (ticketType: TicketType) => {
     const quantity = quantities[ticketType.id] || 0;
-    if (quantity > 0) {
-      addItem({
+    const quantityToAdd = Math.min(quantity, ticketType.availableQuantity ?? 0);
+    if (quantityToAdd > 0) {
+      setTicketTypes((prev) =>
+        prev.map((ticket) =>
+          ticket.id === ticketType.id
+            ? {
+                ...ticket,
+                availableQuantity: Math.max(0, (ticket.availableQuantity ?? 0) - quantityToAdd),
+                status: Math.max(0, (ticket.availableQuantity ?? 0) - quantityToAdd) === 0 ? "SOLD_OUT" : ticket.status,
+              }
+            : ticket
+        )
+      );
+      const added = await addItem({
         ticketTypeId: ticketType.id,
         ticketTypeName: ticketType.name,
         eventName: event?.name || "",
         eventId: event?.id || "",
-        quantity,
+        quantity: quantityToAdd,
         price: ticketType.price,
       });
       setQuantities((prev) => ({ ...prev, [ticketType.id]: 0 }));
+      if (!added) {
+        await refreshInventory();
+      }
     }
   };
 
@@ -192,19 +257,31 @@ const EventDetails = () => {
     setSelectedSeats(seats);
   };
 
-  const handleAddSeatsToCart = () => {
+  const handleAddSeatsToCart = async () => {
     if (selectedSeats.length > 0 && event) {
-      selectedSeats.forEach((seat) => {
-        addItem({
+      const selectedSeatIds = new Set(selectedSeats.map((seat) => seat.id));
+      setSeatResponses((prev) =>
+        prev.map((seat) =>
+          selectedSeatIds.has(seat.id) ? { ...seat, status: "RESERVED" } : seat
+        )
+      );
+
+      const results = await Promise.all(
+        selectedSeats.map((seat) =>
+          addItem({
           ticketTypeId: seat.id,
           ticketTypeName: `${seat.section} - Row ${seat.row}, Seat ${seat.number}`,
           eventName: event.name,
           eventId: event.id,
           quantity: 1,
           price: seat.price,
-        });
-      });
+          })
+        )
+      );
       setSelectedSeats([]);
+      if (results.some((added) => !added)) {
+        await refreshInventory();
+      }
     }
   };
 
@@ -659,6 +736,7 @@ const EventDetails = () => {
                                   variant="outline"
                                   size="icon"
                                   onClick={() => updateQuantity(ticketType.id, 1)}
+                                  disabled={(quantities[ticketType.id] || 0) >= ticketType.availableQuantity}
                                 >
                                   <Plus className="h-4 w-4" />
                                 </Button>

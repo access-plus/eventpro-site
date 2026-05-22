@@ -48,6 +48,12 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID>, Tic
     @Query("SELECT t FROM TicketEntity t WHERE t.ticketStatus = 'RESERVED' AND (t.reservedUntil IS NULL OR t.reservedUntil < :before)")
     List<TicketEntity> findReservedWithExpiredHold(@Param("before") LocalDateTime before);
 
+    /**
+     * Event-scoped expired reservations for self-healing inventory reads.
+     */
+    @Query("SELECT t FROM TicketEntity t WHERE t.eventId = :eventId AND t.ticketStatus = 'RESERVED' AND (t.reservedUntil IS NULL OR t.reservedUntil < :before)")
+    List<TicketEntity> findReservedWithExpiredHoldForEvent(@Param("eventId") UUID eventId, @Param("before") LocalDateTime before);
+
     /** Max ticket price across the given event IDs (for risk scoring). Returns empty if list is empty or no tickets. */
     @Query("SELECT MAX(t.price) FROM TicketEntity t WHERE t.eventId IN :eventIds")
     Optional<BigDecimal> findMaxPriceByEventIds(@Param("eventIds") List<UUID> eventIds);
@@ -56,4 +62,3 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID>, Tic
     @Query("SELECT t FROM TicketEntity t WHERE t.eventId = :eventId AND t.seatSection IS NOT NULL ORDER BY t.seatSection, t.seatRow, t.seatNumber")
     List<TicketEntity> findByEventIdWithSeats(@Param("eventId") UUID eventId);
 }
-

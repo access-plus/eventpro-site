@@ -24,6 +24,7 @@ import com.accessplus.eventpro.api.eventimage.entity.EventImageEntity;
 import com.accessplus.eventpro.api.eventimage.repository.EventImageRepository;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.event.service.AWSS3ImageService;
+import com.accessplus.eventpro.order.cart.service.CartService;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.EventStatus;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
@@ -70,6 +71,7 @@ public class EventController extends BaseController {
     private final EventImageRepository eventImageRepository;
     private final ObjectMapper objectMapper;
     private final AWSS3ImageService imageService;
+    private final CartService cartService;
 
     private static final int MAX_EVENT_IMAGES = 5;
 
@@ -315,6 +317,7 @@ public class EventController extends BaseController {
         // Validate event exists
         EventEntity event = eventRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Event", id.toString()));
+        releaseExpiredReservationsForEvent(id);
 
         // Get grouped tickets and availability
         Map<TicketType, List<TicketEntity>> groupedTickets = ticketService.groupTicketsByType(id);
@@ -374,6 +377,7 @@ public class EventController extends BaseController {
         if (!Boolean.TRUE.equals(event.getReservedSeatingEnabled())) {
             return ResponseEntity.ok(ApiResponse.success(List.of()));
         }
+        releaseExpiredReservationsForEvent(id);
         List<TicketEntity> seats = ticketService.getSeatsForEvent(id);
         List<SeatResponse> responses = seats.stream()
                 .map(t -> SeatResponse.builder()
@@ -386,6 +390,14 @@ public class EventController extends BaseController {
                         .build())
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    private void releaseExpiredReservationsForEvent(UUID eventId) {
+        List<UUID> releasedIds = ticketService.releaseExpiredReservationsForEvent(eventId);
+        if (!releasedIds.isEmpty()) {
+            cartService.removeCartItemsForTicketIds(releasedIds);
+            log.debug("Released {} expired reservation(s) for event {} before inventory read", releasedIds.size(), eventId);
+        }
     }
 
     @GetMapping("/{id}/addons")

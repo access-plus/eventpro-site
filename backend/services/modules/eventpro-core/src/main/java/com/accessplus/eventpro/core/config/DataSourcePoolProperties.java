@@ -3,11 +3,6 @@ package com.accessplus.eventpro.core.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/**
- * Hikari pool settings (used by {@link com.accessplus.eventpro.core.config.LocalDataSourceConfig}
- * and {@link com.accessplus.eventpro.core.config.SecretsManagerDataSourceConfig}).
- * Tune per ECS task count vs RDS max_connections (checklist §2).
- */
 @Data
 @ConfigurationProperties(prefix = "eventpro.datasource.hikari")
 public class DataSourcePoolProperties {

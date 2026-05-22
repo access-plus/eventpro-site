@@ -424,15 +424,40 @@ public class TicketServiceImpl implements TicketService {
     public List<UUID> releaseExpiredReservations() {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         List<TicketEntity> expired = ticketRepository.findReservedWithExpiredHold(now);
+        List<UUID> releasedIds = releaseExpiredTickets(expired);
+        if (!expired.isEmpty()) {
+            log.info("Released {} expired reservation(s)", expired.size());
+        }
+        return releasedIds;
+    }
+
+    @Override
+    @Transactional
+    public List<UUID> releaseExpiredReservationsForEvent(UUID eventId) {
+        if (eventId == null) {
+            return List.of();
+        }
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        List<TicketEntity> expired = ticketRepository.findReservedWithExpiredHoldForEvent(eventId, now);
+        List<UUID> releasedIds = releaseExpiredTickets(expired);
+        if (!expired.isEmpty()) {
+            log.info("Released {} expired reservation(s) for event {}", expired.size(), eventId);
+        }
+        return releasedIds;
+    }
+
+    private List<UUID> releaseExpiredTickets(List<TicketEntity> expired) {
         List<UUID> releasedIds = new ArrayList<>();
         for (TicketEntity t : expired) {
+            if (t.getTicketStatus() != TicketStatus.RESERVED) {
+                log.warn("Skipping non-reserved ticket returned for expiry release: ticketId={}, status={}",
+                        t.getId(), t.getTicketStatus());
+                continue;
+            }
             releasedIds.add(t.getId());
             t.setTicketStatus(TicketStatus.AVAILABLE);
             t.setReservedUntil(null);
             ticketRepository.save(t);
-        }
-        if (!expired.isEmpty()) {
-            log.info("Released {} expired reservation(s)", expired.size());
         }
         return releasedIds;
     }
@@ -489,4 +514,3 @@ public class TicketServiceImpl implements TicketService {
         return String.valueOf((char) ('A' + (index / 26) - 1)) + (char) ('A' + (index % 26));
     }
 }
-

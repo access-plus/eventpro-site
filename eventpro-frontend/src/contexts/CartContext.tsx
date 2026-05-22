@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { apiService } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -19,9 +19,9 @@ interface CartContextType {
   itemCount: number;
   totalAmount: number;
   isLoading: boolean;
-  addItem: (item: Omit<CartItem, "id">) => void;
-  removeItem: (itemId: string) => void;
-  updateQuantity: (itemId: string, quantity: number) => void;
+  addItem: (item: Omit<CartItem, "id">) => Promise<boolean>;
+  removeItem: (itemId: string) => Promise<boolean>;
+  updateQuantity: (itemId: string, quantity: number) => Promise<boolean>;
   clearCart: () => void;
   refreshCart: () => Promise<void>;
 }
@@ -30,6 +30,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
+  const itemsRef = useRef<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -44,6 +45,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const GUEST_CART_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+  const setCartItems = (cartItems: CartItem[]) => {
+    itemsRef.current = cartItems;
+    setItems(cartItems);
+  };
+
+  const notifyCartChanged = (eventIds: string[]) => {
+    window.dispatchEvent(
+      new CustomEvent("eventpro:cart-changed", {
+        detail: { eventIds: Array.from(new Set(eventIds.filter(Boolean))) },
+      })
+    );
+  };
+
   const loadLocalCart = () => {
     try {
       const stored = localStorage.getItem("eventpro_cart");
@@ -53,23 +67,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!savedAtRaw || Number.isNaN(savedAt)) {
         localStorage.removeItem("eventpro_cart");
         localStorage.removeItem("eventpro_cart_saved_at");
-        setItems([]);
+        setCartItems([]);
         return;
       }
       const age = Date.now() - savedAt;
       if (age > GUEST_CART_MAX_AGE_MS) {
         localStorage.removeItem("eventpro_cart");
         localStorage.removeItem("eventpro_cart_saved_at");
-        setItems([]);
+        setCartItems([]);
         return;
       }
       const cartItems = JSON.parse(stored) as CartItem[];
-      setItems(cartItems);
+      setCartItems(cartItems);
     } catch (error) {
       console.error("Failed to load local cart:", error);
       localStorage.removeItem("eventpro_cart");
       localStorage.removeItem("eventpro_cart_saved_at");
-      setItems([]);
+      setCartItems([]);
     }
   };
 
@@ -124,7 +138,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         quantity: ticket.quantity,
         price: ticket.price,
       }));
-      setItems(mappedItems);
+      const changedEventIds = [
+        ...itemsRef.current.map((item) => item.eventId),
+        ...mappedItems.map((item) => item.eventId),
+      ];
+      setCartItems(mappedItems);
+      notifyCartChanged(changedEventIds);
     } catch (error) {
       console.error("Failed to refresh cart:", error);
     } finally {
@@ -132,7 +151,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addItem = async (item: Omit<CartItem, "id">) => {
+  const addItem = async (item: Omit<CartItem, "id">): Promise<boolean> => {
     const newItem: CartItem = {
       ...item,
       id: `${item.ticketTypeId}-${Date.now()}`,
@@ -145,11 +164,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (existingIndex >= 0) {
       const updated = [...items];
       updated[existingIndex].quantity += item.quantity;
-      setItems(updated);
+      setCartItems(updated);
       if (!isAuthenticated) saveLocalCart(updated);
     } else {
       const updated = [...items, newItem];
-      setItems(updated);
+      setCartItems(updated);
       if (!isAuthenticated) saveLocalCart(updated);
     }
 
@@ -170,19 +189,22 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: "Please try again.",
           variant: "destructive",
         });
-        return;
+        return false;
       }
     }
 
+    notifyCartChanged([item.eventId]);
     toast({
       title: "Added to cart",
       description: `${item.ticketTypeName} added to your cart`,
     });
+    return true;
   };
 
-  const removeItem = async (itemId: string) => {
+  const removeItem = async (itemId: string): Promise<boolean> => {
+    const removedItem = items.find((item) => item.id === itemId);
     const updated = items.filter((item) => item.id !== itemId);
-    setItems(updated);
+    setCartItems(updated);
     if (!isAuthenticated) {
       saveLocalCart(updated);
     } else {
@@ -197,26 +219,28 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: "Please try again.",
           variant: "destructive",
         });
-        return;
+        return false;
       }
     }
 
+    notifyCartChanged(removedItem ? [removedItem.eventId] : []);
     toast({
       title: "Removed from cart",
       description: "Item removed from your cart",
     });
+    return true;
   };
 
-  const updateQuantity = async (itemId: string, quantity: number) => {
+  const updateQuantity = async (itemId: string, quantity: number): Promise<boolean> => {
     if (quantity <= 0) {
-      await removeItem(itemId);
-      return;
+      return removeItem(itemId);
     }
 
+    const changedItem = items.find((item) => item.id === itemId);
     const updated = items.map((item) =>
       item.id === itemId ? { ...item, quantity } : item
     );
-    setItems(updated);
+    setCartItems(updated);
     if (!isAuthenticated) {
       saveLocalCart(updated);
     } else {
@@ -231,16 +255,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: "Please try again.",
           variant: "destructive",
         });
+        return false;
       }
     }
+    notifyCartChanged(changedItem ? [changedItem.eventId] : []);
+    return true;
   };
 
   const clearCart = () => {
-    setItems([]);
+    const changedEventIds = itemsRef.current.map((item) => item.eventId);
+    setCartItems([]);
     if (!isAuthenticated) {
       localStorage.removeItem("eventpro_cart");
       localStorage.removeItem("eventpro_cart_saved_at");
     }
+    notifyCartChanged(changedEventIds);
   };
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);

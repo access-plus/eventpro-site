@@ -115,6 +115,8 @@ public class OrderServiceImpl implements OrderService {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
 
+        cartService.releaseExpiredCartReservations(userId);
+
         // Get user's cart
         List<CartEntity> cartItems = cartService.getUserCart(userId);
         if (cartItems == null || cartItems.isEmpty()) {
@@ -667,4 +669,3 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 }
-

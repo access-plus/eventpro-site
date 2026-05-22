@@ -147,6 +147,7 @@ class OrderServiceImplTest {
         assertEquals(OrderStatus.PENDING, result.getStatus());
         assertEquals(1, result.getOrderItems().size());
         verify(userRepository).findById(userId);
+        verify(cartService).releaseExpiredCartReservations(userId);
         verify(cartService).getUserCart(userId);
         verify(cartService).calculateCartTotal(userId);
         verify(orderRepository).saveAndFlush(any(OrderEntity.class));
@@ -162,6 +163,7 @@ class OrderServiceImplTest {
         // When/Then
         assertThrows(ResourceNotFoundException.class, () -> 
                 orderService.createOrderFromCart(userId));
+        verify(cartService, never()).releaseExpiredCartReservations(any());
         verify(cartService, never()).getUserCart(any());
         verify(orderRepository, never()).saveAndFlush(any(OrderEntity.class));
     }
@@ -175,6 +177,7 @@ class OrderServiceImplTest {
         // When/Then
         assertThrows(ValidationException.class, () -> 
                 orderService.createOrderFromCart(userId));
+        verify(cartService).releaseExpiredCartReservations(userId);
         verify(orderRepository, never()).saveAndFlush(any(OrderEntity.class));
     }
 
@@ -191,6 +194,7 @@ class OrderServiceImplTest {
         // When/Then
         assertThrows(ValidationException.class, () -> 
                 orderService.createOrderFromCart(userId));
+        verify(cartService).releaseExpiredCartReservations(userId);
         verify(orderRepository, never()).saveAndFlush(any(OrderEntity.class));
     }
 

@@ -78,6 +78,7 @@ public class PaymentController extends BaseController {
             if (auth != null && auth.isAuthenticated() && auth.getPrincipal() != null && !(auth.getPrincipal() instanceof String)) {
                 try {
                     UUID userId = JwtUtils.getCurrentUserId();
+                    cartService.releaseExpiredCartReservations(userId);
                     sub = cartService.calculateCartTotal(userId);
                     if (sub == null) sub = BigDecimal.ZERO;
                 } catch (Exception e) {
@@ -157,6 +158,7 @@ public class PaymentController extends BaseController {
             String country = request.getCountry() != null && !request.getCountry().isBlank() ? request.getCountry().trim() : null;
             BigDecimal taxAmount = null;
             if (state != null || country != null) {
+                cartService.releaseExpiredCartReservations(userId);
                 BigDecimal cartTotal = cartService.calculateCartTotal(userId);
                 if (cartTotal != null && cartTotal.compareTo(BigDecimal.ZERO) > 0) {
                     boolean useStateRate = country == null || "US".equalsIgnoreCase(country);

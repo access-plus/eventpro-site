@@ -49,6 +49,15 @@ public interface CartRepository extends JpaRepository<CartEntity, UUID> {
     List<CartEntity> findByUserId(@Param("userId") UUID userId);
 
     /**
+     * Finds cart rows whose held ticket reservation has expired.
+     */
+    @Query("SELECT c FROM CartEntity c WHERE c.user.id = :userId AND c.ticket.ticketStatus = :status AND (c.ticket.reservedUntil IS NULL OR c.ticket.reservedUntil < :before)")
+    List<CartEntity> findByUserIdAndExpiredReservation(
+            @Param("userId") UUID userId,
+            @Param("status") TicketStatus status,
+            @Param("before") LocalDateTime before);
+
+    /**
      * Finds a cart item by user and ticket.
      * Used to check if a ticket is already in the user's cart.
      * 
@@ -108,4 +117,3 @@ public interface CartRepository extends JpaRepository<CartEntity, UUID> {
     @Query("DELETE FROM CartEntity c WHERE c.ticket.ticketStatus = :status AND c.createdAt < :before")
     int deleteByTicketStatusAndCreatedAtBefore(@Param("status") TicketStatus status, @Param("before") LocalDateTime before);
 }
-
