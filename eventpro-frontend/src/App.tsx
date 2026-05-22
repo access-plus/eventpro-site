@@ -14,6 +14,7 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { PageTransition } from "@/components/PageTransition";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import Home from "./pages/Home";
 import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
@@ -301,6 +302,7 @@ const App = () => (
                   <div className="flex flex-col min-h-screen">
                     <Navigation />
                     <main className="flex-1">
+                      <ScrollToTop />
                       <AnimatedRoutes />
                     </main>
                     <Footer />
