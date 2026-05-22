@@ -35,19 +35,39 @@ EXPECTED_HANDLER="org.springframework.cloud.function.adapter.aws.FunctionInvoker
 
 check_one() {
   local fn="$1"
-  local cfg tags cmd env_json nr_mode lic
+  local cfg fn_doc tags cmd env_json nr_mode lic vpc_subnets state last_update image_uri err_file
 
   echo "--- ${fn} ---"
 
-  if ! cfg="$(aws lambda get-function-configuration --function-name "${fn}" 2>/dev/null)"; then
-    die "could not read Lambda configuration for ${fn} (wrong region/workspace or function missing?)"
+  err_file="$(mktemp)"
+  if ! cfg="$(aws lambda get-function-configuration --function-name "${fn}" --output json 2>"${err_file}")"; then
+    echo "  ERROR: could not read Lambda configuration (wrong region/workspace or function missing?)" >&2
+    sed 's/^/  AWS: /' "${err_file}" >&2
+    rm -f "${err_file}"
+    return 1
   fi
+  rm -f "${err_file}"
 
   if ((HAVE_JQ)); then
+    fn_doc="$(aws lambda get-function --function-name "${fn}" --output json)"
     env_json="$(echo "${cfg}" | jq '.Environment.Variables // {}')"
     lic="$(echo "${env_json}" | jq -r '.NEW_RELIC_LICENSE_KEY // empty')"
+    state="$(echo "${cfg}" | jq -r '.State // empty')"
+    last_update="$(echo "${cfg}" | jq -r '.LastUpdateStatus // empty')"
+    image_uri="$(echo "${fn_doc}" | jq -r '.Code.ImageUri // empty')"
+    vpc_subnets="$(echo "${cfg}" | jq -r '(.VpcConfig.SubnetIds // []) | join(",")')"
 
-    cmd="$(echo "${cfg}" | jq -c '.ImageConfig.Command // empty')"
+    echo "  State: ${state:-"(unknown)"}"
+    echo "  LastUpdateStatus: ${last_update:-"(unknown)"}"
+    echo "  ImageUri: ${image_uri:-"(unknown)"}"
+    if [ -n "${vpc_subnets}" ]; then
+      echo "  VPC: attached (${vpc_subnets})"
+      echo "  WARN: VPC-attached Lambdas need NAT or equivalent outbound egress for New Relic telemetry, SQS, and Secrets Manager." >&2
+    else
+      echo "  VPC: not attached"
+    fi
+
+    cmd="$(echo "${cfg}" | jq -c '.ImageConfigResponse.ImageConfig.Command // empty')"
     if [ -z "${lic}" ]; then
       echo "  New Relic: disabled (no NEW_RELIC_LICENSE_KEY on function)"
       if [ "${cmd}" != "null" ] && [ -n "${cmd}" ]; then
@@ -85,7 +105,7 @@ check_one() {
       echo "  WARN: NEW_RELIC_LAMBDA_HANDLER should be ${EXPECTED_HANDLER}" >&2
     fi
 
-    tags="$(aws lambda list-tags --resource "$(echo "${cfg}" | jq -r '.FunctionArn')")"
+    tags="$(aws lambda list-tags --resource "$(echo "${cfg}" | jq -r '.FunctionArn')" --output json)"
     nr_mode="$(echo "${tags}" | jq -r '.Tags["NR.Apm.Lambda.Mode"] // empty')"
     echo "  Tag NR.Apm.Lambda.Mode: ${nr_mode:-"(missing)"}"
     if [ "${nr_mode}" != "true" ]; then
@@ -97,8 +117,9 @@ check_one() {
   fi
 }
 
+failed=0
 for suffix in order-processor payment-processor notification-sender; do
-  check_one "${WORKSPACE}-${suffix}"
+  check_one "${WORKSPACE}-${suffix}" || failed=1
 done
 
 echo ""
@@ -109,3 +130,5 @@ echo "  3. New Relic NRQL (after traffic):"
 echo "       FROM AwsLambdaInvocation SELECT count(*) SINCE 30 minutes ago FACET aws.lambda.eventSource"
 echo "     Or list functions: Infrastructure > AWS > Lambda functions (ensure single AWS account link per NR account)."
 echo ""
+
+exit "${failed}"

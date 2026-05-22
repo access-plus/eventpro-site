@@ -5,7 +5,7 @@ on:
     inputs:
       workspace:
         description: 'Workspace to deploy to'
-        required: true
+        required: false
         default: 'dev'
         type: string
       run_deploy:
@@ -17,7 +17,7 @@ on:
     inputs:
       workspace:
         description: 'Workspace to deploy to'
-        required: true
+        required: false
         default: 'dev'
         type: string
       run_deploy:
@@ -50,10 +50,10 @@ jobs:
         run: npm run build
         working-directory: eventpro-frontend
         env:
-          VITE_API_BASE_URL: https://${{ env.DEPLOY_WORKSPACE }}-api.${{ vars.DOMAIN_NAME }}
+          VITE_API_BASE_URL: https://${{ env.DEPLOY_WORKSPACE }}-api.${{ vars.DOMAIN_NAME || secrets.DOMAIN_NAME }}
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
 
       - name: Terraform
-        if: ${{ github.event_name == 'push' || inputs.run_deploy }}
         uses: ./.github/actions/terraform
         with:
           working-directory: eventpro-frontend/terraform
@@ -62,21 +62,20 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           backend-bucket: eventpro-site-state
           backend-key: frontend/terraform.tfstate
-          variables: domain_name=${{ vars.DOMAIN_NAME }}
+          variables: |
+            domain_name=${{ vars.DOMAIN_NAME || secrets.DOMAIN_NAME }}
 
       - name: Sync to S3
-        if: ${{ github.event_name == 'push' || inputs.run_deploy }}
         run: |
           cd eventpro-frontend/terraform
           terraform init -backend-config=bucket=eventpro-site-state -backend-config=key=frontend/terraform.tfstate -backend-config=region=${{ env.AWS_REGION }} -backend-config=use_lockfile=true
           terraform workspace select ${{ env.DEPLOY_WORKSPACE }} || terraform workspace new ${{ env.DEPLOY_WORKSPACE }}
           BUCKET=$(terraform output -raw bucket_name)
           cd ../..
-          aws s3 sync eventpro-frontend/dist/ s3://$BUCKET/ --delete
+          aws s3 sync eventpro-frontend/dist/ "s3://$BUCKET/" --delete
 
       - name: CloudFront invalidation
-        if: ${{ github.event_name == 'push' || inputs.run_deploy }}
         run: |
           cd eventpro-frontend/terraform
           DIST_ID=$(terraform output -raw distribution_id)
-          aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
