@@ -104,9 +104,9 @@ export const Navigation = () => {
               <Button
                 size="sm"
                 className="bg-gradient-primary"
-                onClick={() => navigate("/signup")}
+                onClick={() => navigate("/login")}
               >
-                Sign Up
+                Login
               </Button>
             )}
           </div>
@@ -237,11 +237,11 @@ export const Navigation = () => {
                 <Button
                   className="w-full bg-gradient-primary"
                   onClick={() => {
-                    navigate("/signup");
+                    navigate("/login");
                     setIsOpen(false);
                   }}
                 >
-                  Sign Up
+                  Login
                 </Button>
               )}
             </div>

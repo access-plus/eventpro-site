@@ -64,7 +64,7 @@ const US_STATE_OPTIONS: { code: string; name: string }[] = [
 const MAX_TICKETS_PER_LINE = 4;
 
 const Checkout = () => {
-  const { items, totalAmount, removeItem, clearCart, updateQuantity } = useCart();
+  const { items, totalAmount, removeItem, clearCart, updateQuantity, refreshCart } = useCart();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [checkoutMode, setCheckoutMode] = useState<"select" | "guest" | "login">("select");
@@ -376,6 +376,7 @@ const Checkout = () => {
               onExpired={() => {
                 setReservedUntil(null);
                 setReservedTicketIds(null);
+                void refreshCart();
                 toast.warning("Reservation expired. Tickets were released. Please try again.");
               }}
               className="mb-2"
@@ -585,6 +586,7 @@ const Checkout = () => {
                     setReservedUntil(null);
                     setReservedTicketIds(null);
                     setPaymentStep("review");
+                    void refreshCart();
                     toast.warning("Reservation expired. Tickets were released. Please try again.");
                   }}
                 />

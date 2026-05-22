@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -347,6 +348,27 @@ class CartServiceImplTest {
     }
 
     @Test
+    void testGetUserCart_ReleasesExpiredReservationsBeforeReturningCart() {
+        // Given
+        ticket.setTicketStatus(TicketStatus.RESERVED);
+        ticket.setReservedUntil(LocalDateTime.now().minusMinutes(1));
+        when(userRepository.existsById(userId)).thenReturn(true);
+        when(cartRepository.findByUserIdAndExpiredReservation(eq(userId), eq(TicketStatus.RESERVED), any(LocalDateTime.class)))
+                .thenReturn(List.of(cartItem));
+        when(cartRepository.findByUserId(userId)).thenReturn(List.of());
+        doNothing().when(ticketService).markTicketAsAvailable(ticketId);
+
+        // When
+        List<CartEntity> result = cartService.getUserCart(userId);
+
+        // Then
+        assertTrue(result.isEmpty());
+        verify(ticketService).markTicketAsAvailable(ticketId);
+        verify(cartRepository).delete(cartItem);
+        verify(cartRepository).findByUserId(userId);
+    }
+
+    @Test
     void testGetUserCart_UserNotFound() {
         // Given
         when(userRepository.existsById(userId)).thenReturn(false);
@@ -543,4 +565,3 @@ class CartServiceImplTest {
         assertEquals(0, result);
     }
 }
-

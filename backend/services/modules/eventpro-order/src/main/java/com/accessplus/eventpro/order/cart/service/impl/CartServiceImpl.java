@@ -178,6 +178,8 @@ public class CartServiceImpl implements CartService {
             throw new ResourceNotFoundException("User", userId.toString());
         }
 
+        releaseExpiredCartReservations(userId);
+
         List<CartEntity> cartItems = cartRepository.findByUserId(userId);
         log.debug("Found {} items in cart for user: userId={}", cartItems.size(), userId);
         return cartItems;
@@ -231,6 +233,8 @@ public class CartServiceImpl implements CartService {
             throw new ResourceNotFoundException("User", userId.toString());
         }
 
+        releaseExpiredCartReservations(userId);
+
         List<CartEntity> cartItems = cartRepository.findByUserId(userId);
         BigDecimal total = BigDecimal.ZERO;
 
@@ -259,6 +263,8 @@ public class CartServiceImpl implements CartService {
             throw new ResourceNotFoundException("User", userId.toString());
         }
 
+        releaseExpiredCartReservations(userId);
+
         List<CartEntity> cartItems = cartRepository.findByUserId(userId);
         int totalQuantity = cartItems.stream()
                 .mapToInt(CartEntity::getQuantity)
@@ -266,6 +272,33 @@ public class CartServiceImpl implements CartService {
 
         log.debug("Cart item count for user: userId={}, count={}", userId, totalQuantity);
         return totalQuantity;
+    }
+
+    private void releaseExpiredCartReservations(UUID userId) {
+        List<CartEntity> expiredItems = cartRepository.findByUserIdAndExpiredReservation(
+                userId, TicketStatus.RESERVED, LocalDateTime.now());
+        if (expiredItems == null || expiredItems.isEmpty()) {
+            return;
+        }
+
+        int released = 0;
+        for (CartEntity cartItem : expiredItems) {
+            TicketEntity ticket = cartItem.getTicket();
+            if (ticket == null || ticket.getId() == null) {
+                continue;
+            }
+            try {
+                ticketService.markTicketAsAvailable(ticket.getId());
+                cartRepository.delete(cartItem);
+                released++;
+            } catch (Exception e) {
+                log.warn("Failed to release expired cart reservation: cartId={}, ticketId={}",
+                        cartItem.getId(), ticket.getId(), e);
+            }
+        }
+        if (released > 0) {
+            log.info("Released {} expired cart reservation(s) for user {}", released, userId);
+        }
     }
 
     @Override
@@ -293,4 +326,3 @@ public class CartServiceImpl implements CartService {
         return deleted;
     }
 }
-
