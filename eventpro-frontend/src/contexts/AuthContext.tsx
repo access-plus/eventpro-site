@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { User, UserRole, LoginRequest, SignUpRequest } from "@/types/api";
 import { apiService } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { appStorage } from "@/state/storage";
+import { queryKeys } from "@/state/queryKeys";
 
 interface AuthContextType {
   user: User | null;
@@ -20,6 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     checkAuth();
@@ -27,14 +31,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkAuth = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = appStorage.getAccessToken();
       if (token) {
         const userData = await apiService.getCurrentUser();
         setUser(userData);
+        queryClient.setQueryData(queryKeys.auth.currentUser, userData);
       }
     } catch (error) {
       console.error("Auth check failed:", error);
-      localStorage.removeItem("accessToken");
+      appStorage.clearUserScopedState();
+      queryClient.clear();
     } finally {
       setIsLoading(false);
     }
@@ -60,8 +66,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (data: LoginRequest) => {
     try {
       const result = await apiService.login(data);
-      localStorage.setItem("accessToken", result.accessToken);
+      appStorage.setAccessToken(result.accessToken);
       setUser(result.user);
+      queryClient.setQueryData(queryKeys.auth.currentUser, result.user);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.cart.current });
 
       toast({
         title: "Welcome back!",
@@ -87,8 +95,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    localStorage.removeItem("accessToken");
+    appStorage.clearUserScopedState();
     setUser(null);
+    queryClient.clear();
     toast({
       title: "Logged out",
       description: "You have been successfully logged out",
@@ -99,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userData = await apiService.getCurrentUser();
       setUser(userData);
+      queryClient.setQueryData(queryKeys.auth.currentUser, userData);
     } catch (error) {
       console.error("Failed to refresh user:", error);
     }

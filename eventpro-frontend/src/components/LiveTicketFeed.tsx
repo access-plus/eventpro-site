@@ -1,40 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Ticket, Zap } from "lucide-react";
-import { apiService } from "@/lib/api";
-import type { RecentSale } from "@/types/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
+import { useOrganizerRecentSalesQuery } from "@/state/organizer";
 
 const tileBase =
   "rounded-xl border border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px] p-5 transition-all duration-300";
 
 const FEED_LIMIT = 15;
-const POLL_MS = 20_000;
 
 export function LiveTicketFeed() {
-  const [sales, setSales] = useState<RecentSale[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchSales = useCallback(async () => {
-    try {
-      const data = await apiService.getOrganizerRecentSales(FEED_LIMIT);
-      setSales(data);
-    } catch {
-      setSales([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchSales();
-  }, [fetchSales]);
-
-  useEffect(() => {
-    const t = setInterval(fetchSales, POLL_MS);
-    return () => clearInterval(t);
-  }, [fetchSales]);
+  const salesQuery = useOrganizerRecentSalesQuery(FEED_LIMIT);
+  const sales = salesQuery.data ?? [];
+  const loading = salesQuery.isLoading;
 
   return (
     <div className={tileBase}>

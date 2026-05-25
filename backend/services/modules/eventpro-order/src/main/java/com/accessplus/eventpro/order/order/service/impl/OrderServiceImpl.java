@@ -142,7 +142,8 @@ public class OrderServiceImpl implements OrderService {
             }
 
             OrderItemEntity orderItem = new OrderItemEntity();
-            orderItem.setQuantity(cartItem.getQuantity());
+            // Cart rows are physical ticket holds. One row becomes one order item.
+            orderItem.setQuantity(1);
             orderItem.setPrice(ticket.getPrice()); // Store price at time of order
             orderItem.setTicketId(ticket.getId()); // Set UUID
             orderItem.setTicket(ticket); // Set relationship for JPA (optional, for lazy loading)

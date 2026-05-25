@@ -8,8 +8,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -39,33 +43,21 @@ public class CartResponse {
                     .build();
         }
         
-        // Convert cart items to CartItemResponse
-        Set<CartItemResponse> ticketResponses = cartItems.stream()
-                .map(cartItem -> {
-                    if (cartItem.getTicket() == null) {
-                        return null;
-                    }
-                    
-                    return CartItemResponse.builder()
-                            .id(cartItem.getTicket().getId())
-                            .name(cartItem.getTicket().getName())
-                            .ticketType(cartItem.getTicket().getTicketType())
-                            .ticketStatus(cartItem.getTicket().getTicketStatus())
-                            .price(cartItem.getTicket().getPrice())
-                            .startTime(cartItem.getTicket().getStartTime())
-                            .endTime(cartItem.getTicket().getEndTime())
-                            .eventIdType(cartItem.getTicket().getEventId() != null 
-                                    ? cartItem.getTicket().getEventId().toString() 
-                                    : null)
-                            .quantity(cartItem.getQuantity())
-                            .build();
-                })
-                .filter(item -> item != null)
+        Map<String, List<CartEntity>> grouped = new LinkedHashMap<>();
+        cartItems.stream()
+                .filter(cartItem -> cartItem.getTicket() != null)
+                .sorted(Comparator.comparing(CartEntity::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                .forEach(cartItem -> grouped
+                        .computeIfAbsent(lineKey(cartItem), ignored -> new ArrayList<>())
+                        .add(cartItem));
+
+        Set<CartItemResponse> ticketResponses = grouped.values().stream()
+                .map(CartResponse::toCartItemResponse)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         
         // Calculate total quantity
-        int totalQuantity = cartItems.stream()
-                .mapToInt(CartEntity::getQuantity)
+        int totalQuantity = ticketResponses.stream()
+                .mapToInt(item -> item.getQuantity() != null ? item.getQuantity() : 0)
                 .sum();
 
         // Earliest reservation expiry among all tickets (for countdown)
@@ -85,5 +77,45 @@ public class CartResponse {
                 .reservedUntil(reservedUntilStr)
                 .build();
     }
-}
 
+    private static String lineKey(CartEntity cartItem) {
+        var ticket = cartItem.getTicket();
+        if (ticket.getSeatSection() != null) {
+            return "SEAT:" + ticket.getId();
+        }
+        return "GA:%s:%s:%s".formatted(
+                ticket.getEventId(),
+                ticket.getTicketType(),
+                ticket.getPrice());
+    }
+
+    private static CartItemResponse toCartItemResponse(List<CartEntity> cartItems) {
+        CartEntity firstCartItem = cartItems.get(0);
+        var firstTicket = firstCartItem.getTicket();
+        List<UUID> ticketIds = cartItems.stream()
+                .map(CartEntity::getTicket)
+                .filter(java.util.Objects::nonNull)
+                .map(ticket -> ticket.getId())
+                .toList();
+        boolean reservedSeat = firstTicket.getSeatSection() != null;
+        String eventId = firstTicket.getEventId() != null ? firstTicket.getEventId().toString() : null;
+        String lineId = reservedSeat
+                ? firstTicket.getId().toString()
+                : "%s:%s:%s".formatted(eventId, firstTicket.getTicketType(), firstTicket.getPrice());
+
+        return CartItemResponse.builder()
+                .id(firstTicket.getId())
+                .lineId(lineId)
+                .lineType(reservedSeat ? "RESERVED_SEAT" : "GENERAL_ADMISSION")
+                .name(firstTicket.getName())
+                .ticketType(firstTicket.getTicketType())
+                .ticketStatus(firstTicket.getTicketStatus())
+                .price(firstTicket.getPrice())
+                .startTime(firstTicket.getStartTime())
+                .endTime(firstTicket.getEndTime())
+                .eventIdType(eventId)
+                .quantity(cartItems.size())
+                .ticketIds(ticketIds)
+                .build();
+    }
+}

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,12 +47,11 @@ import {
 } from "recharts";
 import { format } from "date-fns";
 import { apiService } from "@/lib/api";
-import type { OrganizerSummary, RecentSale } from "@/types/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-const POLL_INTERVAL_MS = 30_000;
+import { queryKeys } from "@/state/queryKeys";
+import { useOrganizerRecentSalesQuery, useOrganizerSummaryQuery } from "@/state/organizer";
 
 const usdFormat = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -85,43 +85,15 @@ function tierLabel(tier: string | undefined): string {
 
 export function FinancialHub() {
   const { user } = useAuth();
-  const [summary, setSummary] = useState<OrganizerSummary | null>(null);
-  const [recentSales, setRecentSales] = useState<RecentSale[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const summaryQuery = useOrganizerSummaryQuery();
+  const recentSalesQuery = useOrganizerRecentSalesQuery(50);
+  const summary = summaryQuery.data ?? null;
+  const recentSales = Array.isArray(recentSalesQuery.data) ? recentSalesQuery.data : [];
+  const loading = summaryQuery.isLoading || recentSalesQuery.isLoading;
   const [requestingPayout, setRequestingPayout] = useState(false);
   const [connectingBank, setConnectingBank] = useState(false);
   const [chartPeriod, setChartPeriod] = useState("7d");
-
-  const fetchFinancials = useCallback(async () => {
-    try {
-      const [data, sales] = await Promise.all([
-        apiService.getOrganizerSummary(),
-        apiService.getOrganizerRecentSales(50),
-      ]);
-      setSummary(data);
-      setRecentSales(Array.isArray(sales) ? sales : []);
-    } catch {
-      setSummary(null);
-      setRecentSales([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchFinancials();
-  }, [fetchFinancials]);
-
-  useEffect(() => {
-    const t = setInterval(fetchFinancials, POLL_INTERVAL_MS);
-    return () => clearInterval(t);
-  }, [fetchFinancials]);
-
-  useEffect(() => {
-    const onInvalidate = () => fetchFinancials();
-    window.addEventListener("organizer-summary-invalidate", onInvalidate);
-    return () => window.removeEventListener("organizer-summary-invalidate", onInvalidate);
-  }, [fetchFinancials]);
 
   const totalRevenue = summary ? toNumber(summary.totalRevenue) : 0;
   const platformFeesWithheld = summary ? toNumber(summary.platformFeesWithheld) : 0;
@@ -184,8 +156,10 @@ export function FinancialHub() {
     try {
       await apiService.requestPayout(availableBalance);
       toast.success("Payout requested. Funds will be sent to your bank account.");
-      window.dispatchEvent(new Event("organizer-summary-invalidate"));
-      fetchFinancials();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.organizer.summary }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.organizer.recentSales(50) }),
+      ]);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Request failed";
       toast.error(msg);

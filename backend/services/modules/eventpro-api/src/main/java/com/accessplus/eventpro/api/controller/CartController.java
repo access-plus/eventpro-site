@@ -3,14 +3,11 @@ package com.accessplus.eventpro.api.controller;
 import com.accessplus.eventpro.api.dto.AddToCartRequest;
 import com.accessplus.eventpro.api.dto.ApiResponse;
 import com.accessplus.eventpro.api.dto.CartItemRequest;
+import com.accessplus.eventpro.api.dto.CartLineRequest;
 import com.accessplus.eventpro.api.dto.CartResponse;
 import com.accessplus.eventpro.api.dto.UpdateCartRequest;
-import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
 import com.accessplus.eventpro.core.security.JwtUtils;
-import com.accessplus.eventpro.event.event.repository.EventRepository;
-import com.accessplus.eventpro.shared.entity.TicketEntity;
-import com.accessplus.eventpro.shared.enums.TicketStatus;
 import com.accessplus.eventpro.shared.enums.TicketType;
 import com.accessplus.eventpro.event.ticket.repository.TicketRepository;
 import com.accessplus.eventpro.order.cart.entity.CartEntity;
@@ -21,7 +18,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,7 +37,6 @@ public class CartController extends BaseController {
 
     private final CartService cartService;
     private final TicketRepository ticketRepository;
-    private final EventRepository eventRepository;
 
     @PostMapping("/add")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
@@ -54,32 +49,17 @@ public class CartController extends BaseController {
         // Get current user's UUID from JWT
         UUID userId = JwtUtils.getCurrentUserId();
 
-        // Find ticket
-        UUID ticketId;
         if (request.getId() != null) {
             // Use direct ticket UUID
-            ticketId = request.getId();
+            cartService.addItemToCart(userId, request.getId(), request.getQuantity());
         } else if (request.getEventIdType() != null && request.getTicketType() != null) {
-            // Find ticket by event ID and ticket type
-            try {
-                UUID eventId = UUID.fromString(request.getEventIdType());
-                ticketId = findAvailableTicketByEventAndType(eventId, request.getTicketType());
-            } catch (IllegalArgumentException e) {
-                throw new ValidationException("Invalid event ID format: " + request.getEventIdType());
-            }
+            UUID eventId = parseEventId(request.getEventIdType());
+            cartService.addTicketTypeToCart(userId, eventId, request.getTicketType(), request.getQuantity());
         } else {
             throw new ValidationException("Either 'id' (ticket UUID) or 'eventIdType' + 'ticketType' must be provided");
         }
 
-        // Add to cart
-        cartService.addItemToCart(userId, ticketId, request.getQuantity());
-
-        // Get updated cart
-        cartService.releaseExpiredCartReservations(userId);
-        List<CartEntity> cartItems = cartService.getUserCart(userId);
-        BigDecimal totalCost = cartService.calculateCartTotal(userId);
-        CartResponse response = CartResponse.fromCartEntities(cartItems, userId, totalCost);
-        response.setMessage("Item added to cart successfully");
+        CartResponse response = buildCartResponse(userId, "Item added to cart successfully");
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Item added to cart successfully"));
@@ -94,7 +74,7 @@ public class CartController extends BaseController {
         log.debug("Received request to add {} items to cart", items.size());
 
         // Get current user's UUID from JWT
-            UUID userId = JwtUtils.getCurrentUserId();
+        UUID userId = JwtUtils.getCurrentUserId();
 
         // Process each item
         for (CartItemRequest item : items) {
@@ -132,11 +112,7 @@ public class CartController extends BaseController {
         // Get current user's UUID from JWT
         UUID userId = JwtUtils.getCurrentUserId();
 
-        // Get cart items
-        cartService.releaseExpiredCartReservations(userId);
-        List<CartEntity> cartItems = cartService.getUserCart(userId);
-        BigDecimal totalCost = cartService.calculateCartTotal(userId);
-        CartResponse response = CartResponse.fromCartEntities(cartItems, userId, totalCost);
+        CartResponse response = buildCartResponse(userId, null);
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -156,21 +132,30 @@ public class CartController extends BaseController {
         // Update cart item
         cartService.updateCartItemQuantity(userId, ticketId, request.getQuantity());
 
-        // Get updated cart
-        cartService.releaseExpiredCartReservations(userId);
-        List<CartEntity> cartItems = cartService.getUserCart(userId);
-        BigDecimal totalCost = cartService.calculateCartTotal(userId);
-        CartResponse response = CartResponse.fromCartEntities(cartItems, userId, totalCost);
-        response.setMessage("Cart item updated successfully");
+        CartResponse response = buildCartResponse(userId, "Cart item updated successfully");
 
         return ResponseEntity.ok(ApiResponse.success(response, "Cart item updated successfully"));
+    }
+
+    @PatchMapping("/line")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
+    @Operation(summary = "Set grouped cart line quantity", description = "Sets the absolute quantity for a general-admission event/ticket-type cart line.")
+    public ResponseEntity<ApiResponse<CartResponse>> updateCartLine(
+            @Valid @RequestBody CartLineRequest request) {
+        UUID userId = JwtUtils.getCurrentUserId();
+        UUID eventId = parseEventId(request.getEventIdType());
+
+        cartService.setTicketTypeCartQuantity(userId, eventId, request.getTicketType(), request.getQuantity());
+        CartResponse response = buildCartResponse(userId, "Cart line updated successfully");
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Cart line updated successfully"));
     }
 
     @DeleteMapping("/delete/{ticketId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Remove item from cart", description = "Removes a specific item from the authenticated user's cart. " +
             "Requires USER, ADMIN, or ORGANIZER role.")
-    public ResponseEntity<ApiResponse<Void>> removeFromCart(@PathVariable UUID ticketId) {
+    public ResponseEntity<ApiResponse<CartResponse>> removeFromCart(@PathVariable UUID ticketId) {
         log.debug("Received request to remove item from cart: ticketId={}", ticketId);
 
         // Get current user's UUID from JWT
@@ -179,14 +164,30 @@ public class CartController extends BaseController {
         // Remove from cart
         cartService.removeItemFromCart(userId, ticketId);
 
-        return ResponseEntity.ok(ApiResponse.success(null, "Item removed from cart successfully"));
+        CartResponse response = buildCartResponse(userId, "Item removed from cart successfully");
+        return ResponseEntity.ok(ApiResponse.success(response, "Item removed from cart successfully"));
+    }
+
+    @DeleteMapping("/line")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
+    @Operation(summary = "Remove grouped cart line", description = "Removes all cart rows for a general-admission event/ticket-type cart line.")
+    public ResponseEntity<ApiResponse<CartResponse>> removeCartLine(
+            @RequestParam String eventIdType,
+            @RequestParam TicketType ticketType) {
+        UUID userId = JwtUtils.getCurrentUserId();
+        UUID eventId = parseEventId(eventIdType);
+
+        cartService.removeTicketTypeFromCart(userId, eventId, ticketType);
+        CartResponse response = buildCartResponse(userId, "Cart line removed successfully");
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Cart line removed successfully"));
     }
 
     @DeleteMapping("/clear")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
     @Operation(summary = "Clear cart", description = "Removes all items from the authenticated user's cart. " +
             "Requires USER, ADMIN, or ORGANIZER role.")
-    public ResponseEntity<ApiResponse<Void>> clearCart() {
+    public ResponseEntity<ApiResponse<CartResponse>> clearCart() {
         log.debug("Received request to clear cart");
 
         // Get current user's UUID from JWT
@@ -195,28 +196,24 @@ public class CartController extends BaseController {
         // Clear cart
         cartService.clearCart(userId);
 
-        return ResponseEntity.ok(ApiResponse.success(null, "Cart cleared successfully"));
+        CartResponse response = buildCartResponse(userId, "Cart cleared successfully");
+        return ResponseEntity.ok(ApiResponse.success(response, "Cart cleared successfully"));
     }
 
-    private UUID findAvailableTicketByEventAndType(UUID eventId, TicketType ticketType) {
-        // Validate event exists
-        if (!eventRepository.existsById(eventId)) {
-            throw new ResourceNotFoundException("Event", eventId.toString());
+    private UUID parseEventId(String eventIdType) {
+        try {
+            return UUID.fromString(eventIdType);
+        } catch (IllegalArgumentException e) {
+            throw new ValidationException("Invalid event ID format: " + eventIdType);
         }
+    }
 
-        // Find available tickets of the specified type
-        List<TicketEntity> availableTickets = ticketRepository
-                .findByEventIdAndTicketType(eventId, ticketType.name(), PageRequest.of(0, 1))
-                .getContent()
-                .stream()
-                .filter(t -> t.getTicketStatus() == TicketStatus.AVAILABLE)
-                .toList();
-
-        if (availableTickets.isEmpty()) {
-            throw new ResourceNotFoundException(
-                    "Available ticket", String.format("eventId=%s, ticketType=%s", eventId, ticketType));
-        }
-
-        return availableTickets.get(0).getId();
+    private CartResponse buildCartResponse(UUID userId, String message) {
+        cartService.releaseExpiredCartReservations(userId);
+        List<CartEntity> cartItems = cartService.getUserCart(userId);
+        BigDecimal totalCost = cartService.calculateCartTotal(userId);
+        CartResponse response = CartResponse.fromCartEntities(cartItems, userId, totalCost);
+        response.setMessage(message);
+        return response;
     }
 }

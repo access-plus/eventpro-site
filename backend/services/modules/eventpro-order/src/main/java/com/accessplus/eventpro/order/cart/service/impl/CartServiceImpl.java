@@ -6,6 +6,7 @@ import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.UserRepository;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
+import com.accessplus.eventpro.shared.enums.TicketType;
 import com.accessplus.eventpro.event.ticket.repository.TicketRepository;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.order.cart.entity.CartEntity;
@@ -50,7 +51,8 @@ public class CartServiceImpl implements CartService {
     private final TicketService ticketService;
 
     /**
-     * Adds a ticket to the user's cart.
+     * Adds one concrete ticket to the user's cart. Direct ticket IDs represent physical
+     * tickets/seats, so quantity must be exactly one.
      */
     @Override
     public CartEntity addItemToCart(UUID userId, UUID ticketId, Integer quantity) {
@@ -68,6 +70,9 @@ public class CartServiceImpl implements CartService {
         if (quantity == null || quantity <= 0) {
             throw new ValidationException("Quantity must be greater than 0");
         }
+        if (quantity != 1) {
+            throw new ValidationException("Direct ticket additions must have quantity 1");
+        }
 
         // Validate ticket availability
         if (ticket.getTicketStatus() != TicketStatus.AVAILABLE) {
@@ -81,18 +86,16 @@ public class CartServiceImpl implements CartService {
 
         CartEntity cartItem;
         if (existingCartItem != null) {
-            int newQuantity = existingCartItem.getQuantity() + quantity;
-            existingCartItem.setQuantity(newQuantity);
+            existingCartItem.setQuantity(1);
             cartItem = cartRepository.save(existingCartItem);
-            log.info("Updated cart item quantity: cartId={}, newQuantity={}", cartItem.getId(), newQuantity);
+            log.info("Cart item already existed, normalized quantity: cartId={}", cartItem.getId());
         } else {
             cartItem = new CartEntity();
             cartItem.setUser(user);
             cartItem.setTicket(ticket);
-            cartItem.setQuantity(quantity);
+            cartItem.setQuantity(1);
             cartItem = cartRepository.save(cartItem);
-            log.info("Created new cart item: cartId={}, ticketId={}, quantity={}",
-                    cartItem.getId(), ticketId, quantity);
+            log.info("Created new cart item: cartId={}, ticketId={}", cartItem.getId(), ticketId);
         }
 
         try {
@@ -108,6 +111,92 @@ public class CartServiceImpl implements CartService {
         }
 
         return cartItem;
+    }
+
+    @Override
+    public List<CartEntity> addTicketTypeToCart(UUID userId, UUID eventId, TicketType ticketType, Integer quantity) {
+        log.debug("Adding ticket type to cart: userId={}, eventId={}, ticketType={}, quantity={}",
+                userId, eventId, ticketType, quantity);
+
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId.toString()));
+        if (eventId == null) {
+            throw new ValidationException("Event ID is required");
+        }
+        if (ticketType == null) {
+            throw new ValidationException("Ticket type is required");
+        }
+        if (quantity == null || quantity <= 0) {
+            throw new ValidationException("Quantity must be greater than 0");
+        }
+
+        List<UUID> reservedTicketIds = ticketService.findAndReserveAvailableTickets(eventId, ticketType, quantity);
+        if (reservedTicketIds.size() < quantity) {
+            for (UUID reservedTicketId : reservedTicketIds) {
+                try {
+                    ticketService.markTicketAsAvailable(reservedTicketId);
+                } catch (Exception e) {
+                    log.warn("Failed to release partially reserved ticket {} after insufficient inventory",
+                            reservedTicketId, e);
+                }
+            }
+            throw new ValidationException(String.format(
+                    "Only %d ticket(s) are available for %s", reservedTicketIds.size(), ticketType));
+        }
+
+        List<CartEntity> savedRows = new java.util.ArrayList<>();
+        try {
+            for (UUID reservedTicketId : reservedTicketIds) {
+                TicketEntity reservedTicket = ticketRepository.findById(reservedTicketId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Ticket", reservedTicketId.toString()));
+
+                CartEntity cartItem = new CartEntity();
+                cartItem.setUser(user);
+                cartItem.setTicket(reservedTicket);
+                cartItem.setQuantity(1);
+                savedRows.add(cartRepository.save(cartItem));
+            }
+        } catch (RuntimeException e) {
+            for (UUID reservedTicketId : reservedTicketIds) {
+                try {
+                    ticketService.markTicketAsAvailable(reservedTicketId);
+                } catch (Exception releaseError) {
+                    log.warn("Failed to release ticket {} after cart row creation failure",
+                            reservedTicketId, releaseError);
+                }
+            }
+            throw e;
+        }
+
+        log.info("Added {} {} ticket(s) to cart for user={}, eventId={}",
+                savedRows.size(), ticketType, userId, eventId);
+        return savedRows;
+    }
+
+    @Override
+    public List<CartEntity> setTicketTypeCartQuantity(UUID userId, UUID eventId, TicketType ticketType, Integer quantity) {
+        if (quantity == null || quantity < 0) {
+            throw new ValidationException("Quantity must be 0 or greater");
+        }
+        List<CartEntity> currentRows = cartRepository.findGeneralAdmissionLine(userId, eventId, ticketType);
+        int currentQuantity = currentRows.size();
+        if (quantity == currentQuantity) {
+            normalizeCartRows(currentRows);
+            return currentRows;
+        }
+        if (quantity > currentQuantity) {
+            addTicketTypeToCart(userId, eventId, ticketType, quantity - currentQuantity);
+        } else {
+            releaseCartRows(currentRows.subList(quantity, currentRows.size()));
+        }
+        return cartRepository.findGeneralAdmissionLine(userId, eventId, ticketType);
+    }
+
+    @Override
+    public int removeTicketTypeFromCart(UUID userId, UUID eventId, TicketType ticketType) {
+        List<CartEntity> currentRows = cartRepository.findGeneralAdmissionLine(userId, eventId, ticketType);
+        releaseCartRows(currentRows);
+        return currentRows.size();
     }
 
     /**
@@ -127,8 +216,12 @@ public class CartServiceImpl implements CartService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Cart item", String.format("userId=%s, ticketId=%s", userId, ticketId)));
 
-        // Update quantity
-        cartItem.setQuantity(quantity);
+        if (quantity != 1) {
+            throw new ValidationException("Direct cart item quantity must be 1");
+        }
+
+        // Direct cart rows represent one concrete ticket.
+        cartItem.setQuantity(1);
         CartEntity updatedCartItem = cartRepository.save(cartItem);
         
         log.info("Updated cart item quantity: cartId={}, newQuantity={}", updatedCartItem.getId(), quantity);
@@ -147,10 +240,6 @@ public class CartServiceImpl implements CartService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Cart item", String.format("userId=%s, ticketId=%s", userId, ticketId)));
 
-        // Delete cart item
-        cartRepository.delete(cartItem);
-        log.info("Removed cart item: cartId={}, ticketId={}", cartItem.getId(), ticketId);
-
         // Mark ticket as AVAILABLE if it was RESERVED
         try {
             TicketEntity ticket = ticketRepository.findById(ticketId)
@@ -161,8 +250,12 @@ public class CartServiceImpl implements CartService {
             }
         } catch (Exception e) {
             log.error("Failed to mark ticket as available: ticketId={}, error={}", ticketId, e.getMessage(), e);
-            // Continue - ticket status update failure shouldn't prevent cart item removal
+            throw new ValidationException("Could not release ticket from cart. Please try again.");
         }
+
+        // Delete cart item only after the reserved ticket was released.
+        cartRepository.delete(cartItem);
+        log.info("Removed cart item: cartId={}, ticketId={}", cartItem.getId(), ticketId);
     }
 
     /**
@@ -232,15 +325,10 @@ public class CartServiceImpl implements CartService {
         }
 
         List<CartEntity> cartItems = cartRepository.findByUserId(userId);
-        BigDecimal total = BigDecimal.ZERO;
-
-        for (CartEntity cartItem : cartItems) {
-            if (cartItem.getTicket() != null && cartItem.getTicket().getPrice() != null) {
-                BigDecimal itemTotal = cartItem.getTicket().getPrice()
-                        .multiply(BigDecimal.valueOf(cartItem.getQuantity()));
-                total = total.add(itemTotal);
-            }
-        }
+        BigDecimal total = cartItems.stream()
+                .filter(cartItem -> cartItem.getTicket() != null && cartItem.getTicket().getPrice() != null)
+                .map(cartItem -> cartItem.getTicket().getPrice())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         log.debug("Cart total for user: userId={}, total={}", userId, total);
         return total;
@@ -260,9 +348,7 @@ public class CartServiceImpl implements CartService {
         }
 
         List<CartEntity> cartItems = cartRepository.findByUserId(userId);
-        int totalQuantity = cartItems.stream()
-                .mapToInt(CartEntity::getQuantity)
-                .sum();
+        int totalQuantity = cartItems.size();
 
         log.debug("Cart item count for user: userId={}, count={}", userId, totalQuantity);
         return totalQuantity;
@@ -321,5 +407,30 @@ public class CartServiceImpl implements CartService {
             log.info("Removed {} stale cart row(s) pointing at AVAILABLE tickets (orphans)", deleted);
         }
         return deleted;
+    }
+
+    private void normalizeCartRows(List<CartEntity> cartRows) {
+        for (CartEntity cartRow : cartRows) {
+            if (cartRow.getQuantity() == null || cartRow.getQuantity() != 1) {
+                cartRow.setQuantity(1);
+                cartRepository.save(cartRow);
+            }
+        }
+    }
+
+    private void releaseCartRows(List<CartEntity> cartRows) {
+        for (CartEntity cartRow : cartRows) {
+            TicketEntity ticket = cartRow.getTicket();
+            if (ticket != null && ticket.getId() != null && ticket.getTicketStatus() == TicketStatus.RESERVED) {
+                try {
+                    ticketService.markTicketAsAvailable(ticket.getId());
+                } catch (Exception e) {
+                    log.error("Failed to mark ticket as available: ticketId={}, error={}",
+                            ticket.getId(), e.getMessage(), e);
+                    throw new ValidationException("Could not release ticket from cart. Please try again.");
+                }
+            }
+            cartRepository.delete(cartRow);
+        }
     }
 }

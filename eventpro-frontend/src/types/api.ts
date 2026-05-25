@@ -222,6 +222,8 @@ export interface CartItem {
 
 export interface CartItemResponse {
   id: string;
+  lineId?: string;
+  lineType?: "GENERAL_ADMISSION" | "RESERVED_SEAT";
   name: string;
   ticketType: TicketTypeEnum;
   ticketStatus: TicketStatusEnum;
@@ -230,6 +232,7 @@ export interface CartItemResponse {
   endTime?: string;
   eventIdType?: string;
   quantity: number;
+  ticketIds?: string[];
 }
 
 export interface CartResponse {
@@ -250,6 +253,12 @@ export interface AddToCartRequest {
 }
 
 export interface UpdateCartRequest {
+  quantity: number;
+}
+
+export interface CartLineRequest {
+  eventIdType: string;
+  ticketType: TicketTypeEnum;
   quantity: number;
 }
 

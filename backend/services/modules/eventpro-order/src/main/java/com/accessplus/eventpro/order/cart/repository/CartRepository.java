@@ -3,6 +3,7 @@ package com.accessplus.eventpro.order.cart.repository;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
+import com.accessplus.eventpro.shared.enums.TicketType;
 import com.accessplus.eventpro.order.cart.entity.CartEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -47,6 +48,23 @@ public interface CartRepository extends JpaRepository<CartEntity, UUID> {
      */
     @Query("SELECT c FROM CartEntity c WHERE c.user.id = :userId")
     List<CartEntity> findByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Finds general-admission cart rows for one event/ticket type. Each row represents one
+     * concrete reserved ticket hold.
+     */
+    @Query("""
+            SELECT c FROM CartEntity c
+            WHERE c.user.id = :userId
+              AND c.ticket.eventId = :eventId
+              AND c.ticket.ticketType = :ticketType
+              AND c.ticket.seatSection IS NULL
+            ORDER BY c.createdAt ASC
+            """)
+    List<CartEntity> findGeneralAdmissionLine(
+            @Param("userId") UUID userId,
+            @Param("eventId") UUID eventId,
+            @Param("ticketType") TicketType ticketType);
 
     /**
      * Finds cart rows whose held ticket reservation has expired.

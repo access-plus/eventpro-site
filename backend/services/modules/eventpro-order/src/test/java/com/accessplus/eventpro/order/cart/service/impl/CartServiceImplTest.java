@@ -6,6 +6,7 @@ import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.UserRepository;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
+import com.accessplus.eventpro.shared.enums.TicketType;
 import com.accessplus.eventpro.event.ticket.repository.TicketRepository;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.order.cart.entity.CartEntity;
@@ -71,13 +72,15 @@ class CartServiceImplTest {
         ticket.setId(ticketId);
         ticket.setName("Test Ticket");
         ticket.setPrice(new BigDecimal("50.00"));
+        ticket.setEventId(UUID.randomUUID());
+        ticket.setTicketType(TicketType.REGULAR);
         ticket.setTicketStatus(TicketStatus.AVAILABLE);
 
         cartItem = new CartEntity();
         cartItem.setId(UUID.randomUUID());
         cartItem.setUser(user);
         cartItem.setTicket(ticket);
-        cartItem.setQuantity(2);
+        cartItem.setQuantity(1);
     }
 
     // ========== addItemToCart Tests ==========
@@ -92,7 +95,7 @@ class CartServiceImplTest {
         doNothing().when(ticketService).markTicketAsReserved(ticketId);
 
         // When
-        CartEntity result = cartService.addItemToCart(userId, ticketId, 2);
+        CartEntity result = cartService.addItemToCart(userId, ticketId, 1);
 
         // Then
         assertNotNull(result);
@@ -120,11 +123,11 @@ class CartServiceImplTest {
         doNothing().when(ticketService).markTicketAsReserved(ticketId);
 
         // When
-        CartEntity result = cartService.addItemToCart(userId, ticketId, 2);
+        CartEntity result = cartService.addItemToCart(userId, ticketId, 1);
 
         // Then
         assertNotNull(result);
-        assertEquals(3, existingCartItem.getQuantity()); // 1 + 2 = 3
+        assertEquals(1, existingCartItem.getQuantity());
         verify(cartRepository).save(existingCartItem);
         verify(ticketService).markTicketAsReserved(ticketId);
     }
@@ -136,7 +139,7 @@ class CartServiceImplTest {
 
         // When/Then
         assertThrows(ResourceNotFoundException.class, () -> 
-                cartService.addItemToCart(userId, ticketId, 2));
+                cartService.addItemToCart(userId, ticketId, 1));
         verify(userRepository).findById(userId);
         verify(ticketRepository, never()).findById(any());
         verify(cartRepository, never()).save(any());
@@ -150,7 +153,7 @@ class CartServiceImplTest {
 
         // When/Then
         assertThrows(ResourceNotFoundException.class, () -> 
-                cartService.addItemToCart(userId, ticketId, 2));
+                cartService.addItemToCart(userId, ticketId, 1));
         verify(userRepository).findById(userId);
         verify(ticketRepository).findById(ticketId);
         verify(cartRepository, never()).save(any());
@@ -201,7 +204,7 @@ class CartServiceImplTest {
 
         // When/Then
         assertThrows(IllegalStateException.class, () -> 
-                cartService.addItemToCart(userId, ticketId, 2));
+                cartService.addItemToCart(userId, ticketId, 1));
         verify(cartRepository, never()).save(any());
         verify(ticketService, never()).markTicketAsReserved(any());
     }
@@ -215,8 +218,55 @@ class CartServiceImplTest {
 
         // When/Then
         assertThrows(IllegalStateException.class, () -> 
-                cartService.addItemToCart(userId, ticketId, 2));
+                cartService.addItemToCart(userId, ticketId, 1));
         verify(cartRepository, never()).findByUserAndTicket(any(), any());
+        verify(cartRepository, never()).save(any());
+    }
+
+    @Test
+    void testAddTicketTypeToCart_ReservesExactQuantityAndCreatesOneRowPerTicket() {
+        // Given
+        UUID eventId = ticket.getEventId();
+        UUID ticketId2 = UUID.randomUUID();
+        TicketEntity ticket2 = new TicketEntity();
+        ticket2.setId(ticketId2);
+        ticket2.setName("Test Ticket");
+        ticket2.setPrice(new BigDecimal("50.00"));
+        ticket2.setEventId(eventId);
+        ticket2.setTicketType(TicketType.REGULAR);
+        ticket2.setTicketStatus(TicketStatus.RESERVED);
+
+        ticket.setTicketStatus(TicketStatus.RESERVED);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(ticketService.findAndReserveAvailableTickets(eventId, TicketType.REGULAR, 2))
+                .thenReturn(List.of(ticketId, ticketId2));
+        when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(ticketRepository.findById(ticketId2)).thenReturn(Optional.of(ticket2));
+        when(cartRepository.save(any(CartEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        List<CartEntity> result = cartService.addTicketTypeToCart(userId, eventId, TicketType.REGULAR, 2);
+
+        // Then
+        assertEquals(2, result.size());
+        assertTrue(result.stream().allMatch(row -> row.getQuantity() == 1));
+        verify(ticketService).findAndReserveAvailableTickets(eventId, TicketType.REGULAR, 2);
+        verify(cartRepository, times(2)).save(any(CartEntity.class));
+    }
+
+    @Test
+    void testAddTicketTypeToCart_RollsBackPartialReserveWhenInventoryInsufficient() {
+        // Given
+        UUID eventId = ticket.getEventId();
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(ticketService.findAndReserveAvailableTickets(eventId, TicketType.REGULAR, 3))
+                .thenReturn(List.of(ticketId));
+        doNothing().when(ticketService).markTicketAsAvailable(ticketId);
+
+        // When/Then
+        assertThrows(ValidationException.class, () ->
+                cartService.addTicketTypeToCart(userId, eventId, TicketType.REGULAR, 3));
+        verify(ticketService).markTicketAsAvailable(ticketId);
         verify(cartRepository, never()).save(any());
     }
 
@@ -230,11 +280,11 @@ class CartServiceImplTest {
         when(cartRepository.save(cartItem)).thenReturn(cartItem);
 
         // When
-        CartEntity result = cartService.updateCartItemQuantity(userId, ticketId, 5);
+        CartEntity result = cartService.updateCartItemQuantity(userId, ticketId, 1);
 
         // Then
         assertNotNull(result);
-        assertEquals(5, cartItem.getQuantity());
+        assertEquals(1, cartItem.getQuantity());
         verify(cartRepository).findByUserIdAndTicketId(userId, ticketId);
         verify(cartRepository).save(cartItem);
     }
@@ -247,6 +297,18 @@ class CartServiceImplTest {
 
         // When/Then
         assertThrows(ResourceNotFoundException.class, () -> 
+                cartService.updateCartItemQuantity(userId, ticketId, 5));
+        verify(cartRepository, never()).save(any());
+    }
+
+    @Test
+    void testUpdateCartItemQuantity_RejectsGroupedQuantityOnConcreteTicket() {
+        // Given
+        when(cartRepository.findByUserIdAndTicketId(userId, ticketId))
+                .thenReturn(Optional.of(cartItem));
+
+        // When/Then
+        assertThrows(ValidationException.class, () ->
                 cartService.updateCartItemQuantity(userId, ticketId, 5));
         verify(cartRepository, never()).save(any());
     }
@@ -492,7 +554,7 @@ class CartServiceImplTest {
 
         CartEntity cartItem2 = new CartEntity();
         cartItem2.setTicket(ticket2);
-        cartItem2.setQuantity(3);
+        cartItem2.setQuantity(1);
         cartItems.add(cartItem2);
 
         when(userRepository.existsById(userId)).thenReturn(true);
@@ -503,8 +565,7 @@ class CartServiceImplTest {
 
         // Then
         assertNotNull(result);
-        // 50.00 * 2 + 75.00 * 3 = 100.00 + 225.00 = 325.00
-        assertEquals(new BigDecimal("325.00"), result);
+        assertEquals(new BigDecimal("125.00"), result);
         verify(userRepository).existsById(userId);
         verify(cartRepository).findByUserId(userId);
         verify(cartRepository, never()).findByUserIdAndExpiredReservation(any(), any(), any());
@@ -561,7 +622,7 @@ class CartServiceImplTest {
         cartItems.add(cartItem);
 
         CartEntity cartItem2 = new CartEntity();
-        cartItem2.setQuantity(5);
+        cartItem2.setQuantity(1);
         cartItems.add(cartItem2);
 
         when(userRepository.existsById(userId)).thenReturn(true);
@@ -572,7 +633,7 @@ class CartServiceImplTest {
 
         // Then
         assertNotNull(result);
-        assertEquals(7, result); // 2 + 5 = 7
+        assertEquals(2, result);
         verify(userRepository).existsById(userId);
         verify(cartRepository).findByUserId(userId);
         verify(cartRepository, never()).findByUserIdAndExpiredReservation(any(), any(), any());

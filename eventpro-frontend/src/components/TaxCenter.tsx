@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Shield, ShieldCheck, FileText, Download, Lock } from "lucide-react";
 import { apiService } from "@/lib/api";
-import type { OrganizerSummary, TaxFormEntry } from "@/types/api";
 import { W9Modal } from "@/components/W9Modal";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrganizerSummaryQuery, useOrganizerTaxFormsQuery } from "@/state/organizer";
+import { queryKeys } from "@/state/queryKeys";
 
 const THRESHOLD_1099 = 600;
 const W9_REQUIRED_ABOVE = 500;
@@ -25,46 +27,23 @@ function toNum(v: unknown): number {
   return 0;
 }
 
-const INVALUATE_EVENT = "organizer-summary-invalidate";
-
 export function TaxCenter() {
   const { user } = useAuth();
-  const [summary, setSummary] = useState<OrganizerSummary | null>(null);
-  const [taxForms, setTaxForms] = useState<TaxFormEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [w9ModalOpen, setW9ModalOpen] = useState(false);
 
   const isEnterprise = (user?.subscriptionTier ?? "").toUpperCase() === "ENTERPRISE";
-
-  const fetchData = useCallback(async () => {
-    try {
-      const [s, forms] = await Promise.all([
-        apiService.getOrganizerSummary(),
-        isEnterprise ? apiService.getOrganizerTaxForms() : Promise.resolve([]),
-      ]);
-      setSummary(s);
-      setTaxForms(forms ?? []);
-    } catch {
-      setSummary(null);
-      setTaxForms([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [isEnterprise]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    const onInvalidate = () => fetchData();
-    window.addEventListener(INVALUATE_EVENT, onInvalidate);
-    return () => window.removeEventListener(INVALUATE_EVENT, onInvalidate);
-  }, [fetchData]);
+  const summaryQuery = useOrganizerSummaryQuery();
+  const taxFormsQuery = useOrganizerTaxFormsQuery(isEnterprise);
+  const summary = summaryQuery.data ?? null;
+  const taxForms = taxFormsQuery.data ?? [];
+  const loading = summaryQuery.isLoading || taxFormsQuery.isLoading;
 
   const handleW9Success = () => {
-    fetchData();
-    window.dispatchEvent(new Event(INVALUATE_EVENT));
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.organizer.summary }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.organizer.taxForms }),
+    ]);
   };
 
   const totalRevenue = summary ? toNum(summary.totalRevenue) : 0;

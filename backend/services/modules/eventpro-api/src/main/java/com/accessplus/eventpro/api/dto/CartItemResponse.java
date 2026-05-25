@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -20,6 +21,8 @@ import java.util.UUID;
 public class CartItemResponse {
     
     private UUID id;
+    private String lineId;
+    private String lineType;
     private String name;
     private TicketType ticketType;
     private TicketStatus ticketStatus;
@@ -28,5 +31,5 @@ public class CartItemResponse {
     private LocalDateTime endTime;
     private String eventIdType; // Event ID as string for legacy API compatibility
     private Integer quantity; // Quantity of this ticket in cart
+    private List<UUID> ticketIds;
 }
-

@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, MapPin, Ticket, Minus, Plus, Grid3X3, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { apiService } from "@/lib/api";
-import type { Event, TicketType, SeatResponse } from "@/types/api";
+import type { TicketType } from "@/types/api";
 import { useCart } from "@/contexts/CartContext";
 import { usePreferences } from "@/contexts/PreferencesContext";
 import { motion } from "framer-motion";
@@ -28,35 +28,50 @@ import { LiveAttendanceBadge, useSimulatedViewers } from "@/components/LiveAtten
 import { EventCard } from "@/components/EventCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import {
+  useEventQuery,
+  useEventSeatsQuery,
+  useOrganizerEventsQuery,
+  useTicketTypesQuery,
+} from "@/state/events";
 
 const EventDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [event, setEvent] = useState<Event | null>(null);
-  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
-  const [seatResponses, setSeatResponses] = useState<SeatResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [imgError, setImgError] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [ticketMode, setTicketMode] = useState<"general" | "seating">("general");
-  const [otherEventsByOrganizer, setOtherEventsByOrganizer] = useState<Event[]>([]);
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [contactForm, setContactForm] = useState({ senderName: "", senderEmail: "", message: "" });
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactSent, setContactSent] = useState(false);
+  const [addingTicketTypeId, setAddingTicketTypeId] = useState<string | null>(null);
+
+  const eventQuery = useEventQuery(id);
+  const ticketTypesQuery = useTicketTypesQuery(id);
+  const seatsQuery = useEventSeatsQuery(id);
+  const event = eventQuery.data ?? null;
+  const ticketTypes = ticketTypesQuery.data ?? [];
+  const seatResponses = seatsQuery.data ?? [];
+  const isLoading = eventQuery.isLoading || ticketTypesQuery.isLoading || seatsQuery.isLoading;
   // Default to seating tab when event has reserved seating (with seats) and no GA types
   useEffect(() => {
     if (event?.reservedSeatingEnabled && seatResponses.length > 0 && ticketTypes.length === 0) {
       setTicketMode("seating");
     }
   }, [event?.reservedSeatingEnabled, seatResponses.length, ticketTypes.length]);
-  const { addItem } = useCart();
+  const { addItem, isLoading: isCartLoading } = useCart();
   const { addRecentlyViewed } = usePreferences();
   const { isAuthenticated } = useAuth();
   const [followedOrganizerIds, setFollowedOrganizerIds] = useState<Set<string>>(new Set());
   const [followLoading, setFollowLoading] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const otherEventsQuery = useOrganizerEventsQuery(event?.userId);
+  const otherEventsByOrganizer = useMemo(
+    () => (otherEventsQuery.data ?? []).filter((otherEvent) => otherEvent.id !== id),
+    [otherEventsQuery.data, id]
+  );
 
   // Reserved seating: map API seats to SeatingMap Seat format
   const seatsFromApi = useMemo(() => {
@@ -118,33 +133,7 @@ const EventDetails = () => {
   }, [ticketTypes, hasReservedSeating, seatsFromApi]);
 
   useEffect(() => {
-    if (id) {
-      loadEventDetails();
-    }
-  }, [id]);
-
-  useEffect(() => {
     if (!id) return;
-
-    const handleCartChanged = (event: globalThis.Event) => {
-      const detail = (event as CustomEvent<{ eventIds?: string[] }>).detail;
-      if (!detail?.eventIds?.length || detail.eventIds.includes(id)) {
-        void refreshInventory();
-      }
-    };
-
-    window.addEventListener("eventpro:cart-changed", handleCartChanged);
-    return () => window.removeEventListener("eventpro:cart-changed", handleCartChanged);
-  }, [id]);
-
-  useEffect(() => {
-    if (!id) return;
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        void refreshInventory();
-      }
-    }, 15_000);
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         void refreshInventory();
@@ -153,19 +142,29 @@ const EventDetails = () => {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      window.clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [id]);
 
-  // Load other events by same organizer (for "More from this organizer" section)
   useEffect(() => {
-    if (!event?.userId || !id) return;
-    apiService
-      .getEvents(1, 6, undefined, event.userId)
-      .then((list) => setOtherEventsByOrganizer(list.filter((e) => e.id !== id)))
-      .catch(() => setOtherEventsByOrganizer([]));
-  }, [event?.userId, id]);
+    if (event) {
+      addRecentlyViewed(event);
+    }
+  }, [event?.id, addRecentlyViewed]);
+
+  useEffect(() => {
+    setQuantities((prev) => {
+      const next = { ...prev };
+      ticketTypes.forEach((ticketType) => {
+        const selected = next[ticketType.id] ?? 0;
+        const available = ticketType.availableQuantity ?? 0;
+        if (selected > available) {
+          next[ticketType.id] = available;
+        }
+      });
+      return next;
+    });
+  }, [ticketTypes]);
 
   // Load followed organizers when logged in (for Follow/Unfollow button)
   useEffect(() => {
@@ -173,42 +172,10 @@ const EventDetails = () => {
     apiService.getFollowing().then((list) => setFollowedOrganizerIds(new Set(list.map((o) => o.organizerId))));
   }, [isAuthenticated, event?.userId]);
 
-  const loadEventDetails = async () => {
-    try {
-      setIsLoading(true);
-      const [eventData, ticketsData, seatsData] = await Promise.all([
-        apiService.getEvent(id!),
-        apiService.getTicketTypes(id!),
-        apiService.getEventSeats(id!).catch(() => []),
-      ]);
-      setEvent(eventData);
-      setTicketTypes(ticketsData);
-      setSeatResponses(Array.isArray(seatsData) ? seatsData : []);
-
-      // Add to recently viewed (full event; ensure date fields survive JSON round-trip)
-      addRecentlyViewed({
-        ...eventData,
-        startTime: eventData.startTime ?? eventData.startDateTime ?? "",
-        endTime: eventData.endTime ?? eventData.endDateTime ?? "",
-        startDateTime: eventData.startDateTime ?? eventData.startTime,
-        endDateTime: eventData.endDateTime ?? eventData.endTime,
-      });
-    } catch (error) {
-      console.error("Failed to load event:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const refreshInventory = async () => {
     if (!id) return;
     try {
-      const [ticketsData, seatsData] = await Promise.all([
-        apiService.getTicketTypes(id),
-        apiService.getEventSeats(id).catch(() => []),
-      ]);
-      setTicketTypes(ticketsData);
-      setSeatResponses(Array.isArray(seatsData) ? seatsData : []);
+      await Promise.all([ticketTypesQuery.refetch(), seatsQuery.refetch()]);
     } catch (error) {
       console.error("Failed to refresh ticket inventory:", error);
     }
@@ -225,30 +192,32 @@ const EventDetails = () => {
 
   const handleAddToCart = async (ticketType: TicketType) => {
     const quantity = quantities[ticketType.id] || 0;
-    const quantityToAdd = Math.min(quantity, ticketType.availableQuantity ?? 0);
+    const available = ticketType.availableQuantity ?? 0;
+    if (quantity > available) {
+      toast.error(`Only ${available} ticket${available === 1 ? "" : "s"} left. Quantity adjusted.`);
+      setQuantities((prev) => ({ ...prev, [ticketType.id]: available }));
+      return;
+    }
+    const quantityToAdd = Math.min(quantity, available);
     if (quantityToAdd > 0) {
-      setTicketTypes((prev) =>
-        prev.map((ticket) =>
-          ticket.id === ticketType.id
-            ? {
-                ...ticket,
-                availableQuantity: Math.max(0, (ticket.availableQuantity ?? 0) - quantityToAdd),
-                status: Math.max(0, (ticket.availableQuantity ?? 0) - quantityToAdd) === 0 ? "SOLD_OUT" : ticket.status,
-              }
-            : ticket
-        )
-      );
-      const added = await addItem({
-        ticketTypeId: ticketType.id,
-        ticketTypeName: ticketType.name,
-        eventName: event?.name || "",
-        eventId: event?.id || "",
-        quantity: quantityToAdd,
-        price: ticketType.price,
-      });
-      setQuantities((prev) => ({ ...prev, [ticketType.id]: 0 }));
-      if (!added) {
+      setAddingTicketTypeId(ticketType.id);
+      try {
+        const added = await addItem({
+          ticketTypeId: ticketType.id,
+          ticketTypeName: ticketType.name,
+          eventName: event?.name || "",
+          eventId: event?.id || "",
+          quantity: quantityToAdd,
+          price: ticketType.price,
+        });
+        if (added) {
+          setQuantities((prev) => ({ ...prev, [ticketType.id]: 0 }));
+        } else {
+          await refreshInventory();
+        }
+      } finally {
         await refreshInventory();
+        setAddingTicketTypeId(null);
       }
     }
   };
@@ -259,13 +228,6 @@ const EventDetails = () => {
 
   const handleAddSeatsToCart = async () => {
     if (selectedSeats.length > 0 && event) {
-      const selectedSeatIds = new Set(selectedSeats.map((seat) => seat.id));
-      setSeatResponses((prev) =>
-        prev.map((seat) =>
-          selectedSeatIds.has(seat.id) ? { ...seat, status: "RESERVED" } : seat
-        )
-      );
-
       const results = await Promise.all(
         selectedSeats.map((seat) =>
           addItem({
@@ -282,6 +244,7 @@ const EventDetails = () => {
       if (results.some((added) => !added)) {
         await refreshInventory();
       }
+      await refreshInventory();
     }
   };
 
@@ -745,11 +708,15 @@ const EventDetails = () => {
 
                             <Button
                               className="w-full bg-gradient-primary"
-                              disabled={(quantities[ticketType.id] || 0) <= 0}
+                              disabled={
+                                (quantities[ticketType.id] || 0) <= 0 ||
+                                addingTicketTypeId === ticketType.id ||
+                                isCartLoading
+                              }
                               onClick={() => handleAddToCart(ticketType)}
                             >
                               <Ticket className="mr-2 h-4 w-4" />
-                              Add to Cart
+                              {addingTicketTypeId === ticketType.id ? "Reserving..." : "Add to Cart"}
                             </Button>
                           </>
                         )}

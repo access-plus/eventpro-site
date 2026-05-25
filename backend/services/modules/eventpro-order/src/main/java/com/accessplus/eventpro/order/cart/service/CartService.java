@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.order.cart.service;
 
 import com.accessplus.eventpro.order.cart.entity.CartEntity;
+import com.accessplus.eventpro.shared.enums.TicketType;
 
 import java.util.List;
 import java.util.UUID;
@@ -33,6 +34,25 @@ public interface CartService {
      * @throws IllegalArgumentException if validation fails
      */
     CartEntity addItemToCart(UUID userId, UUID ticketId, Integer quantity);
+
+    /**
+     * Adds general-admission tickets to the user's cart by reserving exactly {@code quantity}
+     * concrete ticket rows and creating one cart row per reserved ticket.
+     */
+    List<CartEntity> addTicketTypeToCart(UUID userId, UUID eventId, TicketType ticketType, Integer quantity);
+
+    /**
+     * Sets a grouped general-admission cart line to an absolute quantity.
+     * Increasing reserves the difference; decreasing releases the difference.
+     */
+    List<CartEntity> setTicketTypeCartQuantity(UUID userId, UUID eventId, TicketType ticketType, Integer quantity);
+
+    /**
+     * Removes all cart rows for a grouped general-admission cart line.
+     *
+     * @return number of removed cart rows
+     */
+    int removeTicketTypeFromCart(UUID userId, UUID eventId, TicketType ticketType);
 
     /**
      * Updates the quantity of a cart item.

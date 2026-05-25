@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AnimatePresence } from "framer-motion";
@@ -63,8 +63,7 @@ import Contact from "./pages/Contact";
 import Help from "./pages/Help";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
-
-const queryClient = new QueryClient();
+import { appQueryClient } from "@/state/queryClient";
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -289,7 +288,7 @@ const AnimatedRoutes = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <QueryClientProvider client={appQueryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <LanguageProvider>
         <PreferencesProvider>

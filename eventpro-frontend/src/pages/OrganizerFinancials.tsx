@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { PageShell } from "@/components/PageShell";
@@ -29,9 +29,13 @@ import { TaxCenter } from "@/components/TaxCenter";
 import { ExportCenter } from "@/components/ExportCenter";
 import { OrganizerInsightsSection } from "@/components/OrganizerInsightsSection";
 import { LiveTicketFeed } from "@/components/LiveTicketFeed";
-import { apiService } from "@/lib/api";
-import type { Event, EventPulse, OrganizerInsights, OrganizerSummary } from "@/types/api";
+import type { EventPulse } from "@/types/api";
 import { motion } from "framer-motion";
+import {
+  useOrganizerEventsQuery,
+  useOrganizerInsightsQuery,
+  useOrganizerSummaryQuery,
+} from "@/state/organizer";
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
@@ -45,39 +49,13 @@ function pulseBadgeClass(v: EventPulse["velocity"]): string {
  * Web Stitch-style financial & insights hub — real data from organizer APIs.
  */
 const OrganizerFinancials = () => {
-  const [summary, setSummary] = useState<OrganizerSummary | null>(null);
-  const [insights, setInsights] = useState<OrganizerInsights | null>(null);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [s, ins, evs] = await Promise.all([
-          apiService.getOrganizerSummary(),
-          apiService.getOrganizerInsights(),
-          apiService.getOrganizerEvents(),
-        ]);
-        if (!cancelled) {
-          setSummary(s);
-          setInsights(ins);
-          setEvents(Array.isArray(evs) ? evs : []);
-        }
-      } catch {
-        if (!cancelled) {
-          setSummary(null);
-          setInsights(null);
-          setEvents([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const summaryQuery = useOrganizerSummaryQuery();
+  const insightsQuery = useOrganizerInsightsQuery();
+  const eventsQuery = useOrganizerEventsQuery();
+  const summary = summaryQuery.data ?? null;
+  const insights = insightsQuery.data ?? null;
+  const events = Array.isArray(eventsQuery.data) ? eventsQuery.data : [];
+  const loading = summaryQuery.isLoading || insightsQuery.isLoading || eventsQuery.isLoading;
 
   const published = useMemo(
     () => events.filter((e) => e.status === "PUBLISHED" || !e.status),

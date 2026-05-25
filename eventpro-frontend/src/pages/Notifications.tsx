@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { apiService } from "@/lib/api";
-import type { UserNotification } from "@/types/api";
 import { Bell, Check, Loader2, Settings } from "lucide-react";
 import { motion } from "framer-motion";
 import { PageShell } from "@/components/PageShell";
+import { useMarkNotificationReadMutation, useNotificationsInfiniteQuery } from "@/state/notifications";
 
 const PAGE_SIZE = 20;
 
@@ -25,56 +23,27 @@ function formatTime(iso: string) {
 }
 
 const Notifications = () => {
-  const [notifications, setNotifications] = useState<UserNotification[]>([]);
-  const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  const loadPage = async (pageNum: number, append: boolean) => {
-    if (pageNum === 0) setLoading(true);
-    else setLoadingMore(true);
-    try {
-      const res = await apiService.getMyNotifications(pageNum, PAGE_SIZE);
-      setTotalPages(res.totalPages ?? 1);
-      if (append) {
-        setNotifications((prev) => [...prev, ...(res.content ?? [])]);
-      } else {
-        setNotifications(res.content ?? []);
-      }
-    } catch {
-      if (!append) setNotifications([]);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPage(0, false);
-  }, []);
+  const notificationsQuery = useNotificationsInfiniteQuery(PAGE_SIZE);
+  const markReadMutation = useMarkNotificationReadMutation();
+  const notifications = notificationsQuery.data?.pages.flatMap((page) => page.content ?? []) ?? [];
+  const loading = notificationsQuery.isLoading;
+  const loadingMore = notificationsQuery.isFetchingNextPage;
 
   const loadMore = () => {
-    const next = page + 1;
-    if (next >= totalPages) return;
-    setPage(next);
-    loadPage(next, true);
+    if (notificationsQuery.hasNextPage) {
+      void notificationsQuery.fetchNextPage();
+    }
   };
 
   const markAsRead = async (id: string) => {
     try {
-      await apiService.markNotificationRead(id);
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === id ? { ...n, status: "READ" as const, readAt: new Date().toISOString() } : n
-        )
-      );
+      await markReadMutation.mutateAsync(id);
     } catch {
       // ignore
     }
   };
 
-  const hasMore = page + 1 < totalPages;
+  const hasMore = Boolean(notificationsQuery.hasNextPage);
 
   return (
     <PageShell>

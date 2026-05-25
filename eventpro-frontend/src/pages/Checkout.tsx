@@ -25,6 +25,7 @@ import { CheckoutStitchHero } from "@/components/checkout/CheckoutStitchHero";
 import { CheckoutVenuePreview } from "@/components/checkout/CheckoutVenuePreview";
 import { CheckoutPaymentProcessingOverlay } from "@/components/checkout/CheckoutPaymentProcessingOverlay";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useCheckoutTotalsQuery } from "@/state/checkout";
 
 interface SelectedMerchItem extends MerchandiseItem {
   quantity: number;
@@ -64,7 +65,7 @@ const US_STATE_OPTIONS: { code: string; name: string }[] = [
 const MAX_TICKETS_PER_LINE = 4;
 
 const Checkout = () => {
-  const { items, totalAmount, removeItem, clearCart, updateQuantity, refreshCart } = useCart();
+  const { items, totalAmount, reservedUntil: cartReservedUntil, removeItem, clearCart, updateQuantity, refreshCart } = useCart();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [checkoutMode, setCheckoutMode] = useState<"select" | "guest" | "login">("select");
@@ -94,8 +95,6 @@ const Checkout = () => {
   const [successTotal, setSuccessTotal] = useState(0);
   /** Live form values for ticket preview (guest only, before submit). */
   const [previewGuest, setPreviewGuest] = useState({ firstName: "", lastName: "", email: "" });
-  /** Checkout totals including tax (from GET /payments/checkout-totals). Use total for payment intent when tax enabled. */
-  const [checkoutTotals, setCheckoutTotals] = useState<{ subtotal: number; taxRatePercent: number; tax: number; total: number } | null>(null);
   /** Buyer state/country for jurisdiction-based sales tax (e.g. state=CA, country=US). */
   const [taxState, setTaxState] = useState<string>("");
   const [taxCountry, setTaxCountry] = useState<string>("US");
@@ -109,19 +108,9 @@ const Checkout = () => {
     0
   );
   const grandTotal = totalAmount + merchTotal + (donationAmount || 0);
+  const checkoutTotalsQuery = useCheckoutTotalsQuery(grandTotal, taxState || undefined, taxCountry || undefined);
+  const checkoutTotals = checkoutTotalsQuery.data ?? null;
   const displayTotal = checkoutTotals?.total ?? grandTotal;
-
-  // Fetch checkout totals (subtotal + tax) when grandTotal and optional state/country change
-  useEffect(() => {
-    if (grandTotal <= 0) {
-      setCheckoutTotals(null);
-      return;
-    }
-    apiService
-      .getCheckoutTotals(grandTotal, taxState || undefined, taxCountry || undefined)
-      .then(setCheckoutTotals)
-      .catch(() => setCheckoutTotals(null));
-  }, [grandTotal, taxState, taxCountry]);
 
   useEffect(() => {
     if (eventIds.length === 0) {
@@ -150,13 +139,8 @@ const Checkout = () => {
   // For signed-in users: cart tickets are already reserved; get expiry for countdown
   useEffect(() => {
     if (!isAuthenticated || items.length === 0) return;
-    apiService
-      .getCart()
-      .then((cart) => {
-        if (cart.reservedUntil) setReservedUntil(cart.reservedUntil);
-      })
-      .catch(() => {});
-  }, [isAuthenticated, items.length]);
+    if (cartReservedUntil) setReservedUntil(cartReservedUntil);
+  }, [isAuthenticated, items.length, cartReservedUntil]);
 
   /** Attendee name for ticket preview: from user, guestInfo, or live preview. */
   const attendeeName =
@@ -429,6 +413,9 @@ const Checkout = () => {
     setReservedTicketIds(null);
     if (!isAuthenticated) setReservedUntil(null);
     try {
+      if (isAuthenticated) {
+        await refreshCart();
+      }
       const amountToCharge = checkoutTotals?.total ?? grandTotal;
       const amount = Number(amountToCharge.toFixed(2));
       if (amount <= 0) {

@@ -8,8 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { apiService } from "@/lib/api";
-import type { UserNotification } from "@/types/api";
+import { useMarkNotificationReadMutation, useNotificationsQuery } from "@/state/notifications";
 
 const formatTime = (iso: string) => {
   const d = new Date(iso);
@@ -26,40 +25,21 @@ const formatTime = (iso: string) => {
 };
 
 export const NotificationCenter = () => {
-  const [notifications, setNotifications] = useState<UserNotification[]>([]);
-  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-
-  const fetchNotifications = async () => {
-    setLoading(true);
-    try {
-      const res = await apiService.getMyNotifications(0, 15);
-      setNotifications(res.content ?? []);
-    } catch {
-      setNotifications([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const notificationsQuery = useNotificationsQuery();
+  const markReadMutation = useMarkNotificationReadMutation();
+  const notifications = notificationsQuery.data?.content ?? [];
+  const loading = notificationsQuery.isFetching;
 
   useEffect(() => {
-    fetchNotifications();
-  }, []);
-
-  useEffect(() => {
-    if (open) fetchNotifications();
+    if (open) void notificationsQuery.refetch();
   }, [open]);
 
   const unreadCount = notifications.filter((n) => n.status === "UNREAD").length;
 
   const markAsRead = async (id: string) => {
     try {
-      await apiService.markNotificationRead(id);
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === id ? { ...n, status: "READ" as const, readAt: new Date().toISOString() } : n
-        )
-      );
+      await markReadMutation.mutateAsync(id);
     } catch {
       // ignore
     }

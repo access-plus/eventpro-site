@@ -8,12 +8,14 @@ import type {
   EventAddon,
   Order,
   TicketType,
+  TicketTypeEnum,
   Attendee,
   CheckInResult,
   UpdateUserRequest,
   CartResponse,
   AddToCartRequest,
   UpdateCartRequest,
+  CartLineRequest,
   SignUpRequest,
   LoginRequest,
   AuthResponse,
@@ -41,6 +43,7 @@ import type {
   NotificationPreferences,
   FollowedOrganizer,
 } from "@/types/api";
+import { appStorage } from "@/state/storage";
 
 class ApiService {
   private api: AxiosInstance;
@@ -60,7 +63,7 @@ class ApiService {
     // Add request interceptor to attach token
     this.api.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem("accessToken");
+        const token = appStorage.getAccessToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -74,9 +77,9 @@ class ApiService {
       (response) => response,
       async (error) => {
         if (error.response?.status === 401) {
-          const hadToken = localStorage.getItem("accessToken");
+          const hadToken = appStorage.getAccessToken();
           if (hadToken) {
-            localStorage.removeItem("accessToken");
+            appStorage.clearUserScopedState();
             window.location.href = "/login";
           }
         }
@@ -321,13 +324,26 @@ class ApiService {
     return response.data.data;
   }
 
+  async updateCartLine(data: CartLineRequest): Promise<CartResponse> {
+    const response = await this.api.patch<ApiResponse<CartResponse>>("/api/v1/cart/line", data);
+    return response.data.data;
+  }
+
   async removeFromCart(ticketId: string): Promise<CartResponse> {
     const response = await this.api.delete<ApiResponse<CartResponse>>(`/api/v1/cart/delete/${ticketId}`);
     return response.data.data;
   }
 
-  async clearCart(): Promise<void> {
-    await this.api.delete("/api/v1/cart/clear");
+  async removeCartLine(eventIdType: string, ticketType: TicketTypeEnum): Promise<CartResponse> {
+    const response = await this.api.delete<ApiResponse<CartResponse>>("/api/v1/cart/line", {
+      params: { eventIdType, ticketType },
+    });
+    return response.data.data;
+  }
+
+  async clearCart(): Promise<CartResponse> {
+    const response = await this.api.delete<ApiResponse<CartResponse>>("/api/v1/cart/clear");
+    return response.data.data;
   }
 
   // Order endpoints (backend returns paginated { content: [...] }; shape may use amount/orderItems)
