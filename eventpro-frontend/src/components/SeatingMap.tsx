@@ -18,9 +18,12 @@ export interface Seat {
 
 interface SeatingMapProps {
   seats: Seat[];
-  onSeatSelect: (seats: Seat[]) => void;
+  onSeatSelect?: (seats: Seat[]) => void;
   maxSeats?: number;
   venueName?: string;
+  /** Read-only preview (e.g. checkout) — highlights seats without allowing selection */
+  readOnly?: boolean;
+  highlightedSeatIds?: string[];
 }
 
 // Generate sample venue layout
@@ -88,10 +91,13 @@ export const SeatingMap = ({
   onSeatSelect,
   maxSeats = 8,
   venueName = "Main Venue",
+  readOnly = false,
+  highlightedSeatIds = [],
 }: SeatingMapProps) => {
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [zoom, setZoom] = useState(1);
   const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null);
+  const highlightedSet = useMemo(() => new Set(highlightedSeatIds), [highlightedSeatIds]);
 
   // Group seats by section and row
   const seatsBySection = useMemo(() => {
@@ -111,6 +117,7 @@ export const SeatingMap = ({
   }, [seats]);
 
   const handleSeatClick = (seat: Seat) => {
+    if (readOnly) return;
     if (seat.status === "sold" || seat.status === "reserved") return;
 
     const isSelected = selectedSeats.some((s) => s.id === seat.id);
@@ -118,24 +125,25 @@ export const SeatingMap = ({
     if (isSelected) {
       const newSelection = selectedSeats.filter((s) => s.id !== seat.id);
       setSelectedSeats(newSelection);
-      onSeatSelect(newSelection);
+      onSeatSelect?.(newSelection);
     } else if (selectedSeats.length < maxSeats) {
       const newSelection = [...selectedSeats, { ...seat, status: "selected" as const }];
       setSelectedSeats(newSelection);
-      onSeatSelect(newSelection);
+      onSeatSelect?.(newSelection);
     }
   };
 
   const getSeatStatus = (seat: Seat): Seat["status"] => {
-    if (selectedSeats.some((s) => s.id === seat.id)) return "selected";
+    if (highlightedSet.has(seat.id) || selectedSeats.some((s) => s.id === seat.id)) return "selected";
     return seat.status;
   };
 
   const totalPrice = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
 
   const resetSelection = () => {
+    if (readOnly) return;
     setSelectedSeats([]);
-    onSeatSelect([]);
+    onSeatSelect?.([]);
   };
 
   return (
@@ -145,7 +153,7 @@ export const SeatingMap = ({
           <div>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5" />
-              Select Your Seats
+              {readOnly ? "Your seats" : "Select Your Seats"}
             </CardTitle>
             <CardDescription>{venueName}</CardDescription>
           </div>
@@ -167,7 +175,7 @@ export const SeatingMap = ({
             >
               <ZoomIn className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" onClick={resetSelection}>
+            <Button variant="outline" size="icon" onClick={resetSelection} disabled={readOnly}>
               <RotateCcw className="h-4 w-4" />
             </Button>
           </div>

@@ -218,7 +218,7 @@ const Events = () => {
               selectedCategory={selectedCategory ?? null}
               onCategoryChange={handleCategoryChange}
               variant="editorial"
-              showCultural={false}
+              showCultural={true}
               hideIcons
             />
           </div>

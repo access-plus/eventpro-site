@@ -16,6 +16,40 @@ export function getEventIdFromOrderLineItem(item: unknown): string | undefined {
   return undefined;
 }
 
+/** Ticket id from an order line item (for door check-in QR payload). */
+export function getTicketIdFromOrderLineItem(item: unknown): string | undefined {
+  if (!item || typeof item !== "object") return undefined;
+  const o = item as Record<string, unknown>;
+  if (typeof o.id === "string" && /^[0-9a-f-]{36}$/i.test(o.id)) return o.id;
+  const nested = o.ticket;
+  if (nested && typeof nested === "object") {
+    const id = (nested as Record<string, unknown>).id;
+    if (typeof id === "string" && id) return id;
+  }
+  return undefined;
+}
+
+/** S3 QR image URL from an order line item (post-purchase display). */
+export function getQrCodeFromOrderLineItem(item: unknown): string | undefined {
+  if (!item || typeof item !== "object") return undefined;
+  const o = item as Record<string, unknown>;
+  if (typeof o.qrCode === "string" && o.qrCode) return o.qrCode;
+  const nested = o.ticket;
+  if (nested && typeof nested === "object") {
+    const qr = (nested as Record<string, unknown>).qrCode;
+    if (typeof qr === "string" && qr) return qr;
+  }
+  return undefined;
+}
+
+/** All order line items from either `orderItems` or legacy `tickets`. */
+export function getOrderLineItems(order: { orderItems?: unknown[]; tickets?: unknown[] } | null | undefined): unknown[] {
+  if (!order) return [];
+  if (Array.isArray(order.orderItems) && order.orderItems.length > 0) return order.orderItems;
+  if (Array.isArray(order.tickets)) return order.tickets;
+  return [];
+}
+
 /** Sum line-item quantities (each `orderItems` row may represent multiple tickets). */
 export function getTicketQuantityFromOrderItems(items: unknown[] | undefined): number {
   if (!items?.length) return 0;

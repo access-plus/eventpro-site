@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
-import { getEventIdFromOrderLineItem, type Order, type Event } from "@eventpro/shared";
+import { getEventIdFromOrderLineItem, getOrderLineItems, getQrCodeFromOrderLineItem, type Order, type Event } from "@eventpro/shared";
 import type { Theme } from "../theme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -184,6 +184,10 @@ export function MyWalletScreen({ navigation }: { navigation: any }) {
     return null;
   };
 
+  const featuredQr = featured
+    ? getOrderLineItems(featured).map(getQrCodeFromOrderLineItem).find(Boolean) ?? null
+    : null;
+
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.colors.background }]}>
@@ -261,7 +265,11 @@ export function MyWalletScreen({ navigation }: { navigation: any }) {
               </View>
             </View>
             <View style={styles.qrPreview}>
-              <Ionicons name="qr-code" size={36} color={theme.colors.mutedForeground} />
+              {featuredQr ? (
+                <Image source={{ uri: featuredQr }} style={styles.qrThumb} resizeMode="contain" />
+              ) : (
+                <Ionicons name="qr-code" size={36} color={theme.colors.mutedForeground} />
+              )}
               <Text style={[styles.qrHint, { color: theme.colors.mutedForeground }]}>Scan at entrance</Text>
             </View>
           </View>
@@ -404,7 +412,9 @@ function createStyles(theme: Theme) {
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.colors.muted,
+      overflow: "hidden",
     },
+    qrThumb: { width: 76, height: 76 },
     qrHint: { fontSize: 9, marginTop: 4, textAlign: "center" },
     primaryBtn: {
       marginHorizontal: theme.spacing.md,

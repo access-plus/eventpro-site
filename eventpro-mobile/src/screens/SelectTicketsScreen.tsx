@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../contexts/CartContext";
 import type { Event, TicketType } from "@eventpro/shared";
+import { formatTicketTypeName } from "@eventpro/shared";
 import { useTheme } from "../contexts/ThemeContext";
 import type { Theme } from "../theme";
 
@@ -21,7 +22,7 @@ const PURPLE = "#6344D4";
 const BG = "#F9F5FF";
 
 function tierFeatures(t: TicketType): { text: string; star?: boolean }[] {
-  const name = (t.name || "").toLowerCase();
+  const name = formatTicketTypeName(t.name).toLowerCase();
   if (name.includes("vip") || name.includes("premium")) {
     return [
       { text: "Fast-track entry", star: true },
@@ -53,6 +54,7 @@ export function SelectTicketsScreen({
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<Event | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
+  const [hasSeatMap, setHasSeatMap] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [adding, setAdding] = useState(false);
 
@@ -60,10 +62,15 @@ export function SelectTicketsScreen({
     let cancelled = false;
     (async () => {
       try {
-        const [ev, types] = await Promise.all([api.getEvent(eventId), api.getTicketTypes(eventId)]);
+        const [ev, types, seats] = await Promise.all([
+          api.getEvent(eventId),
+          api.getTicketTypes(eventId),
+          api.getEventSeats(eventId).catch(() => []),
+        ]);
         if (!cancelled) {
           setEvent(ev);
           setTicketTypes(types ?? []);
+          setHasSeatMap(Boolean(ev?.reservedSeatingEnabled && Array.isArray(seats) && seats.length > 0));
         }
       } catch {
         if (!cancelled) {
@@ -111,7 +118,7 @@ export function SelectTicketsScreen({
         if (qty > 0) {
           await addToCart({
             ticketTypeId: t.id,
-            ticketTypeName: t.name,
+            ticketTypeName: formatTicketTypeName(t.name),
             eventName: event.name,
             eventId: event.id,
             quantity: qty,
@@ -195,7 +202,7 @@ export function SelectTicketsScreen({
         {ticketTypes.map((t) => {
           const q = quantities[t.id] ?? 0;
           const feats = tierFeatures(t);
-          const isVip = (t.name || "").toLowerCase().includes("vip");
+          const isVip = formatTicketTypeName(t.name).toLowerCase().includes("vip");
           return (
             <View
               key={t.id}
@@ -208,7 +215,7 @@ export function SelectTicketsScreen({
                       <Text style={styles.bestBadgeText}>BEST EXPERIENCE</Text>
                     </View>
                   ) : null}
-                  <Text style={styles.tierName}>{t.name}</Text>
+                  <Text style={styles.tierName}>{formatTicketTypeName(t.name)}</Text>
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
                   <Text style={styles.price}>${Number(t.price).toFixed(2)}</Text>
@@ -248,20 +255,22 @@ export function SelectTicketsScreen({
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.seatMapCta, { borderColor: PURPLE }]}
-          onPress={() =>
-            navigation.navigate("SelectSeats", {
-              eventId: event.id,
-              eventName: event.name,
-              imageUrl: typeof imageUrl === "string" ? imageUrl : undefined,
-              startTime: startTime ?? undefined,
-            })
-          }
-        >
-          <Ionicons name="map-outline" size={20} color={PURPLE} />
-          <Text style={[styles.seatMapCtaText, { color: PURPLE }]}>Choose seats on map</Text>
-        </TouchableOpacity>
+        {hasSeatMap ? (
+          <TouchableOpacity
+            style={[styles.seatMapCta, { borderColor: PURPLE }]}
+            onPress={() =>
+              navigation.navigate("SelectSeats", {
+                eventId: event.id,
+                eventName: event.name,
+                imageUrl: typeof imageUrl === "string" ? imageUrl : undefined,
+                startTime: startTime ?? undefined,
+              })
+            }
+          >
+            <Ionicons name="map-outline" size={20} color={PURPLE} />
+            <Text style={[styles.seatMapCtaText, { color: PURPLE }]}>Choose seats on map</Text>
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
 
       <View style={[styles.checkoutBar, { paddingBottom: insets.bottom + 12, backgroundColor: theme.colors.card, borderTopColor: theme.colors.border }]}>

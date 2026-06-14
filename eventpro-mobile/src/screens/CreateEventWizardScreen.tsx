@@ -15,13 +15,12 @@ import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { useTheme } from "../contexts/ThemeContext";
 import type { Theme } from "../theme";
+import { EVENT_FORM_CATEGORIES } from "@eventpro/shared";
 
 const BG = "#F9F5FF";
 const PURPLE = "#6344D4";
 
 const WEB_URL = Constants.expoConfig?.extra?.webUrl ?? process.env.EXPO_PUBLIC_WEB_URL ?? "https://eventpro.com";
-
-const CATEGORIES = ["Music", "Sports", "Technology", "Arts", "Other"];
 
 type Step = 1 | 2 | 3;
 
@@ -108,7 +107,7 @@ export function CreateEventWizardScreen({ navigation }: { navigation: { goBack: 
               editable={false}
             />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-              {CATEGORIES.map((c) => (
+              {EVENT_FORM_CATEGORIES.map((c) => (
                 <TouchableOpacity
                   key={c}
                   style={[styles.catChip, category === c && { backgroundColor: PURPLE }]}

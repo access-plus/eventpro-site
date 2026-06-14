@@ -3,6 +3,7 @@ import { apiService } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { CartResponse, CartItemResponse, TicketTypeEnum } from "@/types/api";
+import { formatTicketTypeName } from "@eventpro/shared";
 
 interface CartItem {
   id: string;
@@ -19,7 +20,7 @@ interface CartContextType {
   itemCount: number;
   totalAmount: number;
   isLoading: boolean;
-  addItem: (item: Omit<CartItem, "id">) => Promise<boolean>;
+  addItem: (item: Omit<CartItem, "id">, silent?: boolean) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;
   updateQuantity: (itemId: string, quantity: number) => Promise<boolean>;
   clearCart: () => void;
@@ -104,11 +105,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const localItems = JSON.parse(localCart) as CartItem[];
         for (const item of localItems) {
           try {
-            await apiService.addToCart({
-              eventIdType: item.eventId,
-              ticketType: item.ticketTypeId as TicketTypeEnum,
-              quantity: item.quantity,
-            });
+            const isTicketId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.ticketTypeId);
+            await apiService.addToCart(
+              isTicketId
+                ? { id: item.ticketTypeId, quantity: item.quantity }
+                : { eventIdType: item.eventId, ticketType: item.ticketTypeId as TicketTypeEnum, quantity: item.quantity }
+            );
           } catch (error) {
             console.error("Failed to sync cart item:", error);
           }
@@ -129,15 +131,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       const cartData = await apiService.getCart();
-      const mappedItems: CartItem[] = cartData.tickets.map((ticket: CartItemResponse) => ({
-        id: ticket.id,
-        ticketTypeId: ticket.ticketType ?? ticket.id,
-        ticketTypeName: ticket.name,
-        eventName: ticket.name,
-        eventId: ticket.eventIdType || "",
-        quantity: ticket.quantity,
-        price: ticket.price,
-      }));
+      const mappedItems: CartItem[] = cartData.tickets.map((ticket: CartItemResponse) => {
+        const ticketTypeId = ticket.ticketType ?? ticket.id;
+        const existing = itemsRef.current.find(
+          (i) => i.eventId === (ticket.eventIdType || "") && i.ticketTypeId === ticketTypeId
+        );
+        return {
+          id: ticket.id,
+          ticketTypeId,
+          ticketTypeName: formatTicketTypeName(existing?.ticketTypeName ?? ticket.name),
+          eventName: existing?.eventName ?? ticket.name,
+          eventId: ticket.eventIdType || "",
+          quantity: ticket.quantity,
+          price: ticket.price,
+        };
+      });
       const changedEventIds = [
         ...itemsRef.current.map((item) => item.eventId),
         ...mappedItems.map((item) => item.eventId),
@@ -151,7 +159,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addItem = async (item: Omit<CartItem, "id">): Promise<boolean> => {
+  const addItem = async (item: Omit<CartItem, "id">, silent = false): Promise<boolean> => {
     const newItem: CartItem = {
       ...item,
       id: `${item.ticketTypeId}-${Date.now()}`,
@@ -194,10 +202,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     notifyCartChanged([item.eventId]);
-    toast({
-      title: "Added to cart",
-      description: `${item.ticketTypeName} added to your cart`,
-    });
+    if (!silent) {
+      toast({
+        title: "Added to cart",
+        description: `${item.ticketTypeName} added to your cart`,
+      });
+    }
     return true;
   };
 

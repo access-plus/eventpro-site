@@ -262,6 +262,23 @@ export interface UpdateCartRequest {
   quantity: number;
 }
 
+export interface TicketResponse {
+  id: string;
+  name?: string;
+  ticketType?: TicketTypeEnum | string;
+  ticketStatus?: TicketStatusEnum | string;
+  price?: number;
+  qrCode?: string;
+  eventIdType?: string;
+}
+
+export interface OrderItemResponse {
+  id?: string;
+  quantity: number;
+  price?: number;
+  ticket?: TicketResponse;
+}
+
 export interface Order {
   id: string;
   userId: string;
@@ -269,7 +286,10 @@ export interface Order {
   taxAmount?: number;
   status: string;
   createdAt: string;
+  /** Legacy flat ticket list. */
   tickets?: unknown[];
+  /** Backend order line items with nested ticket (includes qrCode). */
+  orderItems?: OrderItemResponse[];
 }
 
 export interface CheckoutTotals {
@@ -289,6 +309,8 @@ export interface GuestConfirmPaymentRequest {
   donationAmount?: number;
   reservedTicketIds?: string[];
   howDidYouHear?: string;
+  receiveTicketViaWhatsApp?: boolean;
+  receiveTicketViaSMS?: boolean;
   state?: string;
   country?: string;
   taxAmount?: number;

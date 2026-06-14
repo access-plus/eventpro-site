@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -6,53 +6,28 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Animated,
-  Platform,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../context/AuthContext";
+import { useCart } from "../contexts/CartContext";
 import { useTheme } from "../contexts/ThemeContext";
+import type { Event, SeatResponse } from "@eventpro/shared";
 import type { Theme } from "../theme";
-import { ReservationWarningModal } from "../components/ReservationWarningModal";
 import type { SelectSeatsRouteParams } from "../navigation/types";
 
-const BG = "#F9F5FF";
 const PURPLE = "#6347D1";
 const PURPLE_DEEP = "#4c1d95";
 const TEXT_DARK = "#1D162E";
 
-type SeatDef = {
-  id: string;
-  row: string;
-  num: number;
-  tier: "vip" | "standard" | "soldout";
-};
-
-const SEATS: SeatDef[] = [
-  { id: "A1", row: "A", num: 1, tier: "standard" },
-  { id: "A2", row: "A", num: 2, tier: "standard" },
-  { id: "A3", row: "A", num: 3, tier: "vip" },
-  { id: "A4", row: "A", num: 4, tier: "vip" },
-  { id: "B1", row: "B", num: 1, tier: "standard" },
-  { id: "B2", row: "B", num: 2, tier: "standard" },
-  { id: "B3", row: "B", num: 3, tier: "standard" },
-  { id: "B4", row: "B", num: 4, tier: "standard" },
-  { id: "C1", row: "C", num: 1, tier: "standard" },
-  { id: "C2", row: "C", num: 2, tier: "standard" },
-  { id: "C3", row: "C", num: 3, tier: "soldout" },
-  { id: "C4", row: "C", num: 4, tier: "soldout" },
-];
-
-function priceForSeat(s: SeatDef): number {
-  if (s.tier === "vip") return 89;
-  if (s.tier === "standard") return 49;
-  return 0;
+function isSeatAvailable(status: string): boolean {
+  const s = status.toUpperCase();
+  return s === "AVAILABLE" || s === "ACTIVE";
 }
 
-function formatTime(totalSec: number): string {
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+function seatLabel(seat: SeatResponse): string {
+  return `${seat.section} ${seat.row}${seat.seatNumber}`;
 }
 
 export function SelectSeatsScreen({
@@ -65,25 +40,20 @@ export function SelectSeatsScreen({
   const { theme } = useTheme();
   const styles = createStyles(theme);
   const insets = useSafeAreaInsets();
+  const { api } = useAuth();
+  const { addItem } = useCart();
   const p = route.params;
   const eventId = p?.eventId ?? "";
-  const eventName = p?.eventName ?? "Neon Echoes Festival";
-  const imageUrl = p?.imageUrl;
-  const startTime = p?.startTime;
 
-  const [secondsLeft, setSecondsLeft] = useState(15 * 60);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(["A3", "A4"]));
-  const [warnOpen, setWarnOpen] = useState(false);
-  const [extendToast, setExtendToast] = useState(false);
-  const warnShownRef = useRef(false);
-  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const [loading, setLoading] = useState(true);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [seats, setSeats] = useState<SeatResponse[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [adding, setAdding] = useState(false);
 
-  const dateLine = useMemo(() => {
-    if (!startTime) return "June 15, 2024 · 19:00";
-    const d = new Date(startTime);
-    if (Number.isNaN(d.getTime())) return "June 15, 2024 · 19:00";
-    return `${d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })} · ${d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
-  }, [startTime]);
+  const eventName = event?.name ?? p?.eventName ?? "Event";
+  const imageUrl = event?.imageUrl ?? p?.imageUrl;
+  const startTime = event?.startTime ?? p?.startTime;
 
   useEffect(() => {
     if (!eventId) navigation.goBack();
@@ -91,42 +61,47 @@ export function SelectSeatsScreen({
 
   useEffect(() => {
     if (!eventId) return;
-    const t = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(t);
-          return 0;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [ev, seatData] = await Promise.all([
+          api.getEvent(eventId),
+          api.getEventSeats(eventId).catch(() => []),
+        ]);
+        if (!cancelled) {
+          setEvent(ev);
+          setSeats(Array.isArray(seatData) ? seatData : []);
         }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(t);
-  }, [eventId]);
+      } catch {
+        if (!cancelled) {
+          setEvent(null);
+          setSeats([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [api, eventId]);
 
-  useEffect(() => {
-    if (!eventId) return;
-    if (secondsLeft === 0) navigation.goBack();
-  }, [secondsLeft, navigation, eventId]);
+  const dateLine = useMemo(() => {
+    if (!startTime) return "";
+    const d = new Date(startTime);
+    if (Number.isNaN(d.getTime())) return "";
+    return `${d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })} · ${d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
+  }, [startTime]);
 
-  useEffect(() => {
-    if (!eventId) return;
-    if (secondsLeft > 0 && secondsLeft <= 120 && !warnShownRef.current) {
-      warnShownRef.current = true;
-      setWarnOpen(true);
-    }
-  }, [secondsLeft, eventId]);
+  const rows = useMemo(() => {
+    const set = new Set<string>();
+    seats.forEach((s) => set.add(s.row));
+    return Array.from(set).sort();
+  }, [seats]);
 
-  const showExtendToast = useCallback(() => {
-    setExtendToast(true);
-    Animated.sequence([
-      Animated.timing(toastOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
-      Animated.delay(4500),
-      Animated.timing(toastOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
-    ]).start(() => setExtendToast(false));
-  }, [toastOpacity]);
-
-  const toggleSeat = (seat: SeatDef) => {
-    if (seat.tier === "soldout") return;
+  const toggleSeat = (seat: SeatResponse) => {
+    if (!isSeatAvailable(seat.status)) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(seat.id)) next.delete(seat.id);
@@ -136,76 +111,93 @@ export function SelectSeatsScreen({
   };
 
   const selectRow = (row: string) => {
-    const inRow = SEATS.filter((s) => s.row === row && s.tier !== "soldout");
+    const inRow = seats.filter((s) => s.row === row && isSeatAvailable(s.status));
     const allSelected = inRow.every((s) => selected.has(s.id));
     setSelected((prev) => {
       const next = new Set(prev);
-      if (allSelected) {
-        inRow.forEach((s) => next.delete(s.id));
-      } else {
-        inRow.forEach((s) => next.add(s.id));
-      }
+      if (allSelected) inRow.forEach((s) => next.delete(s.id));
+      else inRow.forEach((s) => next.add(s.id));
       return next;
     });
   };
 
   const clearAll = () => setSelected(new Set());
 
-  const selectedList = useMemo(() => {
-    return SEATS.filter((s) => selected.has(s.id)).sort((a, b) => a.id.localeCompare(b.id));
-  }, [selected]);
+  const selectedList = useMemo(
+    () => seats.filter((s) => selected.has(s.id)).sort((a, b) => seatLabel(a).localeCompare(seatLabel(b))),
+    [seats, selected]
+  );
 
-  const subtotal = useMemo(() => selectedList.reduce((sum, s) => sum + priceForSeat(s), 0), [selectedList]);
-  const fees = Math.round(subtotal * 0.1204 * 100) / 100;
-  const total = subtotal + fees;
+  const subtotal = useMemo(() => selectedList.reduce((sum, s) => sum + Number(s.price), 0), [selectedList]);
 
-  const handleKeepReservation = () => {
-    setWarnOpen(false);
-    setSecondsLeft((s) => s + 10 * 60);
-    warnShownRef.current = false;
-    showExtendToast();
-  };
-
-  const rows = ["A", "B", "C"];
+  const handleContinue = useCallback(async () => {
+    if (!event || selectedList.length === 0) return;
+    setAdding(true);
+    try {
+      const results = await Promise.all(
+        selectedList.map((seat) =>
+          addItem({
+            ticketTypeId: seat.id,
+            ticketTypeName: `${seat.section} — Row ${seat.row}, Seat ${seat.seatNumber}`,
+            eventName: event.name,
+            eventId: event.id,
+            quantity: 1,
+            price: Number(seat.price),
+          })
+        )
+      );
+      if (results.some((ok) => !ok)) {
+        return;
+      }
+      navigation.navigate("Checkout", { eventId: event.id });
+    } finally {
+      setAdding(false);
+    }
+  }, [addItem, event, navigation, selectedList]);
 
   if (!eventId) {
-    return <View style={{ flex: 1, backgroundColor: BG }} />;
+    return <View style={{ flex: 1, backgroundColor: theme.colors.background }} />;
+  }
+
+  if (loading) {
+    return (
+      <View style={[styles.centered, { paddingTop: insets.top, backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={PURPLE} />
+      </View>
+    );
+  }
+
+  if (seats.length === 0) {
+    return (
+      <View style={[styles.centered, { paddingTop: insets.top, backgroundColor: theme.colors.background, padding: 24 }]}>
+        <Ionicons name="map-outline" size={48} color={theme.colors.mutedForeground} />
+        <Text style={[styles.emptyTitle, { color: theme.colors.foreground }]}>No seat map</Text>
+        <Text style={[styles.emptyBody, { color: theme.colors.mutedForeground }]}>
+          This event doesn't have reserved seating configured yet.
+        </Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: PURPLE }]}>
+          <Text style={styles.backBtnText}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: BG, paddingTop: insets.top }]}>
-      <ReservationWarningModal
-        visible={warnOpen}
-        minutesLeft={Math.max(1, Math.ceil(secondsLeft / 60))}
-        onKeepReservation={handleKeepReservation}
-        onCancel={() => setWarnOpen(false)}
-      />
-
-      {extendToast ? (
-        <Animated.View style={[styles.toast, { opacity: toastOpacity }]}>
-          <Ionicons name="checkmark-circle" size={22} color="#fff" />
-          <Text style={styles.toastText}>SUCCESS Reservation extended by 10 minutes</Text>
-          <TouchableOpacity onPress={() => setExtendToast(false)} hitSlop={8}>
-            <Ionicons name="close" size={20} color="#fff" />
-          </TouchableOpacity>
-        </Animated.View>
-      ) : null}
-
+    <View style={[styles.root, { backgroundColor: theme.colors.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color={PURPLE} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Select Seats</Text>
-        <TouchableOpacity hitSlop={12}>
-          <Ionicons name="help-circle-outline" size={26} color={PURPLE} />
-        </TouchableOpacity>
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 160 + insets.bottom }]} showsVerticalScrollIndicator={false}>
-        <View style={[styles.timerBanner, { backgroundColor: theme.colors.primary + "18" }]}>
-          <Ionicons name="timer-outline" size={20} color={PURPLE_DEEP} />
-          <Text style={styles.timerLabel}>RESERVATION EXPIRES IN: </Text>
-          <Text style={styles.timerValue}>{formatTime(secondsLeft)} MIN</Text>
+        <View style={[styles.infoBanner, { backgroundColor: theme.colors.primary + "14" }]}>
+          <Ionicons name="information-circle-outline" size={18} color={PURPLE} />
+          <Text style={[styles.infoBannerText, { color: theme.colors.foreground }]}>
+            Seats are held when added to cart. Complete checkout within 15 minutes.
+          </Text>
         </View>
 
         <View style={[styles.eventCard, { backgroundColor: theme.colors.primary + "14" }]}>
@@ -218,10 +210,12 @@ export function SelectSeatsScreen({
           )}
           <View style={{ flex: 1 }}>
             <Text style={styles.eventTitle} numberOfLines={2}>{eventName}</Text>
-            <View style={styles.eventMetaRow}>
-              <Ionicons name="calendar-outline" size={14} color={TEXT_DARK} />
-              <Text style={styles.eventMeta}>{dateLine}</Text>
-            </View>
+            {dateLine ? (
+              <View style={styles.eventMetaRow}>
+                <Ionicons name="calendar-outline" size={14} color={TEXT_DARK} />
+                <Text style={styles.eventMeta}>{dateLine}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -229,15 +223,10 @@ export function SelectSeatsScreen({
           <View style={styles.legendRow}>
             <LegendDot color="#d8b4fe" label="Available" />
             <LegendDot color={PURPLE} label="Selected" />
-            <LegendDot color="#d1d5db" label="Occupied" />
+            <LegendDot color="#d1d5db" label="Unavailable" />
           </View>
           <Text style={styles.stageLabel}>STAGE FRONT</Text>
           <View style={styles.stageBar} />
-          <View style={styles.legendRow}>
-            <LegendDot color={PURPLE} label="VIP" />
-            <LegendDot color="#d8b4fe" label="STANDARD" />
-            <LegendDot color="#d1d5db" label="SOLD OUT" />
-          </View>
 
           {rows.map((row) => (
             <View key={row} style={styles.rowWrap}>
@@ -246,29 +235,30 @@ export function SelectSeatsScreen({
               </TouchableOpacity>
               <Text style={styles.rowLetter}>{row}</Text>
               <View style={styles.seatRow}>
-                {SEATS.filter((s) => s.row === row).map((seat) => {
-                  const isSel = selected.has(seat.id);
-                  const sold = seat.tier === "soldout";
-                  const bg = sold ? "#e5e7eb" : isSel ? PURPLE : "#ede9fe";
-                  const border = isSel && !sold ? "#fff" : "transparent";
-                  return (
-                    <TouchableOpacity
-                      key={seat.id}
-                      style={[styles.seat, { backgroundColor: bg, borderWidth: isSel ? 2 : 0, borderColor: border }]}
-                      onPress={() => toggleSeat(seat)}
-                      disabled={sold}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={[styles.seatLabel, { color: sold ? "#9ca3af" : isSel ? "#fff" : PURPLE_DEEP }]}>
-                        {seat.id}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                {seats
+                  .filter((s) => s.row === row)
+                  .sort((a, b) => a.seatNumber - b.seatNumber)
+                  .map((seat) => {
+                    const isSel = selected.has(seat.id);
+                    const unavailable = !isSeatAvailable(seat.status);
+                    const bg = unavailable ? "#e5e7eb" : isSel ? PURPLE : "#ede9fe";
+                    return (
+                      <TouchableOpacity
+                        key={seat.id}
+                        style={[styles.seat, { backgroundColor: bg, borderWidth: isSel ? 2 : 0, borderColor: "#fff" }]}
+                        onPress={() => toggleSeat(seat)}
+                        disabled={unavailable}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={[styles.seatLabel, { color: unavailable ? "#9ca3af" : isSel ? "#fff" : PURPLE_DEEP }]}>
+                          {seat.seatNumber}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
               </View>
             </View>
           ))}
-          <Text style={styles.hint}>Pinch to zoom or tap a seat to select</Text>
         </View>
 
         <View style={[styles.summaryCard, { backgroundColor: theme.colors.card }]}>
@@ -279,50 +269,55 @@ export function SelectSeatsScreen({
               <Text style={styles.clearText}>CLEAR ALL</Text>
             </TouchableOpacity>
           </View>
-          {selectedList.map((s) => (
-            <View key={s.id} style={styles.seatLine}>
-              <View style={[styles.seatLineIcon, { backgroundColor: theme.colors.primary + "20" }]}>
-                <Text style={{ fontWeight: "800", color: PURPLE, fontSize: 12 }}>{s.id}</Text>
+          {selectedList.length === 0 ? (
+            <Text style={{ color: theme.colors.mutedForeground, marginBottom: 8 }}>Tap seats on the map to select.</Text>
+          ) : (
+            selectedList.map((s) => (
+              <View key={s.id} style={styles.seatLine}>
+                <View style={[styles.seatLineIcon, { backgroundColor: theme.colors.primary + "20" }]}>
+                  <Text style={{ fontWeight: "800", color: PURPLE, fontSize: 11 }}>{s.row}{s.seatNumber}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.seatLinePlace}>{s.section}</Text>
+                  <Text style={styles.seatLineDetail}>ROW {s.row}, SEAT {s.seatNumber}</Text>
+                </View>
+                <Text style={styles.seatLinePrice}>${Number(s.price).toFixed(2)}</Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.seatLinePlace}>Main Floor</Text>
-                <Text style={styles.seatLineDetail}>ROW {s.row}, SEAT {s.num}</Text>
-              </View>
-              <Text style={styles.seatLinePrice}>${priceForSeat(s).toFixed(2)}</Text>
-            </View>
-          ))}
+            ))
+          )}
           <View style={[styles.priceLine, { borderTopColor: theme.colors.border }]}>
             <Text style={styles.priceMuted}>Subtotal ({selectedList.length} tickets)</Text>
             <Text style={styles.priceVal}>${subtotal.toFixed(2)}</Text>
           </View>
-          <View style={styles.priceLine}>
-            <Text style={styles.priceMuted}>Fees & Taxes</Text>
-            <Text style={styles.priceVal}>${fees.toFixed(2)}</Text>
-          </View>
-          <View style={styles.priceLine}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalVal}>${total.toFixed(2)}</Text>
-          </View>
           <TouchableOpacity
-            style={[styles.continueBtn, { backgroundColor: PURPLE }]}
-            onPress={() => navigation.navigate("Checkout", { eventId })}
+            style={[styles.continueBtn, { backgroundColor: PURPLE, opacity: selectedList.length > 0 && !adding ? 1 : 0.5 }]}
+            onPress={() => void handleContinue()}
+            disabled={selectedList.length === 0 || adding}
             activeOpacity={0.92}
           >
-            <Ionicons name="cart-outline" size={22} color="#fff" />
-            <Text style={styles.continueText}>Continue</Text>
+            {adding ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="cart-outline" size={22} color="#fff" />
+                <Text style={styles.continueText}>Add to cart & checkout</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
 
-      <View style={[styles.stickyConfirm, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <View>
-          <Text style={styles.stickySmall}>{selectedList.length} SEATS SELECTED</Text>
-          <Text style={styles.stickyBig}>Confirm ${total.toFixed(2)}</Text>
+      {selectedList.length > 0 && (
+        <View style={[styles.stickyConfirm, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <View>
+            <Text style={styles.stickySmall}>{selectedList.length} SEATS SELECTED</Text>
+            <Text style={styles.stickyBig}>${subtotal.toFixed(2)}</Text>
+          </View>
+          <TouchableOpacity onPress={() => void handleContinue()} disabled={adding}>
+            <Ionicons name="arrow-forward" size={26} color="#fff" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate("Checkout", { eventId })}>
-          <Ionicons name="arrow-forward" size={26} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      )}
     </View>
   );
 }
@@ -339,27 +334,12 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 function createStyles(theme: Theme) {
   return StyleSheet.create({
     root: { flex: 1 },
+    centered: { flex: 1, justifyContent: "center", alignItems: "center" },
+    emptyTitle: { fontSize: 20, fontWeight: "800", marginTop: 16, marginBottom: 8 },
+    emptyBody: { fontSize: 15, textAlign: "center", lineHeight: 22, marginBottom: 20 },
+    backBtn: { paddingHorizontal: 24, paddingVertical: 14, borderRadius: 999 },
+    backBtnText: { color: "#fff", fontWeight: "800" },
     scroll: { paddingHorizontal: 16 },
-    toast: {
-      position: "absolute",
-      top: Platform.OS === "ios" ? 52 : 40,
-      left: 16,
-      right: 16,
-      zIndex: 50,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      backgroundColor: PURPLE,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      borderRadius: 16,
-      shadowColor: "#000",
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 6,
-    },
-    toastText: { flex: 1, color: "#fff", fontSize: 13, fontWeight: "700" },
     header: {
       flexDirection: "row",
       alignItems: "center",
@@ -368,17 +348,15 @@ function createStyles(theme: Theme) {
       paddingVertical: 10,
     },
     headerTitle: { fontSize: 18, fontWeight: "800", color: TEXT_DARK },
-    timerBanner: {
+    infoBanner: {
       flexDirection: "row",
-      alignItems: "center",
-      flexWrap: "wrap",
+      alignItems: "flex-start",
+      gap: 8,
       padding: 12,
       borderRadius: 14,
       marginBottom: 12,
-      gap: 6,
     },
-    timerLabel: { fontSize: 12, fontWeight: "700", color: PURPLE_DEEP },
-    timerValue: { fontSize: 14, fontWeight: "900", color: PURPLE_DEEP },
+    infoBannerText: { flex: 1, fontSize: 13, lineHeight: 19 },
     eventCard: {
       flexDirection: "row",
       gap: 12,
@@ -409,15 +387,8 @@ function createStyles(theme: Theme) {
     rowPick: { width: 32, height: 32, borderRadius: 8, justifyContent: "center", alignItems: "center", backgroundColor: theme.colors.primary + "15" },
     rowLetter: { width: 20, fontWeight: "800", color: TEXT_DARK, fontSize: 15 },
     seatRow: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" },
-    seat: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    seatLabel: { fontSize: 10, fontWeight: "800" },
-    hint: { fontSize: 11, fontStyle: "italic", color: theme.colors.mutedForeground, textAlign: "center", marginTop: 8 },
+    seat: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
+    seatLabel: { fontSize: 12, fontWeight: "800" },
     summaryCard: {
       borderRadius: 24,
       padding: 16,
@@ -439,8 +410,6 @@ function createStyles(theme: Theme) {
     priceLine: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
     priceMuted: { color: theme.colors.mutedForeground, fontSize: 14 },
     priceVal: { fontWeight: "600", color: TEXT_DARK },
-    totalLabel: { fontWeight: "800", fontSize: 16, color: TEXT_DARK },
-    totalVal: { fontSize: 22, fontWeight: "900", color: PURPLE },
     continueBtn: {
       flexDirection: "row",
       alignItems: "center",
@@ -450,7 +419,7 @@ function createStyles(theme: Theme) {
       paddingVertical: 16,
       marginTop: 12,
     },
-    continueText: { color: "#fff", fontSize: 17, fontWeight: "800" },
+    continueText: { color: "#fff", fontSize: 16, fontWeight: "800" },
     stickyConfirm: {
       position: "absolute",
       left: 0,

@@ -20,6 +20,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import axios from "axios";
+import { EVENT_FORM_CATEGORIES } from "@eventpro/shared";
 import {
   Form,
   FormControl,
@@ -260,16 +261,11 @@ const EventForm = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="Music">Music</SelectItem>
-                            <SelectItem value="Afrobeat Concerts">Afrobeat Concerts</SelectItem>
-                            <SelectItem value="Sports">Sports</SelectItem>
-                            <SelectItem value="Conference">Conference</SelectItem>
-                            <SelectItem value="Diaspora Film Screenings">Diaspora Film Screenings</SelectItem>
-                            <SelectItem value="National Day Celebrations">National Day Celebrations</SelectItem>
-                            <SelectItem value="Cultural Festival">Cultural Festival</SelectItem>
-                            <SelectItem value="Comedy">Comedy</SelectItem>
-                            <SelectItem value="Theater">Theater</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
+                            {EVENT_FORM_CATEGORIES.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />

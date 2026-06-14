@@ -17,6 +17,8 @@ import { useAuth } from "../context/AuthContext";
 import { useRecentlyViewed } from "../contexts/RecentlyViewedContext";
 import { useTheme } from "../contexts/ThemeContext";
 import type { Event, TicketType } from "@eventpro/shared";
+import { getPromotionalVideoEmbedUrl, getPromotionalVideoEmbedHtml } from "@eventpro/shared";
+import { WebView } from "react-native-webview";
 import type { Theme } from "../theme";
 import * as mobileApi from "../lib/mobileApi";
 import { useSimulatedViewers } from "../hooks/useSimulatedViewers";
@@ -137,6 +139,7 @@ function createStyles(theme: Theme) {
     meta: { fontSize: 14, marginBottom: 8, color: theme.colors.mutedForeground },
     videoCta: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: theme.radius.md, alignItems: "center", marginTop: 12, marginBottom: 8 },
     videoCtaText: { fontSize: 15, fontWeight: "600" },
+    videoEmbed: { width: "100%", aspectRatio: 16 / 9, borderRadius: theme.radius.md, marginTop: 12, marginBottom: 8, overflow: "hidden", backgroundColor: theme.colors.muted },
     organizerRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -517,12 +520,28 @@ export function EventDetailScreen({
 
         {/* Promotional video */}
         {event.promotionalVideoUrl ? (
-          <TouchableOpacity
-            style={[styles.videoCta, { backgroundColor: theme.colors.primary }]}
-            onPress={() => Linking.openURL(event.promotionalVideoUrl!)}
-          >
-            <Text style={[styles.videoCtaText, { color: theme.colors.primaryForeground }]}>Watch promotional video</Text>
-          </TouchableOpacity>
+          getPromotionalVideoEmbedUrl(event.promotionalVideoUrl) ? (
+            <View style={styles.videoEmbed}>
+              <WebView
+                source={{
+                  html: getPromotionalVideoEmbedHtml(getPromotionalVideoEmbedUrl(event.promotionalVideoUrl)!),
+                  baseUrl: "https://eventpro.com",
+                }}
+                allowsFullscreenVideo
+                mediaPlaybackRequiresUserAction={false}
+                javaScriptEnabled
+                allowsInlineMediaPlayback
+                originWhitelist={["https://*", "http://*"]}
+              />
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.videoCta, { backgroundColor: theme.colors.primary }]}
+              onPress={() => Linking.openURL(event.promotionalVideoUrl!)}
+            >
+              <Text style={[styles.videoCtaText, { color: theme.colors.primaryForeground }]}>Watch promotional video</Text>
+            </TouchableOpacity>
+          )
         ) : null}
 
         {/* Organizer — name and avatar (from organizer's profile when available) */}

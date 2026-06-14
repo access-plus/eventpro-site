@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { STANDARD_EVENT_CATEGORIES, CULTURAL_EVENT_CATEGORIES } from "@eventpro/shared";
 import { 
   Music, Trophy, Monitor, Briefcase, Palette, UtensilsCrossed, Heart, 
   GraduationCap, Sparkles, MoreHorizontal, PartyPopper, Flag, Film, 
@@ -53,30 +54,10 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
 };
 
 // Standard event categories
-const STANDARD_CATEGORIES = [
-  "Music",
-  "Sports",
-  "Technology",
-  "Business",
-  "Arts",
-  "Food & Drink",
-  "Health & Wellness",
-  "Education",
-  "Entertainment",
-];
+const STANDARD_CATEGORIES = [...STANDARD_EVENT_CATEGORIES];
 
 // Cultural taxonomy categories from the design document
-const CULTURAL_CATEGORIES = [
-  "Gala & Fundraiser",
-  "National Day Celebration",
-  "Diaspora Film Screening",
-  "Community Gathering",
-  "Religious & Spiritual",
-  "Cultural Festival",
-  "Afrobeat Concert",
-  "Caribbean Night",
-  "Latin Fiesta",
-];
+const CULTURAL_CATEGORIES = [...CULTURAL_EVENT_CATEGORIES];
 
 interface CategoryFilterProps {
   selectedCategory: string | null;
