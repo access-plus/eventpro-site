@@ -22,8 +22,10 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import type { Event } from "@/types/api";
 import { CheckoutStitchHero } from "@/components/checkout/CheckoutStitchHero";
-import { CheckoutVenuePreview } from "@/components/checkout/CheckoutVenuePreview";
 import { CheckoutPaymentProcessingOverlay } from "@/components/checkout/CheckoutPaymentProcessingOverlay";
+import { SeatingMap, type Seat } from "@/components/SeatingMap";
+import type { SeatResponse } from "@/types/api";
+import { formatTicketTypeName } from "@eventpro/shared";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface SelectedMerchItem extends MerchandiseItem {
@@ -100,7 +102,15 @@ const Checkout = () => {
   const [taxState, setTaxState] = useState<string>("");
   const [taxCountry, setTaxCountry] = useState<string>("US");
   const [eventDetail, setEventDetail] = useState<Event | null>(null);
+  const [checkoutSeats, setCheckoutSeats] = useState<Seat[]>([]);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const cartSeatIds = useMemo(
+    () => items.filter((i) => UUID_RE.test(i.ticketTypeId)).map((i) => i.ticketTypeId),
+    [items]
+  );
+  const showVenueMap = checkoutSeats.length > 0 && cartSeatIds.length > 0;
 
   const eventIds = useMemo(() => [...new Set(items.map((i) => i.eventId).filter(Boolean))], [items]);
 
@@ -137,13 +147,33 @@ const Checkout = () => {
       .catch(() => setAddonsByEvent([]));
     apiService
       .getEvent(eventIds[0])
-      .then((event) => {
+      .then(async (event) => {
         setEventDetail(event);
         setDonationsEnabled(Boolean(event.donationsEnabled));
+        if (event.reservedSeatingEnabled) {
+          try {
+            const seatsData = await apiService.getEventSeats(eventIds[0]);
+            const mapped = (Array.isArray(seatsData) ? seatsData : []).map((s: SeatResponse): Seat => ({
+              id: s.id,
+              section: s.section,
+              row: s.row,
+              number: s.seatNumber,
+              price: typeof s.price === "number" ? s.price : Number(s.price),
+              status: (s.status === "AVAILABLE" ? "available" : s.status === "SOLD" ? "sold" : "reserved") as Seat["status"],
+              type: "standard",
+            }));
+            setCheckoutSeats(mapped);
+          } catch {
+            setCheckoutSeats([]);
+          }
+        } else {
+          setCheckoutSeats([]);
+        }
       })
       .catch(() => {
         setEventDetail(null);
         setDonationsEnabled(false);
+        setCheckoutSeats([]);
       });
   }, [eventIds.join(",")]);
 
@@ -171,7 +201,7 @@ const Checkout = () => {
     items.length === 0
       ? "Ticket"
       : items.length === 1
-        ? items[0].ticketTypeName
+        ? formatTicketTypeName(items[0].ticketTypeName)
         : `${items.length} tickets`;
 
   /** Form valid: logged in, or guest info submitted, or live guest form valid (name + email). */
@@ -203,7 +233,7 @@ const Checkout = () => {
     const lines: { label: string; amount: number }[] = [];
     items.forEach((i) => {
       lines.push({
-        label: `${i.quantity}× ${i.ticketTypeName}`,
+        label: `${i.quantity}× ${formatTicketTypeName(i.ticketTypeName)}`,
         amount: Number((i.price * i.quantity).toFixed(2)),
       });
     });
@@ -238,7 +268,7 @@ const Checkout = () => {
         {items.map((item) => (
           <div key={item.id} className="flex justify-between text-sm">
             <span>
-              {item.ticketTypeName} × {item.quantity}
+              {formatTicketTypeName(item.ticketTypeName)} × {item.quantity}
             </span>
             <span>${(item.price * item.quantity).toFixed(2)}</span>
           </div>
@@ -636,7 +666,14 @@ const Checkout = () => {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-8">
           {/* Main Content - one-page vibrant */}
           <div className="xl:col-span-2 space-y-6">
-            <CheckoutVenuePreview />
+            {showVenueMap && (
+              <SeatingMap
+                seats={checkoutSeats}
+                readOnly
+                highlightedSeatIds={cartSeatIds}
+                venueName={eventDetail?.venue || "Venue"}
+              />
+            )}
             {/* Customer Info Section */}
             {!isAuthenticated && !guestInfo && (
               <motion.div
@@ -782,7 +819,7 @@ const Checkout = () => {
                       <CardContent className="p-4 sm:p-5">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-bold font-headline">{item.ticketTypeName}</h3>
+                            <h3 className="font-bold font-headline">{formatTicketTypeName(item.ticketTypeName)}</h3>
                             <p className="text-sm text-muted-foreground mt-0.5">{item.eventName}</p>
                           </div>
                           <div className="flex items-center justify-between sm:flex-col sm:items-end gap-3 shrink-0">

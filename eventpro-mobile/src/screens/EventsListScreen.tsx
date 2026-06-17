@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import type { Event } from "@eventpro/shared";
+import { STANDARD_EVENT_CATEGORIES, CULTURAL_EVENT_CATEGORIES } from "@eventpro/shared";
 import { useTheme } from "../contexts/ThemeContext";
 import { EventCard } from "../components/EventCard";
 import { SearchEventCard } from "../components/SearchEventCard";
@@ -19,10 +20,7 @@ import { theme as staticTheme } from "../theme";
 import { sectionLabel, editorialCard } from "../theme/screenStyles";
 import { Ionicons } from "@expo/vector-icons";
 
-const EVENT_CATEGORIES = [
-  "Music", "Sports", "Technology", "Business", "Arts",
-  "Food & Drink", "Health & Wellness", "Education", "Entertainment", "Other",
-];
+const EVENT_CATEGORIES = [...STANDARD_EVENT_CATEGORIES, ...CULTURAL_EVENT_CATEGORIES, "Other"];
 
 const LAVENDER = "#F3E5F5";
 

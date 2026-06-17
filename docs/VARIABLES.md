@@ -261,10 +261,11 @@ VITE_STRIPE_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
 
 ## Mobile (Expo)
 
-When running the mobile app (locally or via Docker), the app needs the backend API URL.
+When running the mobile app (locally or via Docker), set API and web URLs in `eventpro-mobile/.env` (see `.env.example`).
 
-- **Docker:** The `mobile` service in `docker-compose.yml` sets `EXPO_PUBLIC_API_URL=http://host.docker.internal:8080` so the container and Android emulator can reach the backend. For a **physical device**, create `eventpro-mobile/.env` with your machine’s LAN IP, e.g. `EXPO_PUBLIC_API_URL=http://192.168.1.x:8080`.
-- **Local (no Docker):** In `eventpro-mobile/.env` set `EXPO_PUBLIC_API_URL=http://localhost:8080` for simulator, or your machine IP for a real device.
+- **Docker:** The `mobile` service in `docker-compose.yml` sets `EXPO_PUBLIC_API_URL=http://host.docker.internal:8080`. For a **physical device**, use your machine’s LAN IP in `.env`.
+- **Local (no Docker):** `EXPO_PUBLIC_API_URL=http://localhost:8080` for simulator; LAN IP for a real device. Set `EXPO_PUBLIC_WEB_URL` to your Vite dev server (default `http://localhost:5173`).
+- **Tester builds:** configure URLs in `eventpro-mobile/eas.json` or EAS environment variables (`preview` profile).
 
 ## Environment File Setup
 
@@ -344,6 +345,11 @@ If you prefer to set up manually:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `EXPO_PUBLIC_API_URL` | Yes | `http://localhost:8080` | Backend API URL; use host IP for physical device or `host.docker.internal:8080` when using Docker + emulator |
+| `EXPO_PUBLIC_WEB_URL` | Yes | `http://localhost:5173` | Web app URL; mobile opens this for Stripe checkout in the browser |
+
+**EAS builds:** set both variables in `eventpro-mobile/eas.json` (`preview` / `production` profiles) or via `eas env:create`. See `eventpro-mobile/README.md` → *Deploy for testers*.
+
+**Local dev:** copy `eventpro-mobile/.env.example` to `eventpro-mobile/.env`.
 
 ## Notes
 

@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/contexts/CartContext";
+import { formatTicketTypeName } from "@eventpro/shared";
 
 export const CartMenu = () => {
   const { items, itemCount, totalAmount, removeItem } = useCart();
@@ -48,7 +49,7 @@ export const CartMenu = () => {
               {items.map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-2 hover:bg-secondary/50">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{item.ticketTypeName}</p>
+                    <p className="font-medium text-sm truncate">{formatTicketTypeName(item.ticketTypeName)}</p>
                     <p className="text-xs text-muted-foreground">
                       {item.quantity} × ${item.price.toFixed(2)}
                     </p>

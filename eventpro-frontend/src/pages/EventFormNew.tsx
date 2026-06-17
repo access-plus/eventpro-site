@@ -46,6 +46,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { EVENT_FORM_CATEGORIES } from "@eventpro/shared";
 import { SeatMapBuilder } from "@/components/organizer/SeatMapBuilder";
 
 const addressSchema = z.object({
@@ -493,16 +494,11 @@ const EventFormNew = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="Music">Music</SelectItem>
-                            <SelectItem value="Afrobeat Concerts">Afrobeat Concerts</SelectItem>
-                            <SelectItem value="Sports">Sports</SelectItem>
-                            <SelectItem value="Conference">Conference</SelectItem>
-                            <SelectItem value="Diaspora Film Screenings">Diaspora Film Screenings</SelectItem>
-                            <SelectItem value="National Day Celebrations">National Day Celebrations</SelectItem>
-                            <SelectItem value="Cultural Festival">Cultural Festival</SelectItem>
-                            <SelectItem value="Comedy">Comedy</SelectItem>
-                            <SelectItem value="Theater">Theater</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
+                            {EVENT_FORM_CATEGORIES.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />

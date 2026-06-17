@@ -14,6 +14,10 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "0.0.0.0", // listen on all interfaces so Docker port mapping works
     port: 5173,
+    fs: {
+      // Monorepo: allow Vite to read @eventpro/shared source outside eventpro-frontend/
+      allow: [".."],
+    },
     watch: {
       // Bind mounts often miss file events without polling (Docker Desktop, some Linux setups).
       usePolling: isDockerDev,
@@ -36,6 +40,8 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Compile shared package from TS source (dist is CJS; Vite needs ESM named exports)
+      "@eventpro/shared": path.resolve(__dirname, "../packages/eventpro-shared/src/index.ts"),
     },
     // Force a single copy of React so hooks work (avoids "Invalid hook call" with react-query, etc.)
     dedupe: ["react", "react-dom", "react/jsx-runtime"],

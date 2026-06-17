@@ -22,6 +22,7 @@ import { usePreferences } from "@/contexts/PreferencesContext";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { getEventImageUrl, getPromotionalVideoEmbedUrl } from "@/lib/utils";
+import { formatTicketTypeName } from "@eventpro/shared";
 import { SeatingMap, generateSampleSeats, Seat } from "@/components/SeatingMap";
 import { ShareActionsContainer } from "@/components/ShareActions";
 import { LiveAttendanceBadge, useSimulatedViewers } from "@/components/LiveAttendanceBadge";
@@ -57,6 +58,7 @@ const EventDetails = () => {
   const [followedOrganizerIds, setFollowedOrganizerIds] = useState<Set<string>>(new Set());
   const [followLoading, setFollowLoading] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [addingToCart, setAddingToCart] = useState(false);
 
   // Reserved seating: map API seats to SeatingMap Seat format
   const seatsFromApi = useMemo(() => {
@@ -223,7 +225,7 @@ const EventDetails = () => {
     });
   };
 
-  const handleAddToCart = async (ticketType: TicketType) => {
+  const handleAddToCart = async (ticketType: TicketType, silent = false) => {
     const quantity = quantities[ticketType.id] || 0;
     const quantityToAdd = Math.min(quantity, ticketType.availableQuantity ?? 0);
     if (quantityToAdd > 0) {
@@ -240,16 +242,51 @@ const EventDetails = () => {
       );
       const added = await addItem({
         ticketTypeId: ticketType.id,
-        ticketTypeName: ticketType.name,
+        ticketTypeName: formatTicketTypeName(ticketType.name),
         eventName: event?.name || "",
         eventId: event?.id || "",
         quantity: quantityToAdd,
         price: ticketType.price,
-      });
+      }, silent);
       setQuantities((prev) => ({ ...prev, [ticketType.id]: 0 }));
       if (!added) {
         await refreshInventory();
       }
+      return added;
+    }
+    return true;
+  };
+
+  const totalSelectedQty = useMemo(
+    () => Object.values(quantities).reduce((sum, qty) => sum + qty, 0),
+    [quantities]
+  );
+
+  const handleAddAllToCart = async () => {
+    if (!event || totalSelectedQty <= 0) return;
+    setAddingToCart(true);
+    try {
+      const toAdd = ticketTypes.filter((t) => (quantities[t.id] || 0) > 0);
+      let addedCount = 0;
+      let anyFailed = false;
+      for (const ticketType of toAdd) {
+        const qtyBefore = quantities[ticketType.id] || 0;
+        const added = await handleAddToCart(ticketType, true);
+        if (added) addedCount += qtyBefore;
+        else anyFailed = true;
+      }
+      if (addedCount > 0) {
+        toast.success(
+          addedCount === 1
+            ? "1 ticket added to your cart"
+            : `${addedCount} tickets added to your cart`
+        );
+      }
+      if (anyFailed) {
+        toast.error("Some tickets could not be added. Please try again.");
+      }
+    } finally {
+      setAddingToCart(false);
     }
   };
 
@@ -620,16 +657,28 @@ const EventDetails = () => {
               </Dialog>
 
               {/* Promotional video (YouTube/Vimeo embed) — Basic theming, all tiers */}
-              {event.promotionalVideoUrl && getPromotionalVideoEmbedUrl(event.promotionalVideoUrl) && (
-                <div className="rounded-xl overflow-hidden bg-muted/50 aspect-video max-w-2xl">
-                  <iframe
-                    title={`Promotional video for ${event.name}`}
-                    src={getPromotionalVideoEmbedUrl(event.promotionalVideoUrl)!}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
+              {event.promotionalVideoUrl && (
+                getPromotionalVideoEmbedUrl(event.promotionalVideoUrl) ? (
+                  <div className="rounded-xl overflow-hidden bg-muted/50 aspect-video max-w-2xl">
+                    <iframe
+                      title={`Promotional video for ${event.name}`}
+                      src={getPromotionalVideoEmbedUrl(event.promotionalVideoUrl)!}
+                      className="w-full h-full"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : (
+                  <a
+                    href={event.promotionalVideoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-primary font-medium hover:underline"
+                  >
+                    Watch promotional video
+                  </a>
+                )
               )}
 
               {/* Share — Vibrant Bento tile with tracking */}
@@ -703,7 +752,7 @@ const EventDetails = () => {
                     <Card key={ticketType.id} className="overflow-hidden">
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
-                          <CardTitle className="text-lg">{ticketType.name}</CardTitle>
+                          <CardTitle className="text-lg">{formatTicketTypeName(ticketType.name)}</CardTitle>
                           <Badge variant={ticketType.status === "SOLD_OUT" ? "destructive" : "secondary"}>
                             {ticketType.status === "SOLD_OUT" ? "Sold Out" : `${ticketType.availableQuantity} left`}
                           </Badge>
@@ -742,20 +791,24 @@ const EventDetails = () => {
                                 </Button>
                               </div>
                             </div>
-
-                            <Button
-                              className="w-full bg-gradient-primary"
-                              disabled={(quantities[ticketType.id] || 0) <= 0}
-                              onClick={() => handleAddToCart(ticketType)}
-                            >
-                              <Ticket className="mr-2 h-4 w-4" />
-                              Add to Cart
-                            </Button>
                           </>
                         )}
                       </CardContent>
                     </Card>
                   ))
+                )}
+                {ticketTypes.length > 0 && totalSelectedQty > 0 && (
+                  <Button
+                    className="w-full bg-gradient-primary"
+                    size="lg"
+                    disabled={addingToCart}
+                    onClick={handleAddAllToCart}
+                  >
+                    <Ticket className="mr-2 h-4 w-4" />
+                    {addingToCart
+                      ? "Adding to cart…"
+                      : `Add ${totalSelectedQty} ticket${totalSelectedQty === 1 ? "" : "s"} to cart`}
+                  </Button>
                 )}
               </TabsContent>
 
