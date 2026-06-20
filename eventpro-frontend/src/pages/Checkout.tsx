@@ -12,7 +12,7 @@ import { SuccessTicketReveal } from "@/components/SuccessTicketReveal";
 import { TicketPreview } from "@/components/TicketPreview";
 import { apiService } from "@/lib/api";
 import { HOW_DID_YOU_HEAR_OPTIONS } from "@/types/api";
-import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone, Lock, ChevronDown, Minus, Plus } from "lucide-react";
+import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone, Lock, ChevronDown, Minus, Plus, Wallet } from "lucide-react";
 import { CommunityImpactTile } from "@/components/CommunityImpactTile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -87,12 +87,16 @@ const Checkout = () => {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isStartingPayment, setIsStartingPayment] = useState(false);
-  const [howDidYouHear, setHowDidYouHear] = useState<string>("__");
+  const [howDidYouHear, setHowDidYouHear] = useState<string>("");
   const [receiveTicketViaWhatsApp, setReceiveTicketViaWhatsApp] = useState(false);
   const [receiveTicketViaSMS, setReceiveTicketViaSMS] = useState(false);
+  const [checkoutPhone, setCheckoutPhone] = useState("");
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [useWalletCredits, setUseWalletCredits] = useState(false);
   const [successEventName, setSuccessEventName] = useState<string | null>(null);
   const [successAttendeeName, setSuccessAttendeeName] = useState<string>("");
   const [successTicketType, setSuccessTicketType] = useState<string>("");
+  const [successTickets, setSuccessTickets] = useState<{ label: string; index: number; total: number }[]>([]);
   const [successTotal, setSuccessTotal] = useState(0);
   /** Live form values for ticket preview (guest only, before submit). */
   const [previewGuest, setPreviewGuest] = useState({ firstName: "", lastName: "", email: "" });
@@ -188,6 +192,30 @@ const Checkout = () => {
       .catch(() => {});
   }, [isAuthenticated, items.length]);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setWalletBalance(0);
+      setUseWalletCredits(false);
+      return;
+    }
+    apiService
+      .getWallet()
+      .then((w) => setWalletBalance(w.balance))
+      .catch(() => setWalletBalance(0));
+  }, [isAuthenticated]);
+
+  const walletApplyAmount = useMemo(() => {
+    if (!isAuthenticated || !useWalletCredits || walletBalance <= 0) return 0;
+    return Math.min(walletBalance, displayTotal);
+  }, [isAuthenticated, useWalletCredits, walletBalance, displayTotal]);
+
+  const stripeDueAmount = useMemo(
+    () => Number(Math.max(0, displayTotal - walletApplyAmount).toFixed(2)),
+    [displayTotal, walletApplyAmount]
+  );
+
+  const walletCoversAll = walletApplyAmount > 0 && stripeDueAmount <= 0;
+
   /** Attendee name for ticket preview: from user, guestInfo, or live preview. */
   const attendeeName =
     isAuthenticated && user
@@ -196,21 +224,42 @@ const Checkout = () => {
         ? `${guestInfo.firstName} ${guestInfo.lastName}`.trim()
         : `${previewGuest.firstName} ${previewGuest.lastName}`.trim();
 
-  /** Ticket type label for preview (first item or "X tickets"). */
+  /** Ticket type label for preview — one card per physical ticket. */
+  const expandedCartTickets = useMemo(
+    () =>
+      items.flatMap((item) =>
+        Array.from({ length: item.quantity }, (_, i) => ({
+          label: formatTicketTypeName(item.ticketTypeName),
+          index: i + 1,
+          total: item.quantity,
+        }))
+      ),
+    [items]
+  );
+
   const ticketLabel =
-    items.length === 0
+    expandedCartTickets.length === 0
       ? "Ticket"
-      : items.length === 1
-        ? formatTicketTypeName(items[0].ticketTypeName)
-        : `${items.length} tickets`;
+      : expandedCartTickets.length === 1
+        ? expandedCartTickets[0].label
+        : `${expandedCartTickets.length} tickets`;
+
+  const resolvedPhone =
+    checkoutPhone.trim() ||
+    guestInfo?.phone?.trim() ||
+    (isAuthenticated ? user?.phoneNumber?.trim() : "") ||
+    "";
+
+  const needsPhoneForDelivery = receiveTicketViaWhatsApp || receiveTicketViaSMS;
 
   /** Form valid: logged in, or guest info submitted, or live guest form valid (name + email). */
   const isFormValid =
-    isAuthenticated ||
+    (isAuthenticated ||
     !!guestInfo ||
     (previewGuest.firstName.trim() !== "" &&
       previewGuest.lastName.trim() !== "" &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(previewGuest.email));
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(previewGuest.email))) &&
+    (!needsPhoneForDelivery || resolvedPhone.length >= 7);
 
   const heroLocation = useMemo(() => {
     if (!eventDetail) return undefined;
@@ -355,6 +404,32 @@ const Checkout = () => {
             <span>${checkoutTotals.tax.toFixed(2)}</span>
           </div>
         )}
+        {isAuthenticated && walletBalance > 0 && (
+          <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <Wallet className="h-4 w-4 text-primary shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Electric Wallet</p>
+                  <p className="text-xs text-muted-foreground">${walletBalance.toFixed(2)} available</p>
+                </div>
+              </div>
+              <Switch checked={useWalletCredits} onCheckedChange={setUseWalletCredits} />
+            </div>
+            {useWalletCredits && walletApplyAmount > 0 && (
+              <div className="flex justify-between text-sm text-primary">
+                <span>Applied from wallet</span>
+                <span>−${walletApplyAmount.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+        )}
+        {walletApplyAmount > 0 && stripeDueAmount > 0 && (
+          <div className="flex justify-between text-sm">
+            <span>Due via card</span>
+            <span>${stripeDueAmount.toFixed(2)}</span>
+          </div>
+        )}
         <div className="flex justify-between items-baseline pt-2 border-t">
           <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total</span>
           <span className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight text-foreground">
@@ -365,13 +440,13 @@ const Checkout = () => {
 
       <div className="space-y-2 pt-2 border-t border-border">
         <Label className="text-sm font-medium text-muted-foreground">How did you hear about this event?</Label>
-        <Select value={howDidYouHear} onValueChange={setHowDidYouHear}>
+        <Select value={howDidYouHear || undefined} onValueChange={setHowDidYouHear}>
           <SelectTrigger className="rounded-lg border-primary/20 bg-background/80">
             <SelectValue placeholder="Select (optional)" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="z-[100]">
             {HOW_DID_YOU_HEAR_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value || "opt"} value={opt.value === "" ? "__" : opt.value}>
+              <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
             ))}
@@ -395,6 +470,24 @@ const Checkout = () => {
           </div>
           <Switch checked={receiveTicketViaSMS} onCheckedChange={setReceiveTicketViaSMS} />
         </div>
+        {needsPhoneForDelivery && (
+          <div className="space-y-2">
+            <Label htmlFor="checkout-phone" className="text-sm text-muted-foreground">
+              Mobile number
+            </Label>
+            <Input
+              id="checkout-phone"
+              type="tel"
+              placeholder="+1 555 123 4567"
+              value={checkoutPhone || guestInfo?.phone || ""}
+              onChange={(e) => setCheckoutPhone(e.target.value)}
+              className="rounded-lg border-primary/20 bg-background/80"
+            />
+            {!resolvedPhone && (
+              <p className="text-xs text-destructive">Enter a phone number to receive your ticket.</p>
+            )}
+          </div>
+        )}
         <p className="text-xs text-muted-foreground">We’ll send your digital ticket to your phone. Great for the diaspora.</p>
       </div>
 
@@ -449,6 +542,7 @@ const Checkout = () => {
 
   const handleGuestSubmit = (info: typeof guestInfo & { acceptTerms: boolean }) => {
     setGuestInfo(info);
+    if (info.phone?.trim()) setCheckoutPhone(info.phone.trim());
     setCheckoutMode("select");
   };
 
@@ -459,7 +553,17 @@ const Checkout = () => {
     setReservedTicketIds(null);
     if (!isAuthenticated) setReservedUntil(null);
     try {
-      const amountToCharge = checkoutTotals?.total ?? grandTotal;
+      if (isAuthenticated && walletCoversAll) {
+        const order = await apiService.confirmPayment(undefined, {
+          walletAmount: displayTotal,
+          state: taxState?.trim() || undefined,
+          country: taxCountry?.trim() || undefined,
+        });
+        handlePaymentSuccess(order.id);
+        return;
+      }
+
+      const amountToCharge = stripeDueAmount;
       const amount = Number(amountToCharge.toFixed(2));
       if (amount <= 0) {
         setPaymentError("Order total must be greater than 0");
@@ -516,9 +620,10 @@ const Checkout = () => {
       totalAmount: totalToConfirm,
       donationAmount: donationAmount > 0 ? Number(donationAmount.toFixed(2)) : undefined,
       reservedTicketIds: reservedTicketIds ?? undefined,
-      howDidYouHear: howDidYouHear && howDidYouHear !== "__" ? howDidYouHear : undefined,
+      howDidYouHear: howDidYouHear || undefined,
       receiveTicketViaWhatsApp: receiveTicketViaWhatsApp || undefined,
       receiveTicketViaSMS: receiveTicketViaSMS || undefined,
+      phone: resolvedPhone || undefined,
       state: taxState?.trim() || undefined,
       country: taxCountry?.trim() || undefined,
       taxAmount: checkoutTotals && checkoutTotals.tax > 0 ? Number(checkoutTotals.tax.toFixed(2)) : undefined,
@@ -535,6 +640,7 @@ const Checkout = () => {
           : `${previewGuest.firstName} ${previewGuest.lastName}`.trim()
     );
     setSuccessTicketType(ticketLabel);
+    setSuccessTickets(expandedCartTickets);
     setSuccessTotal(checkoutTotals?.total ?? grandTotal);
     setOrderId(id);
     setPaymentStep("success");
@@ -566,6 +672,7 @@ const Checkout = () => {
         eventName={successEventName ?? "Event"}
         attendeeName={successAttendeeName}
         ticketType={successTicketType}
+        tickets={successTickets}
         totalAmount={successTotal}
         eventImageUrl={eventDetail?.imageUrl ?? undefined}
         eventDateLine={eventDateLine}
@@ -631,7 +738,16 @@ const Checkout = () => {
                 clientSecret={clientSecret}
                 isGuest={!isAuthenticated && !!guestInfo}
                 guestConfirm={!isAuthenticated && guestInfo ? buildGuestConfirm : undefined}
-                authenticatedConfirm={isAuthenticated ? (id) => apiService.confirmPayment(id, taxState?.trim() || undefined, taxCountry?.trim() || undefined) : undefined}
+                authenticatedConfirm={
+                  isAuthenticated
+                    ? (id) =>
+                        apiService.confirmPayment(id, {
+                          walletAmount: walletApplyAmount > 0 ? walletApplyAmount : undefined,
+                          state: taxState?.trim() || undefined,
+                          country: taxCountry?.trim() || undefined,
+                        })
+                    : undefined
+                }
                 onSuccess={handlePaymentSuccess}
                 onError={(msg) => { setPaymentError(msg); toast.error(msg); }}
                 billingDetails={(taxState || taxCountry) ? { state: taxState?.trim() || undefined, country: taxCountry?.trim() || undefined } : undefined}
@@ -948,14 +1064,31 @@ const Checkout = () => {
               eventName={items[0]?.eventName}
               className="w-full"
             />
-            {/* Interactive Ticket Preview — reacts to form state */}
-            <TicketPreview
-              eventName={items[0]?.eventName ?? "Event"}
-              attendeeName={attendeeName}
-              ticketType={ticketLabel}
-              totalAmount={displayTotal}
-              isUnlocked={isFormValid}
-            />
+            {/* Interactive Ticket Preview — one card per physical ticket */}
+            <div className="space-y-4">
+              {expandedCartTickets.length <= 1 ? (
+                <TicketPreview
+                  eventName={items[0]?.eventName ?? "Event"}
+                  attendeeName={attendeeName}
+                  ticketType={ticketLabel}
+                  totalAmount={displayTotal}
+                  isUnlocked={isFormValid}
+                />
+              ) : (
+                expandedCartTickets.map((ticket, idx) => (
+                  <TicketPreview
+                    key={`${ticket.label}-${idx}`}
+                    eventName={items[0]?.eventName ?? "Event"}
+                    attendeeName={attendeeName}
+                    ticketType={
+                      ticket.total > 1 ? `${ticket.label} (${ticket.index}/${ticket.total})` : ticket.label
+                    }
+                    totalAmount={displayTotal / expandedCartTickets.length}
+                    isUnlocked={isFormValid}
+                  />
+                ))
+              )}
+            </div>
             <div className="hidden xl:block">
               <Card className="sticky top-24 rounded-2xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px] shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
                 <CardHeader>

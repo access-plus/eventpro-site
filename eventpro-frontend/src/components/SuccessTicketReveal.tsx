@@ -21,6 +21,8 @@ export interface SuccessTicketRevealProps {
   eventName: string;
   attendeeName: string;
   ticketType: string;
+  /** Individual tickets purchased (expanded by quantity). */
+  tickets?: { label: string; index: number; total: number }[];
   /** Paid total for display */
   totalAmount?: number;
   eventImageUrl?: string;
@@ -37,6 +39,7 @@ export function SuccessTicketReveal({
   eventName,
   attendeeName,
   ticketType,
+  tickets = [],
   totalAmount = 0,
   eventImageUrl,
   eventDateLine,
@@ -46,6 +49,10 @@ export function SuccessTicketReveal({
   const text = eventName ? `I'm going to ${eventName}!` : "Just got tickets!";
   const url = shareUrl();
   const heroSrc = eventImageUrl ? getEventImageUrl(eventImageUrl) : undefined;
+  const ticketCards =
+    tickets.length > 0
+      ? tickets
+      : [{ label: ticketType || "General admission", index: 1, total: 1 }];
 
   const openShare = (kind: string) => {
     const encoded = encodeURIComponent(`${text} ${url}`);
@@ -90,58 +97,69 @@ export function SuccessTicketReveal({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mt-8 rounded-3xl border border-border/60 bg-card shadow-[0_20px_50px_rgba(54,39,78,0.08)] overflow-hidden"
+          className="mt-8 space-y-4"
         >
-          <div className="relative h-44 w-full overflow-hidden bg-muted">
-            {heroSrc ? (
-              <img src={heroSrc} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="h-full w-full bg-gradient-to-br from-slate-900 via-primary/40 to-pink-500/30" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            <span className="absolute left-3 top-3 rounded-md bg-pink-600/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-              Confirmed event
-            </span>
-            <p className="absolute bottom-3 left-3 right-3 text-xl font-bold text-white drop-shadow-md line-clamp-2">
-              {eventName || "Event"}
-            </p>
-          </div>
+          {ticketCards.map((ticket, idx) => {
+            const seatLabel =
+              ticket.total > 1 ? `${ticket.label} (${ticket.index}/${ticket.total})` : ticket.label;
+            const qrData = orderId ? `${orderId}:${idx + 1}` : null;
+            return (
+              <div
+                key={`${seatLabel}-${idx}`}
+                className="rounded-3xl border border-border/60 bg-card shadow-[0_20px_50px_rgba(54,39,78,0.08)] overflow-hidden"
+              >
+                <div className="relative h-44 w-full overflow-hidden bg-muted">
+                  {heroSrc ? (
+                    <img src={heroSrc} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-slate-900 via-primary/40 to-pink-500/30" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <span className="absolute left-3 top-3 rounded-md bg-pink-600/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+                    Ticket {idx + 1} of {ticketCards.length}
+                  </span>
+                  <p className="absolute bottom-3 left-3 right-3 text-xl font-bold text-white drop-shadow-md line-clamp-2">
+                    {eventName || "Event"}
+                  </p>
+                </div>
 
-          <div className="grid grid-cols-2 gap-4 p-4 border-b border-border/50">
-            <div>
-              <div className="flex items-center gap-1.5 text-primary mb-1">
-                <Calendar className="h-4 w-4 shrink-0" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Date &amp; time</span>
+                <div className="grid grid-cols-2 gap-4 p-4 border-b border-border/50">
+                  <div>
+                    <div className="flex items-center gap-1.5 text-primary mb-1">
+                      <Calendar className="h-4 w-4 shrink-0" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Date &amp; time</span>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">{eventDateLine ?? "See event page"}</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 text-primary mb-1">
+                      <Armchair className="h-4 w-4 shrink-0" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Ticket</span>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">{seatLabel}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{venueLine ?? "Venue TBA"}</p>
+                  </div>
+                </div>
+
+                <div className="px-4 py-4 border-b border-border/50">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">Instant access QR</p>
+                  <div className="flex justify-center rounded-2xl bg-primary/8 p-4">
+                    {qrData ? (
+                      <img
+                        src={`${QR_BASE}?size=180x180&data=${encodeURIComponent(qrData)}&format=svg`}
+                        alt={`Ticket ${idx + 1} QR code`}
+                        className="h-44 w-44 rounded-xl"
+                      />
+                    ) : (
+                      <div className="h-44 w-44 rounded-xl bg-muted flex items-center justify-center text-muted-foreground text-sm">QR</div>
+                    )}
+                  </div>
+                </div>
               </div>
-              <p className="text-sm font-semibold text-foreground">{eventDateLine ?? "See event page"}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Doors open</p>
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5 text-primary mb-1">
-                <Armchair className="h-4 w-4 shrink-0" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Seats</span>
-              </div>
-              <p className="text-sm font-semibold text-foreground">{ticketType || "General admission"}</p>
-              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{venueLine ?? "Venue TBA"}</p>
-            </div>
-          </div>
+            );
+          })}
 
-          <div className="px-4 py-4 border-b border-border/50">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">Instant access QR</p>
-            <div className="flex justify-center rounded-2xl bg-primary/8 p-4">
-              {orderId ? (
-                <img
-                  src={`${QR_BASE}?size=180x180&data=${encodeURIComponent(orderId)}&format=svg`}
-                  alt="Ticket QR code"
-                  className="h-44 w-44 rounded-xl"
-                />
-              ) : (
-                <div className="h-44 w-44 rounded-xl bg-muted flex items-center justify-center text-muted-foreground text-sm">QR</div>
-              )}
-            </div>
-          </div>
-
-          <div className="p-4 text-center">
+          <div className="rounded-3xl border border-border/60 bg-card p-4 text-center">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Total amount paid</p>
             <p className="text-3xl font-bold font-headline text-foreground tabular-nums mt-1">
               ${totalAmount > 0 ? totalAmount.toFixed(2) : "—"}

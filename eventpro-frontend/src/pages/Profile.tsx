@@ -350,7 +350,7 @@ const Profile = () => {
                   </span>
                 </Link>
                 <Link
-                  to="/following"
+                  to="/profile/following"
                   className="group rounded-2xl border border-border/60 bg-muted/30 p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors flex flex-col gap-2"
                 >
                   <div className="h-10 w-10 rounded-xl bg-primary/15 flex items-center justify-center">
@@ -383,7 +383,7 @@ const Profile = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Following feed</p>
-                <Link to="/following" className="text-sm font-semibold text-primary flex items-center gap-0.5">
+                <Link to="/profile/following" className="text-sm font-semibold text-primary flex items-center gap-0.5">
                   View all <ChevronRight className="h-4 w-4" />
                 </Link>
               </div>

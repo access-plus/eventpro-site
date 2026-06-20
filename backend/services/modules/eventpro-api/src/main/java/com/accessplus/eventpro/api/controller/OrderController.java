@@ -5,6 +5,7 @@ import com.accessplus.eventpro.api.dto.OrderResponse;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
+import com.accessplus.eventpro.api.wallet.service.WalletService;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
 import com.accessplus.eventpro.order.order.service.OrderService;
 import org.springframework.security.core.Authentication;
@@ -35,6 +36,7 @@ import java.util.UUID;
 public class OrderController extends BaseController {
 
     private final OrderService orderService;
+    private final WalletService walletService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
@@ -208,8 +210,23 @@ public class OrderController extends BaseController {
             throw new ResourceNotFoundException("Order", id.toString());
         }
 
-        // Update order status to REFUNDED
+        if (order.getStatus() != OrderStatus.PAID) {
+            throw new ResourceNotFoundException("Order", id.toString());
+        }
+
         OrderEntity refundedOrder = orderService.updateOrderStatus(id, OrderStatus.REFUNDED);
+
+        if (refundedOrder.getUserId() != null && refundedOrder.getTotalAmount() != null
+                && refundedOrder.getTotalAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+            walletService.credit(
+                    refundedOrder.getUserId(),
+                    refundedOrder.getTotalAmount(),
+                    WalletService.REF_ORDER_REFUND,
+                    refundedOrder.getId(),
+                    "order-refund:" + refundedOrder.getId(),
+                    "Refund for order " + refundedOrder.getOrderNumber());
+        }
+
         OrderResponse response = OrderResponse.fromEntity(refundedOrder);
 
         log.info("Order refunded successfully: orderId={}, userId={}", id, currentUserId);

@@ -126,5 +126,16 @@ public interface OrderService {
      * Returns the reserved ticket IDs in order (item1 qty N then item2 qty M, etc.).
      */
     List<UUID> reserveTicketsForGuest(List<GuestOrderItem> items);
+
+    /**
+     * Persists optional checkout metadata (attribution, phone, ticket delivery preferences).
+     */
+    OrderEntity updateCheckoutMetadata(UUID orderId, String guestPhone, String howDidYouHear,
+                                       Boolean receiveTicketViaWhatsApp, Boolean receiveTicketViaSms);
+
+    /**
+     * Stores payment metadata after checkout (Stripe intent, wallet portion, method).
+     */
+    OrderEntity updatePaymentDetails(UUID orderId, String paymentIntentId, BigDecimal walletAmount, String paymentMethod);
 }
 

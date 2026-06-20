@@ -125,6 +125,7 @@ const AnimatedRoutes = () => {
             </ProtectedRoute>
           }
         />
+        <Route path="/following" element={<Navigate to="/profile/following" replace />} />
         <Route
           path="/settings"
           element={

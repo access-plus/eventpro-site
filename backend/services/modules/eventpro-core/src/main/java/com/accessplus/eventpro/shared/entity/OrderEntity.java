@@ -93,6 +93,28 @@ public class OrderEntity extends BaseEntity {
     @Column(name = "guest_last_name", length = 100)
     private String guestLastName;
 
+    @Column(name = "guest_phone", length = 20)
+    private String guestPhone;
+
+    /** Attribution: how the buyer heard about the event (checkout). */
+    @Column(name = "how_did_you_hear", length = 100)
+    private String howDidYouHear;
+
+    @Column(name = "receive_ticket_via_whatsapp")
+    private Boolean receiveTicketViaWhatsApp = false;
+
+    @Column(name = "receive_ticket_via_sms")
+    private Boolean receiveTicketViaSms = false;
+
+    @Column(name = "payment_intent_id", length = 255)
+    private String paymentIntentId;
+
+    @Column(name = "wallet_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal walletAmount = BigDecimal.ZERO;
+
+    @Column(name = "payment_method", length = 30)
+    private String paymentMethod;
+
     /**
      * Order items relationship.
      * This is within the same domain, so entity relationship is fine.

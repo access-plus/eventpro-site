@@ -50,6 +50,24 @@ export function getOrderLineItems(order: { orderItems?: unknown[]; tickets?: unk
   return [];
 }
 
+/**
+ * Expand order line items into one entry per physical ticket (duplicates rows when quantity > 1).
+ */
+export function expandOrderLineItems(items: unknown[] | undefined): unknown[] {
+  if (!items?.length) return [];
+  const expanded: unknown[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const q = o.quantity;
+    const count = typeof q === "number" && q > 0 ? q : 1;
+    for (let i = 0; i < count; i++) {
+      expanded.push({ ...o, quantity: 1, _ticketInstance: i + 1, _ticketInstanceTotal: count });
+    }
+  }
+  return expanded;
+}
+
 /** Sum line-item quantities (each `orderItems` row may represent multiple tickets). */
 export function getTicketQuantityFromOrderItems(items: unknown[] | undefined): number {
   if (!items?.length) return 0;

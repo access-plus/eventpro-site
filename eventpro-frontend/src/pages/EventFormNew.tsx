@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/form";
 import { EVENT_FORM_CATEGORIES } from "@eventpro/shared";
 import { SeatMapBuilder } from "@/components/organizer/SeatMapBuilder";
+import { VenueAddressMapPreview } from "@/components/VenueAddressMapPreview";
 
 const addressSchema = z.object({
   street: z.string().optional(),
@@ -827,9 +828,13 @@ const EventFormNew = () => {
                         )}
                       />
                     </div>
-                    <div className="rounded-xl border border-dashed border-border/80 bg-muted/30 aspect-[2/1] max-h-48 flex items-center justify-center text-center text-sm text-muted-foreground px-4">
-                      Map preview uses your address on the live event page.
-                    </div>
+                    <VenueAddressMapPreview
+                      street={form.watch("address.street")}
+                      city={form.watch("address.city")}
+                      state={form.watch("address.state")}
+                      zipCode={form.watch("address.zipCode")}
+                      country={form.watch("address.country")}
+                    />
                   </div>
                   </div>
 

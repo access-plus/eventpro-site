@@ -612,7 +612,7 @@ export function EventDetailScreen({
               }}
             >
               <Text style={[styles.followBtnText, event.userId != null && followedOrganizerIds.has(event.userId) && styles.followBtnTextActive]}>
-                {followLoading ? "…" : event.userId != null && followedOrganizerIds.has(event.userId) ? "Followed" : "Follow"}
+                {followLoading ? "…" : event.userId != null && followedOrganizerIds.has(event.userId) ? "Following" : "Follow"}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity

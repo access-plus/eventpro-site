@@ -590,7 +590,7 @@ const EventDetails = () => {
                           }
                         }}
                       >
-                        {followLoading ? "…" : followedOrganizerIds.has(event.userId) ? "Followed" : "Follow"}
+                        {followLoading ? "…" : followedOrganizerIds.has(event.userId) ? "Following" : "Follow"}
                       </Button>
                     )}
                     <Button variant="ghost" size="sm" className="border border-dashed border-input" onClick={() => { setContactDialogOpen(true); setContactSent(false); setContactForm({ senderName: "", senderEmail: "", message: "" }); }}>

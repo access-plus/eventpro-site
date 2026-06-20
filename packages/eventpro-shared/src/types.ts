@@ -311,6 +311,7 @@ export interface GuestConfirmPaymentRequest {
   howDidYouHear?: string;
   receiveTicketViaWhatsApp?: boolean;
   receiveTicketViaSMS?: boolean;
+  phone?: string;
   state?: string;
   country?: string;
   taxAmount?: number;

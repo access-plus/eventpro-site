@@ -30,6 +30,9 @@ import { PageShell } from "@/components/PageShell";
 import {
   getEventIdFromOrderLineItem,
   getOrderLineItems,
+  expandOrderLineItems,
+  getTicketQuantityFromOrderItems,
+  getQrCodeFromOrderLineItem,
   parseOrderTimestamp,
   resolveOrderEventDate,
   resolveOrderEventEndDate,
@@ -43,6 +46,14 @@ type OrderWithMeta = Order & {
   _eventDate?: Date;
   _eventEndDate?: Date;
   _orderDate?: Date;
+};
+
+type TicketEntry = {
+  key: string;
+  order: OrderWithMeta;
+  lineItem: unknown;
+  ticketIndex: number;
+  ticketTotal: number;
 };
 
 function normalizeOrder(raw: Record<string, unknown>): Order {
@@ -120,13 +131,18 @@ const OrderHistory = () => {
   const location = useLocation();
   const [orders, setOrders] = useState<OrderWithMeta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [viewTicketOrderId, setViewTicketOrderId] = useState<string | null>(null);
   const [ticketTab, setTicketTab] = useState<"upcoming" | "past">("upcoming");
 
   const loadOrders = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await apiService.getOrders();
+      const [data, wallet] = await Promise.all([
+        apiService.getOrders(),
+        apiService.getWallet().catch(() => ({ balance: 0, currency: "USD" })),
+      ]);
+      setWalletBalance(wallet.balance);
       const normalized = (Array.isArray(data) ? data : []).map((o) =>
         normalizeOrder(o as Record<string, unknown>)
       ) as OrderWithMeta[];
@@ -175,20 +191,40 @@ const OrderHistory = () => {
 
   const { upcoming, past } = useMemo(() => {
     const now = new Date();
-    const up: OrderWithMeta[] = [];
-    const pa: OrderWithMeta[] = [];
+    const up: TicketEntry[] = [];
+    const pa: TicketEntry[] = [];
     orders.forEach((o) => {
-      if (isUpcomingOrder(o._eventDate, o._eventEndDate, o.status, now)) up.push(o);
-      else pa.push(o);
+      const expanded = expandOrderLineItems(getOrderLineItems(o));
+      expanded.forEach((lineItem, idx) => {
+        const entry: TicketEntry = {
+          key: `${o.id}-${idx}`,
+          order: o,
+          lineItem,
+          ticketIndex: idx + 1,
+          ticketTotal: expanded.length,
+        };
+        if (isUpcomingOrder(o._eventDate, o._eventEndDate, o.status, now)) up.push(entry);
+        else pa.push(entry);
+      });
     });
-    up.sort((a, b) => (a._eventDate && b._eventDate ? a._eventDate.getTime() - b._eventDate.getTime() : 0));
-    pa.sort((a, b) => (a._eventDate && b._eventDate ? b._eventDate.getTime() - a._eventDate.getTime() : 0));
+    up.sort((a, b) =>
+      a.order._eventDate && b.order._eventDate
+        ? a.order._eventDate.getTime() - b.order._eventDate.getTime()
+        : 0
+    );
+    pa.sort((a, b) =>
+      a.order._eventDate && b.order._eventDate
+        ? b.order._eventDate.getTime() - a.order._eventDate.getTime()
+        : 0
+    );
     return { upcoming: up, past: pa };
   }, [orders]);
 
-  const visibleOrders = ticketTab === "upcoming" ? upcoming : past;
+  const visibleTickets = ticketTab === "upcoming" ? upcoming : past;
 
-  const viewTicketOrder = viewTicketOrderId ? orders.find((o) => o.id === viewTicketOrderId) : null;
+  const viewTicketEntry = viewTicketOrderId
+    ? [...upcoming, ...past].find((t) => t.order.id === viewTicketOrderId)
+    : null;
 
   if (isLoading) {
     return (
@@ -272,7 +308,7 @@ const OrderHistory = () => {
           <div className="relative rounded-2xl overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-accent/5 pointer-events-none" />
             <div className="relative space-y-8 py-2">
-              {visibleOrders.length === 0 ? (
+              {visibleTickets.length === 0 ? (
                 <p className="text-center text-muted-foreground py-12">
                   No {ticketTab === "upcoming" ? "upcoming" : "past"} tickets in this view.
                   {ticketTab === "upcoming" && past.length > 0 ? (
@@ -281,12 +317,12 @@ const OrderHistory = () => {
                 </p>
               ) : (
                 <div className="space-y-5">
-                  {visibleOrders.map((order, index) => (
+                  {visibleTickets.map((entry, index) => (
                     <OrderTicketCard
-                      key={order.id}
-                      order={order as OrderWithMeta}
+                      key={entry.key}
+                      entry={entry}
                       index={index}
-                      onViewTicket={() => setViewTicketOrderId(order.id)}
+                      onViewTicket={() => setViewTicketOrderId(entry.order.id)}
                       isFeatured={ticketTab === "upcoming"}
                     />
                   ))}
@@ -313,11 +349,16 @@ const OrderHistory = () => {
                     <Wallet className="h-5 w-5" />
                     <span className="font-bold">Electric Wallet</span>
                   </div>
-                  <p className="text-2xl font-extrabold text-foreground tracking-tight">$142.50</p>
+                  <p className="text-2xl font-extrabold text-foreground tracking-tight">
+                    ${walletBalance.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {walletBalance > 0 ? "Use at checkout on your next purchase" : "Credits appear when orders are refunded"}
+                  </p>
                   <button
                     type="button"
                     className="text-sm font-semibold text-primary mt-2 text-left hover:underline"
-                    onClick={() => navigate("/settings")}
+                    onClick={() => navigate("/settings#electric-wallet")}
                   >
                     Manage Credits →
                   </button>
@@ -328,22 +369,32 @@ const OrderHistory = () => {
         )}
       </div>
 
-      <Dialog open={!!viewTicketOrder} onOpenChange={(open) => !open && setViewTicketOrderId(null)}>
+      <Dialog open={!!viewTicketEntry} onOpenChange={(open) => !open && setViewTicketOrderId(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>View Ticket</DialogTitle>
           </DialogHeader>
-          {viewTicketOrder && (
+          {viewTicketEntry && (
             <div className="space-y-4">
               <div className="bg-muted/50 rounded-lg p-6 flex items-center justify-center min-h-[200px]">
-                <div className="text-center">
-                  <QrCode className="h-24 w-24 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">QR code placeholder</p>
-                  <p className="text-xs text-muted-foreground mt-1">Show at venue</p>
-                </div>
+                {getQrCodeFromOrderLineItem(viewTicketEntry.lineItem) ? (
+                  <img
+                    src={getQrCodeFromOrderLineItem(viewTicketEntry.lineItem)!}
+                    alt="Ticket QR code"
+                    className="h-44 w-44 rounded-lg object-contain"
+                  />
+                ) : (
+                  <div className="text-center">
+                    <QrCode className="h-24 w-24 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">QR code will appear after purchase</p>
+                  </div>
+                )}
               </div>
+              <p className="text-sm text-muted-foreground">
+                Ticket {viewTicketEntry.ticketIndex} of {viewTicketEntry.ticketTotal}
+              </p>
               <p className="text-sm font-mono text-muted-foreground">
-                Order #{viewTicketOrder.id.slice(0, 8)}
+                Order #{viewTicketEntry.order.id.slice(0, 8)}
               </p>
             </div>
           )}
@@ -354,17 +405,18 @@ const OrderHistory = () => {
 };
 
 function OrderTicketCard({
-  order,
+  entry,
   index,
   onViewTicket,
   isFeatured = false,
 }: {
-  order: OrderWithMeta;
+  entry: TicketEntry;
   index: number;
   onViewTicket: () => void;
   isFeatured?: boolean;
 }) {
   const navigate = useNavigate();
+  const order = entry.order;
   const event = order._event;
   const eventDate = order._eventDate;
   const eventImageUrl = event?.imageUrl ? getEventImageUrl(event.imageUrl) : undefined;
@@ -374,6 +426,9 @@ function OrderTicketCard({
   const addr = [event?.addressStreet, event?.addressCity].filter(Boolean).join(", ");
   const venueLine = event?.venue ?? (addr || "Venue TBA");
   const genre = event?.categoryName ?? event?.category ?? "LIVE / EVENT";
+  const ticketCount = getTicketQuantityFromOrderItems(getOrderLineItems(order));
+  const perTicketAmount = ticketCount > 0 ? Number(order.totalAmount ?? 0) / ticketCount : 0;
+  const qrUrl = getQrCodeFromOrderLineItem(entry.lineItem);
 
   return (
     <motion.div
@@ -423,14 +478,9 @@ function OrderTicketCard({
                 <span>{venueLine}</span>
               </p>
               <div className="flex flex-wrap gap-2">
-                {["SECTION: GA-02", "ROW: Floor", "SEAT: N/A"].map((label) => (
-                  <span
-                    key={label}
-                    className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/15"
-                  >
-                    {label}
-                  </span>
-                ))}
+                <span className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary border border-primary/15">
+                  Ticket {entry.ticketIndex} of {entry.ticketTotal}
+                </span>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="font-mono">Order #{order.id.slice(0, 8)}</span>
@@ -452,16 +502,20 @@ function OrderTicketCard({
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-border/60">
               <div className="flex items-center gap-3 flex-1">
                 <div className="rounded-lg border bg-muted/40 p-2">
-                  <QrCode className="h-10 w-10 text-muted-foreground" />
+                  {qrUrl ? (
+                    <img src={qrUrl} alt="" className="h-10 w-10 object-contain" />
+                  ) : (
+                    <QrCode className="h-10 w-10 text-muted-foreground" />
+                  )}
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="text-xs text-muted-foreground">Ticket value</p>
                   <p className="text-lg font-bold flex items-center gap-0.5">
                     <DollarSign className="h-4 w-4 text-primary" />
-                    {Number(order.totalAmount ?? 0).toFixed(2)}
+                    {perTicketAmount.toFixed(2)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {order.tickets?.length ?? 0} ticket{(order.tickets?.length ?? 0) !== 1 ? "s" : ""}
+                    {entry.ticketTotal} ticket{entry.ticketTotal !== 1 ? "s" : ""} in order
                   </p>
                 </div>
               </div>
