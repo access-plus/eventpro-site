@@ -8,6 +8,7 @@ import com.accessplus.eventpro.api.dto.UpdateCartRequest;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
 import com.accessplus.eventpro.core.security.JwtUtils;
+import com.accessplus.eventpro.event.event.entity.EventEntity;
 import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
@@ -28,6 +29,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -199,9 +201,11 @@ public class CartController extends BaseController {
     }
 
     private UUID findAvailableTicketByEventAndType(UUID eventId, TicketType ticketType) {
-        // Validate event exists
-        if (!eventRepository.existsById(eventId)) {
-            throw new ResourceNotFoundException("Event", eventId.toString());
+        EventEntity event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+
+        if (event.getEndTime() != null && event.getEndTime().isBefore(LocalDateTime.now())) {
+            throw new ValidationException("This event has ended. Tickets are no longer available for purchase.");
         }
 
         // Find available tickets of the specified type

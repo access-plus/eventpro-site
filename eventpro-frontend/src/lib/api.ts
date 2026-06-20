@@ -332,11 +332,15 @@ class ApiService {
 
   // Order endpoints (backend returns paginated { content: [...] }; shape may use amount/orderItems)
   async getOrders(page = 1, size = 50): Promise<unknown[]> {
-    const response = await this.api.get<ApiResponse<{ content: unknown[] }>>(
+    const response = await this.api.get<ApiResponse<{ content: unknown[] } | unknown[]>>(
       `/api/v1/orders?page=${page}&size=${size}`
     );
     const data = response.data.data;
-    return Array.isArray(data?.content) ? data.content : [];
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === "object" && Array.isArray((data as { content?: unknown[] }).content)) {
+      return (data as { content: unknown[] }).content;
+    }
+    return [];
   }
 
   async getOrder(id: string): Promise<Order> {

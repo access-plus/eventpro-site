@@ -17,7 +17,7 @@ import { useAuth } from "../context/AuthContext";
 import { useRecentlyViewed } from "../contexts/RecentlyViewedContext";
 import { useTheme } from "../contexts/ThemeContext";
 import type { Event, TicketType } from "@eventpro/shared";
-import { getPromotionalVideoEmbedUrl, getPromotionalVideoEmbedHtml } from "@eventpro/shared";
+import { getPromotionalVideoEmbedUrl, getPromotionalVideoEmbedHtml, isEventEnded } from "@eventpro/shared";
 import { WebView } from "react-native-webview";
 import type { Theme } from "../theme";
 import * as mobileApi from "../lib/mobileApi";
@@ -121,6 +121,7 @@ function createStyles(theme: Theme) {
       elevation: 8,
     },
     heroCtaText: { color: theme.colors.primaryForeground, fontSize: 17, fontWeight: "800" },
+    eventEndedText: { color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: "600", marginTop: 4 },
     shareStoryBtn: {
       marginTop: 12,
       alignItems: "center",
@@ -375,8 +376,12 @@ export function EventDetailScreen({
 
   const openSelectTickets = () => {
     if (!event) return;
+    if (isEventEnded(event)) return;
     navigation.navigate("SelectTickets", { eventId: event.id });
   };
+
+  const eventEnded = event ? isEventEnded(event) : false;
+  const ticketsAvailable = ticketTypes.length > 0 && !eventEnded;
 
   const openShareStory = () => {
     if (!event) return;
@@ -428,7 +433,7 @@ export function EventDetailScreen({
       ref={scrollRef}
       style={styles.container}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: ticketTypes.length > 0 ? 100 : theme.spacing.md }}
+      contentContainerStyle={{ paddingBottom: ticketsAvailable ? 100 : theme.spacing.md }}
     >
       <View style={styles.heroWrap}>
         {imageUrl ? (
@@ -475,11 +480,15 @@ export function EventDetailScreen({
               </View>
             </View>
           ) : null}
+          {ticketsAvailable ? (
           <TouchableOpacity style={styles.heroCta} onPress={openSelectTickets} activeOpacity={0.9}>
             <Text style={styles.heroCtaText}>
               Get tickets{minTicketPrice != null ? ` — From $${Math.round(minTicketPrice)}` : ""}
             </Text>
           </TouchableOpacity>
+          ) : eventEnded ? (
+            <Text style={styles.eventEndedText}>This event has ended. Ticket sales are closed.</Text>
+          ) : null}
           <TouchableOpacity style={styles.shareStoryBtn} onPress={openShareStory} activeOpacity={0.85}>
             <Text style={styles.shareStoryText}>Share story template</Text>
           </TouchableOpacity>
@@ -724,7 +733,7 @@ export function EventDetailScreen({
       </KeyboardAvoidingView>
     </Modal>
 
-    {ticketTypes.length > 0 ? (
+    {ticketsAvailable ? (
       <View style={[styles.stickyBar, { paddingBottom: insets.bottom, borderTopColor: theme.colors.border }]}>
         <View>
           <Text style={styles.stickyLabel}>Starting at</Text>

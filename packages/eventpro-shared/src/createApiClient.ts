@@ -249,9 +249,11 @@ export function createEventProApi(config: EventProApiConfig): EventProApi {
     },
 
     async getOrders(page = 1, size = 50) {
-      const res = await api.get<ApiResponse<{ content: Order[] }>>(`/api/v1/orders?page=${page}&size=${size}`);
+      const res = await api.get<ApiResponse<{ content: Order[] } | Order[]>>(`/api/v1/orders?page=${page}&size=${size}`);
       const data = res.data.data;
-      return Array.isArray(data?.content) ? data.content : [];
+      if (Array.isArray(data)) return data;
+      if (data && typeof data === "object" && Array.isArray(data.content)) return data.content;
+      return [];
     },
     async getOrder(id: string) {
       return getData(await api.get<ApiResponse<Order>>(`/api/v1/orders/${id}`));

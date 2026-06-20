@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../contexts/CartContext";
 import type { Event, TicketType } from "@eventpro/shared";
-import { formatTicketTypeName } from "@eventpro/shared";
+import { formatTicketTypeName, isEventEnded } from "@eventpro/shared";
 import { useTheme } from "../contexts/ThemeContext";
 import type { Theme } from "../theme";
 
@@ -103,14 +103,15 @@ export function SelectTicketsScreen({
   }, 0);
   const totalFormatted = `$${(totalCents / 100).toFixed(2)}`;
   const totalQty = Object.values(quantities).reduce((a, b) => a + b, 0);
-  const canContinue = totalQty > 0;
+  const eventEnded = event ? isEventEnded(event) : false;
+  const canContinue = totalQty > 0 && !eventEnded;
 
   const startTime = event?.startTime ?? (event as { startDateTime?: string } | null)?.startDateTime;
   const imageUrl = (event as { imageUrl?: string } | null)?.imageUrl;
   const locationLine = [(event as { venue?: string } | null)?.venue, event?.addressCity, event?.addressState].filter(Boolean).join(", ");
 
   const onContinue = async () => {
-    if (!canContinue || !event) return;
+    if (!canContinue || !event || eventEnded) return;
     setAdding(true);
     try {
       for (const t of ticketTypes) {
@@ -194,6 +195,14 @@ export function SelectTicketsScreen({
           </View>
         </View>
 
+        {eventEnded ? (
+          <View style={[styles.endedBanner, { backgroundColor: theme.colors.muted, borderColor: theme.colors.border }]}>
+            <Text style={[styles.endedText, { color: theme.colors.mutedForeground }]}>
+              This event has ended. Ticket sales are closed.
+            </Text>
+          </View>
+        ) : (
+        <>
         <View style={styles.availRow}>
           <Text style={styles.availTitle}>Available Tickets</Text>
           <Text style={styles.availCount}>{ticketTypes.length} TYPES</Text>
@@ -255,7 +264,7 @@ export function SelectTicketsScreen({
           </Text>
         </View>
 
-        {hasSeatMap ? (
+        {hasSeatMap && !eventEnded ? (
           <TouchableOpacity
             style={[styles.seatMapCta, { borderColor: PURPLE }]}
             onPress={() =>
@@ -271,6 +280,8 @@ export function SelectTicketsScreen({
             <Text style={[styles.seatMapCtaText, { color: PURPLE }]}>Choose seats on map</Text>
           </TouchableOpacity>
         ) : null}
+        </>
+        )}
       </ScrollView>
 
       <View style={[styles.checkoutBar, { paddingBottom: insets.bottom + 12, backgroundColor: theme.colors.card, borderTopColor: theme.colors.border }]}>
@@ -316,6 +327,14 @@ function createStyles(theme: Theme) {
       elevation: 3,
     },
     thumb: { width: 72, height: 72, borderRadius: 12 },
+    endedBanner: {
+      marginHorizontal: 16,
+      marginTop: 8,
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+    endedText: { fontSize: 14, fontWeight: "600", textAlign: "center" },
     eventTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.foreground },
     metaRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 6 },
     metaText: { fontSize: 12, color: theme.colors.mutedForeground, flex: 1 },

@@ -4,6 +4,7 @@ import com.accessplus.eventpro.shared.entity.OrderEntity;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -45,8 +46,13 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
      * @param pageable pagination parameters
      * @return page of orders for the user
      */
+    @EntityGraph(attributePaths = {"orderItems", "orderItems.ticket"})
     @Query("SELECT o FROM OrderEntity o WHERE o.userId = :userId")
     Page<OrderEntity> findByUserId(@Param("userId") UUID userId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"orderItems", "orderItems.ticket"})
+    @Query("SELECT o FROM OrderEntity o WHERE o.id = :orderId")
+    Optional<OrderEntity> findByIdWithItems(@Param("orderId") UUID orderId);
 
     /**
      * Finds all orders with a specific status.

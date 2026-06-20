@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,12 +27,22 @@ import {
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { PageShell } from "@/components/PageShell";
-import { getEventIdFromOrderLineItem } from "@/lib/orderLineItem";
+import {
+  getEventIdFromOrderLineItem,
+  getOrderLineItems,
+  parseOrderTimestamp,
+  resolveOrderEventDate,
+  resolveOrderEventEndDate,
+  isUpcomingOrder,
+  parseApiDateTime,
+} from "@/lib/orderLineItem";
 
 type OrderWithMeta = Order & {
   _dateLabel?: string;
   _event?: Event;
   _eventDate?: Date;
+  _eventEndDate?: Date;
+  _orderDate?: Date;
 };
 
 function normalizeOrder(raw: Record<string, unknown>): Order {
@@ -42,8 +52,10 @@ function normalizeOrder(raw: Record<string, unknown>): Order {
       : typeof raw.amount === "number"
         ? raw.amount / 100
         : 0;
-  const tickets = Array.isArray(raw.tickets) ? raw.tickets : Array.isArray(raw.orderItems) ? raw.orderItems : [];
-  const createdAt = (raw.createdAt ?? raw.orderDate) as string | undefined;
+  const tickets = getOrderLineItems(raw as { orderItems?: unknown[]; tickets?: unknown[] });
+  const rawWhen = raw.createdAt ?? raw.orderDate;
+  const createdAt =
+    typeof rawWhen === "string" ? rawWhen : parseOrderTimestamp(rawWhen) || "";
   let dateLabel = "—";
   if (createdAt) {
     const d = new Date(createdAt);
@@ -105,69 +117,68 @@ function getStatusBadgeClass(status: Order["status"]) {
 
 const OrderHistory = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [orders, setOrders] = useState<OrderWithMeta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewTicketOrderId, setViewTicketOrderId] = useState<string | null>(null);
   const [ticketTab, setTicketTab] = useState<"upcoming" | "past">("upcoming");
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await apiService.getOrders();
-        const normalized = (Array.isArray(data) ? data : []).map((o) =>
-          normalizeOrder(o as Record<string, unknown>)
-        ) as OrderWithMeta[];
+  const loadOrders = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await apiService.getOrders();
+      const normalized = (Array.isArray(data) ? data : []).map((o) =>
+        normalizeOrder(o as Record<string, unknown>)
+      ) as OrderWithMeta[];
 
-        const eventIds = new Set<string>();
-        normalized.forEach((o) => {
-          o.tickets?.forEach((t) => {
-            const eid = getEventIdFromOrderLineItem(t);
-            if (eid) eventIds.add(eid);
-          });
+      const eventIds = new Set<string>();
+      normalized.forEach((o) => {
+        getOrderLineItems(o).forEach((t) => {
+          const eid = getEventIdFromOrderLineItem(t);
+          if (eid) eventIds.add(eid);
         });
-        const eventsMap: Record<string, Event> = {};
-        await Promise.all(
-          Array.from(eventIds).map(async (id) => {
-            try {
-              const ev = await apiService.getEvent(id);
-              if (!cancelled) eventsMap[id] = ev;
-            } catch {
-              // ignore
-            }
-          })
-        );
-
-        normalized.forEach((o) => {
-          const firstLine = o.tickets?.[0];
-          const firstEventId = getEventIdFromOrderLineItem(firstLine);
-          const event = firstEventId ? eventsMap[firstEventId] : undefined;
-          o._event = event;
-          if (event?.startTime) {
-            const d = new Date(event.startTime);
-            o._eventDate = Number.isNaN(d.getTime()) ? undefined : d;
+      });
+      const eventsMap: Record<string, Event> = {};
+      await Promise.all(
+        Array.from(eventIds).map(async (id) => {
+          try {
+            const ev = await apiService.getEvent(id);
+            eventsMap[id] = ev;
+          } catch {
+            // ignore
           }
-        });
+        })
+      );
 
-        if (!cancelled) setOrders(normalized);
-      } catch (error) {
-        console.error("Failed to load orders:", error);
-        if (!cancelled) setOrders([]);
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+      normalized.forEach((o) => {
+        const lineItems = getOrderLineItems(o);
+        const firstEventId = getEventIdFromOrderLineItem(lineItems[0]);
+        const event = firstEventId ? eventsMap[firstEventId] : undefined;
+        o._event = event;
+        o._eventDate = resolveOrderEventDate(o, event);
+        o._eventEndDate = resolveOrderEventEndDate(o, event);
+        o._orderDate = parseApiDateTime(o.createdAt);
+      });
+
+      setOrders(normalized);
+    } catch (error) {
+      console.error("Failed to load orders:", error);
+      setOrders([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders, location.key]);
 
   const { upcoming, past } = useMemo(() => {
     const now = new Date();
     const up: OrderWithMeta[] = [];
     const pa: OrderWithMeta[] = [];
     orders.forEach((o) => {
-      if (o._eventDate && o._eventDate >= now) up.push(o);
+      if (isUpcomingOrder(o._eventDate, o._eventEndDate, o.status, now)) up.push(o);
       else pa.push(o);
     });
     up.sort((a, b) => (a._eventDate && b._eventDate ? a._eventDate.getTime() - b._eventDate.getTime() : 0));
@@ -264,6 +275,9 @@ const OrderHistory = () => {
               {visibleOrders.length === 0 ? (
                 <p className="text-center text-muted-foreground py-12">
                   No {ticketTab === "upcoming" ? "upcoming" : "past"} tickets in this view.
+                  {ticketTab === "upcoming" && past.length > 0 ? (
+                    <> Try <button type="button" className="text-primary font-semibold underline" onClick={() => setTicketTab("past")}>Past Events</button>.</>
+                  ) : null}
                 </p>
               ) : (
                 <div className="space-y-5">
