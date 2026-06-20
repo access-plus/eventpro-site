@@ -15,6 +15,11 @@ import {
   getEventIdFromOrderLineItem,
   getTicketQuantityFromOrderItems,
   parseOrderTimestamp,
+  getOrderLineItems,
+  resolveOrderEventDate,
+  resolveOrderEventEndDate,
+  isUpcomingOrder,
+  parseApiDateTime,
   type Order,
   type Event,
 } from "@eventpro/shared";
@@ -24,6 +29,8 @@ type OrderWithMeta = Order & {
   _dateLabel?: string;
   _event?: Event;
   _eventDate?: Date;
+  _eventEndDate?: Date;
+  _orderDate?: Date;
 };
 
 function normalizeOrder(raw: Record<string, unknown>): OrderWithMeta {
@@ -33,11 +40,7 @@ function normalizeOrder(raw: Record<string, unknown>): OrderWithMeta {
       : typeof (raw as { amount?: number }).amount === "number"
         ? (raw as { amount: number }).amount / 100
         : 0;
-  const tickets = Array.isArray(raw.tickets)
-    ? raw.tickets
-    : Array.isArray(raw.orderItems)
-      ? raw.orderItems
-      : [];
+  const tickets = getOrderLineItems(raw as { orderItems?: unknown[]; tickets?: unknown[] });
   const rawWhen = raw.createdAt ?? raw.orderDate;
   const createdAt =
     typeof rawWhen === "string"
@@ -177,7 +180,7 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
 
           const eventIds = new Set<string>();
           normalized.forEach((o) => {
-            (o.tickets ?? []).forEach((t) => {
+            getOrderLineItems(o).forEach((t) => {
               const eid = getEventIdFromOrderLineItem(t);
               if (eid) eventIds.add(eid);
             });
@@ -195,13 +198,13 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
           );
 
           normalized.forEach((o) => {
-            const firstEventId = getEventIdFromOrderLineItem((o.tickets ?? [])[0]);
+            const lineItems = getOrderLineItems(o);
+            const firstEventId = getEventIdFromOrderLineItem(lineItems[0]);
             const event = firstEventId ? eventsMap[firstEventId] : undefined;
             o._event = event;
-            if (event?.startTime) {
-              const d = new Date(event.startTime);
-              o._eventDate = Number.isNaN(d.getTime()) ? undefined : d;
-            }
+            o._eventDate = resolveOrderEventDate(o, event);
+            o._eventEndDate = resolveOrderEventEndDate(o, event);
+            o._orderDate = parseApiDateTime(o.createdAt);
           });
 
           if (!cancelled) setOrders(normalized);
@@ -222,7 +225,7 @@ export function OrderHistoryScreen({ navigation }: { navigation: any }) {
     const up: OrderWithMeta[] = [];
     const pa: OrderWithMeta[] = [];
     orders.forEach((o) => {
-      if (o._eventDate && o._eventDate >= now) up.push(o);
+      if (isUpcomingOrder(o._eventDate, o._eventEndDate, o.status, now)) up.push(o);
       else pa.push(o);
     });
     up.sort((a, b) => (a._eventDate && b._eventDate ? a._eventDate.getTime() - b._eventDate.getTime() : 0));

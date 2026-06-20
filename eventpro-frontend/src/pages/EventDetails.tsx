@@ -22,7 +22,7 @@ import { usePreferences } from "@/contexts/PreferencesContext";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { getEventImageUrl, getPromotionalVideoEmbedUrl } from "@/lib/utils";
-import { formatTicketTypeName } from "@eventpro/shared";
+import { formatTicketTypeName, isEventEnded } from "@eventpro/shared";
 import { SeatingMap, generateSampleSeats, Seat } from "@/components/SeatingMap";
 import { ShareActionsContainer } from "@/components/ShareActions";
 import { LiveAttendanceBadge, useSimulatedViewers } from "@/components/LiveAttendanceBadge";
@@ -118,6 +118,8 @@ const EventDetails = () => {
     if (!prices.length) return null;
     return Math.min(...prices);
   }, [ticketTypes, hasReservedSeating, seatsFromApi]);
+
+  const eventEnded = useMemo(() => (event ? isEventEnded(event) : false), [event]);
 
   useEffect(() => {
     if (id) {
@@ -226,6 +228,10 @@ const EventDetails = () => {
   };
 
   const handleAddToCart = async (ticketType: TicketType, silent = false) => {
+    if (eventEnded) {
+      if (!silent) toast.error("This event has ended. Tickets are no longer available.");
+      return false;
+    }
     const quantity = quantities[ticketType.id] || 0;
     const quantityToAdd = Math.min(quantity, ticketType.availableQuantity ?? 0);
     if (quantityToAdd > 0) {
@@ -295,6 +301,10 @@ const EventDetails = () => {
   };
 
   const handleAddSeatsToCart = async () => {
+    if (eventEnded) {
+      toast.error("This event has ended. Tickets are no longer available.");
+      return;
+    }
     if (selectedSeats.length > 0 && event) {
       const selectedSeatIds = new Set(selectedSeats.map((seat) => seat.id));
       setSeatResponses((prev) =>
@@ -446,6 +456,7 @@ const EventDetails = () => {
                   </p>
                 </div>
               </div>
+              {!eventEnded && (minTicketPrice != null || ticketTypes.length > 0 || showSeatingTab) && (
               <Button
                 type="button"
                 size="lg"
@@ -455,6 +466,10 @@ const EventDetails = () => {
                 Get tickets
                 {minTicketPrice != null && ` — From $${minTicketPrice.toFixed(0)}`}
               </Button>
+              )}
+              {eventEnded && (
+                <p className="text-sm text-muted-foreground font-medium">This event has ended. Ticket sales are closed.</p>
+              )}
             </div>
           </div>
         </div>
@@ -703,26 +718,41 @@ const EventDetails = () => {
           <div id="event-tickets" className="space-y-4 scroll-mt-24">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <h2 className="text-2xl font-bold">Tickets</h2>
-              {/* Live badge — nudge next to CTA area */}
-              <LiveAttendanceBadge
-                placement="details"
-                variant={
-                  ticketTypes.length > 0 && ticketsLeft > 0 && ticketsLeft <= 15
-                    ? "urgency"
-                    : ticketTypes.length > 0 && ticketsSold > 0
-                      ? "sold"
-                      : "viewing"
-                }
-                count={
-                  ticketTypes.length > 0 && ticketsLeft > 0 && ticketsLeft <= 15
-                    ? ticketsLeft
-                    : ticketTypes.length > 0 && ticketsSold > 0
-                      ? ticketsSold
-                      : viewers
-                }
-              />
+              {!eventEnded && (
+                <LiveAttendanceBadge
+                  placement="details"
+                  variant={
+                    ticketTypes.length > 0 && ticketsLeft > 0 && ticketsLeft <= 15
+                      ? "urgency"
+                      : ticketTypes.length > 0 && ticketsSold > 0
+                        ? "sold"
+                        : "viewing"
+                  }
+                  count={
+                    ticketTypes.length > 0 && ticketsLeft > 0 && ticketsLeft <= 15
+                      ? ticketsLeft
+                      : ticketTypes.length > 0 && ticketsSold > 0
+                        ? ticketsSold
+                        : viewers
+                  }
+                />
+              )}
             </div>
 
+            {eventEnded ? (
+              <Card className="p-6 text-center">
+                <Ticket className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-muted-foreground">This event has ended. Ticket sales are closed.</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Already purchased? View your tickets under{" "}
+                  <Link to="/orders" className="text-primary font-semibold hover:underline">
+                    My Tickets → Past Events
+                  </Link>
+                  .
+                </p>
+              </Card>
+            ) : (
+            <>
             {/* Tabs: General Admission and/or Select Seats (when event has reserved seating) */}
             <Tabs value={ticketMode} onValueChange={(v) => setTicketMode(v as "general" | "seating")}>
               <TabsList className={ticketTypes.length > 0 && showSeatingTab ? "grid w-full grid-cols-2" : ""}>
@@ -841,6 +871,8 @@ const EventDetails = () => {
                 )}
               </TabsContent>
             </Tabs>
+            </>
+            )}
           </div>
 
           {/* More from this organizer — full-width row */}

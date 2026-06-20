@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
-import { getEventIdFromOrderLineItem, getOrderLineItems, getQrCodeFromOrderLineItem, type Order, type Event } from "@eventpro/shared";
+import { getEventIdFromOrderLineItem, getOrderLineItems, getQrCodeFromOrderLineItem, resolveOrderEventDate, resolveOrderEventEndDate, isUpcomingOrder, parseApiDateTime, type Order, type Event } from "@eventpro/shared";
 import type { Theme } from "../theme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -20,6 +20,8 @@ type OrderWithMeta = Order & {
   _dateLabel?: string;
   _event?: Event;
   _eventDate?: Date;
+  _eventEndDate?: Date;
+  _orderDate?: Date;
 };
 
 function normalizeOrder(raw: Record<string, unknown>): OrderWithMeta {
@@ -120,7 +122,7 @@ export function MyWalletScreen({ navigation }: { navigation: any }) {
 
         const eventIds = new Set<string>();
         normalized.forEach((o) => {
-          (o.tickets ?? []).forEach((t) => {
+          getOrderLineItems(o).forEach((t) => {
             const id = getEventIdFromOrderLineItem(t);
             if (id) eventIds.add(id);
           });
@@ -138,13 +140,13 @@ export function MyWalletScreen({ navigation }: { navigation: any }) {
         );
 
         normalized.forEach((o) => {
-          const firstEventId = getEventIdFromOrderLineItem((o.tickets ?? [])[0]);
+          const lineItems = getOrderLineItems(o);
+          const firstEventId = getEventIdFromOrderLineItem(lineItems[0]);
           const event = firstEventId ? eventsMap[firstEventId] : undefined;
           o._event = event;
-          if (event?.startTime) {
-            const d = new Date(event.startTime);
-            o._eventDate = Number.isNaN(d.getTime()) ? undefined : d;
-          }
+          o._eventDate = resolveOrderEventDate(o, event);
+          o._eventEndDate = resolveOrderEventEndDate(o, event);
+          o._orderDate = parseApiDateTime(o.createdAt);
         });
 
         if (!cancelled) setOrders(normalized);
@@ -164,7 +166,7 @@ export function MyWalletScreen({ navigation }: { navigation: any }) {
     const up: OrderWithMeta[] = [];
     const pa: OrderWithMeta[] = [];
     orders.forEach((o) => {
-      if (o._eventDate && o._eventDate >= now) up.push(o);
+      if (isUpcomingOrder(o._eventDate, o._eventEndDate, o.status, now)) up.push(o);
       else pa.push(o);
     });
     up.sort((a, b) => (a._eventDate && b._eventDate ? a._eventDate.getTime() - b._eventDate.getTime() : 0));

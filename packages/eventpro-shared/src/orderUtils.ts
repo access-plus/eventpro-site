@@ -81,3 +81,86 @@ export function parseOrderTimestamp(raw: unknown): string {
   }
   return "";
 }
+
+/** Parse API date/time fields (ISO string or Jackson LocalDateTime array) to Date. */
+export function parseApiDateTime(raw: unknown): Date | undefined {
+  const iso = parseOrderTimestamp(raw);
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+/** Event start time from a nested ticket on an order line item. */
+export function getEventDateFromOrderLineItem(item: unknown): Date | undefined {
+  if (!item || typeof item !== "object") return undefined;
+  const nested = (item as Record<string, unknown>).ticket;
+  if (!nested || typeof nested !== "object") return undefined;
+  const t = nested as Record<string, unknown>;
+  return parseApiDateTime(t.startTime ?? t.startDateTime);
+}
+
+/** Event end time from a nested ticket on an order line item. */
+export function getEventEndFromOrderLineItem(item: unknown): Date | undefined {
+  if (!item || typeof item !== "object") return undefined;
+  const nested = (item as Record<string, unknown>).ticket;
+  if (!nested || typeof nested !== "object") return undefined;
+  const t = nested as Record<string, unknown>;
+  return parseApiDateTime(t.endTime ?? t.endDateTime);
+}
+
+/** Best-effort event start date for an order (event API fields, then line-item ticket times). */
+export function resolveOrderEventDate(
+  order: { orderItems?: unknown[]; tickets?: unknown[] },
+  event?: { startTime?: unknown; startDateTime?: unknown } | null
+): Date | undefined {
+  const fromEvent = parseApiDateTime(event?.startTime ?? event?.startDateTime);
+  if (fromEvent) return fromEvent;
+  for (const item of getOrderLineItems(order)) {
+    const fromTicket = getEventDateFromOrderLineItem(item);
+    if (fromTicket) return fromTicket;
+  }
+  return undefined;
+}
+
+/** Best-effort event end date for an order. */
+export function resolveOrderEventEndDate(
+  order: { orderItems?: unknown[]; tickets?: unknown[] },
+  event?: { endTime?: unknown; endDateTime?: unknown } | null
+): Date | undefined {
+  const fromEvent = parseApiDateTime(event?.endTime ?? event?.endDateTime);
+  if (fromEvent) return fromEvent;
+  for (const item of getOrderLineItems(order)) {
+    const fromTicket = getEventEndFromOrderLineItem(item);
+    if (fromTicket) return fromTicket;
+  }
+  return undefined;
+}
+
+/** Whether an event's ticket sales window has closed (end time preferred, else start time). */
+export function isEventEnded(
+  event?: { endTime?: unknown; endDateTime?: unknown; startTime?: unknown; startDateTime?: unknown } | null,
+  now = new Date()
+): boolean {
+  const end = parseApiDateTime(event?.endTime ?? event?.endDateTime);
+  if (end) return end < now;
+  const start = parseApiDateTime(event?.startTime ?? event?.startDateTime);
+  if (start) return start < now;
+  return false;
+}
+
+/**
+ * Upcoming tickets: event has not ended yet. Cancelled/refunded orders always go to Past.
+ */
+export function isUpcomingOrder(
+  eventStart: Date | undefined,
+  eventEnd: Date | undefined,
+  orderStatus?: string,
+  now = new Date()
+): boolean {
+  const status = (orderStatus ?? "").toUpperCase();
+  if (status === "CANCELLED" || status === "REFUNDED") return false;
+
+  if (eventEnd) return eventEnd >= now;
+  if (eventStart) return eventStart >= now;
+  return true;
+}

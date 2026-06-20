@@ -6,6 +6,8 @@ import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.UserRepository;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
+import com.accessplus.eventpro.event.event.entity.EventEntity;
+import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.ticket.repository.TicketRepository;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.order.cart.entity.CartEntity;
@@ -48,6 +50,7 @@ public class CartServiceImpl implements CartService {
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final TicketService ticketService;
+    private final EventRepository eventRepository;
 
     /**
      * Adds a ticket to the user's cart.
@@ -74,6 +77,8 @@ public class CartServiceImpl implements CartService {
             throw new IllegalStateException(
                     String.format("Ticket is not available. Current status: %s", ticket.getTicketStatus()));
         }
+
+        assertEventAcceptingTicketSales(ticket);
 
         // Check if item already exists in cart
         CartEntity existingCartItem = cartRepository.findByUserAndTicket(user, ticket)
@@ -321,5 +326,21 @@ public class CartServiceImpl implements CartService {
             log.info("Removed {} stale cart row(s) pointing at AVAILABLE tickets (orphans)", deleted);
         }
         return deleted;
+    }
+
+    private void assertEventAcceptingTicketSales(TicketEntity ticket) {
+        LocalDateTime now = LocalDateTime.now();
+        if (ticket.getEndTime() != null && ticket.getEndTime().isBefore(now)) {
+            throw new ValidationException("This event has ended. Tickets are no longer available for purchase.");
+        }
+        UUID eventId = ticket.getEventId();
+        if (eventId == null) {
+            return;
+        }
+        EventEntity event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", eventId.toString()));
+        if (event.getEndTime() != null && event.getEndTime().isBefore(now)) {
+            throw new ValidationException("This event has ended. Tickets are no longer available for purchase.");
+        }
     }
 }

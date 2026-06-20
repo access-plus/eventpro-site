@@ -484,7 +484,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderEntity getOrderById(UUID orderId) {
         log.debug("Getting order by ID: {}", orderId);
 
-        return orderRepository.findById(orderId)
+        return orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", orderId.toString()));
     }
 

@@ -14,6 +14,13 @@ export {
   getOrderLineItems,
   getTicketQuantityFromOrderItems,
   parseOrderTimestamp,
+  parseApiDateTime,
+  getEventDateFromOrderLineItem,
+  getEventEndFromOrderLineItem,
+  resolveOrderEventDate,
+  resolveOrderEventEndDate,
+  isUpcomingOrder,
+  isEventEnded,
 } from "./orderUtils";
 export { createEventProApi } from "./createApiClient";
 export type { EventProApiConfig, EventProApi } from "./createApiClient";

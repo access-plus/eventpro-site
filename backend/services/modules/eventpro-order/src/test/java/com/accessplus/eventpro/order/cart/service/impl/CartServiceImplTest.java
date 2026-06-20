@@ -6,6 +6,8 @@ import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.UserRepository;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import com.accessplus.eventpro.shared.enums.TicketStatus;
+import com.accessplus.eventpro.event.event.entity.EventEntity;
+import com.accessplus.eventpro.event.event.repository.EventRepository;
 import com.accessplus.eventpro.event.ticket.repository.TicketRepository;
 import com.accessplus.eventpro.event.ticket.service.TicketService;
 import com.accessplus.eventpro.order.cart.entity.CartEntity;
@@ -47,11 +49,15 @@ class CartServiceImplTest {
     @Mock
     private TicketService ticketService;
 
+    @Mock
+    private EventRepository eventRepository;
+
     @InjectMocks
     private CartServiceImpl cartService;
 
     private UUID userId;
     private UUID ticketId;
+    private UUID eventId;
     private UserEntity user;
     private TicketEntity ticket;
     private CartEntity cartItem;
@@ -60,6 +66,7 @@ class CartServiceImplTest {
     void setUp() {
         userId = UUID.randomUUID();
         ticketId = UUID.randomUUID();
+        eventId = UUID.randomUUID();
 
         user = new UserEntity();
         user.setId(userId);
@@ -72,6 +79,12 @@ class CartServiceImplTest {
         ticket.setName("Test Ticket");
         ticket.setPrice(new BigDecimal("50.00"));
         ticket.setTicketStatus(TicketStatus.AVAILABLE);
+        ticket.setEventId(eventId);
+
+        EventEntity event = new EventEntity();
+        event.setId(eventId);
+        event.setEndTime(LocalDateTime.now().plusDays(7));
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 
         cartItem = new CartEntity();
         cartItem.setId(UUID.randomUUID());
