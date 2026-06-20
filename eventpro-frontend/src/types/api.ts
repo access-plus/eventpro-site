@@ -510,6 +510,24 @@ export interface CreatePaymentIntentRequest {
   amount: number;
 }
 
+/** Electric Wallet balance for authenticated users. */
+export interface WalletBalance {
+  balance: number;
+  currency: string;
+}
+
+/** One row in the Electric Wallet ledger. */
+export interface WalletLedgerEntry {
+  id: string;
+  amount: number;
+  entryType: "CREDIT" | "DEBIT";
+  referenceType: string;
+  referenceId?: string;
+  description?: string;
+  balanceAfter: number;
+  createdAt: string;
+}
+
 /** Guest checkout: confirm payment and create order (no account). */
 export interface GuestConfirmPaymentRequest {
   paymentIntentId: string;
@@ -528,6 +546,8 @@ export interface GuestConfirmPaymentRequest {
   receiveTicketViaWhatsApp?: boolean;
   /** Optional: send ticket via SMS. */
   receiveTicketViaSMS?: boolean;
+  /** Optional: phone number for SMS / WhatsApp ticket delivery. */
+  phone?: string;
   /** Optional: buyer state (e.g. CA, NY) for sales tax. */
   state?: string;
   /** Optional: buyer country (e.g. US). */
@@ -538,7 +558,6 @@ export interface GuestConfirmPaymentRequest {
 
 /** Options for "How did you hear about this event?" (cultural taxonomy). */
 export const HOW_DID_YOU_HEAR_OPTIONS = [
-  { value: "", label: "Select (optional)" },
   { value: "social_media", label: "Social media" },
   { value: "friend_family", label: "Friend or family" },
   { value: "search", label: "Search / Google" },

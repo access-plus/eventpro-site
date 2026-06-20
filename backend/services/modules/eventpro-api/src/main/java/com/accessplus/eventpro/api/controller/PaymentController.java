@@ -7,6 +7,7 @@ import com.accessplus.eventpro.api.dto.CreatePaymentIntentRequest;
 import com.accessplus.eventpro.api.dto.GuestConfirmPaymentRequest;
 import com.accessplus.eventpro.api.dto.GuestReserveRequest;
 import com.accessplus.eventpro.api.dto.OrderResponse;
+import com.accessplus.eventpro.api.service.CheckoutPaymentOrchestrationService;
 import com.accessplus.eventpro.api.notification.service.NotificationPreferenceService;
 import com.accessplus.eventpro.api.notification.service.UserNotificationService;
 import com.accessplus.eventpro.core.notification.service.NotificationService;
@@ -65,6 +66,7 @@ public class PaymentController extends BaseController {
     private final NotificationPreferenceService notificationPreferenceService;
     private final EventService eventService;
     private final UserService userService;
+    private final CheckoutPaymentOrchestrationService checkoutPaymentOrchestrationService;
 
     @GetMapping("/checkout-totals")
     @Operation(summary = "Checkout totals with tax", description = "Returns subtotal, tax rate, tax amount, and total. Pass state (e.g. CA) and country (e.g. US) for jurisdiction-based tax; otherwise uses default rate. Use total for create-intent when tax > 0.")
@@ -168,7 +170,7 @@ public class PaymentController extends BaseController {
                     }
                 }
             }
-            var order = paymentService.processPayment(userId, request.getPaymentIntentId(), taxAmount, state, country);
+            var order = checkoutPaymentOrchestrationService.confirmAuthenticatedPayment(userId, request, taxAmount);
             OrderResponse response = OrderResponse.fromEntity(order);
 
             sendOrderConfirmationNotification(order, userId, null);
@@ -227,9 +229,25 @@ public class PaymentController extends BaseController {
                     request.getTaxAmount(),
                     state,
                     country);
+            if (request.getHowDidYouHear() != null || request.getPhone() != null
+                    || Boolean.TRUE.equals(request.getReceiveTicketViaWhatsApp())
+                    || Boolean.TRUE.equals(request.getReceiveTicketViaSMS())) {
+                order = orderService.updateCheckoutMetadata(
+                        order.getId(),
+                        request.getPhone(),
+                        request.getHowDidYouHear(),
+                        request.getReceiveTicketViaWhatsApp(),
+                        request.getReceiveTicketViaSMS());
+            }
             OrderResponse response = OrderResponse.fromEntity(order);
 
             sendOrderConfirmationNotification(order, null, request.getEmail());
+            if (Boolean.TRUE.equals(request.getReceiveTicketViaSMS()) && request.getPhone() != null && !request.getPhone().isBlank()) {
+                log.info("Ticket SMS delivery requested for order {} to {}", order.getOrderNumber(), request.getPhone());
+            }
+            if (Boolean.TRUE.equals(request.getReceiveTicketViaWhatsApp()) && request.getPhone() != null && !request.getPhone().isBlank()) {
+                log.info("Ticket WhatsApp delivery requested for order {} to {}", order.getOrderNumber(), request.getPhone());
+            }
 
             return ResponseEntity.ok(ApiResponse.success(response, "Payment confirmed and order created successfully"));
         } catch (Exception e) {

@@ -366,7 +366,7 @@ const Home = () => {
               selectedCategory={selectedCategory}
               onCategoryChange={setSelectedCategory}
               variant="editorial"
-              showCultural={false}
+              showCultural={true}
               hideIcons
             />
           </div>

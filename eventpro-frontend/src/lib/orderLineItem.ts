@@ -1,6 +1,9 @@
 export {
   getEventIdFromOrderLineItem,
+  getTicketIdFromOrderLineItem,
+  getQrCodeFromOrderLineItem,
   getTicketQuantityFromOrderItems,
+  expandOrderLineItems,
   parseOrderTimestamp,
   parseApiDateTime,
   getOrderLineItems,

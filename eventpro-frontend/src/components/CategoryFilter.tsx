@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { STANDARD_EVENT_CATEGORIES, CULTURAL_EVENT_CATEGORIES } from "@eventpro/shared";
+import { STANDARD_EVENT_CATEGORIES, CULTURAL_EVENT_CATEGORIES, EVENT_FORM_CATEGORIES } from "@eventpro/shared";
 import { 
   Music, Trophy, Monitor, Briefcase, Palette, UtensilsCrossed, Heart, 
   GraduationCap, Sparkles, MoreHorizontal, PartyPopper, Flag, Film, 
@@ -27,6 +27,9 @@ const CATEGORY_BORDERS: Record<string, string> = {
   "Caribbean Night": "border-yellow-400/70 hover:border-yellow-400",
   "Latin Fiesta": "border-red-400/70 hover:border-red-400",
   Other: "border-primary/60 hover:border-primary",
+  Conference: "border-blue-400/70 hover:border-blue-400",
+  Comedy: "border-yellow-400/70 hover:border-yellow-400",
+  Theater: "border-rose-400/70 hover:border-rose-400",
 };
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
@@ -50,14 +53,14 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "Afrobeat Concert": Music,
   "Caribbean Night": Music,
   "Latin Fiesta": Utensils,
+  Conference: Monitor,
+  Comedy: Sparkles,
+  Theater: Film,
   Other: MoreHorizontal,
 };
 
-// Standard event categories
-const STANDARD_CATEGORIES = [...STANDARD_EVENT_CATEGORIES];
-
-// Cultural taxonomy categories from the design document
-const CULTURAL_CATEGORIES = [...CULTURAL_EVENT_CATEGORIES];
+// All discovery categories (matches event creation form + DB seed)
+const DISCOVERY_CATEGORIES = [...EVENT_FORM_CATEGORIES];
 
 interface CategoryFilterProps {
   selectedCategory: string | null;
@@ -78,9 +81,9 @@ export const CategoryFilter = ({
   variant = "glass",
   hideIcons = false,
 }: CategoryFilterProps) => {
-  const categories = showCultural 
-    ? [...STANDARD_CATEGORIES, ...CULTURAL_CATEGORIES, "Other"]
-    : [...STANDARD_CATEGORIES, "Other"];
+  const categories = showCultural
+    ? DISCOVERY_CATEGORIES
+    : [...STANDARD_EVENT_CATEGORIES, "Other"];
 
   if (variant === "editorial") {
     return (
@@ -138,7 +141,7 @@ export const CategoryFilter = ({
         {categories.map((category) => {
           const Icon = CATEGORY_ICONS[category] || MoreHorizontal;
           const isSelected = selectedCategory === category;
-          const isCultural = CULTURAL_CATEGORIES.includes(category);
+          const isCultural = CULTURAL_EVENT_CATEGORIES.includes(category as (typeof CULTURAL_EVENT_CATEGORIES)[number]);
           const borderClass = CATEGORY_BORDERS[category] ?? "border-primary/60 hover:border-primary";
           const glass = "bg-white/15 dark:bg-white/10 backdrop-blur-md";
           const selectedClass = "bg-primary text-primary-foreground shadow-md shadow-primary/30 border-primary";

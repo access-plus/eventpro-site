@@ -40,6 +40,8 @@ import type {
   UserNotification,
   NotificationPreferences,
   FollowedOrganizer,
+  WalletBalance,
+  WalletLedgerEntry,
 } from "@/types/api";
 
 class ApiService {
@@ -402,12 +404,56 @@ class ApiService {
     return response.data.data;
   }
 
-  /** Confirm payment for authenticated user (creates order from cart). Optional state/country for sales tax jurisdiction. */
-  async confirmPayment(paymentIntentId: string, state?: string, country?: string): Promise<Order> {
-    const body: { paymentIntentId: string; state?: string; country?: string } = { paymentIntentId };
-    if (state != null && state.trim()) body.state = state.trim();
-    if (country != null && country.trim()) body.country = country.trim();
+  /** Confirm payment for authenticated user (creates order from cart). Optional walletAmount for Electric Wallet credits. */
+  async confirmPayment(
+    paymentIntentId: string | undefined,
+    options?: { walletAmount?: number; state?: string; country?: string }
+  ): Promise<Order> {
+    const body: {
+      paymentIntentId?: string;
+      walletAmount?: number;
+      state?: string;
+      country?: string;
+    } = {};
+    if (paymentIntentId?.trim()) body.paymentIntentId = paymentIntentId.trim();
+    if (options?.walletAmount != null && options.walletAmount > 0) {
+      body.walletAmount = Number(options.walletAmount.toFixed(2));
+    }
+    if (options?.state?.trim()) body.state = options.state.trim();
+    if (options?.country?.trim()) body.country = options.country.trim();
     const response = await this.api.post<ApiResponse<Order>>("/api/v1/payments/confirm", body);
+    return response.data.data;
+  }
+
+  async getWallet(): Promise<WalletBalance> {
+    const response = await this.api.get<ApiResponse<WalletBalance>>("/api/v1/wallet");
+    const data = response.data.data;
+    return {
+      balance: Number(data?.balance ?? 0),
+      currency: data?.currency ?? "USD",
+    };
+  }
+
+  async getWalletLedger(page = 0, size = 20): Promise<PageResponse<WalletLedgerEntry>> {
+    const response = await this.api.get<ApiResponse<PageResponse<WalletLedgerEntry>>>("/api/v1/wallet/ledger", {
+      params: { page, size },
+    });
+    const pageData = response.data.data;
+    return {
+      content: (pageData?.content ?? []).map((e) => ({
+        ...e,
+        amount: Number(e.amount),
+        balanceAfter: Number(e.balanceAfter),
+      })),
+      totalElements: pageData?.totalElements ?? 0,
+      totalPages: pageData?.totalPages ?? 0,
+      size: pageData?.size ?? size,
+      number: pageData?.number ?? page,
+    };
+  }
+
+  async requestOrderRefund(orderId: string): Promise<Order> {
+    const response = await this.api.post<ApiResponse<Order>>(`/api/v1/orders/${orderId}/refund`);
     return response.data.data;
   }
 

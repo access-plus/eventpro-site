@@ -108,6 +108,13 @@ export function GuestCheckoutFormBento({
             showValid={emailValid}
             error={errors.email}
           />
+          <GlassInput
+            label="Phone (optional — for SMS / WhatsApp tickets)"
+            type="tel"
+            value={guestInfo.phone}
+            onChange={(e) => updateGuest({ phone: e.target.value })}
+            error={errors.phone}
+          />
         </div>
 
         {/* Bento: Security box */}

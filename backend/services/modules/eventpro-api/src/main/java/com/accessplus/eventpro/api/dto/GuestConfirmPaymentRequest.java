@@ -53,6 +53,9 @@ public class GuestConfirmPaymentRequest {
     /** Optional: send ticket via SMS when true. */
     private Boolean receiveTicketViaSMS;
 
+    /** Optional: phone number for SMS / WhatsApp ticket delivery. */
+    private String phone;
+
     /** Optional: buyer state (e.g. CA, NY) for sales tax jurisdiction. */
     private String state;
 

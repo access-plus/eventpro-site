@@ -668,4 +668,40 @@ public class OrderServiceImpl implements OrderService {
             }
         }
     }
+
+    @Override
+    public OrderEntity updateCheckoutMetadata(UUID orderId, String guestPhone, String howDidYouHear,
+                                              Boolean receiveTicketViaWhatsApp, Boolean receiveTicketViaSms) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ValidationException("Order not found: " + orderId));
+        if (guestPhone != null && !guestPhone.isBlank()) {
+            order.setGuestPhone(guestPhone.trim());
+        }
+        if (howDidYouHear != null && !howDidYouHear.isBlank()) {
+            order.setHowDidYouHear(howDidYouHear.trim());
+        }
+        if (receiveTicketViaWhatsApp != null) {
+            order.setReceiveTicketViaWhatsApp(receiveTicketViaWhatsApp);
+        }
+        if (receiveTicketViaSms != null) {
+            order.setReceiveTicketViaSms(receiveTicketViaSms);
+        }
+        return orderRepository.save(order);
+    }
+
+    @Override
+    public OrderEntity updatePaymentDetails(UUID orderId, String paymentIntentId, BigDecimal walletAmount, String paymentMethod) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ValidationException("Order not found: " + orderId));
+        if (paymentIntentId != null && !paymentIntentId.isBlank()) {
+            order.setPaymentIntentId(paymentIntentId.trim());
+        }
+        if (walletAmount != null && walletAmount.compareTo(BigDecimal.ZERO) >= 0) {
+            order.setWalletAmount(walletAmount);
+        }
+        if (paymentMethod != null && !paymentMethod.isBlank()) {
+            order.setPaymentMethod(paymentMethod.trim().toUpperCase());
+        }
+        return orderRepository.save(order);
+    }
 }

@@ -20,14 +20,35 @@ import {
   Ticket,
   ChevronRight,
   Bell,
+  Wallet,
 } from "lucide-react";
+import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { PageShell } from "@/components/PageShell";
+import type { WalletBalance, WalletLedgerEntry } from "@/types/api";
 
 const Settings = () => {
   const { logout, isAuthenticated } = useAuth();
   const { clearRecentlyViewed, notificationPreferences, setNotificationPreferences } = usePreferences();
   const [prefsLoading, setPrefsLoading] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<WalletBalance | null>(null);
+  const [walletLedger, setWalletLedger] = useState<WalletLedgerEntry[]>([]);
+  const [walletLoading, setWalletLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    setWalletLoading(true);
+    Promise.all([apiService.getWallet(), apiService.getWalletLedger(0, 8)])
+      .then(([balance, ledgerPage]) => {
+        setWalletBalance(balance);
+        setWalletLedger(ledgerPage.content ?? []);
+      })
+      .catch(() => {
+        setWalletBalance({ balance: 0, currency: "USD" });
+        setWalletLedger([]);
+      })
+      .finally(() => setWalletLoading(false));
+  }, [isAuthenticated]);
 
   // Sync in-app preference from API when logged in
   useEffect(() => {
@@ -98,6 +119,73 @@ const Settings = () => {
               </Button>
             </CardContent>
           </Card>
+
+          {isAuthenticated && (
+            <Card id="electric-wallet" className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-headline text-lg">
+                  <Wallet className="h-5 w-5 text-primary" />
+                  Electric Wallet
+                </CardTitle>
+                <CardDescription>
+                  Store credit from refunds — apply at checkout on your next purchase.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-2xl border border-primary/15 bg-primary/8 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Available balance
+                  </p>
+                  <p className="text-3xl font-extrabold tabular-nums text-foreground">
+                    {walletLoading
+                      ? "…"
+                      : `$${(walletBalance?.balance ?? 0).toFixed(2)}`}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {walletBalance?.currency ?? "USD"} · Credits appear when an order is refunded
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground mb-2">Recent activity</p>
+                  {walletLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading…</p>
+                  ) : walletLedger.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No wallet activity yet.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {walletLedger.map((entry) => (
+                        <li
+                          key={entry.id}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-sm"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">
+                              {entry.description ?? entry.referenceType.replace(/_/g, " ")}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {entry.createdAt
+                                ? format(new Date(entry.createdAt), "MMM d, yyyy · h:mm a")
+                                : "—"}
+                            </p>
+                          </div>
+                          <span
+                            className={`font-bold tabular-nums shrink-0 ${
+                              entry.entryType === "CREDIT" ? "text-emerald-600" : "text-foreground"
+                            }`}
+                          >
+                            {entry.entryType === "CREDIT" ? "+" : "−"}${entry.amount.toFixed(2)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link to="/orders">Use credits at checkout</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Notifications */}
           <Card id="notifications" className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
