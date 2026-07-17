@@ -103,12 +103,12 @@ public class NotificationSenderService {
 
     private String getEmailSubject(String messageType) {
         return switch (messageType) {
-            case "ORDER_CONFIRMATION", "PAYMENT_SUCCESS" -> "Order Confirmation - EventPro";
-            case "PAYMENT_FAILED" -> "Payment Failed - EventPro";
-            case "EVENT_REMINDER" -> "Event Reminder - EventPro";
-            case "TICKET_READY" -> "Your Tickets Are Ready - EventPro";
-            case "SYSTEM_ANNOUNCEMENT" -> "EventPro Announcement";
-            default -> "Notification from EventPro";
+            case "ORDER_CONFIRMATION", "PAYMENT_SUCCESS" -> "Order Confirmation - KanamEvents";
+            case "PAYMENT_FAILED" -> "Payment Failed - KanamEvents";
+            case "EVENT_REMINDER" -> "Event Reminder - KanamEvents";
+            case "TICKET_READY" -> "Your Tickets Are Ready - KanamEvents";
+            case "SYSTEM_ANNOUNCEMENT" -> "KanamEvents Announcement";
+            default -> "Notification from KanamEvents";
         };
     }
 
@@ -151,7 +151,7 @@ public class NotificationSenderService {
                 body.append("Your tickets are ready for download!").append(lineBreak).append(lineBreak);
                 body.append("You can download your tickets from your account.").append(lineBreak);
             }
-            default -> body.append("You have a new notification from EventPro.").append(lineBreak);
+            default -> body.append("You have a new notification from KanamEvents.").append(lineBreak);
         }
 
         if (html) {
@@ -166,7 +166,7 @@ public class NotificationSenderService {
         Map<String, Object> templateData = payload.getTemplateData();
 
         StringBuilder body = new StringBuilder();
-        body.append("EventPro: ");
+        body.append("KanamEvents: ");
 
         switch (message.getMessageType()) {
             case "ORDER_CONFIRMATION", "PAYMENT_SUCCESS" -> {

@@ -207,7 +207,7 @@ export function CheckInScannerPanel() {
           </SheetTrigger>
           <SheetContent side="left" className="w-[280px]">
             <SheetHeader>
-              <SheetTitle>EventPro</SheetTitle>
+              <SheetTitle>KanamEvents</SheetTitle>
             </SheetHeader>
             <nav className="flex flex-col gap-3 mt-6 text-sm font-medium">
               <Link to="/organizer">Organizer</Link>
@@ -216,7 +216,7 @@ export function CheckInScannerPanel() {
             </nav>
           </SheetContent>
         </Sheet>
-        <span className="font-bold font-headline text-lg">EventPro</span>
+        <span className="font-bold font-headline text-lg">KanamEvents</span>
         <Avatar className="h-9 w-9 ring-2 ring-primary/15">
           {user?.profilePictureUrl ? <AvatarImage src={user.profilePictureUrl} alt="" /> : null}
           <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">

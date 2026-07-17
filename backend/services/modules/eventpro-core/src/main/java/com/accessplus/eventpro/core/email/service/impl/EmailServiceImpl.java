@@ -22,7 +22,7 @@ public class EmailServiceImpl implements EmailService {
     @Value("${aws.ses.region:us-east-1}")
     private String awsRegion;
     
-    @Value("${aws.ses.fromEmail:noreply@eventpro.com}")
+    @Value("${aws.ses.fromEmail:noreply@kanamevents.com}")
     private String fromEmail;
 
     @Value("${aws.ses.endpoint:}")
@@ -48,13 +48,13 @@ public class EmailServiceImpl implements EmailService {
         log.info("Sending password reset confirmation email to: {}", email);
         
         try {
-            String subject = "Password Reset Confirmation - EventPro";
+            String subject = "Password Reset Confirmation - KanamEvents";
             String bodyText = String.format(
                     "Your password has been successfully reset.\n\n" +
                     "Verification Code: %s\n\n" +
                     "If you did not request this password reset, please contact support immediately.\n\n" +
                     "Thank you,\n" +
-                    "EventPro Team",
+                    "KanamEvents Team",
                     code
             );
             
@@ -64,7 +64,7 @@ public class EmailServiceImpl implements EmailService {
                     "<p>Your password has been successfully reset.</p>" +
                     "<p><strong>Verification Code:</strong> %s</p>" +
                     "<p>If you did not request this password reset, please contact support immediately.</p>" +
-                    "<p>Thank you,<br>EventPro Team</p>" +
+                    "<p>Thank you,<br>KanamEvents Team</p>" +
                     "</body></html>",
                     code
             );
@@ -117,9 +117,9 @@ public class EmailServiceImpl implements EmailService {
                 "Order number: %s\n" +
                 "Event: %s\n" +
                 "Total: $%s\n\n" +
-                "You can view and manage your tickets in the EventPro app or by logging into your account.\n\n" +
+                "You can view and manage your tickets in the KanamEvents app or by logging into your account.\n\n" +
                 "Thank you,\n" +
-                "EventPro Team",
+                "KanamEvents Team",
                 displayName, orderNumber, eventLabel, totalStr
         );
         String bodyHtml = String.format(
@@ -132,8 +132,8 @@ public class EmailServiceImpl implements EmailService {
                 "<tr><td style=\"padding: 6px 12px 6px 0; color: #666;\">Event</td><td style=\"padding: 6px 0;\">%s</td></tr>" +
                 "<tr><td style=\"padding: 6px 12px 6px 0; color: #666;\">Total</td><td style=\"padding: 6px 0;\">$%s</td></tr>" +
                 "</table>" +
-                "<p>You can view and manage your tickets in the EventPro app or by logging into your account.</p>" +
-                "<p>Thank you,<br>EventPro Team</p>" +
+                "<p>You can view and manage your tickets in the KanamEvents app or by logging into your account.</p>" +
+                "<p>Thank you,<br>KanamEvents Team</p>" +
                 "</body></html>",
                 escapeHtml(displayName), escapeHtml(orderNumber), escapeHtml(eventLabel), totalStr
         );
@@ -165,7 +165,7 @@ public class EmailServiceImpl implements EmailService {
         }
         String text = bodyText != null ? bodyText : "";
         String html = bodyHtml != null && !bodyHtml.isBlank() ? bodyHtml : "<html><body><pre>" + escapeHtml(text) + "</pre></body></html>";
-        String subj = subject != null && !subject.isBlank() ? subject : "Message from EventPro";
+        String subj = subject != null && !subject.isBlank() ? subject : "Message from KanamEvents";
         try {
             SendEmailRequest request = SendEmailRequest.builder()
                     .source(fromEmail)

@@ -2,12 +2,16 @@ package com.accessplus.eventpro.api.controller;
 
 import com.accessplus.eventpro.api.dto.ApiResponse;
 import com.accessplus.eventpro.api.dto.OrderResponse;
+import com.accessplus.eventpro.api.audit.AuditLogService;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
+import com.accessplus.eventpro.shared.exception.ValidationException;
 import com.accessplus.eventpro.core.security.JwtUtils;
 import com.accessplus.eventpro.shared.entity.OrderEntity;
 import com.accessplus.eventpro.api.wallet.service.WalletService;
 import com.accessplus.eventpro.shared.enums.OrderStatus;
 import com.accessplus.eventpro.order.order.service.OrderService;
+import com.accessplus.eventpro.payment.stripe.service.StripeService;
+import com.stripe.exception.StripeException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,6 +29,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Slf4j
@@ -37,6 +42,8 @@ public class OrderController extends BaseController {
 
     private final OrderService orderService;
     private final WalletService walletService;
+    private final StripeService stripeService;
+    private final AuditLogService auditLogService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'ORGANIZER')")
@@ -216,16 +223,48 @@ public class OrderController extends BaseController {
 
         OrderEntity refundedOrder = orderService.updateOrderStatus(id, OrderStatus.REFUNDED);
 
-        if (refundedOrder.getUserId() != null && refundedOrder.getTotalAmount() != null
-                && refundedOrder.getTotalAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
-            walletService.credit(
-                    refundedOrder.getUserId(),
-                    refundedOrder.getTotalAmount(),
-                    WalletService.REF_ORDER_REFUND,
-                    refundedOrder.getId(),
-                    "order-refund:" + refundedOrder.getId(),
-                    "Refund for order " + refundedOrder.getOrderNumber());
+        String paymentMethod = refundedOrder.getPaymentMethod();
+        String paymentIntentId = refundedOrder.getPaymentIntentId();
+        BigDecimal walletAmount = refundedOrder.getWalletAmount() != null
+                ? refundedOrder.getWalletAmount() : BigDecimal.ZERO;
+
+        boolean stripeRefundRequired = paymentIntentId != null && !paymentIntentId.isBlank()
+                && (paymentMethod == null || "STRIPE".equalsIgnoreCase(paymentMethod)
+                || "MIXED".equalsIgnoreCase(paymentMethod));
+
+        if (stripeRefundRequired) {
+            try {
+                stripeService.refundPayment(paymentIntentId);
+            } catch (StripeException e) {
+                log.error("Stripe refund failed for order {}: {}", id, e.getMessage(), e);
+                throw new ValidationException("Stripe refund failed: " + e.getMessage());
+            }
         }
+
+        if (refundedOrder.getUserId() != null) {
+            BigDecimal walletRefund = BigDecimal.ZERO;
+            if ("WALLET".equalsIgnoreCase(paymentMethod)) {
+                walletRefund = refundedOrder.getTotalAmount();
+            } else if ("MIXED".equalsIgnoreCase(paymentMethod)) {
+                walletRefund = walletAmount;
+            }
+            if (walletRefund != null && walletRefund.compareTo(BigDecimal.ZERO) > 0) {
+                walletService.credit(
+                        refundedOrder.getUserId(),
+                        walletRefund,
+                        WalletService.REF_ORDER_REFUND,
+                        refundedOrder.getId(),
+                        "order-refund:" + refundedOrder.getId(),
+                        "Refund for order " + refundedOrder.getOrderNumber());
+            }
+        }
+
+        auditLogService.recordFinanceEvent(
+                currentUserId,
+                "ORDER_REFUNDED",
+                "order",
+                id.toString(),
+                "Order " + refundedOrder.getOrderNumber() + " refunded");
 
         OrderResponse response = OrderResponse.fromEntity(refundedOrder);
 

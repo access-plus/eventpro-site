@@ -1,4 +1,4 @@
-# EventPro Mobile
+# KanamEvents Mobile
 
 Mobile app (Expo / React Native) that mirrors the web app: Discover, Profile, Organizer, Admin. Shares types and API client with the web via `@eventpro/shared`.
 
@@ -164,7 +164,7 @@ Send testers this checklist after inviting them to TestFlight or sharing an Andr
 
 | Platform | Steps |
 |----------|--------|
-| **iOS** | Install **TestFlight** from the App Store → accept email invite → install **EventPro** |
+| **iOS** | Install **TestFlight** from the App Store → accept email invite → install **KanamEvents** |
 | **Android** | Open the **APK link** from your team → allow “Install unknown apps” if prompted → install |
 
 ### What to test

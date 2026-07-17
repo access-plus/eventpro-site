@@ -120,7 +120,7 @@ const AdminRevenue = () => {
           </SheetTrigger>
           <SheetContent side="left" className="w-[280px]">
             <SheetHeader>
-              <SheetTitle>EventPro Admin</SheetTitle>
+              <SheetTitle>KanamEvents Admin</SheetTitle>
             </SheetHeader>
             <nav className="flex flex-col gap-2 mt-6">
               <Link to="/admin/overview" className="text-sm font-medium py-2">

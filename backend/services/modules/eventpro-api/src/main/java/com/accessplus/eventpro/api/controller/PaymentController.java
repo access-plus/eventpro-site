@@ -1,5 +1,7 @@
 package com.accessplus.eventpro.api.controller;
 
+import com.accessplus.eventpro.api.audit.AuditLogService;
+import com.accessplus.eventpro.api.config.RecaptchaProperties;
 import com.accessplus.eventpro.api.dto.ApiResponse;
 import com.accessplus.eventpro.api.dto.CheckoutTotalsResponse;
 import com.accessplus.eventpro.api.dto.ConfirmPaymentRequest;
@@ -8,6 +10,8 @@ import com.accessplus.eventpro.api.dto.GuestConfirmPaymentRequest;
 import com.accessplus.eventpro.api.dto.GuestReserveRequest;
 import com.accessplus.eventpro.api.dto.OrderResponse;
 import com.accessplus.eventpro.api.service.CheckoutPaymentOrchestrationService;
+import com.accessplus.eventpro.api.security.RecaptchaVerificationService;
+import com.accessplus.eventpro.api.util.ClientIpResolver;
 import com.accessplus.eventpro.api.notification.service.NotificationPreferenceService;
 import com.accessplus.eventpro.api.notification.service.UserNotificationService;
 import com.accessplus.eventpro.core.notification.service.NotificationService;
@@ -25,6 +29,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -67,6 +72,9 @@ public class PaymentController extends BaseController {
     private final EventService eventService;
     private final UserService userService;
     private final CheckoutPaymentOrchestrationService checkoutPaymentOrchestrationService;
+    private final RecaptchaVerificationService recaptchaVerificationService;
+    private final RecaptchaProperties recaptchaProperties;
+    private final AuditLogService auditLogService;
 
     @GetMapping("/checkout-totals")
     @Operation(summary = "Checkout totals with tax", description = "Returns subtotal, tax rate, tax amount, and total. Pass state (e.g. CA) and country (e.g. US) for jurisdiction-based tax; otherwise uses default rate. Use total for create-intent when tax > 0.")
@@ -115,14 +123,20 @@ public class PaymentController extends BaseController {
         Map<String, String> config = new HashMap<>();
         String key = stripePublishableKey != null ? stripePublishableKey.trim() : "";
         config.put("stripePublishableKey", key);
+        String siteKey = recaptchaProperties.getSiteKey() != null ? recaptchaProperties.getSiteKey().trim() : "";
+        if (!siteKey.isBlank()) {
+            config.put("recaptchaSiteKey", siteKey);
+        }
         return ResponseEntity.ok(ApiResponse.success(config, null));
     }
 
     @PostMapping("/create-intent")
     @Operation(summary = "Create payment intent", description = "Creates a Stripe payment intent for the specified amount. Available to all (guest and authenticated).")
     public ResponseEntity<ApiResponse<Map<String, String>>> createPaymentIntent(
-            @Valid @RequestBody CreatePaymentIntentRequest request) {
+            @Valid @RequestBody CreatePaymentIntentRequest request,
+            HttpServletRequest httpRequest) {
         log.debug("Creating payment intent for amount: {}", request.getAmount());
+        recaptchaVerificationService.verify(request.getRecaptchaToken(), ClientIpResolver.resolve(httpRequest), "checkout");
 
         try {
             String clientSecret = paymentService.createPaymentIntent(request.getAmount());
@@ -175,6 +189,14 @@ public class PaymentController extends BaseController {
 
             sendOrderConfirmationNotification(order, userId, null);
 
+            auditLogService.recordFinanceEvent(
+                    userId,
+                    "PAYMENT_SUCCEEDED",
+                    "order",
+                    order.getId().toString(),
+                    "Authenticated checkout confirmed: order " + order.getOrderNumber()
+                            + ", amount " + order.getTotalAmount());
+
             return ResponseEntity.ok(ApiResponse.success(response, "Payment confirmed and order created successfully"));
         } catch (Exception e) {
             log.error("Failed to confirm payment: {}", e.getMessage(), e);
@@ -186,8 +208,10 @@ public class PaymentController extends BaseController {
     @PostMapping("/guest-reserve")
     @Operation(summary = "Reserve tickets for guest (lock)", description = "Reserves tickets while guest completes payment. Call before create-intent. Returned IDs and reservedUntil (ISO-8601) for countdown.")
     public ResponseEntity<ApiResponse<Map<String, ?>>> guestReserve(
-            @Valid @RequestBody GuestReserveRequest request) {
+            @Valid @RequestBody GuestReserveRequest request,
+            HttpServletRequest httpRequest) {
         log.debug("Guest reserve: {} items", request.getItems().size());
+        recaptchaVerificationService.verify(request.getRecaptchaToken(), ClientIpResolver.resolve(httpRequest), "checkout");
         try {
             List<GuestOrderItem> items = request.getItems().stream()
                     .map(i -> new GuestOrderItem(i.getEventId(), i.getTicketType(), i.getQuantity()))
@@ -208,8 +232,10 @@ public class PaymentController extends BaseController {
     @PostMapping("/guest/confirm")
     @Operation(summary = "Confirm guest payment", description = "Confirms a Stripe payment and creates an order for a guest (no account).")
     public ResponseEntity<ApiResponse<OrderResponse>> confirmGuestPayment(
-            @Valid @RequestBody GuestConfirmPaymentRequest request) {
+            @Valid @RequestBody GuestConfirmPaymentRequest request,
+            HttpServletRequest httpRequest) {
         log.debug("Confirming guest payment: paymentIntentId={}, email={}", request.getPaymentIntentId(), request.getEmail());
+        recaptchaVerificationService.verify(request.getRecaptchaToken(), ClientIpResolver.resolve(httpRequest), "checkout");
 
         try {
             List<GuestOrderItem> items = request.getItems().stream()
@@ -248,6 +274,14 @@ public class PaymentController extends BaseController {
             if (Boolean.TRUE.equals(request.getReceiveTicketViaWhatsApp()) && request.getPhone() != null && !request.getPhone().isBlank()) {
                 log.info("Ticket WhatsApp delivery requested for order {} to {}", order.getOrderNumber(), request.getPhone());
             }
+
+            auditLogService.recordFinanceEvent(
+                    null,
+                    "PAYMENT_SUCCEEDED",
+                    "order",
+                    order.getId().toString(),
+                    "Guest checkout confirmed: order " + order.getOrderNumber()
+                            + ", guest " + request.getEmail());
 
             return ResponseEntity.ok(ApiResponse.success(response, "Payment confirmed and order created successfully"));
         } catch (Exception e) {

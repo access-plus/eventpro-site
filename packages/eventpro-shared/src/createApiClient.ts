@@ -78,8 +78,11 @@ export interface EventProApi {
   getOrder: (id: string) => Promise<Order>;
   getPaymentConfig: () => Promise<{ stripePublishableKey: string }>;
   getCheckoutTotals: (subtotal?: number, state?: string, country?: string) => Promise<CheckoutTotals>;
-  createPaymentIntent: (amount: number) => Promise<{ clientSecret: string }>;
-  guestReserve: (items: { eventId: string; ticketType: string; quantity: number }[]) => Promise<{ reservedTicketIds: string[]; reservedUntil: string }>;
+  createPaymentIntent: (amount: number, recaptchaToken?: string) => Promise<{ clientSecret: string }>;
+  guestReserve: (
+    items: { eventId: string; ticketType: string; quantity: number }[],
+    recaptchaToken?: string
+  ) => Promise<{ reservedTicketIds: string[]; reservedUntil: string }>;
   confirmGuestPayment: (body: GuestConfirmPaymentRequest) => Promise<Order>;
   confirmPayment: (paymentIntentId: string, state?: string, country?: string) => Promise<Order>;
 
@@ -137,6 +140,18 @@ function isPromise<T>(v: T | Promise<T>): v is Promise<T> {
   return typeof (v as Promise<T>)?.then === "function";
 }
 
+let correlationId: string | null = null;
+
+function getOrCreateCorrelationId(): string {
+  if (!correlationId) {
+    correlationId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `corr-${Date.now()}`;
+  }
+  return correlationId;
+}
+
 export function createEventProApi(config: EventProApiConfig): EventProApi {
   const api: AxiosInstance = axios.create({
     baseURL: config.baseURL,
@@ -145,6 +160,7 @@ export function createEventProApi(config: EventProApiConfig): EventProApi {
 
   api.interceptors.request.use(
     async (req: InternalAxiosRequestConfig) => {
+      req.headers["X-Correlation-Id"] = getOrCreateCorrelationId();
       const token = config.getAccessToken();
       const t = isPromise(token) ? await token : token;
       if (t) req.headers.Authorization = `Bearer ${t}`;
@@ -270,16 +286,20 @@ export function createEventProApi(config: EventProApiConfig): EventProApi {
       const res = await api.get<ApiResponse<CheckoutTotals>>("/api/v1/payments/checkout-totals", { params });
       return res.data.data!;
     },
-    async createPaymentIntent(amount: number) {
+    async createPaymentIntent(amount: number, recaptchaToken?: string) {
       const res = await api.post<ApiResponse<{ clientSecret: string }>>("/api/v1/payments/create-intent", {
         amount: Number(amount.toFixed(2)),
+        recaptchaToken,
       });
       return res.data.data!;
     },
-    async guestReserve(items: { eventId: string; ticketType: string; quantity: number }[]) {
+    async guestReserve(
+      items: { eventId: string; ticketType: string; quantity: number }[],
+      recaptchaToken?: string
+    ) {
       const res = await api.post<ApiResponse<{ reservedTicketIds: string[]; reservedUntil: string }>>(
         "/api/v1/payments/guest-reserve",
-        { items }
+        { items, recaptchaToken }
       );
       return res.data.data!;
     },

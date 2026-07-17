@@ -88,7 +88,7 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
           <View style={styles.listHeader}>
             <Text style={[sectionLabel(theme), { marginBottom: 6 }]}>Inbox</Text>
             <Text style={[styles.listHeaderSub, { color: theme.colors.mutedForeground }]}>
-              Updates from EventPro
+              Updates from KanamEvents
             </Text>
           </View>
         }

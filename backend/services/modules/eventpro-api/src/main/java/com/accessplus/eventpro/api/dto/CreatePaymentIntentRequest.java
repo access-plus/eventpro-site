@@ -18,5 +18,8 @@ public class CreatePaymentIntentRequest {
     @NotNull(message = "Amount is required")
     @DecimalMin(value = "0.01", message = "Amount must be at least 0.01")
     private BigDecimal amount;
+
+    /** Optional Google reCAPTCHA token when eventpro.recaptcha.enabled=true */
+    private String recaptchaToken;
 }
 

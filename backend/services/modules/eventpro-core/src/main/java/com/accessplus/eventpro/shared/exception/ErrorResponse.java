@@ -74,4 +74,9 @@ public class ErrorResponse {
      * Can be omitted in production for security.
      */
     private String detail;
+
+    /**
+     * Correlation ID for tracing this request across logs and support tickets.
+     */
+    private String correlationId;
 }

@@ -24,12 +24,18 @@ public class StripeSubscriptionConfig {
     @Value("${stripe.subscription.priceIdEnterpriseYearly:}")
     private String priceIdEnterpriseYearly;
 
+    /**
+     * Resolves Stripe Price ID for checkout.
+     * Enterprise is annual-only: MONTHLY requests for ENTERPRISE still use the yearly price ID
+     * only when callers force YEARLY; prefer rejecting MONTHLY at the controller.
+     */
     public String getPriceId(String tier, String period) {
         boolean yearly = "YEARLY".equalsIgnoreCase(period);
-        return switch (tier != null ? tier.toUpperCase() : "PRO") {
-            case "ENTERPRISE" -> yearly ? priceIdEnterpriseYearly : priceIdEnterpriseMonthly;
-            default -> yearly ? priceIdProYearly : priceIdProMonthly;
-        };
+        String t = tier != null ? tier.toUpperCase() : "PRO";
+        if ("ENTERPRISE".equals(t)) {
+            return priceIdEnterpriseYearly;
+        }
+        return yearly ? priceIdProYearly : priceIdProMonthly;
     }
 
     /** Derive tier from a Stripe Price ID (for webhook and sync). */

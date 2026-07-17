@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const SUPPORT_EMAIL = "support@accessplus.com";
+const SUPPORT_EMAIL = "support@kanamevents.com";
 
 type SupportCategory = "technical" | "billing" | "event" | "other";
 
@@ -61,7 +61,7 @@ const Contact = () => {
       .filter(Boolean)
       .join("\n");
 
-    const subject = encodeURIComponent(`[EventPro] ${catLabel}`);
+    const subject = encodeURIComponent(`[KanamEvents] ${catLabel}`);
     const mailto = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${encodeURIComponent(body)}`;
     window.location.href = mailto;
     toast.success("Opening your email app — send the message to reach support.");
@@ -69,7 +69,7 @@ const Contact = () => {
 
   const handleLiveChat = () => {
     toast.message("Live chat", {
-      description: "Connect with support@accessplus.com or use the form below. Full chat integration coming soon.",
+      description: "Connect with support@kanamevents.com or use the form below. Full chat integration coming soon.",
     });
   };
 

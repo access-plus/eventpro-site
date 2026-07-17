@@ -8,8 +8,10 @@ import com.accessplus.eventpro.shared.exception.UnauthorizedException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import com.accessplus.eventpro.core.security.CorrelationIdFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -47,11 +49,8 @@ public class GlobalExceptionHandler {
         logger.warn("Business exception: {}", ex.getMessage());
         
         HttpStatus status = determineHttpStatus(ex);
-        String path = extractPath(request);
-        ErrorResponse errorResponse = ErrorResponse.builder()
+        ErrorResponse errorResponse = errorBuilder(request)
                 .message(ex.getMessage())
-                .path(path)
-                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, status);
@@ -65,11 +64,8 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException ex, WebRequest request) {
         logger.warn("Resource not found: {}", ex.getMessage());
         
-        String path = extractPath(request);
-        ErrorResponse errorResponse = ErrorResponse.builder()
+        ErrorResponse errorResponse = errorBuilder(request)
                 .message(ex.getMessage())
-                .path(path)
-                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
@@ -80,13 +76,8 @@ public class GlobalExceptionHandler {
             ValidationException ex, WebRequest request) {
         logger.warn("Validation error: {}", ex.getMessage());
         
-        String path = extractPath(request);
-        // Note: ValidationException has List<String> errors, not field-specific
-        // Fields map is only populated when we have field-level errors (e.g., MethodArgumentNotValidException)
-        ErrorResponse errorResponse = ErrorResponse.builder()
+        ErrorResponse errorResponse = errorBuilder(request)
                 .message(ex.getMessage())
-                .path(path)
-                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
@@ -97,11 +88,8 @@ public class GlobalExceptionHandler {
             UnauthorizedException ex, WebRequest request) {
         logger.warn("Unauthorized: {}", ex.getMessage());
         
-        String path = extractPath(request);
-        ErrorResponse errorResponse = ErrorResponse.builder()
+        ErrorResponse errorResponse = errorBuilder(request)
                 .message(ex.getMessage())
-                .path(path)
-                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
@@ -112,11 +100,8 @@ public class GlobalExceptionHandler {
             ConflictException ex, WebRequest request) {
         logger.warn("Conflict: {}", ex.getMessage());
         
-        String path = extractPath(request);
-        ErrorResponse errorResponse = ErrorResponse.builder()
+        ErrorResponse errorResponse = errorBuilder(request)
                 .message(ex.getMessage())
-                .path(path)
-                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
@@ -137,12 +122,9 @@ public class GlobalExceptionHandler {
         String message = "Validation failed: " + errors.values().stream()
                 .collect(Collectors.joining(", "));
         
-        String path = extractPath(request);
-        ErrorResponse errorResponse = ErrorResponse.builder()
+        ErrorResponse errorResponse = errorBuilder(request)
                 .message(message)
-                .path(path)
-                .timestamp(Instant.now())
-                .fields(errors) // Field-specific validation errors
+                .fields(errors)
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
@@ -157,11 +139,8 @@ public class GlobalExceptionHandler {
                 .map(ConstraintViolation::getMessage)
                 .collect(Collectors.joining(", "));
         
-        String path = extractPath(request);
-        ErrorResponse errorResponse = ErrorResponse.builder()
+        ErrorResponse errorResponse = errorBuilder(request)
                 .message("Validation failed: " + message)
-                .path(path)
-                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
@@ -172,11 +151,8 @@ public class GlobalExceptionHandler {
             AccessDeniedException ex, WebRequest request) {
         logger.warn("Access denied: {}", ex.getMessage());
         
-        String path = extractPath(request);
-        ErrorResponse errorResponse = ErrorResponse.builder()
+        ErrorResponse errorResponse = errorBuilder(request)
                 .message("You do not have permission to access this resource")
-                .path(path)
-                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
@@ -187,11 +163,8 @@ public class GlobalExceptionHandler {
             AuthenticationCredentialsNotFoundException ex, WebRequest request) {
         logger.warn("Authentication error: {}", ex.getMessage());
         
-        String path = extractPath(request);
-        ErrorResponse errorResponse = ErrorResponse.builder()
+        ErrorResponse errorResponse = errorBuilder(request)
                 .message("Authentication required")
-                .path(path)
-                .timestamp(Instant.now())
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
@@ -205,11 +178,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleNoResourceFound(
             NoResourceFoundException ex, WebRequest request) {
         logger.warn("No resource found: {} {}", ex.getHttpMethod(), ex.getResourcePath());
-        String path = extractPath(request);
-        ErrorResponse errorResponse = ErrorResponse.builder()
+        ErrorResponse errorResponse = errorBuilder(request)
                 .message("Not found: no endpoint for " + ex.getResourcePath())
-                .path(path)
-                .timestamp(Instant.now())
                 .detail(ex.getMessage())
                 .build();
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
@@ -220,22 +190,27 @@ public class GlobalExceptionHandler {
             Exception ex, WebRequest request) {
         logger.error("Unexpected error occurred", ex);
         
-        String path = extractPath(request);
         String detail = ex.getClass().getSimpleName() + ": " + (ex.getMessage() != null ? ex.getMessage() : "");
         boolean isLocal = Arrays.asList(environment.getActiveProfiles()).contains(LOCAL_PROFILE);
         String message = isLocal && ex.getMessage() != null && !ex.getMessage().isBlank()
                 ? ex.getMessage()
                 : "An unexpected error occurred. Please try again later.";
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .message(message)
-                .path(path)
-                .timestamp(Instant.now())
-                .detail(detail)
-                .build();
+        ErrorResponse.ErrorResponseBuilder builder = errorBuilder(request).message(message);
+        if (isLocal) {
+            builder.detail(detail);
+        }
+        ErrorResponse errorResponse = builder.build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
     }
     
+    private ErrorResponse.ErrorResponseBuilder errorBuilder(WebRequest request) {
+        return ErrorResponse.builder()
+                .path(extractPath(request))
+                .timestamp(Instant.now())
+                .correlationId(MDC.get(CorrelationIdFilter.MDC_KEY));
+    }
+
     private String extractPath(WebRequest request) {
         String description = request.getDescription(false);
         return description.replace("uri=", "");

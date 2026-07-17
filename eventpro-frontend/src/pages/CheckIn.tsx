@@ -84,7 +84,7 @@ export default function CheckIn() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-primary">EventPro</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-primary">KanamEvents</p>
               <h1 className="text-lg font-bold font-headline truncate">Check-in & attendees</h1>
             </div>
           </div>

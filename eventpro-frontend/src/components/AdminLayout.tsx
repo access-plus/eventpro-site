@@ -78,7 +78,7 @@ export const AdminLayout = () => {
               <span className="font-headline font-bold text-lg text-primary-foreground leading-none">E</span>
             </div>
             <div className="min-w-0">
-              <p className="font-headline font-bold text-foreground leading-tight truncate">EventPro</p>
+              <p className="font-headline font-bold text-foreground leading-tight truncate">KanamEvents</p>
               <p className="text-[10px] font-semibold tracking-widest text-muted-foreground truncate">ADMIN CONSOLE</p>
             </div>
           </Link>

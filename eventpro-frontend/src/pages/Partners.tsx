@@ -237,7 +237,7 @@ const Partners = () => {
               Refer Organizers, Earn Rewards
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Know event organizers in your community? Refer them to Access Plus and earn 
+              Know event organizers in your community? Refer them to KanamEvents and earn 
               ongoing commissions on their ticket sales. The more you refer, the more you earn.
             </p>
           </div>
@@ -334,7 +334,7 @@ const Partners = () => {
             Ready to Partner With Us?
           </h2>
           <p className="text-lg text-muted-foreground mb-8">
-            Join hundreds of partners already earning and growing with Access Plus. 
+            Join hundreds of partners already earning and growing with KanamEvents. 
             Have questions? Our partnership team is here to help.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

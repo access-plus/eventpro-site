@@ -51,7 +51,7 @@ export function SettingsScreen({ navigation }: { navigation: any }) {
   };
 
   const openMail = () => {
-    Linking.openURL("mailto:support@accessplus.com?subject=EventPro%20Support").catch(() => {});
+    Linking.openURL("mailto:support@kanamevents.com?subject=KanamEvents%20Support").catch(() => {});
   };
 
   return (

@@ -304,7 +304,7 @@ const Home = () => {
                         <p className="font-headline font-bold">
                           {featuredStart ? format(featuredStart, "MMM d, yyyy") : "Date TBD"}
                         </p>
-                        <p className="text-xs text-white/55 uppercase tracking-tight">Tickets on EventPro</p>
+                        <p className="text-xs text-white/55 uppercase tracking-tight">Tickets on KanamEvents</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-white/90">
@@ -593,7 +593,7 @@ const Home = () => {
             viewport={{ once: true, margin: "-80px" }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-headline font-bold mb-4 tracking-tight">Why EventPro?</h2>
+            <h2 className="text-4xl md:text-5xl font-headline font-bold mb-4 tracking-tight">Why KanamEvents?</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto font-body">
               Everything you need for seamless event experiences
             </p>

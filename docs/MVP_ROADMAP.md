@@ -1,4 +1,4 @@
-# EventPro MVP Roadmap
+# KanamEvents MVP Roadmap
 
 Implementation must align with **what each price tier promises on the Pricing page**. This doc ties the roadmap to those tiers and tracks status.
 
@@ -25,7 +25,7 @@ These match `eventpro-frontend/src/pages/Pricing.tsx`. All implementation and ga
 | Branded event pages | ✅ | ✅ | ✅ |
 | Custom domain mapping | ❌ | ✅ | ✅ |
 | Full HTML/CSS customization | ❌ | ✅ | ✅ |
-| White-label (no Access Plus branding) | ❌ | ❌ | ✅ |
+| White-label (no KanamEvents branding) | ❌ | ❌ | ✅ |
 | **Revenue tools** | | | |
 | Merchandise & add-on sales | ❌ | ✅ | ✅ |
 | Donations & fundraising / fundraising thermometers | ❌ | ✅ | ✅ |
@@ -116,7 +116,7 @@ These match `eventpro-frontend/src/pages/Pricing.tsx`. All implementation and ga
   - **Done:** Event flag `reservedSeatingEnabled`; tickets can have `seat_section`, `seat_row`, `seat_number`. Organizer: enable "Reserved seating" on event (create/update), then create seat map via "Seat map" section on event edit (sections: name, row count, seats per row, price). Public event page: "Select Seats" tab shows real seat map when reserved seating is enabled and seat map exists; add-by-ticket-id to cart. **Flow:** Enable reserved seating → Save event → Create seat map → Event page shows seating and allows seat selection and add to cart.
 
 - **Full white-label / custom branding (Enterprise only)**  
-  - **Done:** User branding fields; Profile UI and backend updates gated to Enterprise. Event response includes organizer branding; public event page shows custom logo, primary color, and hides "Powered by Access Plus" when set. Fields: `branding_logo_url`, `branding_primary_color`, `branding_hide_platform`, color, and “hide platform branding”. Event response includes organizer branding; public event page shows custom logo, applies primary color, and hides “Powered by Access Plus” when set.
+  - **Done:** User branding fields; Profile UI and backend updates gated to Enterprise. Event response includes organizer branding; public event page shows custom logo, primary color, and hides "Powered by KanamEvents" when set. Fields: `branding_logo_url`, `branding_primary_color`, `branding_hide_platform`, color, and “hide platform branding”. Event response includes organizer branding; public event page shows custom logo, applies primary color, and hides “Powered by KanamEvents” when set.
 
 ---
 

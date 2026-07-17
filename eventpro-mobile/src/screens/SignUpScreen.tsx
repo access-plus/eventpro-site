@@ -220,7 +220,7 @@ export function SignUpScreen({ navigation }: { navigation: { navigate: (name: st
         </View>
 
         <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Start your journey with EventPro today.</Text>
+        <Text style={styles.subtitle}>Start your journey with KanamEvents today.</Text>
 
         <Text style={styles.fieldLabel}>FULL NAME</Text>
         <View style={styles.inputWrap}>

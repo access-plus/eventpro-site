@@ -173,7 +173,7 @@ export function CheckInGuestList({
               {selectedEvent?.name ?? selectedEvent?.title ?? "Select an event"}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              <span className="text-primary font-medium">EventPro</span> · Management hub
+              <span className="text-primary font-medium">KanamEvents</span> · Management hub
             </p>
           </div>
 

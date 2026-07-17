@@ -25,4 +25,7 @@ public class AuthSignupRequest {
     private String phoneNumber;
 
     private String role;
+
+    /** Optional Google reCAPTCHA token when eventpro.recaptcha.enabled=true */
+    private String recaptchaToken;
 }

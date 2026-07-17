@@ -155,7 +155,7 @@ export function OrganizerDashboardScreen({ navigation }: { navigation: any }) {
         <TouchableOpacity accessibilityRole="button" hitSlop={12} onPress={() => openWebOrganizer("/organizer")}>
           <Ionicons name="menu" size={24} color={theme.colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.stitchBrand, { color: theme.colors.foreground }]}>EventPro</Text>
+        <Text style={[styles.stitchBrand, { color: theme.colors.foreground }]}>KanamEvents</Text>
         <TouchableOpacity onPress={() => openWebOrganizer("/profile")}>
           <View style={[styles.stitchAvatar, { backgroundColor: theme.colors.primary }]}>
             <Ionicons name="person" size={18} color="#fff" />

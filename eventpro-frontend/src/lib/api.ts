@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from "axios";
+import { getOrCreateCorrelationId } from "@/lib/correlation";
 import type {
   ApiResponse,
   PageResponse,
@@ -62,6 +63,7 @@ class ApiService {
     // Add request interceptor to attach token
     this.api.interceptors.request.use(
       (config) => {
+        config.headers["X-Correlation-Id"] = getOrCreateCorrelationId();
         const token = localStorage.getItem("accessToken");
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
@@ -356,13 +358,16 @@ class ApiService {
   }
 
   /** Reserve tickets for guest (lock) before payment. Returns ticket IDs and reservedUntil (ISO-8601) for countdown. */
-  async guestReserve(items: { eventId: string; ticketType: string; quantity: number }[]): Promise<{
+  async guestReserve(
+    items: { eventId: string; ticketType: string; quantity: number }[],
+    recaptchaToken?: string
+  ): Promise<{
     reservedTicketIds: string[];
     reservedUntil: string;
   }> {
     const response = await this.api.post<ApiResponse<{ reservedTicketIds: string[]; reservedUntil: string }>>(
       "/api/v1/payments/guest-reserve",
-      { items }
+      { items, recaptchaToken }
     );
     return response.data.data;
   }
@@ -391,9 +396,10 @@ class ApiService {
   }
 
   /** Create Stripe payment intent (amount in dollars). Public – works for guest. */
-  async createPaymentIntent(amount: number): Promise<{ clientSecret: string }> {
+  async createPaymentIntent(amount: number, recaptchaToken?: string): Promise<{ clientSecret: string }> {
     const response = await this.api.post<ApiResponse<{ clientSecret: string }>>("/api/v1/payments/create-intent", {
       amount: Number(amount.toFixed(2)),
+      recaptchaToken,
     });
     return response.data.data;
   }

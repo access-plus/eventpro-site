@@ -11,6 +11,7 @@ import { ReservationCountdown } from "@/components/ReservationCountdown";
 import { SuccessTicketReveal } from "@/components/SuccessTicketReveal";
 import { TicketPreview } from "@/components/TicketPreview";
 import { apiService } from "@/lib/api";
+import { executeRecaptcha, resolveRecaptchaSiteKey } from "@/lib/recaptcha";
 import { HOW_DID_YOU_HEAR_OPTIONS } from "@/types/api";
 import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone, Lock, ChevronDown, Minus, Plus, Wallet } from "lucide-react";
 import { CommunityImpactTile } from "@/components/CommunityImpactTile";
@@ -570,6 +571,8 @@ const Checkout = () => {
         toast.error("Order total must be greater than 0");
         return;
       }
+      const siteKey = await resolveRecaptchaSiteKey();
+      const recaptchaToken = siteKey ? await executeRecaptcha(siteKey, "checkout") : undefined;
       const isGuest = !isAuthenticated && !!guestInfo;
       if (isGuest && items.length > 0) {
         const reservePayload = items.map((i) => ({
@@ -577,13 +580,13 @@ const Checkout = () => {
           ticketType: i.ticketTypeId,
           quantity: i.quantity,
         }));
-        const reserveData = await apiService.guestReserve(reservePayload);
+        const reserveData = await apiService.guestReserve(reservePayload, recaptchaToken);
         if (reserveData?.reservedTicketIds?.length) {
           setReservedTicketIds(reserveData.reservedTicketIds);
           if (reserveData.reservedUntil) setReservedUntil(reserveData.reservedUntil);
         }
       }
-      const data = await apiService.createPaymentIntent(amount);
+      const data = await apiService.createPaymentIntent(amount, recaptchaToken);
       const secret = data?.clientSecret ?? (data as { clientSecret?: string })?.clientSecret;
       if (!secret) {
         setPaymentError("Invalid response from server");
@@ -604,8 +607,10 @@ const Checkout = () => {
     }
   };
 
-  const buildGuestConfirm = (paymentIntentId: string) => {
+  const buildGuestConfirm = async (paymentIntentId: string) => {
     if (!guestInfo) throw new Error("Guest info required");
+    const siteKey = await resolveRecaptchaSiteKey();
+    const recaptchaToken = siteKey ? await executeRecaptcha(siteKey, "checkout") : undefined;
     const totalToConfirm = checkoutTotals?.total ?? grandTotal;
     return apiService.confirmGuestPayment({
       paymentIntentId,
@@ -627,6 +632,7 @@ const Checkout = () => {
       state: taxState?.trim() || undefined,
       country: taxCountry?.trim() || undefined,
       taxAmount: checkoutTotals && checkoutTotals.tax > 0 ? Number(checkoutTotals.tax.toFixed(2)) : undefined,
+      recaptchaToken,
     });
   };
 

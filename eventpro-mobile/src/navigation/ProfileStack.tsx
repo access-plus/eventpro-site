@@ -44,7 +44,7 @@ export function ProfileStack() {
         options={{
           title: "Settings",
           headerRight: () => (
-            <Text style={{ fontWeight: "800", fontSize: 15, color: theme.colors.primary, marginRight: 14 }}>EventPro</Text>
+            <Text style={{ fontWeight: "800", fontSize: 15, color: theme.colors.primary, marginRight: 14 }}>KanamEvents</Text>
           ),
         }}
       />

@@ -107,7 +107,7 @@ export function AdminVerificationScreen({ navigation }: { navigation: { navigate
         <TouchableOpacity onPress={() => navigation.navigate("AdminOverview")}>
           <Ionicons name="menu" size={26} color="#2d1b4e" />
         </TouchableOpacity>
-        <Text style={styles.brand}>EventPro</Text>
+        <Text style={styles.brand}>KanamEvents</Text>
         <View style={[styles.av, { backgroundColor: theme.colors.muted }]}>
           <Ionicons name="person" size={18} color={theme.colors.mutedForeground} />
         </View>

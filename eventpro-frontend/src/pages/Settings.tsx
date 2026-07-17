@@ -256,7 +256,7 @@ const Settings = () => {
                 <Palette className="h-5 w-5 text-primary" />
                 Appearance
               </CardTitle>
-              <CardDescription>Customize how EventPro looks</CardDescription>
+              <CardDescription>Customize how KanamEvents looks</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">

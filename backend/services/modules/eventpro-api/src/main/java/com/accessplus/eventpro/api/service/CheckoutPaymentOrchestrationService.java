@@ -76,7 +76,7 @@ public class CheckoutPaymentOrchestrationService {
         }
 
         try {
-            OrderEntity order = paymentService.processPayment(userId, paymentIntentId, taxAmount, state, country);
+            OrderEntity order = paymentService.processPayment(userId, paymentIntentId, taxAmount, state, country, stripePortion);
             String method = walletAmount.compareTo(BigDecimal.ZERO) > 0 ? "MIXED" : "STRIPE";
             return orderService.updatePaymentDetails(order.getId(), paymentIntentId, walletAmount, method);
         } catch (RuntimeException e) {

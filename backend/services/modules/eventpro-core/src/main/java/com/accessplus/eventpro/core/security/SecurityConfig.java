@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.core.security;
 
 import com.accessplus.eventpro.core.config.CorsProperties;
+import com.accessplus.eventpro.core.config.EventProApiSecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,10 +26,14 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CorsProperties corsProperties;
+    private final EventProApiSecurityProperties apiSecurityProperties;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, CorsProperties corsProperties) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          CorsProperties corsProperties,
+                          EventProApiSecurityProperties apiSecurityProperties) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.corsProperties = corsProperties;
+        this.apiSecurityProperties = apiSecurityProperties;
     }
 
     @Bean
@@ -38,12 +43,17 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health").permitAll()
-                // Swagger/OpenAPI documentation endpoints - public access
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/api-docs/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/send-reset-email").permitAll()
-                // Public Events endpoints - no authentication required (GET only)
+            .authorizeHttpRequests(auth -> {
+                auth.requestMatchers("/actuator/health").permitAll();
+                if (apiSecurityProperties.isPublicActuatorMetrics()) {
+                    auth.requestMatchers("/actuator/metrics", "/actuator/metrics/**",
+                            "/actuator/prometheus").permitAll();
+                }
+                if (apiSecurityProperties.isPublicSwagger()) {
+                    auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html",
+                            "/v3/api-docs/**", "/api-docs/**").permitAll();
+                }
+                auth.requestMatchers(HttpMethod.POST, "/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/send-reset-email").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/*/ticket-types").permitAll()
@@ -51,16 +61,15 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/*/addons").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/events/category/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/images/proxy").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/users/*/public-profile").permitAll()
-                // Payment config (Stripe publishable key for frontend) - public
                 .requestMatchers(HttpMethod.GET, "/api/v1/payments/config").permitAll()
-                // Guest checkout: no auth required (endpoint exists in PaymentController)
+                .requestMatchers(HttpMethod.GET, "/api/v1/users/*/public-profile").permitAll()
                 .requestMatchers(HttpMethod.POST,
                     "/api/v1/payments/create-intent", "/api/v1/payments/create-intent/",
                     "/api/v1/payments/guest/confirm", "/api/v1/payments/guest/confirm/",
                     "/api/v1/payments/guest-reserve", "/api/v1/payments/guest-reserve/").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/stripe").permitAll()
-                .anyRequest().authenticated())
+                .anyRequest().authenticated();
+            })
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

@@ -25,7 +25,7 @@ export function CheckoutPaymentProcessingOverlay({
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
         <span className="w-8" />
         <h2 className="font-bold font-headline text-foreground">Secure checkout</h2>
-        <span className="text-xs font-bold tracking-widest text-primary">EventPro</span>
+        <span className="text-xs font-bold tracking-widest text-primary">KanamEvents</span>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center">

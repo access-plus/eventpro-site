@@ -311,7 +311,7 @@ const OrganizerBranding = () => {
                     </div>
                     <div className="flex items-center justify-between gap-4 py-2 border-t border-border/40">
                       <div>
-                        <p className="font-medium">Hide EventPro footer</p>
+                        <p className="font-medium">Hide KanamEvents footer</p>
                         <p className="text-xs text-muted-foreground">Removes &quot;Powered by&quot; badge</p>
                       </div>
                       <Switch checked={hideFooter} onCheckedChange={setHideFooter} />
@@ -409,7 +409,7 @@ const OrganizerBranding = () => {
                               <Link to={`/events/${previewEvent.id}`}>Get tickets</Link>
                             </Button>
                             {!hideFooter && (
-                              <p className="text-[9px] text-center text-muted-foreground">Powered by EventPro</p>
+                              <p className="text-[9px] text-center text-muted-foreground">Powered by KanamEvents</p>
                             )}
                           </div>
                         </>

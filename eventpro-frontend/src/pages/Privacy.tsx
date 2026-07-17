@@ -123,8 +123,8 @@ const Privacy = () => {
             <CardContent>
               <p className="text-muted-foreground mb-4">
                 For privacy requests or questions, contact us at{" "}
-                <a href="mailto:support@accessplus.com" className="text-primary hover:underline">
-                  support@accessplus.com
+                <a href="mailto:support@kanamevents.com" className="text-primary hover:underline">
+                  support@kanamevents.com
                 </a>{" "}
                 or use our{" "}
                 <Link to="/contact" className="text-primary hover:underline">

@@ -160,7 +160,7 @@ const EnterpriseSubscription = () => {
                         </div>
                         <div>
                           <p className="font-semibold text-foreground">Account team</p>
-                          <p className="text-xs text-muted-foreground">Billing and contract changes go through your EventPro contact</p>
+                          <p className="text-xs text-muted-foreground">Billing and contract changes go through your KanamEvents contact</p>
                         </div>
                         <Button variant="secondary" className="w-full rounded-2xl gap-2" asChild>
                           <Link to="/contact">

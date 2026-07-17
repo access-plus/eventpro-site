@@ -247,7 +247,7 @@ const TeamManagement = () => {
                   <DialogHeader>
                     <DialogTitle>Add team member</DialogTitle>
                     <p className="text-sm text-muted-foreground">
-                      The person must already have an EventPro account with this email. They will be able to manage your events
+                      The person must already have an KanamEvents account with this email. They will be able to manage your events
                       according to their role.
                     </p>
                   </DialogHeader>
@@ -339,7 +339,7 @@ const TeamManagement = () => {
                   <CardContent className="p-8 text-center text-muted-foreground">
                     <p className="text-sm max-w-md mx-auto">
                       Pending email invites are not stored separately. Adding a member sends access immediately to an{" "}
-                      <strong>existing</strong> EventPro account. For users without an account, ask them to sign up first, then add them
+                      <strong>existing</strong> KanamEvents account. For users without an account, ask them to sign up first, then add them
                       here.
                     </p>
                   </CardContent>

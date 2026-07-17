@@ -12,4 +12,4 @@ spring.cloud.function:
 
 ses:
   sender:
-    email: ${SES_SENDER_EMAIL:noreply@eventpro.com}
+    email: ${SES_SENDER_EMAIL:noreply@kanamevents.com}

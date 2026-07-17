@@ -550,7 +550,7 @@ const Profile = () => {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Current tier</p>
                 {isPro || isEnterprise ? (
                   <div>
-                    <p className="font-semibold text-primary">Access Plus Pro</p>
+                    <p className="font-semibold text-primary">KanamEvents Pro</p>
                     <p className="text-sm text-muted-foreground mt-1">
                       Lower fees · Instant payouts · Manage team and branding under Organizer
                     </p>

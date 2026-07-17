@@ -200,7 +200,7 @@ export function TaxCenter() {
 
       {/* Financial safety micro-copy */}
       <p className="text-xs text-muted-foreground max-w-2xl">
-        Access Plus uses bank-grade encryption to protect your tax identity. We only report data as required by the IRS.
+        KanamEvents uses bank-grade encryption to protect your tax identity. We only report data as required by the IRS.
       </p>
 
       <W9Modal open={w9ModalOpen} onOpenChange={setW9ModalOpen} onSuccess={handleW9Success} />

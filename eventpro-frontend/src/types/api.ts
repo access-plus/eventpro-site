@@ -311,11 +311,13 @@ export interface SignUpRequest {
   lastName: string;
   phoneNumber?: string;
   role?: UserRole;
+  recaptchaToken?: string;
 }
 
 export interface LoginRequest {
   email: string;
   password: string;
+  recaptchaToken?: string;
 }
 
 export interface UpdateUserRequest {
@@ -554,6 +556,7 @@ export interface GuestConfirmPaymentRequest {
   country?: string;
   /** Optional: tax amount when state/country was used at checkout. */
   taxAmount?: number;
+  recaptchaToken?: string;
 }
 
 /** Options for "How did you hear about this event?" (cultural taxonomy). */

@@ -44,6 +44,12 @@ public interface PaymentService {
     OrderEntity processPayment(UUID userId, String paymentIntentId, BigDecimal taxAmount, String buyerState, String buyerCountry);
 
     /**
+     * Processes payment with an explicit expected Stripe charge (cart total + tax minus wallet portion).
+     */
+    OrderEntity processPayment(UUID userId, String paymentIntentId, BigDecimal taxAmount, String buyerState,
+                               String buyerCountry, BigDecimal expectedStripeAmount);
+
+    /**
      * Processes payment for a guest (no account) and creates order from provided items.
      *
      * @param reservedTicketIds optional ticket IDs from guest-reserve (lock); when set, order uses these

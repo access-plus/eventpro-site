@@ -223,7 +223,7 @@ public class EventController extends BaseController {
         String eventName = event.getName();
         String senderName = request.getSenderName() != null && !request.getSenderName().isBlank()
                 ? request.getSenderName().trim() : "Someone";
-        String subject = "EventPro: Message about your event \"" + eventName + "\"";
+        String subject = "KanamEvents: Message about your event \"" + eventName + "\"";
         String bodyText = String.format(
                 "You received a message about your event \"%s\".%n%nFrom: %s <%s>%n%nMessage:%n%s",
                 eventName, senderName, request.getSenderEmail(), request.getMessage());

@@ -236,7 +236,7 @@ const AdminAuditLogs = () => {
           <h1 className="text-3xl font-bold font-headline tracking-tight">Audit Logs</h1>
           <p className="text-muted-foreground mt-2 max-w-3xl text-sm">
             A high-fidelity monitoring stream of administrative actions, system modifications, and security-relevant
-            events across the EventPro infrastructure.
+            events across the KanamEvents infrastructure.
           </p>
         </div>
         <Button
@@ -252,7 +252,7 @@ const AdminAuditLogs = () => {
         <p className="text-[10px] font-bold tracking-widest text-primary uppercase">System integrity</p>
         <h1 className="text-2xl font-bold font-headline">Security Audit Logs</h1>
         <p className="text-sm text-muted-foreground">
-          Real-time monitoring of administrative actions and system-level events across the EventPro ecosystem.
+          Real-time monitoring of administrative actions and system-level events across the KanamEvents ecosystem.
         </p>
         <Button className="w-full rounded-full bg-gradient-primary" onClick={exportCsv}>
           <Download className="h-4 w-4 mr-2" />

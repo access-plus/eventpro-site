@@ -51,7 +51,7 @@ export function PrivacyScreen({ navigation }: { navigation: any }) {
       <View style={[editorialCard(theme), styles.cardPad]}>
         <Text style={[styles.cardTitle, { color: theme.colors.foreground }]}>Your rights</Text>
         <Text style={[styles.paragraph, { color: theme.colors.mutedForeground }]}>
-          You may have the right to access, correct, or delete your data, or opt out of marketing. Use Notification preferences in Settings to opt out of marketing. For data export or deletion, contact support@accessplus.com.
+          You may have the right to access, correct, or delete your data, or opt out of marketing. Use Notification preferences in Settings to opt out of marketing. For data export or deletion, contact support@kanamevents.com.
         </Text>
       </View>
     </ScrollView>

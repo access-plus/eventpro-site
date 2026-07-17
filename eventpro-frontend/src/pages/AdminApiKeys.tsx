@@ -168,7 +168,7 @@ const AdminApiKeys = () => {
           </SheetTrigger>
           <SheetContent side="left" className="w-[280px]">
             <SheetHeader>
-              <SheetTitle>EventPro Admin</SheetTitle>
+              <SheetTitle>KanamEvents Admin</SheetTitle>
             </SheetHeader>
             <nav className="flex flex-col gap-2 mt-6 text-sm font-medium">
               <Link to="/admin/overview">Overview</Link>

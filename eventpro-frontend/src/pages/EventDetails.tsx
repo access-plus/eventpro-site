@@ -898,7 +898,7 @@ const EventDetails = () => {
       </div>
       {!hidePlatformBranding && (
         <p className="text-center text-muted-foreground text-sm mt-8 pb-4">
-          Powered by Access Plus
+          Powered by KanamEvents
         </p>
       )}
     </div>
