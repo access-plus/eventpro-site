@@ -1,5 +1,6 @@
 package com.accessplus.eventpro.api.wallet.service;
 
+import com.accessplus.eventpro.api.audit.AuditLogService;
 import com.accessplus.eventpro.api.wallet.dto.WalletBalanceResponse;
 import com.accessplus.eventpro.api.wallet.dto.WalletLedgerEntryResponse;
 import com.accessplus.eventpro.api.wallet.entity.WalletAccountEntity;
@@ -29,6 +30,7 @@ public class WalletService {
 
     private final WalletAccountRepository accountRepository;
     private final WalletLedgerEntryRepository ledgerRepository;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public WalletBalanceResponse getBalance(UUID userId) {
@@ -97,7 +99,23 @@ public class WalletService {
         WalletLedgerEntryEntity saved = ledgerRepository.save(entry);
         log.info("Wallet {}: userId={}, amount={}, referenceType={}, balanceAfter={}",
                 entryType, account.getUserId(), amount, referenceType, newBalance);
+        recordWalletAudit(account.getUserId(), entryType, amount, referenceType, referenceId, description);
         return saved;
+    }
+
+    private void recordWalletAudit(UUID userId, String entryType, BigDecimal amount,
+                                   String referenceType, UUID referenceId, String description) {
+        if (!REF_CHECKOUT.equals(referenceType) && !REF_ORDER_REFUND.equals(referenceType)
+                && !REF_CHECKOUT_REVERSAL.equals(referenceType)) {
+            return;
+        }
+        String action = "CREDIT".equals(entryType) ? "WALLET_CREDIT" : "WALLET_DEBIT";
+        auditLogService.recordFinanceEvent(
+                userId,
+                action,
+                "wallet",
+                referenceId != null ? referenceId.toString() : userId.toString(),
+                description != null ? description : action + " " + amount);
     }
 
     private WalletAccountEntity lockOrCreateAccount(UUID userId) {

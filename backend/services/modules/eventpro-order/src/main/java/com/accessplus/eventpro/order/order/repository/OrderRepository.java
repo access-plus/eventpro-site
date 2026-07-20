@@ -113,5 +113,7 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
      * @return true if order number exists
      */
     boolean existsByOrderNumber(String orderNumber);
+
+    Optional<OrderEntity> findByPaymentIntentIdAndStatus(String paymentIntentId, OrderStatus status);
 }
 

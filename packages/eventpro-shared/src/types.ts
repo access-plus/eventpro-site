@@ -99,6 +99,7 @@ export interface AuthResponse {
 export interface LoginRequest {
   email: string;
   password: string;
+  recaptchaToken?: string;
 }
 
 /** Result of a door check-in (QR scan). */
@@ -185,6 +186,7 @@ export interface SignUpRequest {
   lastName: string;
   phoneNumber?: string;
   role?: UserRole;
+  recaptchaToken?: string;
 }
 
 export interface UpdateUserRequest {
@@ -315,6 +317,7 @@ export interface GuestConfirmPaymentRequest {
   state?: string;
   country?: string;
   taxAmount?: number;
+  recaptchaToken?: string;
 }
 
 export interface VerificationStatusResponse {

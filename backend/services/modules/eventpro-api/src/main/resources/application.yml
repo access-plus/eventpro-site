@@ -37,7 +37,7 @@ aws:
   ses:
     region: ${AWS_REGION:us-east-1}
     endpoint: ${SES_ENDPOINT:${AWS_ENDPOINT_URL:}} # Optional: for LocalStack (e.g. http://localhost:4566)
-    fromEmail: ${SES_FROM_EMAIL:noreply@eventpro.com}
+    fromEmail: ${SES_FROM_EMAIL:noreply@kanamevents.com}
   sns:
     region: ${AWS_REGION:us-east-1}
   secrets-manager:
@@ -117,6 +117,15 @@ eventpro:
     enabled: ${EVENTPRO_RATE_LIMIT_ENABLED:true}
     requests-per-minute: ${EVENTPRO_RATE_LIMIT_REQUESTS_PER_MINUTE:60}
     window-seconds: ${EVENTPRO_RATE_LIMIT_WINDOW_SECONDS:60}
+  recaptcha:
+    enabled: ${RECAPTCHA_ENABLED:false}
+    secret-key: ${RECAPTCHA_SECRET_KEY:}
+    site-key: ${RECAPTCHA_SITE_KEY:}
+    min-score: ${RECAPTCHA_MIN_SCORE:0.5}
+  security:
+    api:
+      public-swagger: ${EVENTPRO_PUBLIC_SWAGGER:true}
+      public-actuator-metrics: ${EVENTPRO_PUBLIC_ACTUATOR_METRICS:false}
 
 security:
   jwt:
@@ -159,7 +168,7 @@ logging:
     org.springframework.boot.logging: WARN
     root: INFO
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} %-5p [%c{2}] (%t) %s%e%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5p [%X{correlationId}] [%c{2}] (%t) %s%e%n"
 
 # OpenAPI/Swagger Configuration
 springdoc:

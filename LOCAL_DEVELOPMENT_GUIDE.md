@@ -1,6 +1,6 @@
 # Local Development Guide
 
-Complete guide for setting up and running the EventPro application locally using Make commands.
+Complete guide for setting up and running the KanamEvents application locally using Make commands.
 
 <details>
 <summary><strong>localhost</strong></summary>
@@ -537,7 +537,7 @@ curl http://localhost:8080/actuator/health
 ### 2. Test Frontend
 
 1. Open browser: <http://localhost:5173>
-2. You should see the EventPro application
+2. You should see the KanamEvents application
 
 ### 3. Test Authentication
 

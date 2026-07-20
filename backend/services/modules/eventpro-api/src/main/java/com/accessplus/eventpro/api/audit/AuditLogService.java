@@ -23,4 +23,11 @@ public interface AuditLogService {
             String statusLabel,
             String statusTone,
             String summary);
+
+    /**
+     * Records a finance-critical system or user action (orders, payments, wallet).
+     */
+    default void recordFinanceEvent(UUID actorUserId, String action, String entityType, String entityId, String summary) {
+        recordAdminAction(actorUserId, action, entityType, entityId, "finance", "completed", "success", summary);
+    }
 }

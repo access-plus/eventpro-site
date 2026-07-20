@@ -48,13 +48,13 @@ Use this checklist to verify all implemented flows after running the backend and
 ## 3. White-Label / Custom Branding (Pro/Enterprise)
 
 - [ ] **Branding form on Profile**  
-  As Pro or Enterprise, scroll to "White-Label Branding". Enter a logo URL (e.g. any public image URL), pick a primary color (hex), check "Hide Powered by Access Plus". Click "Save branding". Toast confirms.
+  As Pro or Enterprise, scroll to "White-Label Branding". Enter a logo URL (e.g. any public image URL), pick a primary color (hex), check "Hide Powered by KanamEvents". Click "Save branding". Toast confirms.
 - [ ] **Logo on event page**  
   Open a **published** event owned by that user (e.g. `/events/{id}`). Organizer logo should appear at the top when set.
 - [ ] **Primary color**  
   Event page can use the custom primary color (CSS variable `--event-primary` is set). Visually confirm if buttons/accents use it.
 - [ ] **Hide platform branding**  
-  With "Hide platform branding" enabled, open the same event page. "Powered by Access Plus" at the bottom should **not** appear. With it disabled, it should appear.
+  With "Hide platform branding" enabled, open the same event page. "Powered by KanamEvents" at the bottom should **not** appear. With it disabled, it should appear.
 
 ---
 

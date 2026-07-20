@@ -373,7 +373,7 @@ const EventFormNew = () => {
         <div className="container mx-auto max-w-6xl px-4 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <Link to="/organizer" className="flex items-center gap-2 font-semibold text-foreground shrink-0">
-              <span className="rounded-lg bg-gradient-primary px-2 py-1 text-xs text-primary-foreground">EventPro</span>
+              <span className="rounded-lg bg-gradient-primary px-2 py-1 text-xs text-primary-foreground">KanamEvents</span>
               <span className="hidden sm:inline text-sm text-muted-foreground truncate">Studio</span>
             </Link>
             <nav className="hidden md:flex items-center gap-1 text-sm text-muted-foreground">

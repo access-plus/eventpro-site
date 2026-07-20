@@ -199,7 +199,7 @@ export function HomeScreen({ navigation }: { navigation: any }) {
               <Ionicons name="search" size={22} color={theme.colors.foreground} />
             </TouchableOpacity>
             <Text style={[styles.brandTitle, { color: theme.colors.foreground }]} numberOfLines={1}>
-              EventPro
+              KanamEvents
             </Text>
             <TouchableOpacity
               onPress={() => navigation.getParent()?.navigate("Profile", { screen: "ProfileHome" })}

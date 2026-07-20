@@ -1,5 +1,6 @@
 package com.accessplus.eventpro.api.controller;
 
+import com.accessplus.eventpro.api.audit.AuditLogService;
 import com.accessplus.eventpro.api.dto.ApiResponse;
 import com.accessplus.eventpro.api.dto.AuthLoginRequest;
 import com.accessplus.eventpro.api.dto.AuthResponse;
@@ -8,11 +9,14 @@ import com.accessplus.eventpro.api.dto.SendResetEmailRequest;
 import com.accessplus.eventpro.api.dto.UserResponse;
 import com.accessplus.eventpro.api.service.AuthResult;
 import com.accessplus.eventpro.api.service.AuthService;
+import com.accessplus.eventpro.api.security.RecaptchaVerificationService;
+import com.accessplus.eventpro.api.util.ClientIpResolver;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.email.service.EmailService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -27,12 +31,15 @@ public class AuthController extends BaseController {
 
     private final EmailService emailService;
     private final AuthService authService;
+    private final RecaptchaVerificationService recaptchaVerificationService;
 
     @PostMapping("/signup")
     @Operation(summary = "Sign up", description = "Creates a new user account.")
     public ResponseEntity<ApiResponse<UserResponse>> signUp(
-            @Valid @RequestBody AuthSignupRequest request) {
+            @Valid @RequestBody AuthSignupRequest request,
+            HttpServletRequest httpRequest) {
         log.info("Signing up user: email={}", request.getEmail());
+        recaptchaVerificationService.verify(request.getRecaptchaToken(), ClientIpResolver.resolve(httpRequest), "signup");
 
         UserEntity user = authService.signUp(request);
         UserResponse response = UserResponse.fromEntity(user);
@@ -42,8 +49,10 @@ public class AuthController extends BaseController {
     @PostMapping("/login")
     @Operation(summary = "Login", description = "Authenticates user and returns a JWT access token.")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
-            @Valid @RequestBody AuthLoginRequest request) {
+            @Valid @RequestBody AuthLoginRequest request,
+            HttpServletRequest httpRequest) {
         log.debug("Logging in user: email={}", request.getEmail());
+        recaptchaVerificationService.verify(request.getRecaptchaToken(), ClientIpResolver.resolve(httpRequest), "login");
 
         AuthResult result = authService.login(request);
         AuthResponse response = AuthResponse.builder()

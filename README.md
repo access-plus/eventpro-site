@@ -1,6 +1,8 @@
-# EventPro Platform
+# KanamEvents Platform
 
-A comprehensive full-stack event ticketing platform built with a **Spring Boot modular monolith** and **SQS-triggered AWS Lambda functions**. EventPro enables event organizers to create, manage, and sell tickets for events while providing customers with a seamless experience to discover, purchase, and attend events.
+A comprehensive full-stack event ticketing platform built with a **Spring Boot modular monolith** and **SQS-triggered AWS Lambda functions**. **KanamEvents** enables event organizers to create, manage, and sell tickets for events while providing customers with a seamless experience to discover, purchase, and attend events.
+
+> **Product name:** KanamEvents (formerly EventPro / Access Plus). Internal module paths (`eventpro-*`, `com.accessplus.eventpro`) are unchanged for now.
 
 ---
 
@@ -21,7 +23,7 @@ A comprehensive full-stack event ticketing platform built with a **Spring Boot m
 
 ## Overview
 
-EventPro is a modern event ticketing platform designed to handle the complete lifecycle of event management and ticket sales. The platform supports:
+KanamEvents is a modern event ticketing platform designed to handle the complete lifecycle of event management and ticket sales. The platform supports:
 
 - **Event Management**: Create, update, and manage events with rich metadata
 - **Ticket Sales**: Multiple ticket types (VIP, Regular, Early Bird) with dynamic pricing

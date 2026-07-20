@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 const { width: W } = Dimensions.get("window");
 
 /**
- * Stitch-style splash: EventPro mark, tagline, initializing progress.
+ * Stitch-style splash: KanamEvents mark, tagline, initializing progress.
  */
 export function SplashScreen() {
   const progress = useRef(new Animated.Value(0)).current;
@@ -46,7 +46,7 @@ export function SplashScreen() {
             </View>
           </View>
         </View>
-        <Text style={styles.brand}>EventPro</Text>
+        <Text style={styles.brand}>KanamEvents</Text>
         <Text style={styles.tag}>
           <Text style={styles.tagMuted}>Curating </Text>
           <Text style={styles.tagAccent}>Live Moments</Text>

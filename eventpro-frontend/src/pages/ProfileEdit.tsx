@@ -160,7 +160,7 @@ const ProfileEdit = () => {
     setDeleteOpen(false);
     toast({
       title: "Contact support",
-      description: "Account deletion is processed by our team. Email support@accessplus.com from your registered address.",
+      description: "Account deletion is processed by our team. Email support@kanamevents.com from your registered address.",
     });
   };
 

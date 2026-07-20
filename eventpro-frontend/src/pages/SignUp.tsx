@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
+import { executeRecaptcha, resolveRecaptchaSiteKey } from "@/lib/recaptcha";
 import { Ticket } from "lucide-react";
 import { motion } from "framer-motion";
 import { AuthPageLayout } from "@/components/AuthPageLayout";
@@ -57,6 +58,8 @@ const SignUp = () => {
   const onSubmit = async (data: SignUpForm) => {
     setIsLoading(true);
     try {
+      const siteKey = await resolveRecaptchaSiteKey();
+      const recaptchaToken = siteKey ? await executeRecaptcha(siteKey, "signup") : undefined;
       await signUp({
         email: data.email,
         password: data.password,
@@ -64,6 +67,7 @@ const SignUp = () => {
         lastName: data.lastName,
         phoneNumber: data.phoneNumber,
         role: data.role,
+        recaptchaToken,
       });
       navigate("/login");
     } catch (error) {
@@ -82,7 +86,7 @@ const SignUp = () => {
               <Ticket className="h-7 w-7 text-primary-foreground" />
             </div>
             <CardTitle className="text-2xl font-extrabold font-headline tracking-tight">Create an account</CardTitle>
-            <CardDescription className="text-base">Enter your details to get started with EventPro</CardDescription>
+            <CardDescription className="text-base">Enter your details to get started with KanamEvents</CardDescription>
           </CardHeader>
           <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

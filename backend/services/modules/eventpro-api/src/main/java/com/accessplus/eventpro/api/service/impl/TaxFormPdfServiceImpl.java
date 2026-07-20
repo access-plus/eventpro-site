@@ -21,7 +21,7 @@ import java.math.BigDecimal;
 @Service
 public class TaxFormPdfServiceImpl implements TaxFormPdfService {
 
-    private static final String PAYER_NAME = "Access Plus";
+    private static final String PAYER_NAME = "KanamEvents";
 
     @Override
     public byte[] generate1099KPdf(String recipientName, String recipientEmail, int year,

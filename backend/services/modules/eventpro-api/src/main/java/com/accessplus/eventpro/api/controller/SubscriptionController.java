@@ -47,7 +47,15 @@ public class SubscriptionController extends BaseController {
         UUID userId = JwtUtils.getCurrentUserId();
         UserEntity user = userService.getUserById(userId);
 
-        String priceId = subscriptionConfig.getPriceId(request.getTier(), request.getPeriod());
+        String tier = request.getTier() != null ? request.getTier().trim().toUpperCase() : "PRO";
+        String period = (request.getPeriod() != null && !request.getPeriod().isBlank())
+                ? request.getPeriod().trim().toUpperCase()
+                : "MONTHLY";
+        if ("ENTERPRISE".equals(tier) && !"YEARLY".equals(period)) {
+            throw new ValidationException("Enterprise is annual-only. Use period YEARLY.");
+        }
+
+        String priceId = subscriptionConfig.getPriceId(tier, period);
         if (priceId == null || priceId.isBlank()) {
             throw new ValidationException(
                     "Subscription pricing is not configured. Set STRIPE_PRICE_PRO_MONTHLY (and other price IDs) in your environment.");
@@ -61,7 +69,6 @@ public class SubscriptionController extends BaseController {
                 userService.updateStripeCustomerId(userId, customerId);
             }
 
-            String period = (request.getPeriod() != null && !request.getPeriod().isBlank()) ? request.getPeriod().trim().toUpperCase() : "MONTHLY";
             String url = stripeService.createSubscriptionCheckoutSession(
                     customerId,
                     priceId,

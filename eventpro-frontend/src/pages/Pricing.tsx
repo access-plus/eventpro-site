@@ -53,9 +53,11 @@ const Pricing = () => {
     try {
       setUpgradingTier(tier);
       const base = typeof window !== "undefined" ? window.location.origin : "";
+      // Enterprise is annual-only; Pro follows the monthly/annual toggle.
+      const period = tier === "ENTERPRISE" || isAnnual ? "YEARLY" : "MONTHLY";
       const { url } = await apiService.createSubscriptionCheckoutSession({
         tier,
-        period: isAnnual ? "YEARLY" : "MONTHLY",
+        period,
         successUrl: `${base}/subscription/return`,
         cancelUrl: `${base}/pricing`,
       });
@@ -387,7 +389,7 @@ const Pricing = () => {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center p-4 rounded-lg bg-primary/5 border-2 border-primary">
-                <div className="font-semibold text-primary mb-1">Access Plus (Pro)</div>
+                <div className="font-semibold text-primary mb-1">KanamEvents (Pro)</div>
                 <div className="text-2xl font-bold">2.9% + $0.79</div>
                 <div className="text-sm text-muted-foreground">+ early payouts included</div>
               </div>
@@ -415,7 +417,7 @@ const Pricing = () => {
               <div className="flex-1 text-center md:text-left">
                 <h3 className="text-2xl font-bold mb-2">Early Payouts: Get Your Money Faster</h3>
                 <p className="text-muted-foreground mb-4">
-                  Unlike other platforms that hold your funds until after the event, Access Plus offers 
+                  Unlike other platforms that hold your funds until after the event, KanamEvents offers 
                   early payout options so you can cover venue deposits, artist fees, and marketing costs.
                 </p>
                 <div className="flex flex-wrap gap-4 justify-center md:justify-start">
@@ -547,7 +549,7 @@ const Pricing = () => {
             <h2 className="text-3xl font-bold mb-4">Ready to grow your community events?</h2>
             <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
               Join thousands of cultural organizations, churches, and community groups 
-              already using Access Plus to sell tickets and build their audience.
+              already using KanamEvents to sell tickets and build their audience.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>

@@ -18,4 +18,7 @@ public class GuestReserveRequest {
     @NotEmpty(message = "At least one item is required")
     @Valid
     private List<GuestOrderItemRequest> items;
+
+    /** Optional Google reCAPTCHA token when eventpro.recaptcha.enabled=true */
+    private String recaptchaToken;
 }

@@ -64,4 +64,7 @@ public class GuestConfirmPaymentRequest {
 
     /** Optional: tax amount when state/country was used at checkout (so order stores it). */
     private BigDecimal taxAmount;
+
+    /** Optional Google reCAPTCHA token when eventpro.recaptcha.enabled=true */
+    private String recaptchaToken;
 }

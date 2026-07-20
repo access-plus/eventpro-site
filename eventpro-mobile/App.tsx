@@ -1,5 +1,5 @@
 /**
- * EventPro Mobile – mirrors web app with Discover, Profile, Organizer, Admin.
+ * KanamEvents Mobile – mirrors web app with Discover, Profile, Organizer, Admin.
  * Auth uses same backend as web: login, signUp, JWT in SecureStore, 401 clears session.
  * Handles eventpro://subscription/return after Stripe Checkout so tier/role sync without reopening web.
  */

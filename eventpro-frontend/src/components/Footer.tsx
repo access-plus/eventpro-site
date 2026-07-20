@@ -154,7 +154,7 @@ export const Footer = () => {
                 <Ticket className="h-6 w-6 text-primary-foreground" />
               </div>
               <span className="text-2xl font-bold font-headline bg-gradient-primary bg-clip-text text-transparent">
-                EventPro
+                KanamEvents
               </span>
             </Link>
             <p className="text-muted-foreground mb-6 max-w-xs">
@@ -173,7 +173,7 @@ export const Footer = () => {
               </div>
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Mail className="h-4 w-4 text-primary" />
-                <span>hello@eventpro.com</span>
+                <span>hello@kanamevents.com</span>
               </div>
             </div>
           </div>
@@ -251,7 +251,7 @@ export const Footer = () => {
       <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            © {currentYear} EventPro. All rights reserved.
+            © {currentYear} KanamEvents. All rights reserved.
           </p>
 
           {/* Social Links */}

@@ -704,4 +704,13 @@ public class OrderServiceImpl implements OrderService {
         }
         return orderRepository.save(order);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<OrderEntity> findPaidOrderByPaymentIntentId(String paymentIntentId) {
+        if (paymentIntentId == null || paymentIntentId.isBlank()) {
+            return Optional.empty();
+        }
+        return orderRepository.findByPaymentIntentIdAndStatus(paymentIntentId.trim(), OrderStatus.PAID);
+    }
 }

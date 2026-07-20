@@ -13,4 +13,7 @@ public class AuthLoginRequest {
 
     @NotBlank
     private String password;
+
+    /** Optional Google reCAPTCHA token when eventpro.recaptcha.enabled=true */
+    private String recaptchaToken;
 }

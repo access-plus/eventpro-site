@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { executeRecaptcha, resolveRecaptchaSiteKey } from "@/lib/recaptcha";
 import { Ticket, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { AuthPageLayout } from "@/components/AuthPageLayout";
@@ -39,7 +40,9 @@ const Login = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      await login({ email: data.email, password: data.password });
+      const siteKey = await resolveRecaptchaSiteKey();
+      const recaptchaToken = siteKey ? await executeRecaptcha(siteKey, "login") : undefined;
+      await login({ email: data.email, password: data.password, recaptchaToken });
       navigate(from, { replace: true });
     } catch (error) {
       // Error is handled in AuthContext
@@ -58,7 +61,7 @@ const Login = () => {
             </div>
             <CardTitle className="text-2xl font-extrabold font-headline tracking-tight">Welcome back</CardTitle>
             <CardDescription className="text-base">
-              Sign in to your EventPro account
+              Sign in to your KanamEvents account
             </CardDescription>
           </CardHeader>
           <CardContent>

@@ -52,7 +52,7 @@ export const Navigation = () => {
               <Ticket className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="text-xl font-bold font-headline bg-gradient-primary bg-clip-text text-transparent">
-              EventPro
+              KanamEvents
             </span>
           </Link>
 

@@ -167,7 +167,7 @@ export function ProfileScreen({ navigation }: { navigation: any }) {
           <View style={[styles.guestIconWrap, { backgroundColor: theme.colors.primary + "20" }]}>
             <Ionicons name="person-outline" size={48} color={theme.colors.primary} />
           </View>
-          <Text style={[pageTitle(theme), { textAlign: "center", marginBottom: 8 }]}>Welcome to EventPro</Text>
+          <Text style={[pageTitle(theme), { textAlign: "center", marginBottom: 8 }]}>Welcome to KanamEvents</Text>
           <Text style={[styles.guestSubtitle, { color: theme.colors.mutedForeground }]}>
             Sign in to get tickets, follow organizers, and manage your orders.
           </Text>
@@ -202,7 +202,7 @@ export function ProfileScreen({ navigation }: { navigation: any }) {
           <TouchableOpacity onPress={() => navigation.navigate("Settings")} hitSlop={12}>
             <Ionicons name="menu" size={26} color="#2D2D2D" />
           </TouchableOpacity>
-          <Text style={styles.stitchBrand}>EventPro</Text>
+          <Text style={styles.stitchBrand}>KanamEvents</Text>
           <TouchableOpacity onPress={() => navigation.navigate("ProfileEdit")}>
             {user?.profilePictureUrl ? (
               <Image source={{ uri: user.profilePictureUrl }} style={styles.stitchNavAvatarImg} />
@@ -497,7 +497,7 @@ export function ProfileScreen({ navigation }: { navigation: any }) {
           <Text style={[styles.tileLabel, { color: theme.colors.mutedForeground }]}>Current tier</Text>
           {isProOrEnterprise ? (
             <>
-              <Text style={[styles.tierName, { color: theme.colors.primary }]}>Access Plus Pro</Text>
+              <Text style={[styles.tierName, { color: theme.colors.primary }]}>KanamEvents Pro</Text>
               <Text style={[styles.tierDesc, { color: theme.colors.mutedForeground }]}>Lower fees · Instant payouts · White-label</Text>
               <TouchableOpacity onPress={() => navigation.navigate("Pricing")}>
                 <Text style={[styles.linkPrimary, { color: theme.colors.primary }]}>Manage plan →</Text>

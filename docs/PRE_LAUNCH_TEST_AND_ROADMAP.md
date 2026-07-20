@@ -1,12 +1,12 @@
 # Pre-Launch: Test Scenarios (Web + Mobile) & Roadmap
 
-This document aligns **test scenarios for Web and Mobile** before go-live and summarizes **what’s left to implement** from the roadmap. It references the **Access Plus Ticketing Platform: US Market Design Document** for user stories, quality attributes, and differentiation.
+This document aligns **test scenarios for Web and Mobile** before go-live and summarizes **what’s left to implement** from the roadmap. It references the **KanamEvents Ticketing Platform: US Market Design Document** for user stories, quality attributes, and differentiation.
 
 ---
 
 ## 1. Design Document Reference
 
-The **Access Plus Ticketing Platform: US Market Design Document** defines:
+The **KanamEvents Ticketing Platform: US Market Design Document** defines:
 
 - **User groups:** Customer, Event Organizer, Administrator  
 - **Quality attributes:** Performance (&lt;2s response, 10k concurrent users), availability, PCI DSS, scalability, US regulatory (1099-K, tax)  
@@ -67,7 +67,7 @@ Test each scenario on **both Web and Mobile** unless marked (Web only) or (Mobil
 | O16 | **Verification (KYC)** – Start Identity Check; submit entity type, address, (optional ID session); see PENDING then VERIFIED/REJECTED | ✓ | (Web) | Mobile: “Complete on web” / open web |
 | O17 | **Rejection UX** – When REJECTED, see “Verification declined” and rejection reason (if provided); Resubmit opens flow again | ✓ | ✓ | Profile rejection card |
 | O18 | **Profile by tier** – Basic: no team, no white-label; Pro: team, custom domain, no API; Enterprise: team, white-label, API keys | ✓ | ✓ | Profile and Organizer dashboard |
-| O19 | **White-label (Enterprise)** – Set logo, primary color, hide “Powered by Access Plus”; published event page reflects branding | ✓ | (Web) | Event page uses organizer branding |
+| O19 | **White-label (Enterprise)** – Set logo, primary color, hide “Powered by KanamEvents”; published event page reflects branding | ✓ | (Web) | Event page uses organizer branding |
 | O20 | **Team (Pro/Enterprise)** – Invite by email (existing user), role Admin/Editor/Viewer; member sees owner’s events and can edit | ✓ | (Web) | Mobile: “Manage on web” |
 | O21 | **API keys (Enterprise)** – Create/list/revoke API keys; call API with X-Api-Key | ✓ | (Web) | Mobile: “Manage on web” |
 
@@ -220,7 +220,7 @@ From the Design Document “Backend Required Features” section, still to imple
 
 | Document | Purpose |
 |----------|---------|
-| **Access Plus Ticketing Platform: US Market Design Document** | User stories, architecture, quality attributes, differentiation, MVP phases, iterations, backend requirements. |
+| **KanamEvents Ticketing Platform: US Market Design Document** | User stories, architecture, quality attributes, differentiation, MVP phases, iterations, backend requirements. |
 | `docs/MVP_ROADMAP.md` | Pricing tier matrix, iteration status, what’s left (payouts, identity, tax, product). |
 | `docs/TODO-identity-check-and-verification.md` | KYC/ID verification, risk/OFAC, bank account, rejection UX checklist. |
 | `docs/MOBILE_FEATURE_PARITY.md` | Web route → mobile screen mapping and implementation status. |

@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "EventPro",
-    "slug": "eventpro-mobile",
+    "name": "KanamEvents",
+    "slug": "kanamevents-mobile",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "eventpro",
+    "scheme": "kanamevents",
     "userInterfaceStyle": "automatic",
     "splash": {
       "resizeMode": "contain",
@@ -13,13 +13,13 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.eventpro.mobile"
+      "bundleIdentifier": "com.kanamevents.mobile"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
-      "package": "com.eventpro.mobile"
+      "package": "com.kanamevents.mobile"
     },
     "extra": {
       "apiUrl": "http://localhost:8080",

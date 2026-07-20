@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -137,5 +138,10 @@ public interface OrderService {
      * Stores payment metadata after checkout (Stripe intent, wallet portion, method).
      */
     OrderEntity updatePaymentDetails(UUID orderId, String paymentIntentId, BigDecimal walletAmount, String paymentMethod);
+
+    /**
+     * Returns a paid order already linked to this Stripe PaymentIntent (idempotent confirm).
+     */
+    Optional<OrderEntity> findPaidOrderByPaymentIntentId(String paymentIntentId);
 }
 

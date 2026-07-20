@@ -74,9 +74,9 @@ public class NotificationServiceImpl implements NotificationService {
         }
         String name = recipientName != null && !recipientName.isBlank() ? recipientName : "there";
         String tierLabel = (tier != null && !tier.isBlank()) ? tier : "Pro";
-        String subject = "You're now on EventPro " + tierLabel;
-        String bodyText = "Hi " + name + ",\n\nYour EventPro plan has been upgraded. You now have organizer access and can create and manage events.\n\nLog in to get started — your " + tierLabel + " plan is active.";
-        String bodyHtml = "<p>Hi " + name + ",</p><p>Your EventPro plan has been upgraded. You now have <strong>organizer access</strong> and can create and manage events.</p><p>Log in to get started — your " + tierLabel + " plan is active.</p>";
+        String subject = "You're now on KanamEvents " + tierLabel;
+        String bodyText = "Hi " + name + ",\n\nYour KanamEvents plan has been upgraded. You now have organizer access and can create and manage events.\n\nLog in to get started — your " + tierLabel + " plan is active.";
+        String bodyHtml = "<p>Hi " + name + ",</p><p>Your KanamEvents plan has been upgraded. You now have <strong>organizer access</strong> and can create and manage events.</p><p>Log in to get started — your " + tierLabel + " plan is active.</p>";
         try {
             emailService.sendCustomEmail(toEmail, subject, bodyText, bodyHtml);
         } catch (Exception e) {

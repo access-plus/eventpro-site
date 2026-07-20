@@ -99,6 +99,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return true;
         }
 
+        if (HttpMethod.GET.name().equals(method) && "/api/v1/payments/config".equals(path)) {
+            return true;
+        }
+
+        if (HttpMethod.GET.name().equals(method) && path.startsWith("/api/v1/images/proxy")) {
+            return true;
+        }
+
+        if (HttpMethod.POST.name().equals(method) && "/api/v1/webhooks/stripe".equals(path)) {
+            return true;
+        }
+
         // Swagger/OpenAPI endpoints
         if (path.startsWith("/swagger-ui") || 
             path.startsWith("/v3/api-docs") || 
