@@ -1,4 +1,5 @@
 .PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build jwt-keys \
+	core-build event-build order-build payment-build order-lambda-build payment-lambda-build notification-build \
 	tf-deploy-shared-infra tf-deploy-services tf-deploy-frontend tf-deploy-lambda-order tf-deploy-lambda-payment tf-deploy-lambda-notification tf-deploy-lambdas tf-deploy-all \
 	tf-destroy-shared-infra tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy \
 	aws-plan aws-deploy lstk-init lstk-plan lstk-deploy lstk-verify lstk-destroy \
@@ -9,6 +10,9 @@
 API_DIR := backend/services
 WEB_DIR := eventpro-frontend
 ANALYTICS_DIR := backend/lambdas/analytics-service
+ORDER_DIR := backend/lambdas/order-processor
+PAYMENT_DIR := backend/lambdas/payment-processor
+NOTIFICATION_DIR := backend/lambdas/notification-sender
 # SECRET_ROTATION_DIR := backend/lambdas/secret-rotation  # Removed - RDS manages credential rotation natively
 TF_WORKSPACE ?= dev
 TF_ENV_FILE ?= .env.remote
@@ -50,14 +54,18 @@ help:
 	@echo "  make api-test       - Test EventPro API"
 	@echo "  make api-run        - Run EventPro API locally"
 	@echo "  make api            - Clean, build, and test EventPro API"
-	@echo "  make backend-build  - Build Backend (alias for api-build)"
+	@echo "  make backend-build  - Build API and backend Lambdas"
 	@echo ""
 	@echo "Individual Modules:"
 	@echo "  make core-build     - Build eventpro-core module"
 	@echo "  make event-build    - Build eventpro-event module"
 	@echo "  make order-build    - Build eventpro-order module"
 	@echo "  make payment-build  - Build eventpro-payment module"
-	@echo "  make notification-build - Build eventpro-notification module"
+	@echo ""
+	@echo "Backend Lambda Applications:"
+	@echo "  make order-lambda-build        - Build order-processor Lambda"
+	@echo "  make payment-lambda-build      - Build payment-processor Lambda"
+	@echo "  make notification-build        - Build notification-sender Lambda"
 	@echo ""
 	@echo "Analytics Service Lambda:"
 	@echo "  make analytics-clean   - Clean Analytics Service"
@@ -195,7 +203,19 @@ api-build:
 	@echo "Building EventPro API..."
 	cd $(API_DIR) && ./gradlew build
 
-backend-build: api-build
+order-lambda-build:
+	@echo "Building order-processor Lambda..."
+	cd $(ORDER_DIR) && ./gradlew build
+
+payment-lambda-build:
+	@echo "Building payment-processor Lambda..."
+	cd $(PAYMENT_DIR) && ./gradlew build
+
+notification-build:
+	@echo "Building notification-sender Lambda..."
+	cd $(NOTIFICATION_DIR) && ./gradlew build
+
+backend-build: api-build order-lambda-build payment-lambda-build notification-build
 	@echo "Backend build complete!"
 
 api-test:
@@ -228,10 +248,6 @@ order-build:
 payment-build:
 	@echo "Building eventpro-payment module..."
 	cd $(API_DIR) && ./gradlew :eventpro-payment:build
-
-notification-build:
-	@echo "Building eventpro-notification module..."
-	cd $(API_DIR) && ./gradlew :eventpro-notification:build
 
 # ============================================================================
 # Analytics Service Lambda
