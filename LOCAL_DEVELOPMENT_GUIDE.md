@@ -1289,6 +1289,23 @@ This is the full AWS-emulation path for the production-shaped Terraform stacks. 
 
 **Makefile command contract:** use **`make lstk-*`** targets (they call `scripts/lstk-deploy.sh`) for this LocalStack Pro flow. Do **not** use **`make tf-deploy*`** / **`make tf-destroy*`** here; those targets are for **real AWS** and clear LocalStack-style endpoint env vars before Terraform runs.
 
+The supported complete-deployment workflow is intentionally small:
+
+```bash
+# The token stays in your shell and is never copied into a tracked file.
+export LOCALSTACK_AUTH_TOKEN=...
+
+make lstk-init       # first run: config, JWT keys, LocalStack, state bucket, hosted zone
+make lstk-plan       # plans shared only until shared state has been applied once
+make lstk-deploy     # applies all stacks, pushes Local ECR images, then verifies
+make lstk-verify     # repeat the end-to-end verification without deploying
+make lstk-destroy    # destroys Terraform-owned resources; keeps bootstrap state/zone
+make lstk-redeploy   # destroy, deploy, and verify again
+make lstk-stop       # stops LocalStack while preserving its Docker volume
+```
+
+For real AWS use the separate guarded commands `make aws-plan` and `make aws-deploy`. They clear LocalStack endpoint variables, force `use_localstack=false`, and verify the authenticated account before Terraform runs.
+
 This flow starts LocalStack Pro with `docker-compose.lstk.yml`. If you previously started LocalStack with another launcher, stop that instance first so ports `443`, `4566`, and `4510-4559` are available.
 
 Use this path when you want to exercise:
@@ -1312,7 +1329,7 @@ LocalStack Pro uses different credentials and backend/provider wiring:
 - Credentials are mock values: `AWS_ACCESS_KEY_ID=test`, `AWS_SECRET_ACCESS_KEY=test`.
 - LocalStack environment values live in `.env.lstk`.
 - Host-side AWS CLI/Terraform uses `AWS_ENDPOINT_URL=http://localhost:4566`.
-- ECS/Lambda containers use `LOCALSTACK_RUNTIME_ENDPOINT=http://host.docker.internal:4566` so runtime AWS SDK calls can reach the LocalStack gateway from inside Docker.
+- ECS/Lambda containers use `http://localhost.localstack.cloud:4566`, which LocalStack resolves correctly from its managed child containers.
 - Each stack initializes Terraform state with `backend.lstk.tfbackend`.
 - Each stack plans/applies resource variables with `terraform.lstk.tfvars`.
 - The shared Terraform state bucket must exist inside LocalStack before `terraform init`.
@@ -1384,24 +1401,20 @@ aws --endpoint-url="${AWS_ENDPOINT_URL:-http://localhost:4566}" route53 list-hos
   --dns-name "$DOMAIN_NAME"
 ```
 
-Make shortcuts are available for this full LocalStack Pro flow:
+Granular shortcuts remain available for debugging individual stacks:
 
 ```bash
-make lstk-start
-make lstk-state-bucket
-make lstk-route53-zone
 make lstk-endpoints
 make lstk-tf-all                 # defaults to plan
 make lstk-tf-all LSTK_TF_ACTION=apply
 make lstk-tf-destroy-all
-make lstk-redeploy
 ```
 
 Those Make targets call the dedicated LocalStack deploy script:
 
 ```bash
 ./scripts/lstk-deploy.sh --plan
-./scripts/lstk-deploy.sh --apply
+./scripts/lstk-deploy.sh --apply --verify-after
 ./scripts/lstk-deploy.sh --destroy
 ./scripts/lstk-deploy.sh --print-endpoints
 ./scripts/lstk-deploy.sh --apply --only services
@@ -1476,7 +1489,7 @@ cd ../..
 
 *deploy services*
 
-Build or tag an API image that the LocalStack/ECS emulation can reference, then apply the stack. The script and Make target do this automatically in apply mode by building `localstack/eventpro-api:local`:
+The canonical deploy creates LocalStack ECR repositories in shared infrastructure, builds a single-platform `linux/amd64` API image, pushes it to Local ECR, and passes the unique image tag to Terraform:
 
 ```bash
 ./scripts/lstk-deploy.sh --apply --only services
@@ -1485,13 +1498,7 @@ Build or tag an API image that the LocalStack/ECS emulation can reference, then 
 Manual equivalent:
 
 ```bash
-docker image build --platform linux/amd64 -f backend/services/Dockerfile -t localstack/eventpro-api:local backend
-cd backend/services/terraform
-terraform init -reconfigure -backend-config=backend.lstk.tfbackend
-terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
-terraform plan -var-file=terraform.lstk.tfvars
-terraform apply -var-file=terraform.lstk.tfvars
-cd ../../..
+make lstk-tf-services LSTK_TF_ACTION=apply
 ```
 
 *deploy frontend*
@@ -1499,10 +1506,9 @@ cd ../../..
 Build frontend assets before applying if you need to sync or inspect the generated S3/CloudFront resources:
 
 ```bash
-cd eventpro-frontend
-npm ci
-npm run build
-cd terraform
+npm ci --workspace eventpro-frontend --include-workspace-root=false
+VITE_ASSET_BASE_URL=/ npm run build --workspace eventpro-frontend
+cd eventpro-frontend/terraform
 terraform init -reconfigure -backend-config=backend.lstk.tfbackend
 terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
 terraform plan -var-file=terraform.lstk.tfvars
@@ -1512,7 +1518,7 @@ cd ../..
 
 *deploy lambdas*
 
-Build or tag Lambda images as `localstack/eventpro-*-processor:local` or update each lambda's `terraform.lstk.tfvars` image values to match your local image names. The script and Make target do this automatically in apply mode.
+Lambda images use the same Local ECR registry and `linux/amd64` architecture as Terraform's `x86_64` functions. `build-lambda-images.sh` builds and pushes all three images once per full deployment.
 
 ```bash
 ./scripts/lstk-deploy.sh --apply --only lambdas
@@ -1521,10 +1527,7 @@ Build or tag Lambda images as `localstack/eventpro-*-processor:local` or update 
 Manual equivalent:
 
 ```bash
-env -u AWS_ACCOUNT_ID ./scripts/build-lambda-local.sh all local
-docker tag eventpro-order-processor:local localstack/eventpro-order-processor:local
-docker tag eventpro-payment-processor:local localstack/eventpro-payment-processor:local
-docker tag eventpro-notification-sender:local localstack/eventpro-notification-sender:local
+make lstk-tf-lambdas LSTK_TF_ACTION=apply
 ```
 
 ```bash
@@ -1554,14 +1557,10 @@ terraform apply -var-file=terraform.lstk.tfvars
 cd ../../../..
 ```
 
-*verify LocalStack resources*
+*verify the complete deployment*
 
 ```bash
-aws --endpoint-url="$AWS_ENDPOINT_URL" s3 ls
-aws --endpoint-url="$AWS_ENDPOINT_URL" sqs list-queues
-aws --endpoint-url="$AWS_ENDPOINT_URL" rds describe-db-instances
-aws --endpoint-url="$AWS_ENDPOINT_URL" lambda list-functions
-aws --endpoint-url="$AWS_ENDPOINT_URL" route53 list-hosted-zones
+make lstk-verify
 ```
 
 *access the application*
@@ -1589,9 +1588,10 @@ Route53 and DNS notes:
 - ACM validation records are emulated; do not expect public DNS validation behavior.
 
 Switching notes:
-- To switch a stack back to real AWS, run `terraform init -reconfigure` without `backend.lstk.tfbackend`, then use `terraform.tfvars`.
-- If Terraform asks to migrate state while switching between AWS and LocalStack, stop unless you intentionally want to copy state between targets.
-- Keep the same workspace name across all stacks so downstream state reads find the matching `shared-infra` outputs.
+- Prefer `make aws-plan` / `make aws-deploy` and `make lstk-*` instead of invoking Terraform manually.
+- Every path runs `terraform init -reconfigure`; never accept a state migration prompt when switching targets.
+- LocalStack forces mock credentials and account `000000000000`; AWS refuses that identity and optionally verifies `AWS_ACCOUNT_ID`.
+- LocalStack disables New Relic and uses non-live Stripe sentinel values. Verification never calls live Stripe, SES, or SNS.
 
 Full runbook: `docs/TERRAFORM_DEPLOY_TARGETS.md`.
 

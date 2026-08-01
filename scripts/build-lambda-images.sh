@@ -12,6 +12,7 @@ set -euo pipefail
 DEFAULT_LAMBDAS=(order-processor payment-processor notification-sender)
 AWS_REGION="${AWS_REGION:-us-east-1}"
 LAMBDA_IMAGE_PLATFORM="${LAMBDA_IMAGE_PLATFORM:-linux/amd64}"
+LAMBDA_DOCKER_TARGET="${LAMBDA_DOCKER_TARGET:-runtime-newrelic}"
 
 LAMBDA_NAME="all"
 IMAGE_TAG="latest"
@@ -73,6 +74,8 @@ Environment:
   AWS_REGION               AWS region for ECR login (default: us-east-1)
   AWS_ACCOUNT_ID           Used to infer --registry when not provided
   LAMBDA_IMAGE_PLATFORM    Docker platform for Lambda images (default: linux/amd64)
+  LAMBDA_DOCKER_TARGET     Docker build target (default: runtime-newrelic; LocalStack uses runtime-plain)
+  ECR_ENDPOINT_URL         Optional ECR API endpoint (for LocalStack)
 
 Notes:
   - Docker build context is always 'backend/' (required by the Dockerfiles).
@@ -197,7 +200,12 @@ login_ecr_once() {
   command -v aws >/dev/null 2>&1 || die "AWS CLI is required to push images"
 
   log "${YELLOW}Logging in to ECR (${REGISTRY})...${NC}"
-  aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY" >/dev/null
+  local -a ecr_endpoint_args=()
+  if [ -n "${ECR_ENDPOINT_URL:-}" ]; then
+    ecr_endpoint_args+=(--endpoint-url "$ECR_ENDPOINT_URL")
+  fi
+  aws "${ecr_endpoint_args[@]}" ecr get-login-password --region "$AWS_REGION" | \
+    docker login --username AWS --password-stdin "$REGISTRY" >/dev/null
   ECR_LOGGED_IN=true
 }
 
@@ -209,6 +217,7 @@ build_one_lambda() {
   local primary_ref
   local registry_prefix=""
   local -a tags_to_apply=()
+  local -a target_args=(--target "$LAMBDA_DOCKER_TARGET")
   local tag
 
   [ -f "$dockerfile_path" ] || die "Dockerfile not found: $dockerfile_path"
@@ -217,11 +226,11 @@ build_one_lambda() {
     registry_prefix="${REGISTRY}/"
   fi
   primary_ref="${registry_prefix}${image_name}:${IMAGE_TAG}"
-
   log "${GREEN}Building ${lambda} Lambda...${NC}"
-  log "${YELLOW}docker buildx build --platform ${LAMBDA_IMAGE_PLATFORM} --provenance=false --sbom=false --load -f ${dockerfile_path} -t ${primary_ref} ${build_context}${NC}"
+  log "${YELLOW}docker buildx build --platform ${LAMBDA_IMAGE_PLATFORM} ${target_args[*]} --provenance=false --sbom=false --load -f ${dockerfile_path} -t ${primary_ref} ${build_context}${NC}"
   docker buildx build \
     --platform "$LAMBDA_IMAGE_PLATFORM" \
+    "${target_args[@]}" \
     --provenance=false \
     --sbom=false \
     --load \

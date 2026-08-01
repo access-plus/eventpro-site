@@ -38,6 +38,11 @@ output "rds_endpoint" {
   value       = split(":", aws_db_instance.main.endpoint)[0]
 }
 
+output "rds_runtime_host" {
+  description = "RDS hostname reachable by deployed compute"
+  value       = var.use_localstack ? "localhost.localstack.cloud" : split(":", aws_db_instance.main.endpoint)[0]
+}
+
 output "rds_port" {
   description = "RDS port"
   value       = tonumber(split(":", aws_db_instance.main.endpoint)[1])
@@ -111,4 +116,17 @@ output "s3_images_bucket_id" {
 output "s3_images_bucket_arn" {
   description = "S3 images bucket ARN"
   value       = aws_s3_bucket.images.arn
+}
+
+output "local_ecr_repository_urls" {
+  description = "LocalStack ECR repository URLs keyed by repository name; empty in real AWS"
+  value       = { for name, repository in aws_ecr_repository.localstack : name => repository.repository_url }
+}
+
+output "local_ecr_registry" {
+  description = "LocalStack ECR registry host; null in real AWS"
+  value = var.use_localstack ? split(
+    "/",
+    aws_ecr_repository.localstack["eventpro-api"].repository_url
+  )[0] : null
 }

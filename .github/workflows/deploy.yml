@@ -5,6 +5,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      environment:
+        description: The workspace to deploy to
+        required: true
+        default: dev
+      branch:
+        description: The branch to deploy
+        required: true
+        default: main
 
 jobs:
   # detect-changes:
@@ -43,7 +52,7 @@ jobs:
     # needs: detect-changes
     uses: ./.github/workflows/shared-infra.yml
     with:
-      workspace: dev
+      workspace: ${{ inputs.environment }}
       run_deploy: ${{ github.event_name == 'push' }}
     secrets: inherit
 
@@ -53,7 +62,7 @@ jobs:
     # if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.services == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/services.yml
     with:
-      workspace: dev
+      workspace: ${{ inputs.environment }}
       run_deploy: ${{ github.event_name == 'push' }}
     secrets: inherit
 
@@ -63,7 +72,7 @@ jobs:
     # if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.frontend == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/frontend.yml
     with:
-      workspace: dev
+      workspace: ${{ inputs.environment }}
       run_deploy: ${{ github.event_name == 'push' }}
     secrets: inherit
 
@@ -73,7 +82,7 @@ jobs:
     # if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.order_processor == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/order-processor.yml
     with:
-      workspace: dev
+      workspace: ${{ inputs.environment }}
       run_deploy: ${{ github.event_name == 'push' }}
     secrets: inherit
 
@@ -83,7 +92,7 @@ jobs:
     # if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.payment_processor == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/payment-processor.yml
     with:
-      workspace: dev
+      workspace: ${{ inputs.environment }}
       run_deploy: ${{ github.event_name == 'push' }}
     secrets: inherit
 
@@ -93,6 +102,6 @@ jobs:
     # if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.notification_sender == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/notification-sender.yml
     with:
-      workspace: dev
+      workspace: ${{ inputs.environment }}
       run_deploy: ${{ github.event_name == 'push' }}
     secrets: inherit

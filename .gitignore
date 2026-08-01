@@ -214,3 +214,9 @@ ticket-**/
 docs/stitch_event_details/
 
 **/AGENTS.md
+
+# Sanitized deployment examples and reproducibility metadata are committed.
+!.env.lstk.example
+!.env.remote.example
+!**/terraform.lstk.tfvars
+!**/.terraform.lock.hcl

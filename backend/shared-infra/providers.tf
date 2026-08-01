@@ -13,6 +13,7 @@ provider "aws" {
     acm            = var.use_localstack ? var.localstack_endpoint : null
     cloudfront     = var.use_localstack ? var.localstack_endpoint : null
     ec2            = var.use_localstack ? var.localstack_endpoint : null
+    ecr            = var.use_localstack ? var.localstack_endpoint : null
     iam            = var.use_localstack ? var.localstack_endpoint : null
     rds            = var.use_localstack ? var.localstack_endpoint : null
     route53        = var.use_localstack ? var.localstack_endpoint : null
