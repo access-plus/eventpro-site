@@ -246,11 +246,11 @@ export function CheckInScreen({ route, navigation }: Props) {
           hitSlop={12}
           onPress={() => (navigation?.canGoBack?.() ? navigation.goBack() : navigation?.navigate("OrganizerDashboard"))}
         >
-          <Ionicons name="menu" size={26} color="#2d1b4e" />
+          <Ionicons name="menu" size={26} color="#0A0A0A" />
         </TouchableOpacity>
         <Text style={styles.pageTitle}>Event Check-in</Text>
         <TouchableOpacity hitSlop={12} onPress={() => navigation?.navigate("QRScanner", { eventId: eventId ?? undefined })}>
-          <Ionicons name="qr-code-outline" size={26} color="#2d1b4e" />
+          <Ionicons name="qr-code-outline" size={26} color="#0A0A0A" />
         </TouchableOpacity>
       </View>
 
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     marginBottom: 4,
   },
-  pageTitle: { fontSize: 18, fontWeight: "800", color: "#2d1b4e" },
+  pageTitle: { fontSize: 18, fontWeight: "800", color: "#0A0A0A" },
   eventSubtitle: { fontSize: 13, marginBottom: 14, paddingHorizontal: 2 },
   liveCard: {
     backgroundColor: PURPLE,
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   chipTextActive: { color: "#fff" },
   chipTextIdle: { color: "#3d2a5c" },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
-  sectionTitle: { fontSize: 17, fontWeight: "800", color: "#2d1b4e" },
+  sectionTitle: { fontSize: 17, fontWeight: "800", color: "#0A0A0A" },
   liveBadge: { backgroundColor: "#fecaca", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   liveBadgeText: { color: "#b91c1c", fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
   manualToggle: {

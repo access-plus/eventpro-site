@@ -84,7 +84,7 @@ export function SuccessTicketReveal({
 
       <div className="max-w-md mx-auto px-4 pb-16 pt-6">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-glow shadow-[0_12px_40px_rgba(99,102,241,0.45)]">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-glow shadow-[0_12px_40px_rgba(10,102,240,0.45)]">
             <Ticket className="h-10 w-10 text-primary-foreground" />
           </div>
           <h2 className="text-2xl font-extrabold font-headline text-foreground tracking-tight">You&apos;re Going!</h2>
@@ -106,7 +106,7 @@ export function SuccessTicketReveal({
             return (
               <div
                 key={`${seatLabel}-${idx}`}
-                className="rounded-3xl border border-border/60 bg-card shadow-[0_20px_50px_rgba(54,39,78,0.08)] overflow-hidden"
+                className="rounded-3xl border border-border/60 bg-card shadow-[0_20px_50px_rgba(10,10,10,0.08)] overflow-hidden"
               >
                 <div className="relative h-44 w-full overflow-hidden bg-muted">
                   {heroSrc ? (
@@ -173,7 +173,7 @@ export function SuccessTicketReveal({
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="mt-6 space-y-3">
           <Button
-            className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary via-indigo-500 to-primary-glow text-primary-foreground font-bold shadow-md"
+            className="w-full h-12 rounded-2xl bg-gradient-to-r from-primary via-primary to-primary-glow text-primary-foreground font-bold shadow-md"
             onClick={() => navigate("/orders")}
           >
             <Ticket className="h-4 w-4 mr-2" />

@@ -95,11 +95,11 @@ export function AdminUsersScreen({ navigation }: { navigation: { navigate: (n: s
     <View style={[styles.container, { backgroundColor: BG, paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <TouchableOpacity hitSlop={12}>
-          <Ionicons name="menu" size={26} color="#2d1b4e" />
+          <Ionicons name="menu" size={26} color="#0A0A0A" />
         </TouchableOpacity>
         <Text style={styles.pageTitle}>User Management</Text>
         <TouchableOpacity hitSlop={12}>
-          <Ionicons name="search" size={24} color="#2d1b4e" />
+          <Ionicons name="search" size={24} color="#0A0A0A" />
         </TouchableOpacity>
       </View>
 
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: lightTheme.spacing.md,
     paddingVertical: 12,
   },
-  pageTitle: { fontSize: 18, fontWeight: "900", color: "#2d1b4e" },
+  pageTitle: { fontSize: 18, fontWeight: "900", color: "#0A0A0A" },
   searchWrap: {
     flexDirection: "row",
     alignItems: "center",

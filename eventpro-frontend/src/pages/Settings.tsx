@@ -84,7 +84,7 @@ const Settings = () => {
           className="space-y-6"
         >
           {/* Quick links */}
-          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(10,10,10,0.06)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-headline text-lg">
                 <User className="h-5 w-5 text-primary" />
@@ -121,7 +121,7 @@ const Settings = () => {
           </Card>
 
           {isAuthenticated && (
-            <Card id="electric-wallet" className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+            <Card id="electric-wallet" className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(10,10,10,0.06)]">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 font-headline text-lg">
                   <Wallet className="h-5 w-5 text-primary" />
@@ -188,7 +188,7 @@ const Settings = () => {
           )}
 
           {/* Notifications */}
-          <Card id="notifications" className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+          <Card id="notifications" className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(10,10,10,0.06)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-headline text-lg">
                 <Bell className="h-5 w-5 text-primary" />
@@ -250,7 +250,7 @@ const Settings = () => {
           </Card>
 
           {/* Appearance */}
-          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(10,10,10,0.06)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-headline text-lg">
                 <Palette className="h-5 w-5 text-primary" />
@@ -272,7 +272,7 @@ const Settings = () => {
           </Card>
 
           {/* Support */}
-          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(10,10,10,0.06)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-headline text-lg">
                 <HelpCircle className="h-5 w-5 text-primary" />
@@ -309,7 +309,7 @@ const Settings = () => {
           </Card>
 
           {/* Privacy */}
-          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(10,10,10,0.06)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-headline text-lg">
                 <Shield className="h-5 w-5 text-primary" />
@@ -334,7 +334,7 @@ const Settings = () => {
           </Card>
 
           {/* Sign out */}
-          <Card className="rounded-2xl border-destructive/20 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+          <Card className="rounded-2xl border-destructive/20 shadow-[0_20px_40px_rgba(10,10,10,0.06)]">
             <CardContent className="pt-6">
               <Button
                 variant="destructive"

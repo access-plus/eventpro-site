@@ -1,53 +1,34 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Building2, Gift, ArrowRight, CheckCircle2, DollarSign, Megaphone, Globe } from "lucide-react";
+import { Users, Building2, Gift, ArrowRight, CheckCircle2, Megaphone, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
 
 const Partners = () => {
   const ambassadorBenefits = [
-    "Earn 10% commission on every ticket sold through your referral link",
-    "Early access to exclusive cultural events in your community",
-    "Free tickets to partner events for content creation",
-    "Featured spotlight on our social media channels",
-    "Custom promotional materials in your language",
-    "Dedicated partner success manager",
+    "Help promote cultural events to your community",
+    "Early access to events you help amplify",
+    "Co-create promotional materials for your audience",
+    "Featured spotlight opportunities on our channels",
+    "Direct line to our partnership team",
   ];
 
   const venueBenefits = [
-    "Priority listing for events hosted at your venue",
-    "Co-marketing opportunities with cultural organizers",
-    "Access to our network of 500+ community event organizers",
-    "Streamlined booking and ticketing integration",
-    "Revenue share on platform-hosted events",
-    "Custom venue page with your branding",
+    "Connect with organizers looking for cultural venues",
+    "Co-marketing opportunities around hosted events",
+    "Streamlined ticketing for events at your space",
+    "Custom venue presence on the platform (coming as we grow)",
   ];
 
-  const affiliateTiers = [
-    {
-      name: "Bronze",
-      referrals: "1-5",
-      commission: "15%",
-      perks: ["Basic dashboard access", "Monthly payouts"],
-    },
-    {
-      name: "Silver",
-      referrals: "6-15",
-      commission: "20%",
-      perks: ["Priority support", "Bi-weekly payouts", "Co-branded materials"],
-    },
-    {
-      name: "Gold",
-      referrals: "16+",
-      commission: "25%",
-      perks: ["Dedicated account manager", "Weekly payouts", "Event sponsorship opportunities", "VIP event access"],
-    },
+  const referralBenefits = [
+    "Introduce organizers in your network to Kanam Events",
+    "We handle onboarding and platform support",
+    "Rewards discussed individually based on referral impact",
   ];
 
   return (
     <PageShell className="bg-background">
-      {/* Hero Section */}
       <section className="relative py-20 px-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
         <div className="container mx-auto text-center max-w-4xl">
           <Badge variant="secondary" className="mb-4">
@@ -58,45 +39,20 @@ const Partners = () => {
             <span className="text-primary">Partner Program</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join a thriving network connecting diaspora communities across the US. 
-            Whether you're an influencer, venue owner, or event organizer, there's a place for you.
+            We are building partnerships with community voices, venues, and organizers
+            across the diaspora. If that sounds like you, we would love to hear from you.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" asChild>
-              <a href="#ambassador">Become an Ambassador</a>
+              <Link to="/contact">Talk to Partnerships</Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <a href="#affiliate">Start Referring</a>
+              <a href="#ambassador">Explore paths</a>
             </Button>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-12 border-b border-border">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div>
-              <p className="text-3xl md:text-4xl font-bold text-primary">500+</p>
-              <p className="text-muted-foreground">Active Partners</p>
-            </div>
-            <div>
-              <p className="text-3xl md:text-4xl font-bold text-primary">$2M+</p>
-              <p className="text-muted-foreground">Partner Earnings</p>
-            </div>
-            <div>
-              <p className="text-3xl md:text-4xl font-bold text-primary">50+</p>
-              <p className="text-muted-foreground">Cultural Communities</p>
-            </div>
-            <div>
-              <p className="text-3xl md:text-4xl font-bold text-primary">25%</p>
-              <p className="text-muted-foreground">Max Commission</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Community Ambassadors Section */}
       <section id="ambassador" className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -111,46 +67,48 @@ const Partners = () => {
                 Represent Your Community
               </h2>
               <p className="text-lg text-muted-foreground mb-6">
-                Are you a voice in your diaspora community? Join our ambassador program to 
-                help connect your community with authentic cultural events while earning rewards.
+                Are you a voice in your diaspora community? Join as an ambassador to
+                help connect people with authentic cultural events.
               </p>
               <ul className="space-y-3 mb-8">
-                {ambassadorBenefits.map((benefit, index) => (
-                  <li key={index} className="flex items-start gap-3">
+                {ambassadorBenefits.map((benefit) => (
+                  <li key={benefit} className="flex items-start gap-3">
                     <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                     <span className="text-muted-foreground">{benefit}</span>
                   </li>
                 ))}
               </ul>
-              <Button size="lg">
-                Apply to Be an Ambassador
-                <ArrowRight className="ml-2 h-4 w-4" />
+              <Button size="lg" asChild>
+                <Link to="/contact">
+                  Apply to Be an Ambassador
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             </div>
             <Card className="bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
-                  Who We're Looking For
+                  Who We Are Looking For
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="p-4 rounded-lg bg-background/50">
-                  <h4 className="font-semibold mb-2">Social Media Influencers</h4>
+                  <h4 className="font-semibold mb-2">Social Media Creators</h4>
                   <p className="text-sm text-muted-foreground">
-                    Content creators with engaged diaspora audiences on Instagram, TikTok, or YouTube
+                    Creators with engaged diaspora audiences on Instagram, TikTok, or YouTube
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-background/50">
                   <h4 className="font-semibold mb-2">Community Leaders</h4>
                   <p className="text-sm text-muted-foreground">
-                    Religious leaders, cultural organization heads, and community advocates
+                    Cultural organization leads, faith leaders, and community advocates
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-background/50">
                   <h4 className="font-semibold mb-2">Event Enthusiasts</h4>
                   <p className="text-sm text-muted-foreground">
-                    Frequent attendees who love sharing cultural experiences with friends and family
+                    People who love sharing cultural experiences with friends and family
                   </p>
                 </div>
               </CardContent>
@@ -159,7 +117,6 @@ const Partners = () => {
         </div>
       </section>
 
-      {/* Venue Partners Section */}
       <section id="venues" className="py-20 px-4 bg-muted/30">
         <div className="container mx-auto max-w-6xl">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -181,9 +138,9 @@ const Partners = () => {
                     "Outdoor Spaces",
                     "Hotels & Resorts",
                     "Theaters",
-                  ].map((venue, index) => (
+                  ].map((venue) => (
                     <div
-                      key={index}
+                      key={venue}
                       className="p-3 rounded-lg bg-background/50 text-center text-sm font-medium"
                     >
                       {venue}
@@ -200,95 +157,70 @@ const Partners = () => {
                 <Badge variant="secondary">Venue Partners</Badge>
               </div>
               <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-                Fill Your Venue With Culture
+                Host Cultural Events At Your Space
               </h2>
               <p className="text-lg text-muted-foreground mb-6">
-                Connect your space with passionate event organizers looking for the perfect 
-                location to host cultural celebrations, galas, and community gatherings.
+                Connect your venue with organizers looking for the right place for
+                cultural celebrations, galas, and community gatherings.
               </p>
               <ul className="space-y-3 mb-8">
-                {venueBenefits.map((benefit, index) => (
-                  <li key={index} className="flex items-start gap-3">
+                {venueBenefits.map((benefit) => (
+                  <li key={benefit} className="flex items-start gap-3">
                     <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                     <span className="text-muted-foreground">{benefit}</span>
                   </li>
                 ))}
               </ul>
-              <Button size="lg" variant="secondary">
-                List Your Venue
-                <ArrowRight className="ml-2 h-4 w-4" />
+              <Button size="lg" variant="secondary" asChild>
+                <Link to="/contact">
+                  List Your Venue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Affiliate/Referral Program Section */}
       <section id="affiliate" className="py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-12">
+        <div className="container mx-auto max-w-3xl">
+          <div className="text-center mb-10">
             <div className="flex items-center justify-center gap-2 mb-4">
               <div className="p-2 rounded-lg bg-primary/10">
                 <Gift className="h-6 w-6 text-primary" />
               </div>
-              <Badge>Affiliate Program</Badge>
+              <Badge>Referrals</Badge>
             </div>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Refer Organizers, Earn Rewards
+              Refer Organizers
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Know event organizers in your community? Refer them to KanamEvents and earn 
-              ongoing commissions on their ticket sales. The more you refer, the more you earn.
+              Know event organizers who would thrive on Kanam Events? Introduce them
+              to us. Referral rewards are set case by case — we are not publishing
+              fixed commission rates until the program is fully launched.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 mb-12">
-            {affiliateTiers.map((tier, index) => (
-              <Card
-                key={tier.name}
-                className={`relative ${
-                  index === 2
-                    ? "border-primary shadow-lg scale-105"
-                    : "border-border"
-                }`}
-              >
-                {index === 2 && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground">Most Popular</Badge>
-                  </div>
-                )}
-                <CardHeader className="text-center pb-4">
-                  <CardTitle className="text-2xl">{tier.name}</CardTitle>
-                  <CardDescription>{tier.referrals} organizers referred</CardDescription>
-                  <div className="pt-4">
-                    <span className="text-4xl font-bold text-primary">{tier.commission}</span>
-                    <span className="text-muted-foreground ml-1">commission</span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3">
-                    {tier.perks.map((perk, perkIndex) => (
-                      <li key={perkIndex} className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                        <span className="text-sm">{perk}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
+          <ul className="space-y-3 mb-10 max-w-xl mx-auto">
+            {referralBenefits.map((benefit) => (
+              <li key={benefit} className="flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                <span className="text-muted-foreground">{benefit}</span>
+              </li>
             ))}
-          </div>
+          </ul>
 
           <div className="text-center">
-            <Button size="lg">
-              <DollarSign className="mr-2 h-4 w-4" />
-              Join the Affiliate Program
+            <Button size="lg" asChild>
+              <Link to="/contact">
+                Start a Referral Conversation
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
       <section className="py-20 px-4 bg-muted/30">
         <div className="container mx-auto max-w-4xl">
           <h2 className="text-3xl font-bold text-center text-foreground mb-12">
@@ -298,21 +230,21 @@ const Partners = () => {
             {[
               {
                 step: "1",
-                title: "Apply",
+                title: "Reach Out",
                 description:
-                  "Fill out a quick application form. We'll review and get back to you within 48 hours.",
+                  "Tell us about yourself, your audience, or your venue through our contact form.",
               },
               {
                 step: "2",
-                title: "Get Your Link",
+                title: "We Follow Up",
                 description:
-                  "Once approved, receive your unique referral link and promotional materials.",
+                  "Our team reviews your note and gets back with next steps for your partnership path.",
               },
               {
                 step: "3",
-                title: "Start Earning",
+                title: "Build Together",
                 description:
-                  "Share with your network and earn commissions on every successful referral or sale.",
+                  "We align on how to collaborate — promotion, venue hosting, or organizer referrals.",
               },
             ].map((item) => (
               <div key={item.step} className="text-center">
@@ -327,23 +259,21 @@ const Partners = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-3xl text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Ready to Partner With Us?
           </h2>
           <p className="text-lg text-muted-foreground mb-8">
-            Join hundreds of partners already earning and growing with KanamEvents. 
-            Have questions? Our partnership team is here to help.
+            Partnerships are early-stage and handled personally. Reach out and we will
+            figure out the right fit together.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg">
-              Apply Now
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button size="lg" variant="outline" asChild>
-              <Link to="/contact">Contact Partnership Team</Link>
+            <Button size="lg" asChild>
+              <Link to="/contact">
+                Contact Partnerships
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </div>

@@ -17,6 +17,7 @@ import type { Event } from "@eventpro/shared";
 import { useTheme } from "../contexts/ThemeContext";
 import { EventCard } from "../components/EventCard";
 import { DiscoverFeaturedCard } from "../components/DiscoverFeaturedCard";
+import { BrandLogo } from "../components/BrandLogo";
 import { lightTheme } from "../theme";
 import { editorialCard } from "../theme/screenStyles";
 
@@ -198,9 +199,7 @@ export function HomeScreen({ navigation }: { navigation: any }) {
             >
               <Ionicons name="search" size={22} color={theme.colors.foreground} />
             </TouchableOpacity>
-            <Text style={[styles.brandTitle, { color: theme.colors.foreground }]} numberOfLines={1}>
-              KanamEvents
-            </Text>
+            <BrandLogo size={72} />
             <TouchableOpacity
               onPress={() => navigation.getParent()?.navigate("Profile", { screen: "ProfileHome" })}
               hitSlop={12}
@@ -210,12 +209,8 @@ export function HomeScreen({ navigation }: { navigation: any }) {
             </TouchableOpacity>
           </View>
 
-          {/* discovery/screen — location + Discover */}
+          {/* discovery/screen — Discover (no hardcoded city until we have real location) */}
           <View style={styles.locationRow}>
-            <View style={styles.locationLeft}>
-              <Ionicons name="location" size={18} color={theme.colors.primary} />
-              <Text style={[styles.locationText, { color: theme.colors.primary }]}>San Francisco</Text>
-            </View>
             <Text style={[styles.discoverTitle, { color: theme.colors.foreground }]}>Discover</Text>
             <TouchableOpacity onPress={() => navigation.navigate("EventsList")} hitSlop={12}>
               <Ionicons name="search" size={22} color={theme.colors.foreground} />
@@ -454,7 +449,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 2,
-    color: "#db2777",
+    color: "#0A66F0",
     textTransform: "uppercase",
     marginBottom: 4,
   },

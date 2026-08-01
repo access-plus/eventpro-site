@@ -20,6 +20,7 @@ import {
   Shield,
 } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -70,13 +71,11 @@ export const AdminLayout = () => {
     [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email?.split("@")[0] || "Admin";
 
   return (
-    <PageShell className="bg-[hsl(250_18%_98%)]">
+    <PageShell className="bg-background">
       <div className="flex min-h-screen">
         <aside className="hidden md:flex w-[260px] shrink-0 flex-col border-r border-border/60 bg-card/80 backdrop-blur-sm px-4 py-6">
-          <Link to="/admin/overview" className="flex items-center gap-3 px-2 mb-8">
-            <div className="h-11 w-11 rounded-xl bg-gradient-primary flex items-center justify-center shadow-md">
-              <span className="font-headline font-bold text-lg text-primary-foreground leading-none">E</span>
-            </div>
+          <Link to="/admin/overview" className="flex items-center gap-3 px-2 mb-8" aria-label="Kanam Events admin">
+            <BrandLogo imgClassName="h-20 w-20" />
             <div className="min-w-0">
               <p className="font-headline font-bold text-foreground leading-tight truncate">KanamEvents</p>
               <p className="text-[10px] font-semibold tracking-widest text-muted-foreground truncate">ADMIN CONSOLE</p>

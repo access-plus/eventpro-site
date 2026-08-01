@@ -32,7 +32,7 @@ export function SystemMaintenanceScreen({ navigation }: { navigation: { goBack: 
     <View style={[styles.root, { backgroundColor: BG, paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color="#2d1b4e" />
+          <Ionicons name="arrow-back" size={24} color="#0A0A0A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>System Maintenance</Text>
         <View style={styles.livePill}>
@@ -176,10 +176,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  headerTitle: { fontSize: 17, fontWeight: "900", color: "#2d1b4e", flex: 1, textAlign: "center" },
+  headerTitle: { fontSize: 17, fontWeight: "900", color: "#0A0A0A", flex: 1, textAlign: "center" },
   livePill: { flexDirection: "row", alignItems: "center", gap: 6 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#22c55e" },
-  liveText: { fontSize: 10, fontWeight: "800", color: "#2d1b4e" },
+  liveText: { fontSize: 10, fontWeight: "800", color: "#0A0A0A" },
   hero: {
     marginHorizontal: 16,
     borderRadius: 24,
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   toggleTitle: { color: "#fff", fontWeight: "700", fontSize: 15 },
   toggleSub: { color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 4 },
   sectionHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 16, marginBottom: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: "900", color: "#2d1b4e" },
+  sectionTitle: { fontSize: 16, fontWeight: "900", color: "#0A0A0A" },
   addNew: { color: PURPLE, fontWeight: "800", fontSize: 13 },
   windowCard: {
     flexDirection: "row",

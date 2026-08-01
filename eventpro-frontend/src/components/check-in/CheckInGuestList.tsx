@@ -199,7 +199,7 @@ export function CheckInGuestList({
             </div>
             <div className="rounded-2xl border border-border/50 bg-card p-4 shadow-sm">
               <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium uppercase tracking-wide mb-2">
-                <Crown className="h-4 w-4 text-accent-pink" />
+                <Crown className="h-4 w-4 text-primary" />
                 VIP waiting
               </div>
               <p className="text-3xl font-bold font-headline tabular-nums">{vipWaiting}</p>

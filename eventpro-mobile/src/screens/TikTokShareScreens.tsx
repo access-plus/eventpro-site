@@ -4,8 +4,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-const PURPLE = "#7c3aed";
-const BG = "#f5f0ff";
+const SIGNAL = "#0A66F0";
+const BG = "#F7F7F5";
 
 type ShareParams = {
   eventName?: string;
@@ -32,11 +32,11 @@ export function TikTokShareTemplateScreen({
     <View style={[styles.root, { paddingTop: insets.top, backgroundColor: BG }]}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
-          <Ionicons name="close" size={28} color={PURPLE} />
+          <Ionicons name="close" size={28} color={SIGNAL} />
         </TouchableOpacity>
         <Text style={styles.brand}>VIBE</Text>
         <TouchableOpacity hitSlop={12}>
-          <Ionicons name="download-outline" size={26} color={PURPLE} />
+          <Ionicons name="download-outline" size={26} color={SIGNAL} />
         </TouchableOpacity>
       </View>
 
@@ -90,7 +90,7 @@ export function TikTokShareSaveScreen({ navigation }: { navigation: { goBack: ()
   return (
     <View style={[styles.root, { paddingTop: insets.top, backgroundColor: BG, justifyContent: "center" }]}>
       <TouchableOpacity style={[styles.topBar, { position: "absolute", top: insets.top, left: 0, right: 0, zIndex: 2 }]} onPress={() => navigation.goBack()}>
-        <Ionicons name="close" size={28} color={PURPLE} />
+        <Ionicons name="close" size={28} color={SIGNAL} />
         <Text style={styles.brand}>VIBE</Text>
         <View style={{ width: 28 }} />
       </TouchableOpacity>
@@ -111,12 +111,12 @@ export function TikTokShareSaveScreen({ navigation }: { navigation: { goBack: ()
 const styles = StyleSheet.create({
   root: { flex: 1 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 8 },
-  brand: { fontSize: 22, fontWeight: "900", color: PURPLE, letterSpacing: 2 },
+  brand: { fontSize: 22, fontWeight: "900", color: SIGNAL, letterSpacing: 2 },
   cardWrap: { marginHorizontal: 16, marginTop: 8 },
   card: { borderRadius: 28, padding: 20, minHeight: 420, overflow: "hidden" },
   officialBadge: {
     alignSelf: "flex-start",
-    backgroundColor: PURPLE,
+    backgroundColor: SIGNAL,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: PURPLE,
+    backgroundColor: SIGNAL,
     marginHorizontal: 16,
     marginTop: 24,
     paddingVertical: 16,
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: PURPLE,
+    backgroundColor: SIGNAL,
     justifyContent: "center",
     alignItems: "center",
     marginTop: -28,

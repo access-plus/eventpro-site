@@ -10,6 +10,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { CartMenu } from "@/components/CartMenu";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -43,17 +44,12 @@ export const Navigation = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border/60 bg-[hsl(270_40%_98%)]/85 dark:bg-background/90 backdrop-blur-xl shadow-[0_20px_40px_rgba(54,39,78,0.04)]">
+    <nav className="sticky top-0 z-50 border-b border-border/60 bg-background/85 dark:bg-background/90 backdrop-blur-xl shadow-md">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between gap-4 min-h-16 md:min-h-[4.5rem] py-2 md:py-0">
+        <div className="flex items-center justify-between gap-4 min-h-[5.5rem] md:min-h-[6.5rem] py-2 md:py-0">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <div className="h-8 w-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Ticket className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold font-headline bg-gradient-primary bg-clip-text text-transparent">
-              KanamEvents
-            </span>
+          <Link to="/" className="flex items-center shrink-0" aria-label="Kanam Events home">
+            <BrandLogo imgClassName="h-24 w-24 md:h-28 md:w-28" />
           </Link>
 
           {/* Desktop: search (Stitch discovery_web) */}

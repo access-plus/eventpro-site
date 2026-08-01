@@ -657,7 +657,7 @@ const Checkout = () => {
   if (items.length === 0 && paymentStep !== "success") {
     return (
       <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-background">
-        <Card className="p-8 text-center max-w-md rounded-2xl border-border/80 shadow-[0_20px_40px_rgba(54,39,78,0.06)] bg-card/95 backdrop-blur-sm">
+        <Card className="p-8 text-center max-w-md rounded-2xl border-border/80 shadow-[0_20px_40px_rgba(10,10,10,0.06)] bg-card/95 backdrop-blur-sm">
           <Ticket className="h-12 w-12 mx-auto mb-4 text-primary" />
           <h2 className="text-2xl font-extrabold font-headline tracking-tight text-foreground mb-2">Your cart is empty</h2>
           <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
@@ -1096,7 +1096,7 @@ const Checkout = () => {
               )}
             </div>
             <div className="hidden xl:block">
-              <Card className="sticky top-24 rounded-2xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px] shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+              <Card className="sticky top-24 rounded-2xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px] shadow-[0_20px_40px_rgba(10,10,10,0.06)]">
                 <CardHeader>
                   <CardTitle className="font-headline text-xl tracking-tight">Order summary</CardTitle>
                   <CardDescription>Review your order before payment</CardDescription>
@@ -1105,7 +1105,7 @@ const Checkout = () => {
               </Card>
             </div>
             <Collapsible defaultOpen={false} className="xl:hidden">
-              <Card className="rounded-2xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px] shadow-[0_20px_40px_rgba(54,39,78,0.06)] overflow-hidden">
+              <Card className="rounded-2xl border-white/10 bg-[rgba(255,255,255,0.05)] backdrop-blur-[12px] shadow-[0_20px_40px_rgba(10,10,10,0.06)] overflow-hidden">
                 <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 p-6 text-left hover:bg-muted/5 transition-colors [&[data-state=open]_svg]:rotate-180">
                   <div>
                     <p className="font-headline text-lg font-bold tracking-tight">Order summary</p>

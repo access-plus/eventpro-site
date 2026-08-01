@@ -95,7 +95,7 @@ export const CategoryFilter = ({
             "inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold font-headline tracking-tight transition-all hover:scale-[1.02] active:scale-[0.98]",
             selectedCategory === null
               ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-              : "bg-[hsl(270_40%_94%)] dark:bg-secondary text-primary hover:bg-[hsl(270_35%_90%)]"
+              : "bg-secondary text-primary hover:bg-secondary/80"
           )}
         >
           All Events
@@ -112,7 +112,7 @@ export const CategoryFilter = ({
                 "inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold font-headline tracking-tight transition-all hover:scale-[1.02] active:scale-[0.98]",
                 isSelected
                   ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                  : "bg-[hsl(270_40%_94%)] dark:bg-secondary text-primary hover:bg-[hsl(270_35%_90%)]"
+                  : "bg-secondary text-primary hover:bg-secondary/80"
               )}
             >
               {!hideIcons && <Icon className="h-4 w-4 shrink-0" />}

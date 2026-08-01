@@ -16,11 +16,11 @@ export function TicketDetailAgentScreen({ navigation }: { navigation: { goBack: 
     <View style={[styles.root, { backgroundColor: BG, paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#2d1b4e" />
+          <Ionicons name="arrow-back" size={24} color="#0A0A0A" />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Ticket Details</Text>
         <TouchableOpacity>
-          <Ionicons name="ellipsis-vertical" size={22} color="#2d1b4e" />
+          <Ionicons name="ellipsis-vertical" size={22} color="#0A0A0A" />
         </TouchableOpacity>
       </View>
 
@@ -154,7 +154,7 @@ export function TicketDetailAgentScreen({ navigation }: { navigation: { goBack: 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 10 },
-  topTitle: { fontSize: 17, fontWeight: "900", color: "#2d1b4e" },
+  topTitle: { fontSize: 17, fontWeight: "900", color: "#0A0A0A" },
   card: { padding: 16, marginBottom: 12 },
   userRow: { flexDirection: "row", gap: 14 },
   avatar: { width: 56, height: 56, borderRadius: 28, justifyContent: "center", alignItems: "center" },

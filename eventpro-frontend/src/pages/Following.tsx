@@ -38,7 +38,7 @@ const Following = () => {
           Organizers you follow. Visit their events from event pages.
         </p>
         {list.length === 0 ? (
-          <Card className="p-8 text-center rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+          <Card className="p-8 text-center rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(10,10,10,0.06)]">
             <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <p className="text-muted-foreground">You aren’t following any organizers yet.</p>
             <p className="text-sm text-muted-foreground mt-2">
