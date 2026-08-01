@@ -60,6 +60,7 @@ class CartServiceImplTest {
     private UUID eventId;
     private UserEntity user;
     private TicketEntity ticket;
+    private EventEntity event;
     private CartEntity cartItem;
 
     @BeforeEach
@@ -81,10 +82,9 @@ class CartServiceImplTest {
         ticket.setTicketStatus(TicketStatus.AVAILABLE);
         ticket.setEventId(eventId);
 
-        EventEntity event = new EventEntity();
+        event = new EventEntity();
         event.setId(eventId);
         event.setEndTime(LocalDateTime.now().plusDays(7));
-        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
 
         cartItem = new CartEntity();
         cartItem.setId(UUID.randomUUID());
@@ -100,6 +100,7 @@ class CartServiceImplTest {
         // Given
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
         when(cartRepository.findByUserAndTicket(user, ticket)).thenReturn(Optional.empty());
         when(cartRepository.save(any(CartEntity.class))).thenReturn(cartItem);
         doNothing().when(ticketService).markTicketAsReserved(ticketId);
@@ -128,6 +129,7 @@ class CartServiceImplTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(ticketRepository.findById(ticketId)).thenReturn(Optional.of(ticket));
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(event));
         when(cartRepository.findByUserAndTicket(user, ticket)).thenReturn(Optional.of(existingCartItem));
         when(cartRepository.save(existingCartItem)).thenReturn(existingCartItem);
         doNothing().when(ticketService).markTicketAsReserved(ticketId);
