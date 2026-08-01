@@ -119,9 +119,10 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   viewer_certificate {
-    acm_certificate_arn      = data.terraform_remote_state.shared_infra.outputs.cloudfront_certificate_arn
-    ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1.2_2021"
+    acm_certificate_arn            = var.use_localstack ? null : data.terraform_remote_state.shared_infra.outputs.cloudfront_certificate_arn
+    cloudfront_default_certificate = var.use_localstack ? true : null
+    ssl_support_method             = var.use_localstack ? null : "sni-only"
+    minimum_protocol_version       = var.use_localstack ? null : "TLSv1.2_2021"
   }
 
   tags = merge(var.tags, { Name = "${terraform.workspace}-frontend", Env = terraform.workspace })

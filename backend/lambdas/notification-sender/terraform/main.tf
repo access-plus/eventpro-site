@@ -238,3 +238,12 @@ resource "aws_lambda_event_source_mapping" "notification_queue" {
 
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-notification-sender-event-source" })
 }
+
+output "deployed_image" {
+  description = "Container image coordinates currently configured for the Lambda"
+  value = {
+    registry = var.image_registry
+    name     = var.image_name
+    tag      = var.image_tag
+  }
+}

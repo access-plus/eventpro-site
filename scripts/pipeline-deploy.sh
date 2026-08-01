@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2030,SC2031
 # Local pipeline-mimic deploy script (shared-infra -> services -> frontend -> lambdas)
 # Mirrors the GitHub workflows' image variable format: image_registry/image_name/image_tag.
 
@@ -37,6 +38,7 @@ ECR_LOGGED_IN=false
 
 FRONTEND_SYNC=true
 FRONTEND_INVALIDATE=true
+PREFLIGHT_ONLY=false
 
 ENV_FILES=()
 
@@ -70,6 +72,7 @@ What it does (in order):
 Modes:
   --plan                 Run terraform plan for selected stacks (no S3 sync/invalidation)
   --apply                Run terraform apply -auto-approve (default)
+  --preflight-only       Validate real-AWS target isolation and caller identity, then exit
 
 Common options:
   --workspace NAME       Terraform workspace (default: dev)
@@ -135,14 +138,15 @@ USAGE
 }
 
 preload_env_files() {
-  local i=1
-  while [ $i -le $# ]; do
-    eval "arg=\${$i}"
+  local -a args=("$@")
+  local i=0 arg env_file
+  while [ "$i" -lt "${#args[@]}" ]; do
+    arg="${args[$i]}"
     case "$arg" in
       --env-file)
         i=$((i + 1))
-        [ $i -le $# ] || die "Missing value for --env-file"
-        eval "env_file=\${$i}"
+        [ "$i" -lt "${#args[@]}" ] || die "Missing value for --env-file"
+        env_file="${args[$i]}"
         ENV_FILES+=("$env_file")
         ;;
       --env-file=*)
@@ -183,6 +187,10 @@ parse_args() {
         ;;
       --apply)
         ACTION="apply"
+        shift
+        ;;
+      --preflight-only)
+        PREFLIGHT_ONLY=true
         shift
         ;;
       --env-file)
@@ -295,11 +303,79 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Required command not found: $1"
 }
 
+clear_localstack_environment() {
+  local name
+  while IFS='=' read -r name _; do
+    case "$name" in
+      AWS_ENDPOINT_URL|AWS_ENDPOINT_URL_*|LOCALSTACK_*|SQS_ENDPOINT|SES_ENDPOINT|AWS_SECRETS_MANAGER_ENDPOINT|AWS_S3_PUBLIC_ENDPOINT)
+        unset "$name"
+        ;;
+    esac
+  done < <(env)
+  unset TF_VAR_localstack_endpoint TF_VAR_localstack_runtime_endpoint
+  export TF_VAR_use_localstack=false
+}
+
+verify_real_aws_identity() {
+  local expected_account="${AWS_ACCOUNT_ID:-}" caller_account
+  caller_account="$(aws sts get-caller-identity --query Account --output text)" || \
+    die "Unable to authenticate to real AWS after clearing LocalStack endpoint overrides"
+  [ -n "$caller_account" ] && [ "$caller_account" != "None" ] || die "AWS caller account is empty"
+  [ "$caller_account" != "000000000000" ] || die "Refusing real AWS deployment with the LocalStack account ID"
+  if [ -n "$expected_account" ] && [ "$expected_account" != "$caller_account" ]; then
+    die "AWS account mismatch: expected $expected_account, authenticated as $caller_account"
+  fi
+  AWS_ACCOUNT_ID="$caller_account"
+  export AWS_ACCOUNT_ID
+}
+
+write_sensitive_tfvars() {
+  local stack="$1" output_file
+  require_cmd jq
+  output_file="$(mktemp)"
+  chmod 600 "$output_file"
+
+  case "$stack" in
+    services)
+      jq -n \
+        --arg stripe_secret_key "${STRIPE_SECRET_KEY:-}" \
+        --arg stripe_publishable_key "${STRIPE_PUBLISHABLE_KEY:-}" \
+        --arg stripe_webhook_secret "${STRIPE_WEBHOOK_SECRET:-}" \
+        --arg stripe_price_pro_monthly "${STRIPE_PRICE_PRO_MONTHLY:-}" \
+        --arg stripe_price_pro_yearly "${STRIPE_PRICE_PRO_YEARLY:-}" \
+        --arg stripe_price_enterprise_monthly "${STRIPE_PRICE_ENTERPRISE_MONTHLY:-}" \
+        --arg stripe_price_enterprise_yearly "${STRIPE_PRICE_ENTERPRISE_YEARLY:-}" \
+        --arg jwt_public_key "${JWT_PUBLIC_KEY:-}" \
+        --arg jwt_private_key "${JWT_PRIVATE_KEY:-}" \
+        --arg new_relic_license_key "${NEW_RELIC_LICENSE_KEY:-}" \
+        '{stripe_secret_key:$stripe_secret_key,stripe_publishable_key:$stripe_publishable_key,stripe_webhook_secret:$stripe_webhook_secret,stripe_price_pro_monthly:$stripe_price_pro_monthly,stripe_price_pro_yearly:$stripe_price_pro_yearly,stripe_price_enterprise_monthly:$stripe_price_enterprise_monthly,stripe_price_enterprise_yearly:$stripe_price_enterprise_yearly,jwt_public_key:$jwt_public_key,jwt_private_key:$jwt_private_key,new_relic_license_key:$new_relic_license_key} | with_entries(select(.value != ""))' \
+        > "$output_file"
+      ;;
+    payment-processor)
+      jq -n \
+        --arg stripe_secret_key "${STRIPE_SECRET_KEY:-}" \
+        --arg new_relic_license_key "${NEW_RELIC_LICENSE_KEY:-}" \
+        --arg new_relic_account_id "${NEW_RELIC_ACCOUNT_ID:-}" \
+        '{stripe_secret_key:$stripe_secret_key,new_relic_license_key:$new_relic_license_key,new_relic_account_id:$new_relic_account_id} | with_entries(select(.value != ""))' \
+        > "$output_file"
+      ;;
+    order-processor|notification-sender)
+      jq -n \
+        --arg new_relic_license_key "${NEW_RELIC_LICENSE_KEY:-}" \
+        --arg new_relic_account_id "${NEW_RELIC_ACCOUNT_ID:-}" \
+        '{new_relic_license_key:$new_relic_license_key,new_relic_account_id:$new_relic_account_id} | with_entries(select(.value != ""))' \
+        > "$output_file"
+      ;;
+    *) rm -f "$output_file"; die "Unsupported sensitive tfvars stack: $stack" ;;
+  esac
+  printf '%s' "$output_file"
+}
+
 trim_csv_item() {
   # shell-only trim for simple CSV values
   local s="$1"
-  s="${s#${s%%[![:space:]]*}}"
-  s="${s%${s##*[![:space:]]}}"
+  s="${s#"${s%%[![:space:]]*}"}"
+  s="${s%"${s##*[![:space:]]}"}"
   printf '%s' "$s"
 }
 
@@ -368,14 +444,12 @@ git_short_sha() {
   (cd "$ROOT_DIR" && git rev-parse --short=12 HEAD 2>/dev/null) || date +%s
 }
 
-GIT_SHA_12=""
 SHA_IMAGE_TAG=""
 
 init_git_sha() {
   local sha
   sha="$(git_short_sha)"
   sha="${sha#sha-}"
-  GIT_SHA_12="$sha"
   SHA_IMAGE_TAG="sha-${sha}"
 }
 
@@ -552,7 +626,7 @@ terraform_init() {
   if [ "$tf_dir" = "eventpro-frontend/terraform" ]; then
     (
       cd "$ROOT_DIR/$tf_dir"
-      terraform init -upgrade \
+      terraform init -reconfigure \
         -backend-config=bucket=eventpro-site-state \
         -backend-config=key=frontend/terraform.tfstate \
         -backend-config=region=us-east-1 \
@@ -561,7 +635,7 @@ terraform_init() {
   else
     (
       cd "$ROOT_DIR/$tf_dir"
-      terraform init -upgrade
+      terraform init -reconfigure
     )
   fi
 }
@@ -631,8 +705,15 @@ run_services_stack() {
     local primary_tag extra_tag
     primary_tag="$(resolve_primary_image_tag services)"
     extra_tag="$(resolve_extra_sha_tag_if_release "$primary_tag" || true)"
-    run_gradle_build_no_tests backend/services
-    build_service_image "$primary_tag" "$extra_tag"
+    if [ "$ACTION" = "apply" ]; then
+      run_gradle_build_no_tests backend/services
+      build_service_image "$primary_tag" "$extra_tag"
+    else
+      SERVICES_IMAGE_REGISTRY="$ECR_REGISTRY"
+      SERVICES_IMAGE_NAME="eventpro-api"
+      SERVICES_IMAGE_TAG="$primary_tag"
+      log "${YELLOW}Plan mode: using ${SERVICES_IMAGE_REGISTRY}/${SERVICES_IMAGE_NAME}:${SERVICES_IMAGE_TAG} without building or pushing${NC}"
+    fi
   else
     if [ -n "$OVERRIDE_SERVICES_IMAGE_TAG" ]; then
       SERVICES_IMAGE_TAG="$OVERRIDE_SERVICES_IMAGE_TAG"
@@ -648,6 +729,10 @@ run_services_stack() {
 
   prepare_stack backend/services/terraform
   (
+    local sensitive_var_file
+    sensitive_var_file="$(write_sensitive_tfvars services)"
+    trap 'rm -f "$sensitive_var_file"' EXIT
+
     export TF_VAR_image_registry="$SERVICES_IMAGE_REGISTRY"
     export TF_VAR_image_name="$SERVICES_IMAGE_NAME"
     export TF_VAR_image_tag="$SERVICES_IMAGE_TAG"
@@ -667,10 +752,7 @@ run_services_stack() {
       -var="image_tag=${SERVICES_IMAGE_TAG}"
     )
 
-    if [ -n "$NEW_RELIC_LICENSE_KEY" ]; then
-      export TF_VAR_new_relic_license_key="$NEW_RELIC_LICENSE_KEY"
-      tf_extra_args+=(-var="new_relic_license_key=${NEW_RELIC_LICENSE_KEY}")
-    fi
+    tf_extra_args+=("-var-file=$sensitive_var_file")
 
     terraform_validate_and_run backend/services/terraform "${tf_extra_args[@]}"
   )
@@ -682,16 +764,21 @@ run_frontend_stack() {
   log "${GREEN}Deploying frontend stack${NC}"
   require_var DOMAIN_NAME
 
-  require_cmd npm
   vite_api_base_url="${VITE_API_BASE_URL:-https://${WORKSPACE}-api.${DOMAIN_NAME}}"
 
-  (
-    cd "$ROOT_DIR/eventpro-frontend"
-    log "${GREEN}npm ci (eventpro-frontend)${NC}"
-    npm ci
-    log "${GREEN}npm run build (eventpro-frontend)${NC}"
-    VITE_API_BASE_URL="$vite_api_base_url" npm run build
-  )
+  if [ "$ACTION" = "apply" ]; then
+    require_cmd npm
+    (
+      cd "$ROOT_DIR"
+      log "${GREEN}npm ci (frontend workspace)${NC}"
+      npm ci --workspace eventpro-frontend --include-workspace-root=false
+      log "${GREEN}npm run build (frontend workspace)${NC}"
+      VITE_API_BASE_URL="$vite_api_base_url" VITE_ASSET_BASE_URL="${VITE_ASSET_BASE_URL:-/}" \
+        npm run build --workspace eventpro-frontend
+    )
+  else
+    log "${YELLOW}Plan mode: skipping frontend dependency install and build${NC}"
+  fi
 
   prepare_stack eventpro-frontend/terraform
   (
@@ -790,6 +877,14 @@ resolve_lambda_image_triplet() {
     fi
     extra_tag="$(resolve_extra_sha_tag_if_release "$primary_tag" || true)"
 
+    if [ "$ACTION" = "plan" ]; then
+      eval "$reg_var=\$ECR_REGISTRY"
+      eval "$name_var=\$repo_name"
+      eval "$tag_var=\$primary_tag"
+      log "${YELLOW}Plan mode: using ${ECR_REGISTRY}/${repo_name}:${primary_tag} without building or pushing${NC}"
+      return 0
+    fi
+
     run_gradle_build_no_tests "$(lambda_gradle_dir_for "$lambda")"
 
     metadata_file="$(mktemp)"
@@ -884,6 +979,10 @@ run_lambda_stack() {
   log "${GREEN}Deploying lambda stack:${NC} $lambda"
   prepare_stack "$tf_dir"
   (
+    local sensitive_var_file
+    sensitive_var_file="$(write_sensitive_tfvars "$lambda")"
+    trap 'rm -f "$sensitive_var_file"' EXIT
+
     export TF_VAR_image_registry="$image_registry"
     export TF_VAR_image_name="$image_name"
     export TF_VAR_image_tag="$image_tag"
@@ -894,25 +993,17 @@ run_lambda_stack() {
       -var="image_tag=${image_tag}"
     )
 
-    if [ -n "$NEW_RELIC_LICENSE_KEY" ] || [ -n "$NEW_RELIC_ACCOUNT_ID" ]; then
-      export TF_VAR_new_relic_license_key="$NEW_RELIC_LICENSE_KEY"
-      export TF_VAR_new_relic_account_id="$NEW_RELIC_ACCOUNT_ID"
-      tf_extra_args+=(
-        -var="new_relic_license_key=${NEW_RELIC_LICENSE_KEY}"
-        -var="new_relic_account_id=${NEW_RELIC_ACCOUNT_ID}"
-      )
-    fi
-
     if [ "$lambda" = "payment-processor" ]; then
       require_var STRIPE_SECRET_KEY
       export TF_VAR_stripe_secret_key="$STRIPE_SECRET_KEY"
-      tf_extra_args+=(-var="stripe_secret_key=${STRIPE_SECRET_KEY}")
     fi
 
     if [ "$lambda" = "notification-sender" ] && [ -n "${SES_SENDER_EMAIL:-}" ]; then
       export TF_VAR_ses_sender_email="$SES_SENDER_EMAIL"
       tf_extra_args+=(-var="ses_sender_email=${SES_SENDER_EMAIL}")
     fi
+
+    tf_extra_args+=("-var-file=$sensitive_var_file")
 
     terraform_validate_and_run "$tf_dir" "${tf_extra_args[@]}"
   )
@@ -944,10 +1035,10 @@ validate_new_relic_for_lambda_deploys() {
 check_prereqs() {
   require_cmd terraform
   require_cmd aws
-  if [ "$RUN_FRONTEND" = true ]; then
+  if [ "$RUN_FRONTEND" = true ] && [ "$ACTION" = "apply" ]; then
     require_cmd npm
   fi
-  if need_any_image_build; then
+  if [ "$ACTION" = "apply" ] && need_any_image_build; then
     require_cmd docker
   fi
 }
@@ -989,13 +1080,23 @@ main() {
   apply_component_filters
   normalize_new_relic_key
 
+  if [ "$PREFLIGHT_ONLY" = true ]; then
+    require_cmd aws
+    clear_localstack_environment
+    verify_real_aws_identity
+    log "${GREEN}Real AWS target preflight passed for account ${AWS_ACCOUNT_ID}.${NC}"
+    exit 0
+  fi
+
   [ "$WORKSPACE" = "dev" ] || [ "$WORKSPACE" = "prod" ] || warn "Workspace '$WORKSPACE' is not one of the expected values (dev, prod)."
 
   init_git_sha
   read_file_var_if_needed JWT_PUBLIC_KEY JWT_PUBLIC_KEY_FILE
   read_file_var_if_needed JWT_PRIVATE_KEY JWT_PRIVATE_KEY_FILE
-  resolve_ecr_registry_if_needed
   check_prereqs
+  clear_localstack_environment
+  verify_real_aws_identity
+  resolve_ecr_registry_if_needed
   print_plan
 
   export AWS_REGION

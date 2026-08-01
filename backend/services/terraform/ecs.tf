@@ -116,13 +116,17 @@ resource "aws_ecs_task_definition" "api" {
 
     portMappings = [{
       containerPort = var.ecs_container_port
+      hostPort      = var.ecs_container_port
       protocol      = "tcp"
     }]
+
+    mountPoints = []
+    volumesFrom = []
 
     environment = concat(
       [
         { name = "SPRING_PROFILES_ACTIVE", value = local.workspace },
-        { name = "DB_HOST", value = data.terraform_remote_state.shared_infra.outputs.rds_endpoint },
+        { name = "DB_HOST", value = data.terraform_remote_state.shared_infra.outputs.rds_runtime_host },
         { name = "DB_PORT", value = tostring(data.terraform_remote_state.shared_infra.outputs.rds_port) },
         { name = "DB_NAME", value = data.terraform_remote_state.shared_infra.outputs.rds_name },
         { name = "AWS_REGION", value = data.aws_region.current.id },
@@ -139,9 +143,11 @@ resource "aws_ecs_task_definition" "api" {
         { name = "AWS_ACCESS_KEY_ID", value = "test" },
         { name = "AWS_SECRET_ACCESS_KEY", value = "test" },
         { name = "AWS_ENDPOINT_URL", value = var.localstack_runtime_endpoint },
+        { name = "AWS_S3_PUBLIC_ENDPOINT", value = "https://localhost.localstack.cloud:4566" },
         { name = "AWS_SECRETS_MANAGER_ENDPOINT", value = var.localstack_runtime_endpoint },
         { name = "SQS_ENDPOINT", value = var.localstack_runtime_endpoint },
         { name = "SES_ENDPOINT", value = var.localstack_runtime_endpoint },
+        { name = "NEW_RELIC_AGENT_ENABLED", value = "false" },
         { name = "SPRING_JPA_HIBERNATE_DDL_AUTO", value = "none" },
         { name = "SPRING_JPA_PROPERTIES_HIBERNATE_BOOT_ALLOW_JDBC_METADATA_ACCESS", value = "false" },
         {
@@ -226,7 +232,7 @@ resource "aws_ecs_service" "api" {
     container_port   = var.ecs_container_port
   }
 
-  health_check_grace_period_seconds = 60
+  health_check_grace_period_seconds = var.use_localstack ? 0 : 60
 
   deployment_maximum_percent         = 200
   deployment_minimum_healthy_percent = 100

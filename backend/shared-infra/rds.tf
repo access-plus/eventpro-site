@@ -50,7 +50,7 @@ resource "aws_db_instance" "main" {
   port                        = var.use_localstack ? null : 5432
 
   allocated_storage     = var.db_allocated_storage
-  max_allocated_storage = var.db_max_allocated_storage
+  max_allocated_storage = var.use_localstack ? 0 : var.db_max_allocated_storage
   storage_type          = var.db_storage_type
   storage_encrypted     = true
 

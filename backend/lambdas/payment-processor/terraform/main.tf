@@ -237,7 +237,7 @@ resource "aws_lambda_function" "payment_processor" {
 
   environment {
     variables = merge({
-      DB_HOST                    = data.terraform_remote_state.shared_infra.outputs.rds_endpoint
+      DB_HOST                    = data.terraform_remote_state.shared_infra.outputs.rds_runtime_host
       DB_PORT                    = tostring(data.terraform_remote_state.shared_infra.outputs.rds_port)
       DB_NAME                    = data.terraform_remote_state.shared_infra.outputs.rds_name
       DB_SECRET_ARN              = data.terraform_remote_state.shared_infra.outputs.db_master_user_secret_arn
@@ -282,4 +282,13 @@ resource "aws_lambda_event_source_mapping" "payment_queue" {
   maximum_batching_window_in_seconds = 5
 
   tags = merge(local.common_tags, { Name = "${local.name_prefix}-payment-processor-event-source" })
+}
+
+output "deployed_image" {
+  description = "Container image coordinates currently configured for the Lambda"
+  value = {
+    registry = var.image_registry
+    name     = var.image_name
+    tag      = var.image_tag
+  }
 }

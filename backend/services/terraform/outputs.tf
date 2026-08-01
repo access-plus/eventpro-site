@@ -12,3 +12,12 @@ output "api_url" {
   description = "API base URL"
   value       = "https://${terraform.workspace}-api.${var.domain_name}"
 }
+
+output "deployed_image" {
+  description = "Container image coordinates currently configured for the API"
+  value = {
+    registry = var.image_registry
+    name     = var.image_name
+    tag      = var.image_tag
+  }
+}
