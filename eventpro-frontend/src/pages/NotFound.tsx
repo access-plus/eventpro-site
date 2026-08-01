@@ -15,7 +15,7 @@ const NotFound = () => {
   return (
     <PageShell>
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-16 text-center">
-        <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-primary shadow-[0_16px_32px_rgba(93,63,211,0.28)]">
+        <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-primary shadow-[0_16px_32px_rgba(10,102,240,0.28)]">
           <Ticket className="h-8 w-8 text-primary-foreground" />
         </div>
         <p className="text-sm font-semibold uppercase tracking-widest text-primary/80">404</p>
@@ -25,7 +25,7 @@ const NotFound = () => {
         <p className="mt-3 max-w-md text-muted-foreground">
           We couldn&apos;t find a page at <span className="font-mono text-foreground/80">{location.pathname}</span>.
         </p>
-        <Button asChild className="mt-8 rounded-full px-8 bg-gradient-primary shadow-[0_16px_32px_rgba(93,63,211,0.28)]">
+        <Button asChild className="mt-8 rounded-full px-8 bg-gradient-primary shadow-[0_16px_32px_rgba(10,102,240,0.28)]">
           <Link to="/">Return home</Link>
         </Button>
       </div>

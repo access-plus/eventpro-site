@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import type { UserRole } from "@eventpro/shared";
 import { useTheme } from "../contexts/ThemeContext";
+import { BrandLogo } from "../components/BrandLogo";
 import type { Theme } from "../theme";
 
 const WEB_URL = Constants.expoConfig?.extra?.webUrl ?? process.env.EXPO_PUBLIC_WEB_URL ?? "https://eventpro.com";
@@ -65,8 +66,8 @@ function getSignUpErrorMessage(err: unknown): string {
   return "Sign up failed. Check your entries and try again.";
 }
 
-const BG = "#faf8ff";
-const PURPLE = "#6342D2";
+const BG = "#F7F7F5";
+const PURPLE = "#0A66F0";
 
 function createStyles(theme: Theme, bottomInset: number) {
   return StyleSheet.create({
@@ -74,13 +75,13 @@ function createStyles(theme: Theme, bottomInset: number) {
     scrollContent: { padding: 20, paddingBottom: 120 + bottomInset },
     topBar: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 20 },
     brand: { fontSize: 18, fontWeight: "800", color: PURPLE },
-    title: { fontSize: 28, fontWeight: "800", color: "#2d1b4e", marginBottom: 8 },
+    title: { fontSize: 28, fontWeight: "800", color: "#0A0A0A", marginBottom: 8 },
     subtitle: { fontSize: 15, color: "#6b6b80", marginBottom: 24 },
     fieldLabel: { fontSize: 11, fontWeight: "800", letterSpacing: 0.8, color: PURPLE, marginBottom: 8 },
     inputWrap: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: "rgba(99,66,210,0.08)",
+      backgroundColor: "rgba(10,102,240,0.08)",
       borderRadius: 14,
       paddingHorizontal: 14,
       marginBottom: 16,
@@ -131,7 +132,7 @@ function createStyles(theme: Theme, bottomInset: number) {
       elevation: 8,
     },
     authItem: { alignItems: "center", gap: 4, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 14 },
-    authItemActive: { backgroundColor: "rgba(99,66,210,0.12)" },
+    authItemActive: { backgroundColor: "rgba(10,102,240,0.12)" },
     authLabel: { fontSize: 11, fontWeight: "800", color: "#6b7280" },
     authLabelActive: { color: PURPLE },
   });
@@ -216,7 +217,7 @@ export function SignUpScreen({ navigation }: { navigation: { navigate: (name: st
           <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color={PURPLE} />
           </TouchableOpacity>
-          <Text style={styles.brand}>Electric Pulse</Text>
+          <BrandLogo size={56} />
         </View>
 
         <Text style={styles.title}>Create Account</Text>

@@ -73,7 +73,7 @@ export function SupportAnalyticsScreen() {
       <View style={[styles.chartBox, { backgroundColor: theme.colors.primary + "10" }]}>
         <Text style={styles.legend}>
           <Text style={{ color: PURPLE }}>● Inflow</Text> {"  "}
-          <Text style={{ color: "#ec4899" }}>● Outflow</Text>
+          <Text style={{ color: "#0A66F0" }}>● Outflow</Text>
         </Text>
         <View style={styles.placeholderChart}>
           <Text style={{ color: theme.colors.mutedForeground, fontSize: 12 }}>08:00 — 16:00</Text>
@@ -83,7 +83,7 @@ export function SupportAnalyticsScreen() {
       <Text style={[styles.section, { color: theme.colors.foreground }]}>Pain Points</Text>
       <View style={styles.painRow}>
         {[
-          ["Refunds", "42%", "#ec4899"],
+          ["Refunds", "42%", "#0A66F0"],
           ["Login Issues", "28%", PURPLE],
           ["Seating Map Help", "15%", "#be185d"],
           ["Promo Codes", "10%", "#c4b5fd"],
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   metricLbl: { fontSize: 12, color: "#6b7280", fontWeight: "600", marginBottom: 4 },
   metricBig: { fontSize: 36, fontWeight: "900", color: "#1e1b4b" },
   metricMid: { fontSize: 24, fontWeight: "900", color: "#1e1b4b", marginTop: 4 },
-  trendUp: { color: "#ec4899", fontWeight: "800", marginTop: 4 },
+  trendUp: { color: "#0A66F0", fontWeight: "800", marginTop: 4 },
   trendGood: { color: "#16a34a", fontWeight: "700", marginTop: 4, fontSize: 13 },
   trendBad: { color: "#dc2626", fontWeight: "700", marginTop: 4, fontSize: 13 },
   row2: { flexDirection: "row", gap: 12, marginBottom: 16 },
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   agentCard: { padding: 14, marginBottom: 10 },
   agentLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
   agentAv: { width: 48, height: 48, borderRadius: 24, justifyContent: "center", alignItems: "center" },
-  topBadge: { position: "absolute", top: -4, right: -4, backgroundColor: "#ec4899", paddingHorizontal: 6, borderRadius: 6, zIndex: 1 },
+  topBadge: { position: "absolute", top: -4, right: -4, backgroundColor: "#0A66F0", paddingHorizontal: 6, borderRadius: 6, zIndex: 1 },
   topBadgeText: { color: "#fff", fontSize: 9, fontWeight: "900" },
   agentName: { fontSize: 16, fontWeight: "800" },
   bottomNav: {

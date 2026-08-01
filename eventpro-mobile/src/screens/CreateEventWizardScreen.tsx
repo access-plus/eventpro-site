@@ -205,10 +205,15 @@ export function CreateEventWizardScreen({ navigation }: { navigation: { goBack: 
               <View style={styles.mapCard}>
                 <Ionicons name="business" size={20} color={PURPLE} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.mapVenue}>The Midway SF</Text>
-                  <Text style={styles.mapAddr}>900 Marin St, San Francisco, CA</Text>
+                  <Text style={styles.mapVenue}>
+                    {venueSearch.trim() || "Search for a venue"}
+                  </Text>
+                  <Text style={styles.mapAddr}>
+                    {venueSearch.trim()
+                      ? "Confirm the address when you save the event"
+                      : "Enter an address or venue name above"}
+                  </Text>
                 </View>
-                <Ionicons name="open-outline" size={20} color={theme.colors.mutedForeground} />
               </View>
             </View>
           </>
@@ -232,7 +237,7 @@ export function CreateEventWizardScreen({ navigation }: { navigation: { goBack: 
             <TicketCard
               styles={styles}
               icon="star"
-              iconColor="#ec4899"
+              iconColor="#0A66F0"
               name="VIP Experience"
               price={vipPrice}
               cap={vipCap}
@@ -371,15 +376,15 @@ function createStyles(theme: Theme) {
       paddingHorizontal: 16,
       paddingVertical: 10,
     },
-    topTitle: { fontSize: 17, fontWeight: "800", color: "#2d1b4e" },
+    topTitle: { fontSize: 17, fontWeight: "800", color: "#0A0A0A" },
     saveDraft: { color: PURPLE, fontWeight: "700", fontSize: 15 },
     progressWrap: { paddingHorizontal: 16, marginBottom: 8 },
     stepLabel: { fontSize: 11, fontWeight: "800", color: PURPLE, letterSpacing: 0.5, marginBottom: 8 },
-    stepHead: { fontSize: 22, fontWeight: "900", color: "#2d1b4e", marginBottom: 10 },
+    stepHead: { fontSize: 22, fontWeight: "900", color: "#0A0A0A", marginBottom: 10 },
     progressTrack: { height: 8, borderRadius: 4, backgroundColor: theme.colors.primary + "20", overflow: "hidden" },
     progressFill: { height: 8, borderRadius: 4, backgroundColor: PURPLE },
     scroll: { padding: 16, paddingBottom: 120 },
-    sectionTitle: { fontSize: 18, fontWeight: "800", color: "#2d1b4e", marginBottom: 6 },
+    sectionTitle: { fontSize: 18, fontWeight: "800", color: "#0A0A0A", marginBottom: 6 },
     sectionHint: { fontSize: 14, color: theme.colors.mutedForeground, marginBottom: 14, lineHeight: 20 },
     sectionHeadRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12, marginTop: 8 },
     fieldLbl: { fontSize: 11, fontWeight: "800", color: PURPLE, marginBottom: 8, letterSpacing: 0.6 },
@@ -414,7 +419,7 @@ function createStyles(theme: Theme) {
       backgroundColor: theme.colors.primary + "08",
     },
     uploadCircle: { width: 72, height: 72, borderRadius: 36, justifyContent: "center", alignItems: "center", marginBottom: 12 },
-    uploadTitle: { fontWeight: "800", color: "#2d1b4e", marginBottom: 6 },
+    uploadTitle: { fontWeight: "800", color: "#0A0A0A", marginBottom: 6 },
     uploadMeta: { fontSize: 10, fontWeight: "800", color: theme.colors.mutedForeground, letterSpacing: 0.5 },
     onlineLbl: { fontSize: 13, fontWeight: "600", color: theme.colors.foreground, marginRight: 8 },
     mapPlaceholder: {
@@ -459,7 +464,7 @@ function createStyles(theme: Theme) {
     },
     proBanner: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, marginBottom: 12 },
     proTitle: { fontWeight: "800", color: theme.colors.foreground },
-    proBadge: { color: "#ec4899", fontSize: 12, fontWeight: "900" },
+    proBadge: { color: "#0A66F0", fontSize: 12, fontWeight: "900" },
     infoBox: { flexDirection: "row", gap: 10, padding: 14, borderRadius: 14, marginBottom: 8 },
     infoText: { flex: 1, fontSize: 13, color: theme.colors.mutedForeground, lineHeight: 18 },
     footerActions: { paddingHorizontal: 16 },

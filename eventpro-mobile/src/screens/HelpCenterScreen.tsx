@@ -17,9 +17,9 @@ import { lightTheme } from "../theme";
 const WEB_URL = Constants.expoConfig?.extra?.webUrl ?? process.env.EXPO_PUBLIC_WEB_URL ?? "https://eventpro.com";
 
 const CATEGORIES = [
-  { icon: "cart-outline" as const, title: "Buying", sub: "Tickets & payments", color: "#6366f1" },
+  { icon: "cart-outline" as const, title: "Buying", sub: "Tickets & payments", color: "#0A66F0" },
   { icon: "pricetag-outline" as const, title: "Selling", sub: "Listings & payouts", color: "#8e3a56" },
-  { icon: "person-outline" as const, title: "Account", sub: "Security & profile", color: "#7c3aed" },
+  { icon: "person-outline" as const, title: "Account", sub: "Security & profile", color: "#0A66F0" },
   { icon: "wallet-outline" as const, title: "Payments", sub: "Refunds & credits", color: "#4f46e5" },
 ];
 

@@ -203,8 +203,8 @@ const AdminRevenue = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="rounded-2xl bg-primary/[0.06] border border-primary/10 p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-2">
-                <div className="h-9 w-9 rounded-xl bg-accent-pink/20 flex items-center justify-center">
-                  <Ticket className="h-4 w-4 text-accent-pink" />
+                <div className="h-9 w-9 rounded-xl bg-primary/15 flex items-center justify-center">
+                  <Ticket className="h-4 w-4 text-primary" />
                 </div>
               </div>
               <p className="text-xs font-medium text-muted-foreground">Tickets sold</p>
@@ -266,7 +266,7 @@ const AdminRevenue = () => {
                       {barData.map((entry, i) => (
                         <Cell
                           key={`c-${entry.date}-${i}`}
-                          fill={entry.highlight ? "hsl(250 85% 50%)" : "hsl(250 45% 82%)"}
+                          fill={entry.highlight ? "hsl(214 95% 48%)" : "hsl(214 40% 82%)"}
                         />
                       ))}
                     </Bar>
@@ -288,7 +288,7 @@ const AdminRevenue = () => {
             <div className="space-y-5">
               {[
                 { label: "Ticket Sales", pct: 65, color: "bg-primary" },
-                { label: "Subscribers", pct: 20, color: "bg-accent-pink" },
+                { label: "Subscribers", pct: 20, color: "bg-primary" },
                 { label: "Add-ons & VIP", pct: 15, color: "bg-primary/70" },
               ].map((row) => (
                 <div key={row.label}>

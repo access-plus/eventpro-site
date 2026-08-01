@@ -13,11 +13,12 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
+import { BrandLogo } from "../components/BrandLogo";
 import type { Theme } from "../theme";
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#f8f6ff" },
+    container: { flex: 1, backgroundColor: theme.colors.background },
     scrollContent: { flexGrow: 1, paddingBottom: 40 },
     header: {
       flexDirection: "row",
@@ -25,7 +26,7 @@ function createStyles(theme: Theme) {
       paddingHorizontal: 8,
       paddingVertical: 12,
     },
-    brand: { flex: 1, textAlign: "center", fontSize: 18, fontWeight: "800", color: "#2d264b", marginRight: 32 },
+    brand: { flex: 1, alignItems: "center", marginRight: 32 },
     hero: {
       marginHorizontal: 16,
       height: 180,
@@ -35,7 +36,7 @@ function createStyles(theme: Theme) {
     },
     heroOverlay: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: "rgba(45,38,75,0.35)",
+      backgroundColor: "rgba(10,10,10,0.35)",
       justifyContent: "center",
       alignItems: "center",
     },
@@ -67,18 +68,18 @@ function createStyles(theme: Theme) {
       fontWeight: "800",
       letterSpacing: -0.3,
       marginBottom: 10,
-      color: "#2d264b",
+      color: "#0A0A0A",
       fontFamily: theme.fontFamily.heading,
     },
     desc: { fontSize: 15, color: theme.colors.mutedForeground, marginBottom: 22, lineHeight: 22 },
-    label: { fontSize: 13, fontWeight: "700", color: "#2d264b", marginBottom: 8 },
+    label: { fontSize: 13, fontWeight: "700", color: "#0A0A0A", marginBottom: 8 },
     inputWrap: {
       flexDirection: "row",
       alignItems: "center",
       borderRadius: 16,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      backgroundColor: "#f3e8ff",
+      backgroundColor: "#E8F1FE",
       paddingHorizontal: 14,
       gap: 10,
       marginBottom: 8,
@@ -86,7 +87,7 @@ function createStyles(theme: Theme) {
     input: { flex: 1, paddingVertical: 14, fontSize: 16, color: theme.colors.foreground },
     error: { color: theme.colors.destructive, marginBottom: 12, fontSize: 14 },
     primaryBtn: {
-      backgroundColor: "#6338d9",
+      backgroundColor: "#0A66F0",
       paddingVertical: 16,
       borderRadius: 16,
       alignItems: "center",
@@ -94,7 +95,7 @@ function createStyles(theme: Theme) {
       flexDirection: "row",
       justifyContent: "center",
       gap: 8,
-      shadowColor: "#6338d9",
+      shadowColor: "#0A66F0",
       shadowOffset: { width: 0, height: 12 },
       shadowOpacity: 0.35,
       shadowRadius: 20,
@@ -109,7 +110,7 @@ function createStyles(theme: Theme) {
       gap: 6,
       marginTop: 20,
     },
-    backLoginText: { fontSize: 13, fontWeight: "800", color: "#6338d9", letterSpacing: 0.6 },
+    backLoginText: { fontSize: 13, fontWeight: "800", color: "#0A66F0", letterSpacing: 0.6 },
     footer: { textAlign: "center", marginTop: 28, paddingHorizontal: 24, fontSize: 13, color: theme.colors.mutedForeground },
     tryAgain: { color: "#9f1239", fontWeight: "700" },
   });
@@ -172,9 +173,11 @@ export function ForgotPasswordScreen({ navigation }: { navigation: any }) {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12} style={{ width: 40 }}>
-            <Ionicons name="chevron-back" size={26} color="#6338d9" />
+            <Ionicons name="chevron-back" size={26} color={theme.colors.primary} />
           </TouchableOpacity>
-          <Text style={styles.brand}>Electric Pulse</Text>
+          <View style={styles.brand}>
+            <BrandLogo size={56} />
+          </View>
         </View>
 
         <ImageBackground
@@ -230,7 +233,7 @@ export function ForgotPasswordScreen({ navigation }: { navigation: any }) {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.backLogin} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={16} color="#6338d9" />
+            <Ionicons name="arrow-back" size={16} color="#0A66F0" />
             <Text style={styles.backLoginText}>BACK TO LOGIN</Text>
           </TouchableOpacity>
         </View>

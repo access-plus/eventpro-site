@@ -77,7 +77,7 @@ export default function CheckIn() {
 
   return (
     <PageShell>
-      <div className="min-h-screen bg-[hsl(250_18%_98%)] pb-8 md:pb-12">
+      <div className="min-h-screen bg-background pb-8 md:pb-12">
         <div className="sticky top-0 z-20 border-b border-border/40 bg-background/90 backdrop-blur-md">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
             <Button variant="ghost" size="icon" className="rounded-full shrink-0" onClick={() => navigate("/organizer")}>

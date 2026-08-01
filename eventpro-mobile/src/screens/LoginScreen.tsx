@@ -14,48 +14,46 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
+import { BrandLogo } from "../components/BrandLogo";
 import type { Theme } from "../theme";
-
-const MAROON = "#8B2942";
 
 function createStyles(theme: Theme) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#F9F8FF" },
+    container: { flex: 1, backgroundColor: theme.colors.background },
     scrollContent: { flexGrow: 1, justifyContent: "center", padding: theme.spacing.lg, paddingVertical: 40 },
-    brandRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 28 },
-    logoBox: {
-      width: 52,
-      height: 52,
-      borderRadius: 14,
-      backgroundColor: theme.colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
+    brandRow: { alignItems: "center", justifyContent: "center", marginBottom: 28 },
+    brandName: {
+      fontSize: 18,
+      fontWeight: "800",
+      color: theme.colors.foreground,
+      fontFamily: theme.fontFamily.heading,
+      marginTop: 4,
+      letterSpacing: 1,
     },
-    brandName: { fontSize: 22, fontWeight: "800", color: theme.colors.primary, fontFamily: theme.fontFamily.heading },
     title: {
       fontSize: 28,
       fontWeight: "800",
       letterSpacing: -0.3,
       textAlign: "center",
       marginBottom: 8,
-      color: "#1a1a2e",
+      color: theme.colors.foreground,
       fontFamily: theme.fontFamily.heading,
     },
-    subtitle: { fontSize: 15, color: "#5c5c6f", textAlign: "center", marginBottom: 28 },
+    subtitle: { fontSize: 15, color: theme.colors.mutedForeground, textAlign: "center", marginBottom: 28 },
     input: {
       borderWidth: 0,
       borderRadius: 14,
       padding: 16,
       fontSize: 16,
       marginBottom: 14,
-      backgroundColor: "rgba(99,102,241,0.08)",
+      backgroundColor: `${theme.colors.primary}14`,
       color: theme.colors.foreground,
     },
     passwordRow: { position: "relative" as const, marginBottom: 8 },
     passwordInput: { marginBottom: 0, paddingRight: 48 },
     eyeButton: { position: "absolute" as const, right: 12, top: 0, bottom: 0, justifyContent: "center" },
     forgotLink: { alignSelf: "flex-end", marginBottom: 16 },
-    forgotText: { fontSize: 14, color: MAROON, fontWeight: "600" },
+    forgotText: { fontSize: 14, color: theme.colors.primary, fontWeight: "600" },
     button: {
       backgroundColor: theme.colors.primary,
       borderRadius: theme.radius.full,
@@ -66,8 +64,8 @@ function createStyles(theme: Theme) {
     buttonDisabled: { opacity: 0.7 },
     buttonText: { color: theme.colors.primaryForeground, fontSize: 16, fontWeight: "800" },
     orRow: { flexDirection: "row", alignItems: "center", marginVertical: 24, gap: 12 },
-    orLine: { flex: 1, height: 1, backgroundColor: "rgba(0,0,0,0.08)" },
-    orText: { fontSize: 11, fontWeight: "700", color: "#8b8b9a", letterSpacing: 1.2 },
+    orLine: { flex: 1, height: 1, backgroundColor: theme.colors.border },
+    orText: { fontSize: 11, fontWeight: "700", color: theme.colors.mutedForeground, letterSpacing: 1.2 },
     socialRow: { flexDirection: "row", gap: 12 },
     socialBtn: {
       flex: 1,
@@ -77,13 +75,13 @@ function createStyles(theme: Theme) {
       gap: 8,
       paddingVertical: 14,
       borderRadius: 14,
-      backgroundColor: "#fff",
+      backgroundColor: theme.colors.card,
       borderWidth: 1,
-      borderColor: "rgba(0,0,0,0.08)",
+      borderColor: theme.colors.border,
     },
     socialText: { fontSize: 15, fontWeight: "600", color: theme.colors.foreground },
     footer: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 28, flexWrap: "wrap" },
-    footerText: { fontSize: 14, color: "#5c5c6f" },
+    footerText: { fontSize: 14, color: theme.colors.mutedForeground },
     footerLink: { fontSize: 14, color: theme.colors.primary, fontWeight: "800" },
     verifyLink: { alignSelf: "center", marginTop: 16 },
     verifyText: { fontSize: 14, color: theme.colors.primary, fontWeight: "600" },
@@ -129,10 +127,8 @@ export function LoginScreen({ navigation }: { navigation: { navigate: (name: str
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.brandRow}>
-          <View style={styles.logoBox}>
-            <Ionicons name="flash" size={28} color="#fff" />
-          </View>
-          <Text style={styles.brandName}>Electric Pulse</Text>
+          <BrandLogo size={112} />
+          <Text style={styles.brandName}>KANAM EVENTS</Text>
         </View>
 
         <Text style={styles.title}>Welcome Back</Text>

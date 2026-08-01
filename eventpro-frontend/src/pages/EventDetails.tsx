@@ -420,7 +420,7 @@ const EventDetails = () => {
             <div className="max-w-3xl">
               <div className="flex flex-wrap gap-2 mb-4">
                 {(event.categoryName || event.category) && (
-                  <Badge className="bg-[hsl(330_81%_75%)]/90 text-[#63033a] border-0 font-headline text-[10px] uppercase tracking-widest">
+                  <Badge className="bg-primary/90 text-primary-foreground border-0 font-headline text-[10px] uppercase tracking-widest">
                     {event.categoryName || event.category}
                   </Badge>
                 )}
@@ -460,7 +460,7 @@ const EventDetails = () => {
               <Button
                 type="button"
                 size="lg"
-                className="rounded-full px-10 py-6 text-lg font-headline font-bold shadow-[0_20px_40px_rgba(93,63,211,0.35)] bg-primary hover:bg-primary/90"
+                className="rounded-full px-10 py-6 text-lg font-headline font-bold shadow-[0_20px_40px_rgba(10,102,240,0.35)] bg-primary hover:bg-primary/90"
                 onClick={() => document.getElementById("event-tickets")?.scrollIntoView({ behavior: "smooth" })}
               >
                 Get tickets

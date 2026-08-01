@@ -224,9 +224,9 @@ const Home = () => {
               transition={{ duration: 0.7, ease: "easeOut" }}
               className="space-y-8 text-left"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[hsl(330_48%_42%)]/20 backdrop-blur-md border border-[hsl(330_48%_42%)]/30 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-[hsl(330_81%_65%)] animate-pulse" />
-                <span className="text-[hsl(330_81%_85%)] font-headline text-xs font-bold uppercase tracking-widest">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/20 backdrop-blur-md border border-primary/30 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-primary-glow animate-pulse" />
+                <span className="text-primary-foreground/90 font-headline text-xs font-bold uppercase tracking-widest">
                   {t("home.trending")}
                 </span>
               </div>
@@ -275,7 +275,7 @@ const Home = () => {
                 >
                   <div className="flex justify-between items-start mb-10">
                     <div>
-                      <span className="text-[hsl(262_83%_75%)] font-headline font-bold block mb-1 text-sm">
+                      <span className="text-primary-glow font-headline font-bold block mb-1 text-sm">
                         {featured.categoryName || featured.category || "Featured"}
                       </span>
                       <h3 className="text-white text-2xl md:text-3xl font-headline font-extrabold line-clamp-2">
@@ -298,7 +298,7 @@ const Home = () => {
                   <div className="space-y-5">
                     <div className="flex items-center gap-4 text-white/90">
                       <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                        <Calendar className="h-6 w-6 text-[hsl(262_83%_78%)]" />
+                        <Calendar className="h-6 w-6 text-primary-glow" />
                       </div>
                       <div>
                         <p className="font-headline font-bold">
@@ -309,7 +309,7 @@ const Home = () => {
                     </div>
                     <div className="flex items-center gap-4 text-white/90">
                       <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                        <MapPin className="h-6 w-6 text-[hsl(262_83%_78%)]" />
+                        <MapPin className="h-6 w-6 text-primary-glow" />
                       </div>
                       <div>
                         <p className="font-headline font-bold line-clamp-2">
@@ -345,14 +345,10 @@ const Home = () => {
       {/* Stitch discovery: location + title (mobile), editorial greeting */}
       <section className="container mx-auto px-4 md:px-8 lg:px-12 -mt-10 relative z-20 max-w-7xl">
         <div className="flex items-center justify-between gap-3 mb-4 md:hidden">
-          <span className="inline-flex items-center gap-1.5 text-sm font-bold text-primary font-headline">
-            <MapPin className="h-4 w-4 shrink-0" />
-            San Francisco
-          </span>
           <h2 className="text-lg font-headline font-extrabold tracking-tight">Discover</h2>
         </div>
         <div className="mb-6 md:mb-8 px-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-accent-pink mb-1">Discover your next</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary mb-1">Discover your next</p>
           <h2 className="text-3xl sm:text-4xl font-headline font-extrabold tracking-tight text-foreground">Experience</h2>
           <p className="text-muted-foreground mt-2 text-base font-body max-w-xl">{personalized}</p>
         </div>
@@ -393,7 +389,7 @@ const Home = () => {
             </div>
             <Button
               type="button"
-              className="h-12 sm:h-14 rounded-2xl px-8 font-headline font-bold bg-[hsl(330_48%_42%)] text-white hover:bg-[hsl(330_48%_36%)]"
+              className="h-12 sm:h-14 rounded-2xl px-8 font-headline font-bold bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={handleFindPulse}
             >
               Find events
