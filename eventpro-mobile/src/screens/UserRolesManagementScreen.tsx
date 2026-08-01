@@ -55,7 +55,7 @@ export function UserRolesManagementScreen({ navigation }: { navigation: any }) {
     <View style={[styles.root, { backgroundColor: BG, paddingTop: insets.top }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack?.()} hitSlop={12}>
-          <Ionicons name="menu" size={26} color="#2d1b4e" />
+          <Ionicons name="menu" size={26} color="#0A0A0A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>User Roles</Text>
         <View style={[styles.miniAv, { backgroundColor: theme.colors.muted }]}>
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  headerTitle: { fontSize: 18, fontWeight: "900", color: "#2d1b4e" },
+  headerTitle: { fontSize: 18, fontWeight: "900", color: "#0A0A0A" },
   miniAv: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
   eyebrow: {
     fontSize: 11,
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 8,
   },
-  pageHead: { fontSize: 26, fontWeight: "900", color: "#2d1b4e", marginHorizontal: 16, marginTop: 4 },
+  pageHead: { fontSize: 26, fontWeight: "900", color: "#0A0A0A", marginHorizontal: 16, marginTop: 4 },
   sub: { marginHorizontal: 16, marginBottom: 16, marginTop: 8, lineHeight: 20 },
   roleCard: { marginHorizontal: 16, marginBottom: 14, padding: 16, borderRadius: 20, overflow: "hidden" },
   roleCardHi: { backgroundColor: "#fff" },

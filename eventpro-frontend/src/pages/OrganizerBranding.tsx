@@ -54,7 +54,7 @@ const OrganizerBranding = () => {
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [primaryColor, setPrimaryColor] = useState("#9B3666");
+  const [primaryColor, setPrimaryColor] = useState("#0A66F0");
   const [hideFooter, setHideFooter] = useState(false);
   const [logoUrl, setLogoUrl] = useState("");
   const [previewEvent, setPreviewEvent] = useState<Event | null>(null);
@@ -70,7 +70,7 @@ const OrganizerBranding = () => {
       apiService.getCurrentUser(),
       apiService.getOrganizerEvents().catch(() => [] as Event[]),
     ]);
-    setPrimaryColor(u.brandingPrimaryColor?.trim() || "#9B3666");
+    setPrimaryColor(u.brandingPrimaryColor?.trim() || "#0A66F0");
     setHideFooter(Boolean(u.brandingHidePlatform));
     setLogoUrl(u.brandingLogoUrl ?? "");
     const picked = pickPreviewEvent(evs);
@@ -146,7 +146,7 @@ const OrganizerBranding = () => {
     }
   };
 
-  const previewColor = primaryColor.match(/^#[0-9A-Fa-f]{6}$/) ? primaryColor : "#9B3666";
+  const previewColor = primaryColor.match(/^#[0-9A-Fa-f]{6}$/) ? primaryColor : "#0A66F0";
   const eventHeroUrl = previewEvent ? getEventImageUrl(previewEvent.imageUrl) : undefined;
   const eventTitle = previewEvent?.name?.trim() || previewEvent?.title?.trim() || "Untitled event";
   const eventStart = previewEvent?.startTime

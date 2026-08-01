@@ -88,7 +88,7 @@ export const EventCard = ({ event, index = 0, variant = "default", ticketMinPric
     const tagClass = [
       "bg-white/90 backdrop-blur text-primary text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-md",
       "bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-md",
-      "bg-[hsl(330_48%_42%)] text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-md",
+      "bg-foreground text-background text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-md",
     ];
     const ti = index % 3;
     return (
@@ -120,13 +120,13 @@ export const EventCard = ({ event, index = 0, variant = "default", ticketMinPric
             </div>
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent pointer-events-none" />
             <div className="absolute bottom-4 left-6 z-[1] text-white">
-              <span className="text-[hsl(330_81%_75%)] font-black text-3xl font-headline leading-none">{dayStr}</span>
+              <span className="text-primary-glow font-black text-3xl font-headline leading-none">{dayStr}</span>
               <span className="font-headline font-bold block text-sm uppercase tracking-wide -mt-0.5">{monStr}</span>
             </div>
           </div>
           <div className="p-8 font-body">
             {(event.categoryName || event.category) && (
-              <span className="text-[hsl(330_48%_42%)] text-xs font-semibold uppercase tracking-widest mb-2 block">
+              <span className="text-primary text-xs font-semibold uppercase tracking-widest mb-2 block">
                 {event.categoryName || event.category}
               </span>
             )}
@@ -136,7 +136,7 @@ export const EventCard = ({ event, index = 0, variant = "default", ticketMinPric
             <div className="space-y-3 mb-8">
               {(event.addressCity || event.venue) && (
                 <div className="flex items-center gap-3 text-muted-foreground text-sm">
-                  <MapPin className="h-[18px] w-[18px] text-[hsl(262_83%_58%)] shrink-0" />
+                  <MapPin className="h-[18px] w-[18px] text-primary shrink-0" />
                   <span>
                     {event.venue
                       ? `${event.venue}${event.addressCity ? `, ${event.addressCity}` : ""}`
@@ -145,7 +145,7 @@ export const EventCard = ({ event, index = 0, variant = "default", ticketMinPric
                 </div>
               )}
               <div className="flex items-center gap-3 text-muted-foreground text-sm">
-                <Clock className="h-[18px] w-[18px] text-[hsl(262_83%_58%)] shrink-0" />
+                <Clock className="h-[18px] w-[18px] text-primary shrink-0" />
                 <span>{safeFormatDate(startRaw, "h:mm a · EEE", "Time TBD")}</span>
               </div>
             </div>

@@ -16,40 +16,40 @@ on:
         default: main
 
 jobs:
-  detect-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      ci_shared: ${{ steps.filter.outputs.ci_shared }}
-      shared_infra: ${{ steps.filter.outputs.shared_infra }}
-      frontend: ${{ steps.filter.outputs.frontend }}
-      services: ${{ steps.filter.outputs.services }}
-      order_processor: ${{ steps.filter.outputs.order_processor }}
-      payment_processor: ${{ steps.filter.outputs.payment_processor }}
-      notification_sender: ${{ steps.filter.outputs.notification_sender }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            ci_shared:
-              - '.github/actions/**'
-              - '.github/workflows/*.yml'
-            shared_infra:
-              - 'backend/shared-infra/**'
-            frontend:
-              - 'eventpro-frontend/**'
-            services:
-              - 'backend/services/**'
-            order_processor:
-              - 'backend/lambdas/order-processor/**'
-            payment_processor:
-              - 'backend/lambdas/payment-processor/**'
-            notification_sender:
-              - 'backend/lambdas/notification-sender/**'
+  # detect-changes:
+  #   runs-on: ubuntu-latest
+  #   outputs:
+  #     ci_shared: ${{ steps.filter.outputs.ci_shared }}
+  #     shared_infra: ${{ steps.filter.outputs.shared_infra }}
+  #     frontend: ${{ steps.filter.outputs.frontend }}
+  #     services: ${{ steps.filter.outputs.services }}
+  #     order_processor: ${{ steps.filter.outputs.order_processor }}
+  #     payment_processor: ${{ steps.filter.outputs.payment_processor }}
+  #     notification_sender: ${{ steps.filter.outputs.notification_sender }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: dorny/paths-filter@v3
+  #       id: filter
+  #       with:
+  #         filters: |
+  #           ci_shared:
+  #             - '.github/actions/**'
+  #             - '.github/workflows/*.yml'
+  #           shared_infra:
+  #             - 'backend/shared-infra/**'
+  #           frontend:
+  #             - 'eventpro-frontend/**'
+  #           services:
+  #             - 'backend/services/**'
+  #           order_processor:
+  #             - 'backend/lambdas/order-processor/**'
+  #           payment_processor:
+  #             - 'backend/lambdas/payment-processor/**'
+  #           notification_sender:
+  #             - 'backend/lambdas/notification-sender/**'
 
   shared_infra:
-    needs: detect-changes
+    # needs: detect-changes
     uses: ./.github/workflows/shared-infra.yml
     with:
       workspace: ${{ inputs.environment }}
@@ -57,8 +57,9 @@ jobs:
     secrets: inherit
 
   services:
-    needs: [detect-changes, shared_infra]
-    if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.services == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
+    # needs: [detect-changes, shared_infra]
+    needs: [shared_infra]
+    # if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.services == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/services.yml
     with:
       workspace: ${{ inputs.environment }}
@@ -66,8 +67,9 @@ jobs:
     secrets: inherit
 
   frontend:
-    needs: [detect-changes, shared_infra]
-    if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.frontend == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
+    # needs: [detect-changes, shared_infra]
+    needs: [shared_infra]
+    # if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.frontend == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/frontend.yml
     with:
       workspace: ${{ inputs.environment }}
@@ -75,8 +77,9 @@ jobs:
     secrets: inherit
 
   order_processor:
-    needs: [detect-changes, shared_infra]
-    if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.order_processor == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
+    # needs: [detect-changes, shared_infra]
+    needs: [shared_infra]
+    # if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.order_processor == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/order-processor.yml
     with:
       workspace: ${{ inputs.environment }}
@@ -84,8 +87,9 @@ jobs:
     secrets: inherit
 
   payment_processor:
-    needs: [detect-changes, shared_infra]
-    if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.payment_processor == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
+    # needs: [detect-changes, shared_infra]
+    needs: [shared_infra]
+    # if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.payment_processor == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/payment-processor.yml
     with:
       workspace: ${{ inputs.environment }}
@@ -93,8 +97,9 @@ jobs:
     secrets: inherit
 
   notification_sender:
-    needs: [detect-changes, shared_infra]
-    if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.notification_sender == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
+    # needs: [detect-changes, shared_infra]
+    needs: [shared_infra]
+    # if: ${{ always() && (needs.detect-changes.outputs.ci_shared == 'true' || needs.detect-changes.outputs.shared_infra == 'true' || needs.detect-changes.outputs.notification_sender == 'true') && (needs.shared_infra.result == 'success' || needs.shared_infra.result == 'skipped') }}
     uses: ./.github/workflows/notification-sender.yml
     with:
       workspace: ${{ inputs.environment }}

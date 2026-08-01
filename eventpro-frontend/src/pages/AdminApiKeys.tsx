@@ -200,7 +200,7 @@ const AdminApiKeys = () => {
           <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
             SECURITY
           </span>
-          <span className="text-sm font-medium text-accent-pink">
+          <span className="text-sm font-medium text-primary">
             • {enterprise ? keys.length : "—"} Active Keys
           </span>
         </div>

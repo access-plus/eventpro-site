@@ -1,7 +1,8 @@
 /**
- * Mobile theme aligned with web UI (eventpro-frontend index.css + tailwind.config).
- * Colors: Electric Midnight – primary violet/indigo (250 85% 55%), lavender gray background.
- * Fonts: Plus Jakarta Sans (sans), Syne (heading) – same as web; fallback to system if not loaded.
+ * Mobile theme — Kanam Events Ink & Signal (aligned with web index.css).
+ * Ink:    #0A0A0A
+ * Paper:  #F7F7F5
+ * Signal: #0A66F0  (hsl 214 95% 48%)
  */
 
 const shared = {
@@ -33,43 +34,43 @@ const shared = {
 };
 
 export const lightColors = {
-  primary: "#6366f1",
-  primaryGlow: "#8b5cf6",
+  primary: "#0A66F0",
+  primaryGlow: "#4D93F5",
   primaryForeground: "#ffffff",
-  background: "#faf9fc",
-  foreground: "#1e1e2e",
+  background: "#F7F7F5",
+  foreground: "#0A0A0A",
   card: "#ffffff",
-  cardForeground: "#1e1e2e",
-  muted: "#f4f3f7",
-  mutedForeground: "#71717a",
-  border: "#e4e4e7",
-  input: "#e4e4e7",
-  destructive: "#ef4444",
+  cardForeground: "#0A0A0A",
+  muted: "#F0F0EC",
+  mutedForeground: "#5C6470",
+  border: "#DEE2E8",
+  input: "#DEE2E8",
+  destructive: "#EF4444",
   destructiveForeground: "#ffffff",
   success: "#22c55e",
   warning: "#eab308",
-  accent: "#f59e0b",
-  accentForeground: "#ffffff",
+  accent: "#E8F1FE",
+  accentForeground: "#084BB3",
 };
 
 export const darkColors = {
-  primary: "#818cf8",
-  primaryGlow: "#a78bfa",
+  primary: "#3B82F6",
+  primaryGlow: "#60A5FA",
   primaryForeground: "#ffffff",
-  background: "#1e1e2e",
-  foreground: "#f4f4f5",
-  card: "#27272a",
-  cardForeground: "#f4f4f5",
-  muted: "#3f3f46",
-  mutedForeground: "#a1a1aa",
-  border: "#3f3f46",
-  input: "#3f3f46",
+  background: "#101318",
+  foreground: "#F4F4F2",
+  card: "#171A1F",
+  cardForeground: "#F4F4F2",
+  muted: "#252A33",
+  mutedForeground: "#9AA3B0",
+  border: "#2E3540",
+  input: "#2E3540",
   destructive: "#f87171",
   destructiveForeground: "#ffffff",
   success: "#4ade80",
   warning: "#facc15",
-  accent: "#fbbf24",
-  accentForeground: "#1e1e2e",
+  accent: "#1A2A44",
+  accentForeground: "#93C5FD",
 };
 
 export const lightTheme = { ...shared, colors: lightColors };

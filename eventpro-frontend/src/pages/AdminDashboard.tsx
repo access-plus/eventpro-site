@@ -104,9 +104,9 @@ const growthBadge = (pct: number | undefined, stable?: boolean) => {
 const KPI_ICONS = [Users, Calendar, Ticket, DollarSign] as const;
 const KPI_ICON_WRAP = [
   "bg-primary/12 text-primary",
-  "bg-accent-pink/15 text-accent-pink",
-  "bg-indigo-500/12 text-indigo-600 dark:text-indigo-400",
+  "bg-primary/10 text-primary",
   "bg-sky-500/12 text-sky-600 dark:text-sky-400",
+  "bg-foreground/10 text-foreground",
 ] as const;
 
 function roleBreakdownFromStats(s: AdminStats) {
@@ -123,7 +123,7 @@ function roleBreakdownFromStats(s: AdminStats) {
   ];
 }
 
-const PIE_COLORS = ["hsl(250 85% 55%)", "hsl(330 81% 45%)", "hsl(260 70% 35%)"];
+const PIE_COLORS = ["hsl(214 95% 48%)", "hsl(214 70% 35%)", "hsl(220 10% 45%)"];
 
 const OVERVIEW_PERIODS = [
   { key: "30d" as const, label: "Last 30 Days" },
@@ -376,8 +376,8 @@ const AdminDashboard = () => {
                         formatter={(value: number) => [`$${Number(value).toFixed(2)}`, ""]}
                       />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="netSales" stackId="rev" name="Net Sales" fill="hsl(250 75% 48%)" radius={[0, 0, 0, 0]} />
-                      <Bar dataKey="fees" stackId="rev" name="Fees" fill="hsl(250 40% 88%)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="netSales" stackId="rev" name="Net Sales" fill="hsl(214 95% 48%)" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="fees" stackId="rev" name="Fees" fill="hsl(214 40% 82%)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -521,7 +521,7 @@ const AdminDashboard = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-accent-pink hover:text-accent-pink hover:bg-accent-pink/10"
+                            className="text-primary hover:text-primary hover:bg-primary/10"
                             disabled={actingId === row.id}
                             onClick={() => void handleReject(row.id)}
                           >

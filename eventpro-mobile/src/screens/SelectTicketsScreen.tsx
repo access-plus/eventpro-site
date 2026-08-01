@@ -156,11 +156,11 @@ export function SelectTicketsScreen({
     <View style={[styles.root, { backgroundColor: BG, paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color="#2d1b4e" />
+          <Ionicons name="arrow-back" size={24} color="#0A0A0A" />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Select Tickets</Text>
         <TouchableOpacity hitSlop={12}>
-          <Ionicons name="ellipsis-vertical" size={22} color="#2d1b4e" />
+          <Ionicons name="ellipsis-vertical" size={22} color="#0A0A0A" />
         </TouchableOpacity>
       </View>
 
@@ -312,7 +312,7 @@ function createStyles(theme: Theme) {
       paddingHorizontal: 16,
       paddingVertical: 10,
     },
-    topTitle: { fontSize: 17, fontWeight: "800", color: "#2d1b4e" },
+    topTitle: { fontSize: 17, fontWeight: "800", color: "#0A0A0A" },
     eventCard: {
       flexDirection: "row",
       marginHorizontal: 16,
@@ -346,7 +346,7 @@ function createStyles(theme: Theme) {
       marginTop: 20,
       marginBottom: 12,
     },
-    availTitle: { fontSize: 18, fontWeight: "900", color: "#2d1b4e" },
+    availTitle: { fontSize: 18, fontWeight: "900", color: "#0A0A0A" },
     availCount: { fontSize: 12, fontWeight: "800", color: "#9d174d" },
     ticketCard: {
       marginHorizontal: 16,

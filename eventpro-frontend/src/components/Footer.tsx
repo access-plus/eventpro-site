@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Ticket, Facebook, Twitter, Instagram, Linkedin, Youtube, Mail, MapPin, Phone, Check, Lock, ShieldCheck } from "lucide-react";
+import { Facebook, Twitter, Instagram, Linkedin, Youtube, Mail, Check, Lock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { motion, AnimatePresence } from "framer-motion";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -149,32 +150,22 @@ export const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
           {/* Brand Column */}
           <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="h-10 w-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-                <Ticket className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <span className="text-2xl font-bold font-headline bg-gradient-primary bg-clip-text text-transparent">
-                KanamEvents
-              </span>
+            <Link to="/" className="inline-flex items-center mb-4" aria-label="Kanam Events home">
+              <BrandLogo imgClassName="h-28 w-28" />
             </Link>
             <p className="text-muted-foreground mb-6 max-w-xs">
               Your gateway to unforgettable experiences. Discover, book, and enjoy events like never before.
             </p>
             
-            {/* Contact Info */}
+            {/* Contact — email only until we have a public address / phone */}
             <div className="space-y-3 text-sm">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <MapPin className="h-4 w-4 text-primary" />
-                <span>123 Event Street, San Francisco, CA 94102</span>
-              </div>
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Phone className="h-4 w-4 text-primary" />
-                <span>+1 (555) 123-4567</span>
-              </div>
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Mail className="h-4 w-4 text-primary" />
-                <span>hello@kanamevents.com</span>
-              </div>
+              <a
+                href="mailto:support@kanamevents.com"
+                className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Mail className="h-4 w-4 text-primary shrink-0" />
+                <span>support@kanamevents.com</span>
+              </a>
             </div>
           </div>
 

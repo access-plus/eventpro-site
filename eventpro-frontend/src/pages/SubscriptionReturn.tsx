@@ -49,7 +49,7 @@ const SubscriptionReturn = () => {
   return (
     <PageShell>
       <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4 px-6 py-16">
-        <div className="rounded-2xl border border-border/60 bg-card/95 px-8 py-10 shadow-[0_20px_40px_rgba(54,39,78,0.08)] text-center max-w-md w-full">
+        <div className="rounded-2xl border border-border/60 bg-card/95 px-8 py-10 shadow-[0_20px_40px_rgba(10,10,10,0.08)] text-center max-w-md w-full">
           {status === "syncing" && (
             <>
               <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />

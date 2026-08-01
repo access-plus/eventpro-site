@@ -97,7 +97,7 @@ const Notifications = () => {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : notifications.length === 0 ? (
-          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(54,39,78,0.06)]">
+          <Card className="rounded-2xl border-border/60 shadow-[0_20px_40px_rgba(10,10,10,0.06)]">
             <CardContent className="py-12 text-center text-muted-foreground">
               <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="font-medium">No notifications yet</p>

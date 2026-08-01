@@ -304,7 +304,7 @@ export function ShareActions({
           <div
             className="relative w-full aspect-[9/16] max-h-[70vh] flex flex-col justify-between overflow-hidden rounded-b-xl"
             style={{
-              background: "linear-gradient(165deg, hsl(250 85% 55% / 0.95) 0%, hsl(270 75% 65% / 0.9) 40%, hsl(35 95% 55% / 0.9) 100%)",
+              background: "linear-gradient(165deg, hsl(214 95% 48% / 0.95) 0%, hsl(214 90% 58% / 0.9) 40%, hsl(0 0% 4% / 0.9) 100%)",
               boxShadow: "inset 0 0 60px rgba(255,255,255,0.1)",
             }}
           >
@@ -386,7 +386,7 @@ function ShareToStoryDialog({
         <div
           className="relative w-full aspect-[9/16] max-h-[70vh] flex flex-col justify-between overflow-hidden rounded-b-xl"
           style={{
-            background: "linear-gradient(165deg, hsl(250 85% 55% / 0.95) 0%, hsl(270 75% 65% / 0.9) 40%, hsl(35 95% 55% / 0.9) 100%)",
+            background: "linear-gradient(165deg, hsl(214 95% 48% / 0.95) 0%, hsl(214 90% 58% / 0.9) 40%, hsl(0 0% 4% / 0.9) 100%)",
             boxShadow: "inset 0 0 60px rgba(255,255,255,0.1)",
           }}
         >

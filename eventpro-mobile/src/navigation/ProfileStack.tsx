@@ -1,5 +1,4 @@
 import React from "react";
-import { Text } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import type { ProfileStackParamList } from "./types";
 import { ProfileScreen } from "../screens/ProfileScreen";
@@ -13,6 +12,7 @@ import { PrivacyScreen } from "../screens/PrivacyScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { HelpCenterScreen } from "../screens/HelpCenterScreen";
 import { LiveChatSupportScreen } from "../screens/LiveChatSupportScreen";
+import { BrandLogo } from "../components/BrandLogo";
 import { useTheme } from "../contexts/ThemeContext";
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -43,9 +43,7 @@ export function ProfileStack() {
         component={SettingsScreen}
         options={{
           title: "Settings",
-          headerRight: () => (
-            <Text style={{ fontWeight: "800", fontSize: 15, color: theme.colors.primary, marginRight: 14 }}>KanamEvents</Text>
-          ),
+          headerRight: () => <BrandLogo size={44} style={{ marginRight: 10 }} />,
         }}
       />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />

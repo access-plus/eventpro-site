@@ -105,7 +105,7 @@ export function AdminVerificationScreen({ navigation }: { navigation: { navigate
 
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.navigate("AdminOverview")}>
-          <Ionicons name="menu" size={26} color="#2d1b4e" />
+          <Ionicons name="menu" size={26} color="#0A0A0A" />
         </TouchableOpacity>
         <Text style={styles.brand}>KanamEvents</Text>
         <View style={[styles.av, { backgroundColor: theme.colors.muted }]}>
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   av: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingHorizontal: 16, marginTop: 8 },
   portalLbl: { fontSize: 10, fontWeight: "900", color: PURPLE, letterSpacing: 1 },
-  pageTitle: { fontSize: 28, fontWeight: "900", color: "#2d1b4e" },
+  pageTitle: { fontSize: 28, fontWeight: "900", color: "#0A0A0A" },
   pendingBadge: { backgroundColor: PURPLE + "22", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   pendingBadgeText: { fontWeight: "800", color: PURPLE, fontSize: 12 },
   statsRow: { flexDirection: "row", gap: 12, paddingHorizontal: 16, marginTop: 16 },
