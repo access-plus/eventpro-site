@@ -231,7 +231,7 @@ class OrderServiceImplTest {
     @Test
     void testGetOrderById_Success() {
         // Given
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdWithItems(orderId)).thenReturn(Optional.of(order));
 
         // When
         OrderEntity result = orderService.getOrderById(orderId);
@@ -239,13 +239,13 @@ class OrderServiceImplTest {
         // Then
         assertNotNull(result);
         assertEquals(orderId, result.getId());
-        verify(orderRepository).findById(orderId);
+        verify(orderRepository).findByIdWithItems(orderId);
     }
 
     @Test
     void testGetOrderById_NotFound() {
         // Given
-        when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
+        when(orderRepository.findByIdWithItems(orderId)).thenReturn(Optional.empty());
 
         // When/Then
         assertThrows(ResourceNotFoundException.class, () -> 
