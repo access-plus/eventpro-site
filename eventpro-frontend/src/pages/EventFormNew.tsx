@@ -33,7 +33,6 @@ import { z } from "zod";
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
-import axios from "axios";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiService } from "@/lib/api";
 import { getEventImageUrl } from "@/lib/utils";
@@ -251,9 +250,6 @@ const EventFormNew = () => {
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
       };
 
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-      const token = localStorage.getItem("accessToken");
-
       if (isEditMode && id) {
         // UPDATE MODE - JSON PUT; upload first new image if present as new cover, then update with URL
         let imageUrl: string | undefined;
@@ -308,18 +304,10 @@ const EventFormNew = () => {
           formData.append("imageFiles", file);
         });
 
-        const response = await axios.post(`${baseUrl}/api/v1/events`, formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
-        });
-
-        if (response.data.success) {
-          const eventId = response.data.data.id;
-          toast.success("Draft saved. Continue editing or add ticket tiers.");
-          navigate(`/organizer/events/${eventId}/edit`);
-        }
+        const createdEvent = await apiService.createEventWithImages(formData);
+        const eventId = createdEvent.id;
+        toast.success("Draft saved. Continue editing or add ticket tiers.");
+        navigate(`/organizer/events/${eventId}/edit`);
       }
     } catch (error: any) {
       console.error("Failed to save event:", error);

@@ -10,6 +10,8 @@ const API_URL =
   process.env.EXPO_PUBLIC_API_URL ??
   "http://localhost:8080";
 
+const MOBILE_CLIENT_HEADERS = { "X-EventPro-Client": "mobile" } as const;
+
 async function getToken(): Promise<string | null> {
   return SecureStore.getItemAsync("accessToken");
 }
@@ -20,6 +22,7 @@ async function authFetch(
 ): Promise<Response> {
   const { skipAuth, ...rest } = options;
   const headers: Record<string, string> = {
+    ...MOBILE_CLIENT_HEADERS,
     ...((rest.headers as Record<string, string>) ?? {}),
   };
   if (!skipAuth) {
@@ -47,7 +50,7 @@ export async function uploadProfilePicture(asset: {
 
   const res = await fetch(`${API_URL}/api/v1/users/upload-profile-picture`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { ...MOBILE_CLIENT_HEADERS, Authorization: `Bearer ${token}` },
     body: formData,
   });
 

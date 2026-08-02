@@ -26,7 +26,6 @@ import { toast } from "sonner";
 import { apiService } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Event, TicketType } from "@/types/api";
-import axios from "axios";
 import { Badge } from "@/components/ui/badge";
 
 function canUseAddons(tier: string | undefined): boolean {
@@ -87,9 +86,6 @@ const EventTickets = () => {
     try {
       setIsSubmitting(true);
 
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-      const token = localStorage.getItem("accessToken");
-
       // Use the organizer tickets endpoint
       const payload = {
         ticketType: formData.ticketType,
@@ -98,12 +94,7 @@ const EventTickets = () => {
         name: `${formData.ticketType} Ticket`, // Auto-generate name
       };
 
-      await axios.post(`${baseUrl}/api/v1/organizer/events/${id}/tickets`, payload, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
+      await apiService.createOrganizerTickets(id, payload);
 
       toast.success(`${formData.quantity} ${formData.ticketType} tickets created successfully!`);
 

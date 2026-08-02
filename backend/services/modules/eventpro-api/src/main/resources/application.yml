@@ -130,6 +130,10 @@ eventpro:
     api:
       public-swagger: ${EVENTPRO_PUBLIC_SWAGGER:true}
       public-actuator-metrics: ${EVENTPRO_PUBLIC_ACTUATOR_METRICS:false}
+    csrf:
+      enabled: ${EVENTPRO_CSRF_ENABLED:true}
+      secure-cookie: ${EVENTPRO_CSRF_SECURE_COOKIE:true}
+      same-site: ${EVENTPRO_CSRF_SAME_SITE:Strict}
 
 security:
   jwt:
@@ -186,3 +190,15 @@ springdoc:
   # Disable QueryDSL support (not used in this project, prevents TypeInformation classpath issues with DevTools)
   querydsl:
     enabled: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+eventpro:
+  security:
+    csrf:
+      # Local development runs over HTTP; deployed profiles retain Secure=true.
+      secure-cookie: false

@@ -1,5 +1,6 @@
-import axios, { AxiosInstance } from "axios";
+import axios, { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import { getOrCreateCorrelationId } from "@/lib/correlation";
+import { CsrfTokenManager, isCsrfFailureCode, isUnsafeMethod } from "@/lib/csrf";
 import type {
   ApiResponse,
   PageResponse,
@@ -48,14 +49,17 @@ import type {
 
 class ApiService {
   private api: AxiosInstance;
+  private csrf: CsrfTokenManager;
 
   constructor() {
     // In dev always use same-origin so Vite proxy forwards /api to backend (avoids direct :8080 and CORS).
     const baseURL = import.meta.env.DEV
       ? ""
       : (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080");
+    this.csrf = new CsrfTokenManager(baseURL);
     this.api = axios.create({
       baseURL,
+      withCredentials: true,
       headers: {
         "Content-Type": "application/json",
       },
@@ -63,11 +67,18 @@ class ApiService {
 
     // Add request interceptor to attach token
     this.api.interceptors.request.use(
-      (config) => {
+      async (config) => {
         config.headers["X-Correlation-Id"] = getOrCreateCorrelationId();
         const token = localStorage.getItem("accessToken");
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+        }
+        if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+          config.headers.setContentType(undefined);
+        }
+        if (isUnsafeMethod(config.method)) {
+          const csrf = await this.csrf.getToken();
+          config.headers[csrf.headerName] = csrf.token;
         }
         return config;
       },
@@ -76,8 +87,20 @@ class ApiService {
 
     // Add response interceptor for error handling
     this.api.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        this.csrf.updateFromResponse(response.headers);
+        return response;
+      },
       async (error) => {
+        const responseCode = error.response?.data?.code;
+        const original = error.config as (InternalAxiosRequestConfig & { _csrfRetry?: boolean }) | undefined;
+        const isCsrfFailure = isCsrfFailureCode(responseCode);
+        if (isCsrfFailure && original && !original._csrfRetry) {
+          original._csrfRetry = true;
+          const csrf = await this.csrf.getToken(true);
+          original.headers[csrf.headerName] = csrf.token;
+          return this.api.request(original);
+        }
         if (error.response?.status === 401) {
           const hadToken = localStorage.getItem("accessToken");
           if (hadToken) {
@@ -88,6 +111,17 @@ class ApiService {
         return Promise.reject(error);
       }
     );
+
+    // Safe reads can render even if the initial bootstrap is temporarily unavailable.
+    void this.csrf.initialize().catch(() => undefined);
+  }
+
+  initializeCsrf(): Promise<unknown> {
+    return this.csrf.initialize();
+  }
+
+  clearCsrfToken(): void {
+    this.csrf.clear();
   }
 
   // User endpoints
@@ -169,9 +203,7 @@ class ApiService {
   async uploadProfilePicture(file: File): Promise<string> {
     const formData = new FormData();
     formData.append("image", file);
-    const response = await this.api.post<ApiResponse<{ url: string }>>("/api/v1/users/upload-profile-picture", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await this.api.post<ApiResponse<{ url: string }>>("/api/v1/users/upload-profile-picture", formData);
     return response.data.data.url;
   }
 
@@ -254,6 +286,11 @@ class ApiService {
     return response.data.data;
   }
 
+  async createEventWithImages(formData: FormData): Promise<Event> {
+    const response = await this.api.post<ApiResponse<Event>>("/api/v1/events", formData);
+    return response.data.data;
+  }
+
   async updateEvent(id: string, data: Partial<Event>): Promise<Event> {
     const response = await this.api.put<ApiResponse<Event>>(`/api/v1/events/${id}`, data);
     return response.data.data;
@@ -267,6 +304,13 @@ class ApiService {
   async getTicketTypes(eventId: string): Promise<TicketType[]> {
     const response = await this.api.get<ApiResponse<TicketType[]>>(`/api/v1/events/${eventId}/ticket-types`);
     return response.data.data;
+  }
+
+  async createOrganizerTickets(
+    eventId: string,
+    payload: { ticketType: TicketTypeEnum; price: number; quantity: number; name: string }
+  ): Promise<void> {
+    await this.api.post(`/api/v1/organizer/events/${eventId}/tickets`, payload);
   }
 
   /** Reserved seating: get seat map for an event (when reservedSeatingEnabled). */
@@ -796,11 +840,9 @@ class ApiService {
   async uploadEventImage(file: File): Promise<{ url: string }> {
     const formData = new FormData();
     formData.append("image", file);
-    // Remove Content-Type so browser/axios sets multipart/form-data with boundary (instance default is application/json)
     const response = await this.api.post<ApiResponse<{ url: string }>>(
       "/api/v1/organizer/events/upload-image",
-      formData,
-      { headers: { "Content-Type": false } as unknown as Record<string, string> }
+      formData
     );
     const url = response.data.data?.url ?? (response.data as { data?: { url?: string } }).data?.url;
     return { url: url ?? "" };

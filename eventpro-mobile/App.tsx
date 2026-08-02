@@ -98,6 +98,7 @@ function AppContent() {
     () =>
       createEventProApi({
         baseURL: API_URL,
+        clientType: "mobile",
         getAccessToken: () => SecureStore.getItemAsync("accessToken"),
         setAccessToken: (token) => SecureStore.setItemAsync("accessToken", token),
         removeAccessToken: () => SecureStore.deleteItemAsync("accessToken"),

@@ -46,7 +46,24 @@ On a pristine environment, `make lstk-plan` can only plan shared infrastructure 
 
 `make lstk-deploy` performs verification automatically. The verifier checks LocalStack activation, ECR images, ECS and ALB health, API/DB/SQS/JWT behavior, S3 and image proxy access, CloudFront assets and SPA fallback, CORS, Lambda cold starts/event mappings, a harmless IN_APP notification, and disabled New Relic configuration.
 
-Granular commands remain available:
+After the first full deployment, use the scoped redeploy commands when only one
+artifact changed. They preserve the other stacks and existing LocalStack data:
+
+```bash
+make lstk-redeploy-services
+make lstk-redeploy-frontend
+make lstk-redeploy-lambda-order
+make lstk-redeploy-lambda-payment
+make lstk-redeploy-lambda-notification
+make lstk-redeploy-lambdas
+```
+
+Services and Lambda redeploys build and push a uniquely tagged image before
+applying only that Terraform stack. The frontend redeploy rebuilds the Vite
+bundle, applies only the frontend stack, syncs S3, and invalidates CloudFront.
+Use `make lstk-verify` afterward when full end-to-end verification is required.
+
+Lower-level granular Terraform commands remain available:
 
 ```bash
 make lstk-tf-shared-infra LSTK_TF_ACTION=apply

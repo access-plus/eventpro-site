@@ -45,6 +45,7 @@ import type {
 
 export interface EventProApiConfig {
   baseURL: string;
+  clientType?: "mobile";
   getAccessToken: () => string | null | Promise<string | null>;
   setAccessToken: (token: string) => void | Promise<void>;
   removeAccessToken: () => void | Promise<void>;
@@ -179,6 +180,9 @@ export function createEventProApi(config: EventProApiConfig): EventProApi {
   api.interceptors.request.use(
     async (req: InternalAxiosRequestConfig) => {
       req.headers["X-Correlation-Id"] = getOrCreateCorrelationId();
+      if (config.clientType === "mobile") {
+        req.headers["X-EventPro-Client"] = "mobile";
+      }
       const token = config.getAccessToken();
       const t = isPromise(token) ? await token : token;
       if (t) req.headers.Authorization = `Bearer ${t}`;

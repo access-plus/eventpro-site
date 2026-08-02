@@ -1304,6 +1304,24 @@ make lstk-redeploy   # destroy, deploy, and verify again
 make lstk-stop       # stops LocalStack while preserving its Docker volume
 ```
 
+After `make lstk-deploy` has created the complete environment, redeploy only
+the component you changed with one of these non-destructive shortcuts:
+
+```bash
+make lstk-redeploy-services
+make lstk-redeploy-frontend
+make lstk-redeploy-lambda-order
+make lstk-redeploy-lambda-payment
+make lstk-redeploy-lambda-notification
+make lstk-redeploy-lambdas
+```
+
+These targets start/initialize LocalStack if needed and retain all unrelated
+Terraform stacks and data. API and Lambda targets rebuild and push only their
+selected image. The frontend target rebuilds Vite, syncs S3, and invalidates
+the LocalStack CloudFront distribution. Run `make lstk-verify` when you want
+the complete post-deployment smoke suite.
+
 For real AWS use the separate guarded commands `make aws-plan` and `make aws-deploy`. They clear LocalStack endpoint variables, force `use_localstack=false`, and verify the authenticated account before Terraform runs.
 
 This flow starts LocalStack Pro with `docker-compose.lstk.yml`. If you previously started LocalStack with another launcher, stop that instance first so ports `443`, `4566`, and `4510-4559` are available.
@@ -1475,6 +1493,9 @@ frontend
 ```
 
 Use `make lstk-redeploy` when you want a fresh LocalStack run: it starts LocalStack with `docker-compose.lstk.yml`, destroys all Terraform-owned LocalStack resources, and applies all stacks again.
+
+For normal iteration, prefer the scoped `make lstk-redeploy-*` targets above;
+they do not destroy the environment.
 
 *deploy shared infrastructure first*
 

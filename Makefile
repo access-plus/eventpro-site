@@ -4,6 +4,7 @@
 	tf-destroy-shared-infra tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy \
 	aws-plan aws-deploy lstk-init lstk-plan lstk-deploy lstk-verify lstk-destroy \
 	lstk-start lstk-stop lstk-state-bucket lstk-route53-zone lstk-endpoints lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all lstk-tf-destroy-all lstk-redeploy \
+	lstk-redeploy-services lstk-redeploy-frontend lstk-redeploy-lambda-order lstk-redeploy-lambda-payment lstk-redeploy-lambda-notification lstk-redeploy-lambdas \
 	newrelic-lambda-preflight newrelic-lambda-verify-config
 
 # Variables
@@ -132,6 +133,12 @@ help:
 	@echo "  make lstk-tf-all                    - Plan/apply shared, services, frontend, lambdas"
 	@echo "  make lstk-tf-destroy-all            - Destroy frontend, lambdas, services, then shared infra in LocalStack"
 	@echo "  make lstk-redeploy                  - Destroy all LocalStack resources, then apply all fresh"
+	@echo "  make lstk-redeploy-services         - Rebuild and redeploy only the API services stack"
+	@echo "  make lstk-redeploy-frontend         - Rebuild, sync, and invalidate only the frontend stack"
+	@echo "  make lstk-redeploy-lambda-order     - Rebuild and redeploy only order-processor"
+	@echo "  make lstk-redeploy-lambda-payment   - Rebuild and redeploy only payment-processor"
+	@echo "  make lstk-redeploy-lambda-notification - Rebuild and redeploy only notification-sender"
+	@echo "  make lstk-redeploy-lambdas          - Rebuild and redeploy all three Lambdas only"
 	@echo ""
 	@echo "Local Development:"
 	@echo "  make local-setup    - Complete first-time setup (all steps)"
@@ -617,6 +624,33 @@ lstk-redeploy:
 	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
 	@$(MAKE) lstk-destroy LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
 	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --apply --only all --verify-after
+
+# Fast, non-destructive LocalStack redeploys. These retain the existing
+# infrastructure and state, rebuild only the selected artifact, and apply only
+# its Terraform stack. Run `make lstk-deploy` once before using these targets.
+lstk-redeploy-services:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-services LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+
+lstk-redeploy-frontend:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-frontend LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+
+lstk-redeploy-lambda-order:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-lambda-order LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+
+lstk-redeploy-lambda-payment:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-lambda-payment LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+
+lstk-redeploy-lambda-notification:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-lambda-notification LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+
+lstk-redeploy-lambdas:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-lambdas LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
 
 # ============================================================================
 # Local Development (Docker Compose + LocalStack)
