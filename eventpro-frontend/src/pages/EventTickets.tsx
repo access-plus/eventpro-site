@@ -319,7 +319,7 @@ const EventTickets = () => {
                           <div>
                             <p className="text-muted-foreground">Sold</p>
                             <p className="font-medium">
-                              {ticket.totalQuantity - ticket.availableQuantity}
+                              {ticket.soldQuantity ?? 0}
                             </p>
                           </div>
                         </div>

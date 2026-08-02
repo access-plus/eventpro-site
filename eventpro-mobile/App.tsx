@@ -5,11 +5,13 @@
  */
 import React, { useRef, useMemo, useEffect } from "react";
 import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
+import type { NavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as SecureStore from "expo-secure-store";
 import { createEventProApi } from "@eventpro/shared";
 import Constants from "expo-constants";
 import { View, Linking, Alert } from "react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { SplashScreen } from "./src/screens/SplashScreen";
@@ -26,11 +28,15 @@ const API_URL =
   process.env.EXPO_PUBLIC_API_URL ??
   "http://localhost:8080";
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 5_000, refetchOnReconnect: true } },
+});
+
 function handleSubscriptionReturnUrl(
   url: string,
   api: ReturnType<typeof createEventProApi>,
   refreshUser: () => Promise<void>,
-  navigationRef: React.RefObject<ReturnType<typeof useNavigationContainerRef>["current"]>
+  navigationRef: React.RefObject<NavigationContainerRef<RootStackParamList> | null>
 ) {
   if (!url || !url.startsWith("eventpro://subscription/return")) return;
   api
@@ -60,7 +66,7 @@ function handleSubscriptionReturnUrl(
 function DeepLinkHandler({
   navigationRef,
 }: {
-  navigationRef: React.RefObject<ReturnType<typeof useNavigationContainerRef>["current"]>;
+  navigationRef: React.RefObject<NavigationContainerRef<RootStackParamList> | null>;
 }) {
   const { api, refreshUser, user } = useAuth();
   const pendingReturnUrl = useRef<string | null>(null);
@@ -140,5 +146,5 @@ function RootNavigator() {
 }
 
 export default function App() {
-  return <AppContent />;
+  return <QueryClientProvider client={queryClient}><AppContent /></QueryClientProvider>;
 }

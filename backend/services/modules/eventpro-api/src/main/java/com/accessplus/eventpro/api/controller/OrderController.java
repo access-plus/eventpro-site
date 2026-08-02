@@ -50,17 +50,8 @@ public class OrderController extends BaseController {
     @Operation(summary = "Create order from cart", description = "Creates an order from the authenticated user's cart. " +
             "Requires USER, ADMIN, or ORGANIZER role. The cart will be cleared after order creation.")
     public ResponseEntity<ApiResponse<OrderResponse>> createOrder() {
-        log.debug("Received request to create order from cart");
-
-        // Get current user's UUID from JWT
-        UUID userId = JwtUtils.getCurrentUserId();
-
-        // Create order from cart
-        OrderEntity order = orderService.createOrderFromCart(userId);
-        OrderResponse response = OrderResponse.fromEntity(order);
-
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response, "Order created successfully"));
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(ApiResponse.error("LEGACY_CHECKOUT_DISABLED: orders are created only by checkout-session finalization"));
     }
 
     @GetMapping("/{id}")

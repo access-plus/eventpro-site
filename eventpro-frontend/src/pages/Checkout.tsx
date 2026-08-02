@@ -11,7 +11,6 @@ import { ReservationCountdown } from "@/components/ReservationCountdown";
 import { SuccessTicketReveal } from "@/components/SuccessTicketReveal";
 import { TicketPreview } from "@/components/TicketPreview";
 import { apiService } from "@/lib/api";
-import { executeRecaptcha, resolveRecaptchaSiteKey } from "@/lib/recaptcha";
 import { HOW_DID_YOU_HEAR_OPTIONS } from "@/types/api";
 import { Ticket, Trash2, ArrowLeft, User, LogIn, MessageCircle, Smartphone, Lock, ChevronDown, Minus, Plus, Wallet } from "lucide-react";
 import { CommunityImpactTile } from "@/components/CommunityImpactTile";
@@ -21,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import type { Event } from "@/types/api";
+import type { CheckoutSession, Event } from "@/types/api";
 import { CheckoutStitchHero } from "@/components/checkout/CheckoutStitchHero";
 import { CheckoutPaymentProcessingOverlay } from "@/components/checkout/CheckoutPaymentProcessingOverlay";
 import { SeatingMap, type Seat } from "@/components/SeatingMap";
@@ -83,8 +82,12 @@ const Checkout = () => {
   } | null>(null);
   const [paymentStep, setPaymentStep] = useState<"review" | "payment" | "success">("review");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [reservedTicketIds, setReservedTicketIds] = useState<string[] | null>(null);
+  const [checkoutSession, setCheckoutSession] = useState<CheckoutSession | null>(null);
+  const [checkoutIdempotencyKey, setCheckoutIdempotencyKey] = useState(() =>
+    globalThis.crypto?.randomUUID?.() ?? `web-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
   const [reservedUntil, setReservedUntil] = useState<string | null>(null);
+  const [reservationServerTime, setReservationServerTime] = useState<string | undefined>();
   const [orderId, setOrderId] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isStartingPayment, setIsStartingPayment] = useState(false);
@@ -189,6 +192,7 @@ const Checkout = () => {
       .getCart()
       .then((cart) => {
         if (cart.reservedUntil) setReservedUntil(cart.reservedUntil);
+        setReservationServerTime(cart.serverTime);
       })
       .catch(() => {});
   }, [isAuthenticated, items.length]);
@@ -497,6 +501,7 @@ const Checkout = () => {
           {reservedUntil && (
             <ReservationCountdown
               reservedUntil={reservedUntil}
+              serverTime={checkoutSession?.serverTime ?? reservationServerTime}
               onExpired={() => {
                 setReservedUntil(null);
                 setReservedTicketIds(null);
@@ -551,50 +556,34 @@ const Checkout = () => {
     e?.preventDefault();
     setPaymentError(null);
     setIsStartingPayment(true);
-    setReservedTicketIds(null);
     if (!isAuthenticated) setReservedUntil(null);
     try {
-      if (isAuthenticated && walletCoversAll) {
-        const order = await apiService.confirmPayment(undefined, {
-          walletAmount: displayTotal,
-          state: taxState?.trim() || undefined,
-          country: taxCountry?.trim() || undefined,
-        });
-        handlePaymentSuccess(order.id);
-        return;
-      }
-
-      const amountToCharge = stripeDueAmount;
-      const amount = Number(amountToCharge.toFixed(2));
-      if (amount <= 0) {
-        setPaymentError("Order total must be greater than 0");
-        toast.error("Order total must be greater than 0");
-        return;
-      }
-      const siteKey = await resolveRecaptchaSiteKey();
-      const recaptchaToken = siteKey ? await executeRecaptcha(siteKey, "checkout") : undefined;
-      const isGuest = !isAuthenticated && !!guestInfo;
-      if (isGuest && items.length > 0) {
-        const reservePayload = items.map((i) => ({
+      const session = await apiService.createCheckoutSession({
+        idempotencyKey: checkoutIdempotencyKey,
+        items: isAuthenticated ? undefined : items.map((i) => ({
           eventId: i.eventId,
           ticketType: i.ticketTypeId,
           quantity: i.quantity,
-        }));
-        const reserveData = await apiService.guestReserve(reservePayload, recaptchaToken);
-        if (reserveData?.reservedTicketIds?.length) {
-          setReservedTicketIds(reserveData.reservedTicketIds);
-          if (reserveData.reservedUntil) setReservedUntil(reserveData.reservedUntil);
-        }
+        })),
+        email: !isAuthenticated ? guestInfo?.email : undefined,
+        firstName: !isAuthenticated ? guestInfo?.firstName : undefined,
+        lastName: !isAuthenticated ? guestInfo?.lastName : undefined,
+        state: taxState?.trim() || undefined,
+        country: taxCountry?.trim() || undefined,
+        donationAmount: donationAmount > 0 ? Number(donationAmount.toFixed(2)) : undefined,
+        walletAmount: isAuthenticated && walletApplyAmount > 0 ? walletApplyAmount : undefined,
+        addOns: selectedMerch.map((item) => ({ id: item.id, quantity: item.quantity, size: item.selectedSize })),
+      });
+      setCheckoutSession(session);
+      setReservedUntil(session.expiresAt);
+      if (!session.clientSecret) {
+        const completed = await apiService.finalizeCheckoutSession(session.id, undefined, session.resumeToken);
+        if (!completed.orderId) throw new Error(`Checkout could not be completed (${completed.status})`);
+        handlePaymentSuccess(completed.orderId);
+      } else {
+        setClientSecret(session.clientSecret);
+        setPaymentStep("payment");
       }
-      const data = await apiService.createPaymentIntent(amount, recaptchaToken);
-      const secret = data?.clientSecret ?? (data as { clientSecret?: string })?.clientSecret;
-      if (!secret) {
-        setPaymentError("Invalid response from server");
-        toast.error("Invalid response from server");
-        return;
-      }
-      setClientSecret(secret);
-      setPaymentStep("payment");
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { message?: string }; status?: number } };
       const msg =
@@ -605,35 +594,6 @@ const Checkout = () => {
     } finally {
       setIsStartingPayment(false);
     }
-  };
-
-  const buildGuestConfirm = async (paymentIntentId: string) => {
-    if (!guestInfo) throw new Error("Guest info required");
-    const siteKey = await resolveRecaptchaSiteKey();
-    const recaptchaToken = siteKey ? await executeRecaptcha(siteKey, "checkout") : undefined;
-    const totalToConfirm = checkoutTotals?.total ?? grandTotal;
-    return apiService.confirmGuestPayment({
-      paymentIntentId,
-      email: guestInfo.email,
-      firstName: guestInfo.firstName,
-      lastName: guestInfo.lastName,
-      items: items.map((i) => ({
-        eventId: i.eventId,
-        ticketType: i.ticketTypeId,
-        quantity: i.quantity,
-      })),
-      totalAmount: totalToConfirm,
-      donationAmount: donationAmount > 0 ? Number(donationAmount.toFixed(2)) : undefined,
-      reservedTicketIds: reservedTicketIds ?? undefined,
-      howDidYouHear: howDidYouHear || undefined,
-      receiveTicketViaWhatsApp: receiveTicketViaWhatsApp || undefined,
-      receiveTicketViaSMS: receiveTicketViaSMS || undefined,
-      phone: resolvedPhone || undefined,
-      state: taxState?.trim() || undefined,
-      country: taxCountry?.trim() || undefined,
-      taxAmount: checkoutTotals && checkoutTotals.tax > 0 ? Number(checkoutTotals.tax.toFixed(2)) : undefined,
-      recaptchaToken,
-    });
   };
 
   const handlePaymentSuccess = (id: string) => {
@@ -652,6 +612,18 @@ const Checkout = () => {
     setPaymentStep("success");
     clearCart();
     toast.success("Order placed successfully");
+  };
+
+  const finalizeCurrentSession = async (paymentIntentId: string) => {
+    if (!checkoutSession) throw new Error("Checkout session is missing");
+    const completed = await apiService.finalizeCheckoutSession(
+      checkoutSession.id, paymentIntentId, checkoutSession.resumeToken
+    );
+    setCheckoutSession(completed);
+    if (completed.status !== "COMPLETED" || !completed.orderId) {
+      throw new Error(`Checkout could not be completed (${completed.status})`);
+    }
+    return { id: completed.orderId };
   };
 
   if (items.length === 0 && paymentStep !== "success") {
@@ -725,9 +697,9 @@ const Checkout = () => {
               {reservedUntil && (
                 <ReservationCountdown
                   reservedUntil={reservedUntil}
+                  serverTime={checkoutSession?.serverTime ?? reservationServerTime}
                   onExpired={() => {
                     setReservedUntil(null);
-                    setReservedTicketIds(null);
                     setPaymentStep("review");
                     void refreshCart();
                     toast.warning("Reservation expired. Tickets were released. Please try again.");
@@ -743,15 +715,10 @@ const Checkout = () => {
               <CheckoutPaymentForm
                 clientSecret={clientSecret}
                 isGuest={!isAuthenticated && !!guestInfo}
-                guestConfirm={!isAuthenticated && guestInfo ? buildGuestConfirm : undefined}
+                guestConfirm={!isAuthenticated && guestInfo ? finalizeCurrentSession : undefined}
                 authenticatedConfirm={
                   isAuthenticated
-                    ? (id) =>
-                        apiService.confirmPayment(id, {
-                          walletAmount: walletApplyAmount > 0 ? walletApplyAmount : undefined,
-                          state: taxState?.trim() || undefined,
-                          country: taxCountry?.trim() || undefined,
-                        })
+                    ? finalizeCurrentSession
                     : undefined
                 }
                 onSuccess={handlePaymentSuccess}
@@ -764,10 +731,21 @@ const Checkout = () => {
                 variant="ghost"
                 size="sm"
                 className="w-full text-muted-foreground"
-                onClick={() => {
+                onClick={async () => {
+                  if (checkoutSession?.status === "PENDING") {
+                    try {
+                      await apiService.cancelCheckoutSession(checkoutSession.id, checkoutSession.resumeToken);
+                    } catch {
+                      toast.error("Could not cancel checkout. Please retry.");
+                      return;
+                    }
+                  }
+                  setCheckoutSession(null);
+                  setClientSecret(null);
+                  setCheckoutIdempotencyKey(globalThis.crypto?.randomUUID?.() ?? `web-${Date.now()}-${Math.random().toString(36).slice(2)}`);
                   setPaymentStep("review");
                   setPaymentError(null);
-                  setReservedUntil(null);
+                  setReservedUntil(isAuthenticated ? checkoutSession?.expiresAt ?? null : null);
                   setPaymentProcessing(false);
                 }}
               >

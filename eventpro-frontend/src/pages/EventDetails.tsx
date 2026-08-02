@@ -29,13 +29,12 @@ import { LiveAttendanceBadge, useSimulatedViewers } from "@/components/LiveAtten
 import { EventCard } from "@/components/EventCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 const EventDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);
-  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
-  const [seatResponses, setSeatResponses] = useState<SeatResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [imgError, setImgError] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -59,6 +58,23 @@ const EventDetails = () => {
   const [followLoading, setFollowLoading] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [addingToCart, setAddingToCart] = useState(false);
+  const inventoryQuery = useQuery({
+    queryKey: ["event-inventory", id],
+    enabled: Boolean(id),
+    queryFn: async () => {
+      const [ticketTypes, seats] = await Promise.all([
+        apiService.getTicketTypes(id!),
+        apiService.getEventSeats(id!).catch(() => []),
+      ]);
+      return { ticketTypes, seats: Array.isArray(seats) ? seats : [] };
+    },
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
+  const ticketTypes: TicketType[] = inventoryQuery.data?.ticketTypes ?? [];
+  const seatResponses: SeatResponse[] = inventoryQuery.data?.seats ?? [];
 
   // Reserved seating: map API seats to SeatingMap Seat format
   const seatsFromApi = useMemo(() => {
@@ -97,7 +113,7 @@ const EventDetails = () => {
     let sold = 0;
     ticketTypes.forEach((t) => {
       left += t.availableQuantity ?? 0;
-      sold += (t.totalQuantity ?? 0) - (t.availableQuantity ?? 0);
+      sold += t.soldQuantity ?? 0;
     });
     if (hasReservedSeating) {
       seatsFromApi.forEach((s) => {
@@ -127,41 +143,6 @@ const EventDetails = () => {
     }
   }, [id]);
 
-  useEffect(() => {
-    if (!id) return;
-
-    const handleCartChanged = (event: globalThis.Event) => {
-      const detail = (event as CustomEvent<{ eventIds?: string[] }>).detail;
-      if (!detail?.eventIds?.length || detail.eventIds.includes(id)) {
-        void refreshInventory();
-      }
-    };
-
-    window.addEventListener("eventpro:cart-changed", handleCartChanged);
-    return () => window.removeEventListener("eventpro:cart-changed", handleCartChanged);
-  }, [id]);
-
-  useEffect(() => {
-    if (!id) return;
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        void refreshInventory();
-      }
-    }, 15_000);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void refreshInventory();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [id]);
-
   // Load other events by same organizer (for "More from this organizer" section)
   useEffect(() => {
     if (!event?.userId || !id) return;
@@ -180,14 +161,8 @@ const EventDetails = () => {
   const loadEventDetails = async () => {
     try {
       setIsLoading(true);
-      const [eventData, ticketsData, seatsData] = await Promise.all([
-        apiService.getEvent(id!),
-        apiService.getTicketTypes(id!),
-        apiService.getEventSeats(id!).catch(() => []),
-      ]);
+      const eventData = await apiService.getEvent(id!);
       setEvent(eventData);
-      setTicketTypes(ticketsData);
-      setSeatResponses(Array.isArray(seatsData) ? seatsData : []);
 
       // Add to recently viewed (full event; ensure date fields survive JSON round-trip)
       addRecentlyViewed({
@@ -205,24 +180,14 @@ const EventDetails = () => {
   };
 
   const refreshInventory = async () => {
-    if (!id) return;
-    try {
-      const [ticketsData, seatsData] = await Promise.all([
-        apiService.getTicketTypes(id),
-        apiService.getEventSeats(id).catch(() => []),
-      ]);
-      setTicketTypes(ticketsData);
-      setSeatResponses(Array.isArray(seatsData) ? seatsData : []);
-    } catch (error) {
-      console.error("Failed to refresh ticket inventory:", error);
-    }
+    await inventoryQuery.refetch();
   };
 
   const updateQuantity = (ticketTypeId: string, delta: number) => {
     setQuantities((prev) => {
       const current = prev[ticketTypeId] || 0;
       const available = ticketTypes.find((ticket) => ticket.id === ticketTypeId)?.availableQuantity ?? 0;
-      const newValue = Math.min(available, Math.max(0, current + delta));
+      const newValue = Math.min(4, available, Math.max(0, current + delta));
       return { ...prev, [ticketTypeId]: newValue };
     });
   };
@@ -233,19 +198,8 @@ const EventDetails = () => {
       return false;
     }
     const quantity = quantities[ticketType.id] || 0;
-    const quantityToAdd = Math.min(quantity, ticketType.availableQuantity ?? 0);
+    const quantityToAdd = Math.min(4, quantity, ticketType.availableQuantity ?? 0);
     if (quantityToAdd > 0) {
-      setTicketTypes((prev) =>
-        prev.map((ticket) =>
-          ticket.id === ticketType.id
-            ? {
-                ...ticket,
-                availableQuantity: Math.max(0, (ticket.availableQuantity ?? 0) - quantityToAdd),
-                status: Math.max(0, (ticket.availableQuantity ?? 0) - quantityToAdd) === 0 ? "SOLD_OUT" : ticket.status,
-              }
-            : ticket
-        )
-      );
       const added = await addItem({
         ticketTypeId: ticketType.id,
         ticketTypeName: formatTicketTypeName(ticketType.name),
@@ -255,9 +209,7 @@ const EventDetails = () => {
         price: ticketType.price,
       }, silent);
       setQuantities((prev) => ({ ...prev, [ticketType.id]: 0 }));
-      if (!added) {
-        await refreshInventory();
-      }
+      await refreshInventory();
       return added;
     }
     return true;
@@ -306,13 +258,6 @@ const EventDetails = () => {
       return;
     }
     if (selectedSeats.length > 0 && event) {
-      const selectedSeatIds = new Set(selectedSeats.map((seat) => seat.id));
-      setSeatResponses((prev) =>
-        prev.map((seat) =>
-          selectedSeatIds.has(seat.id) ? { ...seat, status: "RESERVED" } : seat
-        )
-      );
-
       const results = await Promise.all(
         selectedSeats.map((seat) =>
           addItem({
@@ -326,9 +271,7 @@ const EventDetails = () => {
         )
       );
       setSelectedSeats([]);
-      if (results.some((added) => !added)) {
-        await refreshInventory();
-      }
+      await refreshInventory();
     }
   };
 

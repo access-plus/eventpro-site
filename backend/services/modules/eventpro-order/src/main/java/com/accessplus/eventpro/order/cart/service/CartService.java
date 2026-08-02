@@ -4,6 +4,7 @@ import com.accessplus.eventpro.order.cart.entity.CartEntity;
 
 import java.util.List;
 import java.util.UUID;
+import com.accessplus.eventpro.shared.enums.TicketType;
 
 /**
  * Service interface for cart management operations.
@@ -20,6 +21,8 @@ import java.util.UUID;
  */
 public interface CartService {
 
+    record ImportLine(UUID eventId, TicketType ticketType, UUID ticketId, int quantity) {}
+
     /**
      * Adds a ticket to the user's cart.
      * Validates ticket availability and marks ticket as RESERVED.
@@ -33,6 +36,19 @@ public interface CartService {
      * @throws IllegalArgumentException if validation fails
      */
     CartEntity addItemToCart(UUID userId, UUID ticketId, Integer quantity);
+
+    /** Adds a delta of GA tickets and returns the resulting physical cart rows. */
+    List<CartEntity> addGeneralAdmission(UUID userId, UUID eventId, TicketType ticketType, int quantity);
+
+    /** Sets the absolute GA quantity (1-4) by reserving/releasing the exact physical delta. */
+    List<CartEntity> setGeneralAdmissionQuantity(UUID userId, UUID eventId, TicketType ticketType, int quantity);
+
+    void removeGeneralAdmission(UUID userId, UUID eventId, TicketType ticketType);
+
+    CartEntity addSeat(UUID userId, UUID ticketId);
+
+    /** Imports an entire unreserved guest cart atomically. */
+    List<CartEntity> importGuestCart(UUID userId, List<ImportLine> lines);
 
     /**
      * Updates the quantity of a cart item.
@@ -74,6 +90,15 @@ public interface CartService {
      */
     void clearCart(UUID userId);
 
+    /** Releases the cart during authoritative checkout expiry, bypassing the pending-session mutation guard. */
+    void releaseCartForCheckoutExpiry(UUID userId);
+
+    /** Releases only the physical tickets captured by a checkout session. */
+    void releaseCartTicketsForCheckout(UUID userId, List<UUID> ticketIds);
+
+    /** Deletes cart ownership after order creation without releasing the still-reserved tickets. */
+    void consumeCart(UUID userId);
+
     /**
      * Calculates the total cost of items in the user's cart.
      * 
@@ -100,6 +125,9 @@ public interface CartService {
      * @return number of cart rows released and removed
      */
     int releaseExpiredCartReservations(UUID userId);
+
+    /** Scheduler/inventory-read path that atomically releases due physical cart rows in a batch. */
+    int releaseAllExpiredCartReservations();
 
     /**
      * Deletes cart line items for the given ticket IDs (e.g. after those reservations expired and

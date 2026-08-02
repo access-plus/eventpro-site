@@ -13,6 +13,7 @@ import type {
   CartResponse,
   CheckInResult,
   CheckoutTotals,
+  CheckoutSession,
   CreateSeatMapRequest,
   Event,
   EventAddon,
@@ -33,6 +34,7 @@ import type {
   SignUpRequest,
   TeamMember,
   TicketType,
+  TicketTypeEnum,
   UpdateCartRequest,
   UpdateUserRequest,
   User,
@@ -69,6 +71,12 @@ export interface EventProApi {
   // Cart
   getCart: () => Promise<CartResponse>;
   addToCart: (data: AddToCartRequest) => Promise<CartResponse>;
+  importCart: (items: Array<{ eventId: string; ticketType?: TicketTypeEnum; ticketId?: string; quantity: number }>) => Promise<CartResponse>;
+  addGeneralAdmission: (eventId: string, ticketType: TicketTypeEnum, quantity: number) => Promise<CartResponse>;
+  setGeneralAdmission: (eventId: string, ticketType: TicketTypeEnum, quantity: number) => Promise<CartResponse>;
+  removeGeneralAdmission: (eventId: string, ticketType: TicketTypeEnum) => Promise<CartResponse>;
+  addSeat: (ticketId: string) => Promise<CartResponse>;
+  removeSeat: (ticketId: string) => Promise<CartResponse>;
   updateCartItem: (ticketId: string, data: UpdateCartRequest) => Promise<CartResponse>;
   removeFromCart: (ticketId: string) => Promise<CartResponse>;
   clearCart: () => Promise<void>;
@@ -85,6 +93,16 @@ export interface EventProApi {
   ) => Promise<{ reservedTicketIds: string[]; reservedUntil: string }>;
   confirmGuestPayment: (body: GuestConfirmPaymentRequest) => Promise<Order>;
   confirmPayment: (paymentIntentId: string, state?: string, country?: string) => Promise<Order>;
+  createCheckoutSession: (body: {
+    idempotencyKey: string;
+    items?: { eventId: string; ticketType: string; quantity: number }[];
+    email?: string; firstName?: string; lastName?: string; state?: string; country?: string;
+    donationAmount?: number; walletAmount?: number;
+    addOns?: { id: string; quantity: number; size?: string }[];
+  }) => Promise<CheckoutSession>;
+  resumeCheckoutSession: (token: string) => Promise<CheckoutSession>;
+  finalizeCheckoutSession: (id: string, paymentIntentId?: string, resumeToken?: string) => Promise<CheckoutSession>;
+  cancelCheckoutSession: (id: string, resumeToken?: string) => Promise<CheckoutSession>;
 
   // Subscription (user)
   createSubscriptionCheckoutSession: (params: { tier: "PRO" | "ENTERPRISE"; period?: "MONTHLY" | "YEARLY"; successUrl: string; cancelUrl: string }) => Promise<{ url: string }>;
@@ -254,6 +272,24 @@ export function createEventProApi(config: EventProApiConfig): EventProApi {
     async addToCart(data: AddToCartRequest) {
       return getData(await api.post<ApiResponse<CartResponse>>("/api/v1/cart/add", data));
     },
+    async importCart(items) {
+      return getData(await api.post<ApiResponse<CartResponse>>("/api/v1/cart/import", { items }));
+    },
+    async addGeneralAdmission(eventId, ticketType, quantity) {
+      return getData(await api.post<ApiResponse<CartResponse>>(`/api/v1/cart/general-admission/${eventId}/${ticketType}`, { quantity }));
+    },
+    async setGeneralAdmission(eventId, ticketType, quantity) {
+      return getData(await api.put<ApiResponse<CartResponse>>(`/api/v1/cart/general-admission/${eventId}/${ticketType}`, { quantity }));
+    },
+    async removeGeneralAdmission(eventId, ticketType) {
+      return getData(await api.delete<ApiResponse<CartResponse>>(`/api/v1/cart/general-admission/${eventId}/${ticketType}`));
+    },
+    async addSeat(ticketId) {
+      return getData(await api.post<ApiResponse<CartResponse>>(`/api/v1/cart/seats/${ticketId}`));
+    },
+    async removeSeat(ticketId) {
+      return getData(await api.delete<ApiResponse<CartResponse>>(`/api/v1/cart/seats/${ticketId}`));
+    },
     async updateCartItem(ticketId: string, data: UpdateCartRequest) {
       return getData(await api.patch<ApiResponse<CartResponse>>(`/api/v1/cart/update/${ticketId}`, data));
     },
@@ -311,6 +347,22 @@ export function createEventProApi(config: EventProApiConfig): EventProApi {
       if (state?.trim()) body.state = state.trim();
       if (country?.trim()) body.country = country.trim();
       return getData(await api.post<ApiResponse<Order>>("/api/v1/payments/confirm", body));
+    },
+    async createCheckoutSession(body) {
+      return getData(await api.post<ApiResponse<CheckoutSession>>("/api/v1/checkout-sessions", body));
+    },
+    async resumeCheckoutSession(token: string) {
+      return getData(await api.get<ApiResponse<CheckoutSession>>(`/api/v1/checkout-sessions/resume/${encodeURIComponent(token)}`));
+    },
+    async finalizeCheckoutSession(id: string, paymentIntentId?: string, resumeToken?: string) {
+      return getData(await api.post<ApiResponse<CheckoutSession>>(`/api/v1/checkout-sessions/${id}/finalize`, {
+        paymentIntentId, resumeToken,
+      }));
+    },
+    async cancelCheckoutSession(id: string, resumeToken?: string) {
+      return getData(await api.post<ApiResponse<CheckoutSession>>(`/api/v1/checkout-sessions/${id}/cancel`, {
+        resumeToken,
+      }));
     },
 
     async createSubscriptionCheckoutSession(params: {

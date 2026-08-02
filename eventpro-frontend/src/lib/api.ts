@@ -9,6 +9,7 @@ import type {
   EventAddon,
   Order,
   TicketType,
+  TicketTypeEnum,
   Attendee,
   CheckInResult,
   UpdateUserRequest,
@@ -320,6 +321,36 @@ class ApiService {
     return response.data.data;
   }
 
+  async importCart(items: Array<{ eventId: string; ticketType?: TicketTypeEnum; ticketId?: string; quantity: number }>): Promise<CartResponse> {
+    const response = await this.api.post<ApiResponse<CartResponse>>("/api/v1/cart/import", { items });
+    return response.data.data;
+  }
+
+  async addGeneralAdmission(eventId: string, ticketType: TicketTypeEnum, quantity: number): Promise<CartResponse> {
+    const response = await this.api.post<ApiResponse<CartResponse>>(`/api/v1/cart/general-admission/${eventId}/${ticketType}`, { quantity });
+    return response.data.data;
+  }
+
+  async setGeneralAdmission(eventId: string, ticketType: TicketTypeEnum, quantity: number): Promise<CartResponse> {
+    const response = await this.api.put<ApiResponse<CartResponse>>(`/api/v1/cart/general-admission/${eventId}/${ticketType}`, { quantity });
+    return response.data.data;
+  }
+
+  async removeGeneralAdmission(eventId: string, ticketType: TicketTypeEnum): Promise<CartResponse> {
+    const response = await this.api.delete<ApiResponse<CartResponse>>(`/api/v1/cart/general-admission/${eventId}/${ticketType}`);
+    return response.data.data;
+  }
+
+  async addSeat(ticketId: string): Promise<CartResponse> {
+    const response = await this.api.post<ApiResponse<CartResponse>>(`/api/v1/cart/seats/${ticketId}`);
+    return response.data.data;
+  }
+
+  async removeSeat(ticketId: string): Promise<CartResponse> {
+    const response = await this.api.delete<ApiResponse<CartResponse>>(`/api/v1/cart/seats/${ticketId}`);
+    return response.data.data;
+  }
+
   async updateCartItem(ticketId: string, data: UpdateCartRequest): Promise<CartResponse> {
     const response = await this.api.patch<ApiResponse<CartResponse>>(`/api/v1/cart/update/${ticketId}`, data);
     return response.data.data;
@@ -332,6 +363,38 @@ class ApiService {
 
   async clearCart(): Promise<void> {
     await this.api.delete("/api/v1/cart/clear");
+  }
+
+  async createCheckoutSession(body: {
+    idempotencyKey: string;
+    items?: { eventId: string; ticketType: string; quantity: number }[];
+    email?: string; firstName?: string; lastName?: string; state?: string; country?: string;
+    donationAmount?: number; walletAmount?: number;
+    addOns?: { id: string; quantity: number; size?: string }[];
+  }): Promise<import("@/types/api").CheckoutSession> {
+    const response = await this.api.post<ApiResponse<import("@/types/api").CheckoutSession>>("/api/v1/checkout-sessions", body);
+    return response.data.data;
+  }
+
+  async resumeCheckoutSession(token: string): Promise<import("@/types/api").CheckoutSession> {
+    const response = await this.api.get<ApiResponse<import("@/types/api").CheckoutSession>>(
+      `/api/v1/checkout-sessions/resume/${encodeURIComponent(token)}`
+    );
+    return response.data.data;
+  }
+
+  async finalizeCheckoutSession(id: string, paymentIntentId?: string, resumeToken?: string): Promise<import("@/types/api").CheckoutSession> {
+    const response = await this.api.post<ApiResponse<import("@/types/api").CheckoutSession>>(
+      `/api/v1/checkout-sessions/${id}/finalize`, { paymentIntentId, resumeToken }
+    );
+    return response.data.data;
+  }
+
+  async cancelCheckoutSession(id: string, resumeToken?: string): Promise<import("@/types/api").CheckoutSession> {
+    const response = await this.api.post<ApiResponse<import("@/types/api").CheckoutSession>>(
+      `/api/v1/checkout-sessions/${id}/cancel`, { resumeToken }
+    );
+    return response.data.data;
   }
 
   // Order endpoints (backend returns paginated { content: [...] }; shape may use amount/orderItems)

@@ -50,11 +50,11 @@ help:
 	@echo ""
 	@echo "EventPro API (Modular Monolith):"
 	@echo "  make api-clean      - Clean EventPro API"
-	@echo "  make api-build      - Build EventPro API"
+	@echo "  make build-services      - Build EventPro API"
 	@echo "  make api-test       - Test EventPro API"
 	@echo "  make api-run        - Run EventPro API locally"
 	@echo "  make api            - Clean, build, and test EventPro API"
-	@echo "  make backend-build  - Build API and backend Lambdas"
+	@echo "  make build-backend  - Build API and backend Lambdas"
 	@echo ""
 	@echo "Individual Modules:"
 	@echo "  make core-build     - Build eventpro-core module"
@@ -195,28 +195,31 @@ test-no-cache:
 # EventPro API (Modular Monolith)
 # ============================================================================
 
-api-clean:
+clean-services:
 	@echo "Cleaning EventPro API..."
 	cd $(API_DIR) && ./gradlew clean
 
-api-build:
+build-services:
 	@echo "Building EventPro API..."
 	cd $(API_DIR) && ./gradlew build
 
-order-lambda-build:
+build-order-processor:
 	@echo "Building order-processor Lambda..."
 	cd $(ORDER_DIR) && ./gradlew build
 
-payment-lambda-build:
+build-payment-processor:
 	@echo "Building payment-processor Lambda..."
 	cd $(PAYMENT_DIR) && ./gradlew build
 
-notification-build:
+build-notification-sender:
 	@echo "Building notification-sender Lambda..."
 	cd $(NOTIFICATION_DIR) && ./gradlew build
 
-backend-build: api-build order-lambda-build payment-lambda-build notification-build
-	@echo "Backend build complete!"
+build-lambdas: build-order-processor build-payment-processor build-notification-sender
+	@echo "All Lambdas build complete!"
+
+build-backend: build-services build-lambdas
+	@echo "All projects build complete!"
 
 api-test:
 	@echo "Testing EventPro API..."

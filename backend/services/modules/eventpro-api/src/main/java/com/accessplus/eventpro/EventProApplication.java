@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import java.util.TimeZone;
 
 @SpringBootApplication(scanBasePackages = "com.accessplus.eventpro")
 @EnableConfigurationProperties({EventProSecurityHeadersProperties.class, RecaptchaProperties.class, CorsProperties.class, EventProApiSecurityProperties.class})
@@ -20,8 +21,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class EventProApplication {
 
 	public static void main(String[] args) {
+		TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
 		SpringApplication.run(EventProApplication.class, args);
 	}
 
 }
-
