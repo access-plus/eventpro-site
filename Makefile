@@ -1,5 +1,5 @@
-.PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build jwt-keys \
-	core-build event-build order-build payment-build order-lambda-build payment-lambda-build notification-build \
+.PHONY: help clean build test verify all build-frontend web-dev web-preview api-run api-test clean-services build-services docker-build build-backend jwt-keys \
+	build-core build-event build-order build-payment build-order-processor build-payment-processor build-notification-sender build-lambdas build-analytics \
 	tf-deploy-shared-infra tf-deploy-services tf-deploy-frontend tf-deploy-lambda-order tf-deploy-lambda-payment tf-deploy-lambda-notification tf-deploy-lambdas tf-deploy-all \
 	tf-destroy-shared-infra tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy \
 	aws-plan aws-deploy lstk-init lstk-plan lstk-deploy lstk-verify lstk-destroy \
@@ -48,41 +48,42 @@ help:
 	@echo "  make test           - Test all projects"
 	@echo "  make verify         - Clean, build, and test all projects"
 	@echo ""
-	@echo "EventPro API (Modular Monolith):"
-	@echo "  make api-clean      - Clean EventPro API"
-	@echo "  make build-services      - Build EventPro API"
-	@echo "  make api-test       - Test EventPro API"
-	@echo "  make api-run        - Run EventPro API locally"
-	@echo "  make api            - Clean, build, and test EventPro API"
-	@echo "  make build-backend  - Build API and backend Lambdas"
+	@echo "Backend & Services:"
+	@echo "  make build-backend             - Build API and all backend Lambdas"
+	@echo "  make build-services            - Build EventPro API"
+	@echo "  make clean-services            - Clean EventPro API"
+	@echo "  make api-test                  - Test EventPro API"
+	@echo "  make api-run                   - Run EventPro API locally"
+	@echo "  make api                       - Clean, build, and test EventPro API"
+	@echo ""
+	@echo "Backend Lambdas:"
+	@echo "  make build-lambdas             - Build all backend Lambdas"
+	@echo "  make build-order-processor     - Build order-processor Lambda"
+	@echo "  make build-payment-processor   - Build payment-processor Lambda"
+	@echo "  make build-notification-sender - Build notification-sender Lambda"
 	@echo ""
 	@echo "Individual Modules:"
-	@echo "  make core-build     - Build eventpro-core module"
-	@echo "  make event-build    - Build eventpro-event module"
-	@echo "  make order-build    - Build eventpro-order module"
-	@echo "  make payment-build  - Build eventpro-payment module"
-	@echo ""
-	@echo "Backend Lambda Applications:"
-	@echo "  make order-lambda-build        - Build order-processor Lambda"
-	@echo "  make payment-lambda-build      - Build payment-processor Lambda"
-	@echo "  make notification-build        - Build notification-sender Lambda"
+	@echo "  make build-core     - Build eventpro-core module"
+	@echo "  make build-event    - Build eventpro-event module"
+	@echo "  make build-order    - Build eventpro-order module"
+	@echo "  make build-payment  - Build eventpro-payment module"
 	@echo ""
 	@echo "Analytics Service Lambda:"
-	@echo "  make analytics-clean   - Clean Analytics Service"
-	@echo "  make analytics-build   - Build Analytics Service"
-	@echo "  make analytics-test    - Test Analytics Service"
-	@echo "  make analytics        - Clean, build, and test Analytics Service"
+	@echo "  make build-analytics - Build Analytics Service"
+	@echo "  make analytics-clean - Clean Analytics Service"
+	@echo "  make analytics-test  - Test Analytics Service"
+	@echo "  make analytics       - Clean, build, and test Analytics Service"
 	@echo ""
 	@echo "Web Frontend (React + Vite):"
-	@echo "  make web-build      - Build Frontend"
+	@echo "  make build-frontend - Build Web Frontend"
 	@echo "  make web-dev        - Start Frontend development server"
 	@echo "  make web-preview    - Preview Frontend production build"
-	@echo "  make frontend-build - Build Frontend (alias for web-build)"
 	@echo ""
 	@echo "Docker Images:"
 	@echo "  make docker-build   - Build EventPro API Docker image"
 	@echo "  make docker-analytics - Build Analytics Service Docker image"
 	@echo "  make lambda-build   - Build all Lambda Docker images"
+	@echo "  make lambda-build-order - Build order-processor Lambda image"
 	@echo "  make lambda-build-payment - Build payment-processor Lambda image"
 	@echo "  make lambda-build-notification - Build notification-sender Lambda image"
 	@echo ""
@@ -229,26 +230,26 @@ api-run:
 	@echo "Running EventPro API locally..."
 	cd $(API_DIR) && ./gradlew :eventpro-api:bootRun
 
-api: api-clean api-build api-test
+api: clean-services build-services api-test
 	@echo "EventPro API verification complete!"
 
 # ============================================================================
 # Individual Modules
 # ============================================================================
 
-core-build:
+build-core:
 	@echo "Building eventpro-core module..."
 	cd $(API_DIR) && ./gradlew :eventpro-core:build
 
-event-build:
+build-event:
 	@echo "Building eventpro-event module..."
 	cd $(API_DIR) && ./gradlew :eventpro-event:build
 
-order-build:
+build-order:
 	@echo "Building eventpro-order module..."
 	cd $(API_DIR) && ./gradlew :eventpro-order:build
 
-payment-build:
+build-payment:
 	@echo "Building eventpro-payment module..."
 	cd $(API_DIR) && ./gradlew :eventpro-payment:build
 
@@ -264,7 +265,7 @@ analytics-clean:
 		echo "Analytics Service directory not found: $(ANALYTICS_DIR)"; \
 	fi
 
-analytics-build:
+build-analytics:
 	@echo "Building Analytics Service..."
 	@if [ -d "$(ANALYTICS_DIR)" ]; then \
 		cd $(ANALYTICS_DIR) && ./gradlew build; \
@@ -280,19 +281,16 @@ analytics-test:
 		echo "Analytics Service directory not found: $(ANALYTICS_DIR)"; \
 	fi
 
-analytics: analytics-clean analytics-build analytics-test
+analytics: analytics-clean build-analytics analytics-test
 	@echo "Analytics Service verification complete!"
 
 # ============================================================================
 # Web Frontend
 # ============================================================================
 
-web-build:
+build-frontend:
 	@echo "Building Web Frontend..."
 	cd $(WEB_DIR) && npm run build
-
-frontend-build: web-build
-	@echo "Frontend build complete!"
 
 web-dev:
 	@echo "Starting Web development server..."
