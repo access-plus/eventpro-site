@@ -2,7 +2,7 @@
 	build-core build-event build-order build-payment build-order-processor build-payment-processor build-notification-sender build-lambdas build-analytics \
 	tf-deploy-shared-infra tf-deploy-services tf-deploy-frontend tf-deploy-lambda-order tf-deploy-lambda-payment tf-deploy-lambda-notification tf-deploy-lambdas tf-deploy-all \
 	tf-destroy-shared-infra tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy \
-	aws-plan aws-deploy aws-verify-csrf lstk-init lstk-plan lstk-deploy lstk-verify lstk-destroy \
+	aws-plan aws-deploy aws-verify-csrf verify-csrf lstk-verify-csrf lstk-init lstk-plan lstk-deploy lstk-verify lstk-destroy \
 	lstk-start lstk-stop lstk-state-bucket lstk-route53-zone lstk-endpoints lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all lstk-tf-destroy-all lstk-redeploy \
 	lstk-redeploy-services lstk-redeploy-frontend lstk-redeploy-lambda-order lstk-redeploy-lambda-payment lstk-redeploy-lambda-notification lstk-redeploy-lambdas \
 	newrelic-lambda-preflight newrelic-lambda-verify-config
@@ -93,7 +93,8 @@ help:
 	@echo "AWS Terraform Deploy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env.remote; IMAGE_TAG optional for services/lambdas):"
 	@echo "  make aws-plan                       - Plan every real AWS stack with target safeguards"
 	@echo "  make aws-deploy                     - Deploy every real AWS stack with target safeguards"
-# 	@echo "  make aws-verify-csrf                - Verify browser CSRF/CORS against the selected AWS workspace"
+	@echo "  make verify-csrf                    - Verify browser CSRF/CORS against the selected AWS workspace"
+	@echo "  make aws-verify-csrf                - Same as verify-csrf"
 	@echo "  make tf-deploy-shared-infra         - Deploy shared infrastructure stack"
 	@echo "  make tf-deploy-services IMAGE_TAG=x - Build/push/deploy services (CSRF_ENABLED=true|false)"
 	@echo "  make tf-deploy-frontend             - Deploy frontend Terraform stack"
@@ -123,6 +124,7 @@ help:
 	@echo "  make lstk-plan                      - Plan all available LocalStack stacks"
 	@echo "  make lstk-deploy                    - Deploy and verify the complete LocalStack environment"
 	@echo "  make lstk-verify                    - Re-run end-to-end LocalStack verification"
+	@echo "  make lstk-verify-csrf               - Verify browser CSRF/CORS against LocalStack environment"
 	@echo "  make lstk-destroy                   - Destroy Terraform-owned LocalStack resources"
 	@echo "  make lstk-start                     - Start LocalStack Pro with docker-compose.lstk.yml"
 	@echo "  make lstk-stop                      - Stop LocalStack Pro compose service"
@@ -451,14 +453,16 @@ aws-plan:
 aws-deploy:
 	@$(MAKE) tf-deploy-all TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) PIPELINE_ACTION=apply IMAGE_TAG=$(IMAGE_TAG) CSRF_ENABLED=$(CSRF_ENABLED)
 
-# aws-verify-csrf:
-# 	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
-# 		[ -n "$${DOMAIN_NAME:-}" ] || { echo "DOMAIN_NAME is required in $(TF_ENV_FILE) or the environment" >&2; exit 1; }; \
-# 		./scripts/verify-browser-security.sh \
-# 			--api-url "https://$(TF_WORKSPACE)-api.$$DOMAIN_NAME" \
-# 			--app-origin "https://$(TF_WORKSPACE)-app.$$DOMAIN_NAME" \
-# 			--csrf-enabled "$(CSRF_ENABLED)" \
-# 			--verify-frontend
+verify-csrf: aws-verify-csrf
+
+aws-verify-csrf:
+	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
+		[ -n "$${DOMAIN_NAME:-}" ] || { echo "DOMAIN_NAME is required in $(TF_ENV_FILE) or the environment" >&2; exit 1; }; \
+		./scripts/verify-browser-security.sh \
+			--api-url "https://$(TF_WORKSPACE)-api.$$DOMAIN_NAME" \
+			--app-origin "https://$(TF_WORKSPACE)-app.$$DOMAIN_NAME" \
+			--csrf-enabled "$(CSRF_ENABLED)" \
+			--verify-frontend
 
 tf-services-output:
 	@cd backend/services/terraform && \
@@ -590,6 +594,17 @@ lstk-deploy:
 
 lstk-verify:
 	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --verify
+
+lstk-verify-csrf:
+	@set -a; [ ! -f "$(abspath $(LSTK_SECRET_ENV_FILE))" ] || . "$(abspath $(LSTK_SECRET_ENV_FILE))"; set +a; \
+		CSRF_SMOKE_EMAIL="$${LSTK_SMOKE_EMAIL:-admin@event.com}" \
+		CSRF_SMOKE_PASSWORD="$${LSTK_SMOKE_PASSWORD:-Password@123}" \
+		./scripts/verify-browser-security.sh \
+			--api-url "https://$(LSTK_WORKSPACE)-api.localhost.localstack.cloud" \
+			--app-origin "https://$(LSTK_WORKSPACE)-app.localhost.localstack.cloud" \
+			--csrf-enabled true \
+			--verify-frontend \
+			--insecure
 
 lstk-destroy:
 	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --destroy --only all
