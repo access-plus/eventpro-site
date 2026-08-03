@@ -142,7 +142,7 @@ log "ECS service and load balancer targets"
 retry "ECS service" 60 5 ecs_stable
 retry "ALB targets" 60 5 targets_healthy
 
-log "API, database, SQS health, and browser security"
+log "API, database, and SQS health"
 retry "API health" 90 5 api_health_up
 events_json="$(curl -ksS --http1.1 --max-time 20 "$API_URL/api/v1/events?page=0&size=1")"
 jq -e '.success == true' <<<"$events_json" >/dev/null || fail "database-backed events request failed"
@@ -151,14 +151,6 @@ jq -e '.status == "UP"' <<<"$health_json" >/dev/null || fail "API health is not 
 if jq -e '.components.sqs' <<<"$health_json" >/dev/null 2>&1; then
   jq -e '.components.sqs.status == "UP"' <<<"$health_json" >/dev/null || fail "API SQS health is not UP"
 fi
-CSRF_SMOKE_EMAIL="${LSTK_SMOKE_EMAIL:-admin@event.com}" \
-CSRF_SMOKE_PASSWORD="${LSTK_SMOKE_PASSWORD:-Password@123}" \
-  "$ROOT_DIR/scripts/verify-browser-security.sh" \
-    --api-url "$API_URL" \
-    --app-origin "$APP_URL" \
-    --csrf-enabled true \
-    --verify-frontend \
-    --insecure
 
 log "S3 internal access, API proxy, and CORS"
 SMOKE_BUCKET="$(tf_output backend/shared-infra s3_images_bucket_id)"

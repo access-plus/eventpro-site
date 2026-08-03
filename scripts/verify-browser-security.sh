@@ -120,6 +120,18 @@ assert_header_equals() {
   [ "$actual" = "$expected" ] || fail "$header_name was not '$expected'"
 }
 
+assert_header_contains() {
+  local file="$1" header_name="$2" expected="$3" value
+  value="$(header_value "$file" "$header_name")"
+  [ -n "$value" ] || fail "$header_name was absent"
+  awk -v value="$value" -v expected="$expected" '
+    BEGIN {
+      if (index(tolower(value), tolower(expected)) > 0) exit 0
+      exit 1
+    }
+  ' || fail "$header_name did not contain '$expected'"
+}
+
 assert_header_token() {
   local file="$1" header_name="$2" expected="$3" value
   value="$(header_value "$file" "$header_name")"

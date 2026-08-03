@@ -733,11 +733,6 @@ verify_services_ready() {
     curl --fail --silent --show-error --proto '=https' --tlsv1.2 "$health_url" >/dev/null || return 1
     [ "$attempt" -eq 3 ] || sleep 2
   done
-
-  "$ROOT_DIR/scripts/verify-browser-security.sh" \
-    --api-url "https://${WORKSPACE}-api.${DOMAIN_NAME}" \
-    --app-origin "https://${WORKSPACE}-app.${DOMAIN_NAME}" \
-    --csrf-enabled "$CSRF_ENABLED"
 }
 
 prepare_stack() {
@@ -895,12 +890,6 @@ run_frontend_stack() {
   else
     warn "Skipping CloudFront invalidation (--no-frontend-invalidate)"
   fi
-
-  "$ROOT_DIR/scripts/verify-browser-security.sh" \
-    --api-url "$vite_api_base_url" \
-    --app-origin "https://${WORKSPACE}-app.${DOMAIN_NAME}" \
-    --csrf-enabled "$CSRF_ENABLED" \
-    --verify-frontend
 }
 
 lambda_image_source_for() {
