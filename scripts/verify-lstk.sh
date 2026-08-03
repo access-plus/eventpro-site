@@ -157,6 +157,7 @@ CSRF_SMOKE_PASSWORD="${LSTK_SMOKE_PASSWORD:-Password@123}" \
     --api-url "$API_URL" \
     --app-origin "$APP_URL" \
     --csrf-enabled true \
+    --verify-frontend \
     --insecure
 
 log "S3 internal access, API proxy, and CORS"
@@ -192,7 +193,11 @@ for lambda in order-processor payment-processor notification-sender; do
   state="$(aws_lstk lambda get-function-configuration --function-name "$function_name" --query State --output text)"
   [ "$state" = "Active" ] || fail "$function_name is not Active (state=$state)"
   mapping_state="$(aws_lstk lambda list-event-source-mappings --function-name "$function_name" --query 'EventSourceMappings[0].State' --output text)"
-  [ "$mapping_state" = "Enabled" ] || fail "$function_name event mapping is not Enabled"
+  if [ "$lambda" = "notification-sender" ]; then
+    [ "$mapping_state" = "Enabled" ] || fail "$function_name event mapping is not Enabled"
+  else
+    [ "$mapping_state" = "Disabled" ] || fail "$function_name legacy event mapping must remain Disabled to prevent duplicate fulfillment"
+  fi
   function_error="$(aws_lstk lambda invoke --function-name "$function_name" \
     --cli-binary-format raw-in-base64-out --payload '{"Records":[]}' "$LAMBDA_OUTPUT" \
     --query FunctionError --output text)"

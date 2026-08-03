@@ -15,6 +15,7 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { PageTransition } from "@/components/PageTransition";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { AppErrorBoundary } from "@/components/AppErrorBoundary";
 import Home from "./pages/Home";
 import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
@@ -306,7 +307,9 @@ const App = () => (
                     <Navigation />
                     <main className="flex-1">
                       <ScrollToTop />
-                      <AnimatedRoutes />
+                      <AppErrorBoundary>
+                        <AnimatedRoutes />
+                      </AppErrorBoundary>
                     </main>
                     <Footer />
                   </div>

@@ -27,6 +27,7 @@ import { SeatingMap, type Seat } from "@/components/SeatingMap";
 import type { SeatResponse } from "@/types/api";
 import { formatTicketTypeName } from "@eventpro/shared";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { getUserFacingApiError } from "@/lib/api-errors";
 
 interface SelectedMerchItem extends MerchandiseItem {
   quantity: number;
@@ -504,7 +505,6 @@ const Checkout = () => {
               serverTime={checkoutSession?.serverTime ?? reservationServerTime}
               onExpired={() => {
                 setReservedUntil(null);
-                setReservedTicketIds(null);
                 void refreshCart();
                 toast.warning("Reservation expired. Tickets were released. Please try again.");
               }}
@@ -585,10 +585,7 @@ const Checkout = () => {
         setPaymentStep("payment");
       }
     } catch (err: unknown) {
-      const ax = err as { response?: { data?: { message?: string }; status?: number } };
-      const msg =
-        ax?.response?.data?.message ??
-        (err instanceof Error ? err.message : "Could not start payment");
+      const msg = getUserFacingApiError(err, "Could not start payment. Please try again.");
       setPaymentError(msg);
       toast.error(msg);
     } finally {

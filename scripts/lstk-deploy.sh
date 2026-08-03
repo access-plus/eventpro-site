@@ -21,6 +21,13 @@ BUILD_IMAGES=true
 FRONTEND_SYNC=true
 FRONTEND_INVALIDATE=true
 
+# Preserve explicitly supplied test credentials across the LocalStack env-file
+# load. This lets callers source a protected env file without copying secrets
+# into .env.lstk.
+INHERITED_STRIPE_SECRET_KEY="${STRIPE_SECRET_KEY:-}"
+INHERITED_STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY:-}"
+INHERITED_STRIPE_WEBHOOK_SECRET="${STRIPE_WEBHOOK_SECRET:-}"
+
 STATE_BUCKET="eventpro-site-state"
 AWS_REGION_LOCAL="us-east-1"
 LOCALSTACK_ENDPOINT="http://localhost:4566"
@@ -162,6 +169,45 @@ set +a
 if [ -n "$SHELL_LOCALSTACK_AUTH_TOKEN" ]; then
   export LOCALSTACK_AUTH_TOKEN="$SHELL_LOCALSTACK_AUTH_TOKEN"
 fi
+if [ -n "$INHERITED_STRIPE_SECRET_KEY" ]; then
+  export STRIPE_SECRET_KEY="$INHERITED_STRIPE_SECRET_KEY"
+fi
+if [ -n "$INHERITED_STRIPE_PUBLISHABLE_KEY" ]; then
+  export STRIPE_PUBLISHABLE_KEY="$INHERITED_STRIPE_PUBLISHABLE_KEY"
+fi
+if [ -n "$INHERITED_STRIPE_WEBHOOK_SECRET" ]; then
+  export STRIPE_WEBHOOK_SECRET="$INHERITED_STRIPE_WEBHOOK_SECRET"
+fi
+
+validate_localstack_stripe() {
+  case "${STRIPE_SECRET_KEY:-}" in
+    sk_live_*) die "LocalStack refuses live-mode Stripe secret keys" ;;
+    sk_test_local|"") die "A usable sk_test_* STRIPE_SECRET_KEY is required for this LocalStack apply" ;;
+    sk_test_*) ;;
+    *) die "LocalStack STRIPE_SECRET_KEY must use Stripe test mode (sk_test_*)" ;;
+  esac
+  case "${STRIPE_PUBLISHABLE_KEY:-}" in
+    pk_live_*) die "LocalStack refuses live-mode Stripe publishable keys" ;;
+    pk_test_local|"") die "A usable pk_test_* STRIPE_PUBLISHABLE_KEY is required for this LocalStack apply" ;;
+    pk_test_*) ;;
+    *) die "LocalStack STRIPE_PUBLISHABLE_KEY must use Stripe test mode (pk_test_*)" ;;
+  esac
+  case "${STRIPE_WEBHOOK_SECRET:-}" in
+    whsec_test_local|""|*REPLACE_ME*)
+      warn "Stripe webhook signing is not configured; direct test payments work, but forwarded Stripe webhook delivery will remain unavailable"
+      export STRIPE_WEBHOOK_SECRET="whsec_test_local"
+      ;;
+    whsec_*) ;;
+    *)
+      warn "Ignoring an invalid Stripe webhook signing value for LocalStack"
+      export STRIPE_WEBHOOK_SECRET="whsec_test_local"
+      ;;
+  esac
+}
+
+case "$ONLY:$ACTION" in
+  all:apply|services:apply|frontend:apply|payment-processor:apply) validate_localstack_stripe ;;
+esac
 
 WORKSPACE_NAME="${WORKSPACE_ARG:-${WORKSPACE:-lstk}}"
 [ "$WORKSPACE_NAME" = "lstk" ] || warn "Complete LocalStack deployments normally use workspace 'lstk' (received '$WORKSPACE_NAME')."
@@ -188,9 +234,9 @@ export TF_VAR_jwt_issuer="${JWT_ISSUER:-eventpro}"
 export TF_VAR_jwt_access_ttl_seconds="${JWT_ACCESS_TTL_SECONDS:-3600}"
 export TF_VAR_jwt_public_key="${JWT_PUBLIC_KEY:-}"
 export TF_VAR_jwt_private_key="${JWT_PRIVATE_KEY:-}"
-export TF_VAR_stripe_secret_key="sk_test_local"
-export TF_VAR_stripe_publishable_key="pk_test_local"
-export TF_VAR_stripe_webhook_secret="whsec_test_local"
+export TF_VAR_stripe_secret_key="${STRIPE_SECRET_KEY:-sk_test_local}"
+export TF_VAR_stripe_publishable_key="${STRIPE_PUBLISHABLE_KEY:-pk_test_local}"
+export TF_VAR_stripe_webhook_secret="${STRIPE_WEBHOOK_SECRET:-whsec_test_local}"
 export TF_VAR_ses_sender_email="noreply@eventpro.local"
 export TF_VAR_new_relic_license_key=""
 export TF_VAR_new_relic_account_id=""
@@ -323,9 +369,9 @@ write_localstack_runtime_tfvars() {
           image_registry: $image_registry,
           image_name: $image_name,
           image_tag: $image_tag,
-          stripe_secret_key: "sk_test_local",
-          stripe_publishable_key: "pk_test_local",
-          stripe_webhook_secret: "whsec_test_local",
+          stripe_secret_key: env.TF_VAR_stripe_secret_key,
+          stripe_publishable_key: env.TF_VAR_stripe_publishable_key,
+          stripe_webhook_secret: env.TF_VAR_stripe_webhook_secret,
           stripe_price_pro_monthly: "price_local_pro_monthly",
           stripe_price_pro_yearly: "price_local_pro_yearly",
           stripe_price_enterprise_monthly: "price_local_enterprise_monthly",
@@ -351,7 +397,7 @@ write_localstack_runtime_tfvars() {
         --arg image_name "${TF_VAR_image_name:?LocalStack image name is not configured}" \
         --arg image_tag "${TF_VAR_image_tag:?LocalStack image tag is not configured}" \
         '{image_registry: $image_registry, image_name: $image_name, image_tag: $image_tag,
-          stripe_secret_key: "sk_test_local", new_relic_license_key: "", new_relic_account_id: ""}' >"$file"
+          stripe_secret_key: env.TF_VAR_stripe_secret_key, new_relic_license_key: "", new_relic_account_id: ""}' >"$file"
       ;;
     backend/lambdas/notification-sender/terraform)
       jq -n \
@@ -476,7 +522,7 @@ build_frontend() {
     npm ci --workspace eventpro-frontend --include-workspace-root=false
     VITE_API_BASE_URL="$api_url" \
       VITE_ASSET_BASE_URL="/" \
-      VITE_STRIPE_PUBLISHABLE_KEY="pk_test_local" \
+      VITE_STRIPE_PUBLISHABLE_KEY="$TF_VAR_stripe_publishable_key" \
       npm run build --workspace eventpro-frontend
   )
 }
@@ -486,7 +532,16 @@ sync_frontend() {
   local bucket_name
   bucket_name="$(terraform -chdir="$ROOT_DIR/eventpro-frontend/terraform" output -raw bucket_name)"
   log "Syncing frontend to s3://$bucket_name/"
-  aws_lstk s3 sync "$ROOT_DIR/eventpro-frontend/dist/" "s3://$bucket_name/" --delete
+  aws_lstk s3 sync "$ROOT_DIR/eventpro-frontend/dist/" "s3://$bucket_name/" \
+    --delete \
+    --exclude 'index.html' \
+    --exclude 'assets/*'
+  aws_lstk s3 sync "$ROOT_DIR/eventpro-frontend/dist/assets/" "s3://$bucket_name/assets/" \
+    --delete \
+    --cache-control 'public,max-age=31536000,immutable'
+  aws_lstk s3 cp "$ROOT_DIR/eventpro-frontend/dist/index.html" "s3://$bucket_name/index.html" \
+    --content-type 'text/html' \
+    --cache-control 'no-cache,no-store,must-revalidate'
 }
 
 invalidate_frontend() {

@@ -58,8 +58,8 @@ public class SecurityConfig {
                     request.getHeader(CsrfRequestAttributes.MOBILE_CLIENT_HEADER));
 
             http.csrf(csrf -> csrf
-                    .spa()
                     .csrfTokenRepository(csrfTokenRepository())
+                    .csrfTokenRequestHandler(new DeferredSpaCsrfTokenRequestHandler())
                     .ignoringRequestMatchers("/actuator/**", "/api/v1/webhooks/stripe",
                             "/api/v1/webhooks/stripe/")
                     .ignoringRequestMatchers(apiKeyAuthenticated, mobileClient));

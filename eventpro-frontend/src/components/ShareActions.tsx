@@ -353,6 +353,8 @@ export function ShareActions({
       </Dialog>
     </div>
   );
+
+  return <div className={className}>{content}</div>;
 }
 
 /** Standalone Share to Story button + dialog. Use in bento so all 5 buttons always render. */

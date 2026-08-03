@@ -188,6 +188,7 @@ storybook-static/
 *.tmp
 *.temp
 .cache/
+.gradle-test-home/
 
 # ============================================
 # Old Projects / Archive Directories

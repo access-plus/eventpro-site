@@ -682,7 +682,7 @@ class ApiService {
   async getEventSales(): Promise<EventSales[]> {
     const response = await this.api.get<ApiResponse<EventSales[]>>("/api/v1/admin/event-sales");
     const list = response.data.data ?? [];
-    return list.map((e: Record<string, unknown>) => ({
+    return list.map((e) => ({
       eventId: String(e.eventId ?? ""),
       eventName: String(e.eventName ?? ""),
       ticketsSold: Number(e.ticketsSold ?? 0),
@@ -695,7 +695,7 @@ class ApiService {
   async getRevenue(period = "30d"): Promise<RevenueData[]> {
     const response = await this.api.get<ApiResponse<RevenueData[]>>("/api/v1/admin/revenue", { params: { period } });
     const list = response.data.data ?? [];
-    return list.map((r: Record<string, unknown>) => ({
+    return list.map((r) => ({
       date: String(r.date ?? ""),
       revenue: Number(r.revenue ?? 0),
       ticketsSold: Number(r.ticketsSold ?? 0),

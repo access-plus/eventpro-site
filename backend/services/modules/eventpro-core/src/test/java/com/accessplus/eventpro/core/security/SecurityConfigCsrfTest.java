@@ -98,6 +98,19 @@ class SecurityConfigCsrfTest {
     }
 
     @Test
+    void safeRequestsWithoutCookieDoNotGenerateCompetingTokens() throws Exception {
+        var first = mockMvc.perform(get("/api/v1/events"))
+                .andExpect(status().isOk())
+                .andReturn();
+        var second = mockMvc.perform(get("/api/v1/events"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat(first.getResponse().getHeaders("Set-Cookie")).isEmpty();
+        assertThat(second.getResponse().getHeaders("Set-Cookie")).isEmpty();
+    }
+
+    @Test
     void unsafeRequestWithoutTokenReturnsStructuredMissingError() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
                         .header("Origin", "http://localhost:5173"))
@@ -286,6 +299,11 @@ class SecurityConfigCsrfTest {
         Object csrf(HttpServletRequest request, HttpServletResponse response) {
             var token = csrfTokenService.loadOrCreate(request, response);
             return new TokenResponse(token.getHeaderName(), token.getParameterName(), token.getToken());
+        }
+
+        @GetMapping("/api/v1/events")
+        String events() {
+            return "ok";
         }
 
         @PostMapping("/api/v1/auth/login")

@@ -37,6 +37,7 @@ import type { FollowedOrganizer, OrganizerSummary } from "@/types/api";
 import { IdentityCheckModal } from "@/components/IdentityCheckModal";
 import { PageShell } from "@/components/PageShell";
 import { toast } from "sonner";
+import { getUserFacingApiError } from "@/lib/api-errors";
 
 const VERIFIED_CELEBRATION_KEY = "profile_verified_celebration_shown";
 
@@ -219,8 +220,8 @@ const Profile = () => {
                       await apiService.uploadProfilePicture(file);
                       await refreshUser();
                       toast.success("Profile picture updated.");
-                    } catch (err: any) {
-                      toast.error(err?.message || "Failed to upload profile picture.");
+                    } catch (err: unknown) {
+                      toast.error(getUserFacingApiError(err, "Failed to upload profile picture."));
                     } finally {
                       setProfilePhotoUploading(false);
                       e.target.value = "";
@@ -391,22 +392,25 @@ const Profile = () => {
                 <p className="text-sm text-muted-foreground">You are not following any organizers yet.</p>
               ) : (
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-                  {following.map((f) => (
+                  {following.map((f) => {
+                    const organizerName = [f.firstName, f.lastName].filter(Boolean).join(" ") || "Organizer";
+                    return (
                     <div
                       key={f.organizerId}
                       className="flex flex-col items-center gap-1 shrink-0 w-[72px]"
                     >
                       <Avatar className="h-14 w-14 ring-2 ring-primary/20">
-                        <AvatarImage src={f.profilePictureUrl ?? undefined} alt={f.name ?? ""} />
+                        <AvatarImage src={f.profilePictureUrl ?? undefined} alt={organizerName} />
                         <AvatarFallback className="text-xs bg-primary/10">
-                          {(f.name ?? "?").slice(0, 2).toUpperCase()}
+                          {organizerName.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-[10px] text-center text-muted-foreground line-clamp-2 leading-tight w-full">
-                        {f.name ?? "Organizer"}
+                        {organizerName}
                       </span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

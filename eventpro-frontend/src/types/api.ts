@@ -86,6 +86,13 @@ export interface Event {
   addressState?: string;
   addressCountry?: string;
   addressZipCode?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    zipCode?: string;
+  };
   // Computed fields for compatibility
   startDateTime?: string;
   endDateTime?: string;

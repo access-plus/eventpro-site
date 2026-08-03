@@ -7,6 +7,7 @@ API_URL=""
 APP_ORIGIN=""
 CSRF_ENABLED="true"
 INSECURE_TLS=false
+VERIFY_FRONTEND=false
 SMOKE_EMAIL="${CSRF_SMOKE_EMAIL:-}"
 SMOKE_PASSWORD="${CSRF_SMOKE_PASSWORD:-}"
 
@@ -17,6 +18,7 @@ Usage: scripts/verify-browser-security.sh --api-url URL --app-origin ORIGIN [opt
 Options:
   --csrf-enabled true|false  Expected enforcement state (default: true)
   --insecure                Allow the LocalStack development certificate
+  --verify-frontend         Verify the current frontend asset embeds this API URL
   -h, --help                Show this help
 
 Set both CSRF_SMOKE_EMAIL and CSRF_SMOKE_PASSWORD to additionally verify a
@@ -51,6 +53,10 @@ while [ $# -gt 0 ]; do
       INSECURE_TLS=true
       shift
       ;;
+    --verify-frontend)
+      VERIFY_FRONTEND=true
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -79,8 +85,9 @@ BODY_FILE="$(mktemp)"
 COOKIE_JAR="$(mktemp)"
 LOGIN_HEADERS_FILE="$(mktemp)"
 LOGIN_BODY_FILE="$(mktemp)"
+FRONTEND_BODY_FILE="$(mktemp)"
 cleanup() {
-  rm -f "$HEADERS_FILE" "$BODY_FILE" "$COOKIE_JAR" "$LOGIN_HEADERS_FILE" "$LOGIN_BODY_FILE"
+  rm -f "$HEADERS_FILE" "$BODY_FILE" "$COOKIE_JAR" "$LOGIN_HEADERS_FILE" "$LOGIN_BODY_FILE" "$FRONTEND_BODY_FILE"
 }
 trap cleanup EXIT
 
@@ -138,6 +145,29 @@ assert_no_header() {
 request() {
   curl "${CURL_ARGS[@]}" -D "$HEADERS_FILE" -o "$BODY_FILE" -w '%{http_code}' "$@"
 }
+
+verify_frontend_asset() {
+  local status asset_path asset_url
+  status="$(curl "${CURL_ARGS[@]}" -H 'Cache-Control: no-cache' -D "$HEADERS_FILE" -o "$FRONTEND_BODY_FILE" -w '%{http_code}' "$APP_ORIGIN/")"
+  [ "$status" = 200 ] || fail "frontend entry point returned HTTP $status"
+  assert_header_contains "$HEADERS_FILE" 'Cache-Control' 'no-cache'
+  grep -q '<div id="root"' "$FRONTEND_BODY_FILE" || fail "frontend entry point did not contain the application root"
+  asset_path="$(grep -Eo 'src="[^"]+\.js"' "$FRONTEND_BODY_FILE" | head -1 | cut -d'"' -f2)"
+  [ -n "$asset_path" ] || fail "frontend entry point did not reference a JavaScript asset"
+  case "$asset_path" in
+    https://*) asset_url="$asset_path" ;;
+    /*) asset_url="${APP_ORIGIN}${asset_path}" ;;
+    *) asset_url="${APP_ORIGIN}/${asset_path}" ;;
+  esac
+  status="$(curl "${CURL_ARGS[@]}" -H 'Cache-Control: no-cache' -o "$FRONTEND_BODY_FILE" -w '%{http_code}' "$asset_url")"
+  [ "$status" = 200 ] || fail "current frontend JavaScript asset returned HTTP $status"
+  grep -Fq "$API_URL" "$FRONTEND_BODY_FILE" || fail "current frontend asset does not embed the expected API URL"
+  printf 'Frontend asset/API URL verification passed for %s\n' "$APP_ORIGIN"
+}
+
+if [ "$VERIFY_FRONTEND" = true ]; then
+  verify_frontend_asset
+fi
 
 printf 'Verifying browser CORS contract for %s\n' "$API_URL"
 

@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { CartResponse, CartItemResponse, TicketTypeEnum } from "@/types/api";
 import { formatTicketTypeName } from "@eventpro/shared";
 import { useQueryClient } from "@tanstack/react-query";
+import { getUserFacingApiError } from "@/lib/api-errors";
 
 interface CartItem {
   id: string;
@@ -205,7 +206,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await refreshCart(); // revert to server state
         toast({
           title: "Could not add to cart",
-          description: "Please try again.",
+          description: getUserFacingApiError(error, "Please try again."),
           variant: "destructive",
         });
         return false;
@@ -240,7 +241,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await refreshCart();
         toast({
           title: "Could not remove item",
-          description: "Please try again.",
+          description: getUserFacingApiError(error, "Please try again."),
           variant: "destructive",
         });
         return false;
@@ -282,7 +283,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await refreshCart();
         toast({
           title: "Could not update quantity",
-          description: "Please try again.",
+          description: getUserFacingApiError(error, "Please try again."),
           variant: "destructive",
         });
         return false;

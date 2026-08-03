@@ -30,12 +30,16 @@ import { EventCard } from "@/components/EventCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import { isNotFoundError } from "@/lib/api-errors";
+
+type EventLoadError = "not-found" | "unavailable" | null;
 
 const EventDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [eventLoadError, setEventLoadError] = useState<EventLoadError>(null);
   const [imgError, setImgError] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
@@ -45,12 +49,6 @@ const EventDetails = () => {
   const [contactForm, setContactForm] = useState({ senderName: "", senderEmail: "", message: "" });
   const [contactSubmitting, setContactSubmitting] = useState(false);
   const [contactSent, setContactSent] = useState(false);
-  // Default to seating tab when event has reserved seating (with seats) and no GA types
-  useEffect(() => {
-    if (event?.reservedSeatingEnabled && seatResponses.length > 0 && ticketTypes.length === 0) {
-      setTicketMode("seating");
-    }
-  }, [event?.reservedSeatingEnabled, seatResponses.length, ticketTypes.length]);
   const { addItem } = useCart();
   const { addRecentlyViewed } = usePreferences();
   const { isAuthenticated } = useAuth();
@@ -73,8 +71,21 @@ const EventDetails = () => {
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
-  const ticketTypes: TicketType[] = inventoryQuery.data?.ticketTypes ?? [];
-  const seatResponses: SeatResponse[] = inventoryQuery.data?.seats ?? [];
+  const ticketTypes: TicketType[] = useMemo(
+    () => inventoryQuery.data?.ticketTypes ?? [],
+    [inventoryQuery.data?.ticketTypes]
+  );
+  const seatResponses: SeatResponse[] = useMemo(
+    () => inventoryQuery.data?.seats ?? [],
+    [inventoryQuery.data?.seats]
+  );
+
+  // Default to seating only after inventory has been initialized.
+  useEffect(() => {
+    if (event?.reservedSeatingEnabled && seatResponses.length > 0 && ticketTypes.length === 0) {
+      setTicketMode("seating");
+    }
+  }, [event?.reservedSeatingEnabled, seatResponses.length, ticketTypes.length]);
 
   // Reserved seating: map API seats to SeatingMap Seat format
   const seatsFromApi = useMemo(() => {
@@ -161,6 +172,7 @@ const EventDetails = () => {
   const loadEventDetails = async () => {
     try {
       setIsLoading(true);
+      setEventLoadError(null);
       const eventData = await apiService.getEvent(id!);
       setEvent(eventData);
 
@@ -174,6 +186,8 @@ const EventDetails = () => {
       });
     } catch (error) {
       console.error("Failed to load event:", error);
+      setEvent(null);
+      setEventLoadError(isNotFoundError(error) ? "not-found" : "unavailable");
     } finally {
       setIsLoading(false);
     }
@@ -294,12 +308,22 @@ const EventDetails = () => {
   }
 
   if (!event) {
+    const unavailable = eventLoadError === "unavailable";
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="p-8 text-center">
-          <h2 className="text-2xl font-bold mb-2">Event not found</h2>
-          <p className="text-muted-foreground mb-4">This event doesn't exist or has been removed.</p>
-          <Button onClick={() => navigate("/events")}>Browse Events</Button>
+        <Card className="p-8 text-center max-w-md mx-4">
+          <h2 className="text-2xl font-bold mb-2">
+            {unavailable ? "Event temporarily unavailable" : "Event not found"}
+          </h2>
+          <p className="text-muted-foreground mb-4">
+            {unavailable
+              ? "We couldn't load this event right now. Your selections are safe—please try again."
+              : "This event doesn't exist or has been removed."}
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-2">
+            {unavailable && <Button onClick={loadEventDetails}>Try Again</Button>}
+            <Button variant={unavailable ? "outline" : "default"} onClick={() => navigate("/events")}>Browse Events</Button>
+          </div>
         </Card>
       </div>
     );
@@ -715,7 +739,27 @@ const EventDetails = () => {
 
               {/* General Admission Tab */}
               <TabsContent value="general" className="space-y-4 mt-4">
-                {ticketTypes.length === 0 ? (
+                {inventoryQuery.isLoading ? (
+                  <Card className="p-6 text-center" aria-live="polite">
+                    <Ticket className="h-8 w-8 mx-auto mb-2 text-muted-foreground animate-pulse" />
+                    <p className="text-muted-foreground">Loading ticket availability…</p>
+                  </Card>
+                ) : inventoryQuery.isError ? (
+                  <Card className="p-6 text-center">
+                    <Ticket className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="font-medium">Ticket availability is temporarily unavailable</p>
+                    <p className="text-sm text-muted-foreground mt-1 mb-4">
+                      Your selections have not been changed. Try loading availability again.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => void inventoryQuery.refetch()}
+                      disabled={inventoryQuery.isFetching}
+                    >
+                      {inventoryQuery.isFetching ? "Retrying…" : "Retry ticket availability"}
+                    </Button>
+                  </Card>
+                ) : ticketTypes.length === 0 ? (
                   <Card className="p-6 text-center">
                     <Ticket className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                     <p className="text-muted-foreground">No tickets available</p>

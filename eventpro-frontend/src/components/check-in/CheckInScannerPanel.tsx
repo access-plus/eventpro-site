@@ -33,6 +33,18 @@ import {
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+interface DetectedBarcode {
+  rawValue: string;
+}
+
+interface BarcodeDetectorInstance {
+  detect(source: ImageBitmapSource): Promise<DetectedBarcode[]>;
+}
+
+interface BarcodeDetectorConstructor {
+  new(options: { formats: string[] }): BarcodeDetectorInstance;
+}
+
 export function CheckInScannerPanel() {
   const { user } = useAuth();
   const [ticketIdInput, setTicketIdInput] = useState("");
@@ -42,7 +54,7 @@ export function CheckInScannerPanel() {
   const [torchOn, setTorchOn] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const barcodeDetectorRef = useRef<InstanceType<typeof BarcodeDetector> | null>(null);
+  const barcodeDetectorRef = useRef<BarcodeDetectorInstance | null>(null);
   const animationRef = useRef<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const processingQrRef = useRef(false);
@@ -112,7 +124,7 @@ export function CheckInScannerPanel() {
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
       setScanning(true);
-      barcodeDetectorRef.current = new (window as unknown as { BarcodeDetector: typeof BarcodeDetector }).BarcodeDetector(
+      barcodeDetectorRef.current = new (window as unknown as { BarcodeDetector: BarcodeDetectorConstructor }).BarcodeDetector(
         { formats: ["qr_code"] }
       );
 
@@ -156,7 +168,7 @@ export function CheckInScannerPanel() {
       return;
     }
     try {
-      await track.applyConstraints({ advanced: [{ torch: !torchOn }] });
+      await track.applyConstraints({ advanced: [{ torch: !torchOn } as MediaTrackConstraintSet] });
       setTorchOn(!torchOn);
     } catch {
       toast.error("Could not toggle flash");
@@ -172,7 +184,7 @@ export function CheckInScannerPanel() {
     }
     try {
       const bmp = await createImageBitmap(file);
-      const detector = new (window as unknown as { BarcodeDetector: typeof BarcodeDetector }).BarcodeDetector({
+      const detector = new (window as unknown as { BarcodeDetector: BarcodeDetectorConstructor }).BarcodeDetector({
         formats: ["qr_code"],
       });
       const codes = await detector.detect(bmp);

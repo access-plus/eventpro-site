@@ -20,6 +20,7 @@ TF_ENV_FILE ?= .env.remote
 TF_STATE_BUCKET ?= eventpro-site-state
 TF_STATE_REGION ?= us-east-1
 LSTK_ENV_FILE ?= .env.lstk
+LSTK_SECRET_ENV_FILE ?= .env.remote
 LSTK_COMPOSE_FILE ?= docker-compose.lstk.yml
 LSTK_WORKSPACE ?= lstk
 LSTK_TF_ACTION ?= plan
@@ -117,7 +118,7 @@ help:
 	@echo "  make tf-destroy-all                 - Destroy frontend, lambdas, services, then shared infra"
 	@echo "  make tf-destroy                     - Same as tf-destroy-all (AWS bill cleanup)"
 	@echo ""
-	@echo "Complete LocalStack Pro Terraform (set LSTK_TF_ACTION=plan|apply|destroy, default plan):"
+	@echo "Complete LocalStack Pro Terraform (set LSTK_TF_ACTION=plan|apply|destroy, default plan; test secrets load from LSTK_SECRET_ENV_FILE=.env.remote):"
 	@echo "  make lstk-init                      - Create local config/JWT keys and bootstrap LocalStack"
 	@echo "  make lstk-plan                      - Plan all available LocalStack stacks"
 	@echo "  make lstk-deploy                    - Deploy and verify the complete LocalStack environment"
@@ -456,7 +457,8 @@ aws-verify-csrf:
 		./scripts/verify-browser-security.sh \
 			--api-url "https://$(TF_WORKSPACE)-api.$$DOMAIN_NAME" \
 			--app-origin "https://$(TF_WORKSPACE)-app.$$DOMAIN_NAME" \
-			--csrf-enabled "$(CSRF_ENABLED)"
+			--csrf-enabled "$(CSRF_ENABLED)" \
+			--verify-frontend
 
 tf-services-output:
 	@cd backend/services/terraform && \
@@ -578,11 +580,13 @@ lstk-init:
 	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --init
 
 lstk-plan:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --plan --only all
+	@set -a; [ ! -f "$(abspath $(LSTK_SECRET_ENV_FILE))" ] || . "$(abspath $(LSTK_SECRET_ENV_FILE))"; set +a; \
+		./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --plan --only all
 
 lstk-deploy:
 	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --apply --only all --verify-after
+	@set -a; [ ! -f "$(abspath $(LSTK_SECRET_ENV_FILE))" ] || . "$(abspath $(LSTK_SECRET_ENV_FILE))"; set +a; \
+		./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --apply --only all --verify-after
 
 lstk-verify:
 	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --verify
@@ -609,25 +613,32 @@ lstk-tf-shared-infra:
 	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only shared-infra
 
 lstk-tf-services:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only services
+	@set -a; [ ! -f "$(abspath $(LSTK_SECRET_ENV_FILE))" ] || . "$(abspath $(LSTK_SECRET_ENV_FILE))"; set +a; \
+		./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only services
 
 lstk-tf-frontend:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only frontend
+	@set -a; [ ! -f "$(abspath $(LSTK_SECRET_ENV_FILE))" ] || . "$(abspath $(LSTK_SECRET_ENV_FILE))"; set +a; \
+		./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only frontend
 
 lstk-tf-lambda-order:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only order-processor
+	@set -a; [ ! -f "$(abspath $(LSTK_SECRET_ENV_FILE))" ] || . "$(abspath $(LSTK_SECRET_ENV_FILE))"; set +a; \
+		./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only order-processor
 
 lstk-tf-lambda-payment:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only payment-processor
+	@set -a; [ ! -f "$(abspath $(LSTK_SECRET_ENV_FILE))" ] || . "$(abspath $(LSTK_SECRET_ENV_FILE))"; set +a; \
+		./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only payment-processor
 
 lstk-tf-lambda-notification:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only notification-sender
+	@set -a; [ ! -f "$(abspath $(LSTK_SECRET_ENV_FILE))" ] || . "$(abspath $(LSTK_SECRET_ENV_FILE))"; set +a; \
+		./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only notification-sender
 
 lstk-tf-lambdas:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only lambdas
+	@set -a; [ ! -f "$(abspath $(LSTK_SECRET_ENV_FILE))" ] || . "$(abspath $(LSTK_SECRET_ENV_FILE))"; set +a; \
+		./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --$(LSTK_TF_ACTION) --only lambdas
 
 lstk-tf-all:
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --$(LSTK_TF_ACTION) --only all
+	@set -a; [ ! -f "$(abspath $(LSTK_SECRET_ENV_FILE))" ] || . "$(abspath $(LSTK_SECRET_ENV_FILE))"; set +a; \
+		./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --$(LSTK_TF_ACTION) --only all
 
 lstk-tf-destroy-all:
 	@$(MAKE) lstk-destroy LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
@@ -635,7 +646,8 @@ lstk-tf-destroy-all:
 lstk-redeploy:
 	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
 	@$(MAKE) lstk-destroy LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
-	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --apply --only all --verify-after
+	@set -a; [ ! -f "$(abspath $(LSTK_SECRET_ENV_FILE))" ] || . "$(abspath $(LSTK_SECRET_ENV_FILE))"; set +a; \
+		./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --apply --only all --verify-after
 
 # Fast, non-destructive LocalStack redeploys. These retain the existing
 # infrastructure and state, rebuild only the selected artifact, and apply only

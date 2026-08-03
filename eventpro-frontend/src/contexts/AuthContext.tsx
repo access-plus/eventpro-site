@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import type { User, UserRole, LoginRequest, SignUpRequest } from "@/types/api";
 import { apiService } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { getUserFacingApiError } from "@/lib/api-errors";
 
 interface AuthContextType {
   user: User | null;
@@ -47,10 +48,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         title: "Success",
         description: "Account created! You can now log in.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Sign up failed",
-        description: error.message || "An error occurred during sign up",
+        description: getUserFacingApiError(error, "We couldn't create your account. Please review your information and try again."),
         variant: "destructive",
       });
       throw error;
@@ -67,19 +68,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         title: "Welcome back!",
         description: `Logged in as ${result.user.email}`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login failed:", error);
-      const isNetworkError =
-        error?.code === "ERR_NETWORK" ||
-        error?.code === "ECONNRESET" ||
-        error?.message === "Network Error" ||
-        (error?.isAxiosError && !error?.response);
-      const description = isNetworkError
-        ? "Cannot reach the server. Check that the backend is running (e.g. http://localhost:8080) and try again."
-        : error?.response?.data?.message || error?.message || "Invalid credentials. Please check your email and password.";
       toast({
         title: "Login failed",
-        description,
+        description: getUserFacingApiError(error, "Invalid credentials. Please check your email and password."),
         variant: "destructive",
       });
       throw error;

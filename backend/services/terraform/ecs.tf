@@ -214,12 +214,13 @@ resource "aws_ecs_task_definition" "api" {
 }
 
 resource "aws_ecs_service" "api" {
-  name             = "${local.name_prefix}-eventpro-api"
-  cluster          = aws_ecs_cluster.main.id
-  task_definition  = aws_ecs_task_definition.api.arn
-  desired_count    = var.ecs_desired_count
-  launch_type      = "FARGATE"
-  platform_version = "LATEST"
+  name                  = "${local.name_prefix}-eventpro-api"
+  cluster               = aws_ecs_cluster.main.id
+  task_definition       = aws_ecs_task_definition.api.arn
+  desired_count         = var.ecs_desired_count
+  launch_type           = "FARGATE"
+  platform_version      = "LATEST"
+  wait_for_steady_state = !var.use_localstack
 
   network_configuration {
     subnets          = data.terraform_remote_state.shared_infra.outputs.service_subnet_ids

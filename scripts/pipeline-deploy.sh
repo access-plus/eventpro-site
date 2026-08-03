@@ -683,6 +683,63 @@ terraform_output_raw() {
   )
 }
 
+sanitize_diagnostics() {
+  sed -E 's/((Bearer|token|cookie|password|secret)[=: ]+)[^ ,;]+/\1[REDACTED]/Ig'
+}
+
+capture_services_diagnostics() {
+  local cluster="${WORKSPACE}-cluster" service="${WORKSPACE}-eventpro-api"
+  local target_group="${WORKSPACE}-api-primary" target_group_arn stopped_tasks
+
+  warn "Capturing sanitized API rollout diagnostics before stopping."
+  aws ecs describe-services --cluster "$cluster" --services "$service" \
+    --query 'services[0].{status:status,desired:desiredCount,running:runningCount,pending:pendingCount,deployments:deployments[*].{status:status,rolloutState:rolloutState,rolloutStateReason:rolloutStateReason,desired:desiredCount,running:runningCount,pending:pendingCount,failed:failedTasks},events:events[0:10]}' \
+    --output json 2>&1 | sanitize_diagnostics || true
+
+  stopped_tasks="$(aws ecs list-tasks --cluster "$cluster" --service-name "$service" --desired-status STOPPED --max-items 10 --query 'taskArns' --output text 2>/dev/null || true)"
+  if [ -n "$stopped_tasks" ] && [ "$stopped_tasks" != "None" ]; then
+    # shellcheck disable=SC2086
+    aws ecs describe-tasks --cluster "$cluster" --tasks $stopped_tasks \
+      --query 'tasks[*].{stoppedReason:stoppedReason,containers:containers[*].{name:name,reason:reason,exitCode:exitCode,lastStatus:lastStatus}}' \
+      --output json 2>&1 | sanitize_diagnostics || true
+  fi
+
+  target_group_arn="$(aws elbv2 describe-target-groups --names "$target_group" --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || true)"
+  if [ -n "$target_group_arn" ] && [ "$target_group_arn" != "None" ]; then
+    aws elbv2 describe-target-health --target-group-arn "$target_group_arn" \
+      --query 'TargetHealthDescriptions[*].{target:Target.Id,state:TargetHealth.State,reason:TargetHealth.Reason,description:TargetHealth.Description}' \
+      --output json 2>&1 | sanitize_diagnostics || true
+  fi
+
+  aws logs tail "/ecs/${WORKSPACE}/eventpro-api" --since 30m --format short 2>&1 \
+    | tail -100 | sanitize_diagnostics || true
+}
+
+verify_services_ready() {
+  local cluster="${WORKSPACE}-cluster" service="${WORKSPACE}-eventpro-api"
+  local target_group="${WORKSPACE}-api-primary" target_group_arn healthy_count health_url attempt
+
+  log "${GREEN}Waiting for ECS service stability:${NC} ${cluster}/${service}"
+  aws ecs wait services-stable --cluster "$cluster" --services "$service"
+
+  target_group_arn="$(aws elbv2 describe-target-groups --names "$target_group" --query 'TargetGroups[0].TargetGroupArn' --output text)"
+  healthy_count="$(aws elbv2 describe-target-health --target-group-arn "$target_group_arn" \
+    --query "length(TargetHealthDescriptions[?TargetHealth.State=='healthy'])" --output text)"
+  [ "$healthy_count" -gt 0 ] || return 1
+
+  health_url="https://${WORKSPACE}-api.${DOMAIN_NAME}/actuator/health"
+  log "${GREEN}Requiring three consecutive strict-TLS API health checks${NC}"
+  for attempt in 1 2 3; do
+    curl --fail --silent --show-error --proto '=https' --tlsv1.2 "$health_url" >/dev/null || return 1
+    [ "$attempt" -eq 3 ] || sleep 2
+  done
+
+  "$ROOT_DIR/scripts/verify-browser-security.sh" \
+    --api-url "https://${WORKSPACE}-api.${DOMAIN_NAME}" \
+    --app-origin "https://${WORKSPACE}-app.${DOMAIN_NAME}" \
+    --csrf-enabled "$CSRF_ENABLED"
+}
+
 prepare_stack() {
   local tf_dir="$1"
   log "${GREEN}Terraform init:${NC} $tf_dir"
@@ -766,10 +823,15 @@ run_services_stack() {
 
     terraform_validate_and_run backend/services/terraform "${tf_extra_args[@]}"
   )
+
+  if [ "$ACTION" = "apply" ] && ! verify_services_ready; then
+    capture_services_diagnostics
+    die "API rollout did not pass ECS, ALB, health, and browser-security readiness gates"
+  fi
 }
 
 run_frontend_stack() {
-  local vite_api_base_url bucket_name dist_id
+  local vite_api_base_url bucket_name dist_id invalidation_id
 
   log "${GREEN}Deploying frontend stack${NC}"
   require_var DOMAIN_NAME
@@ -783,7 +845,9 @@ run_frontend_stack() {
       log "${GREEN}npm ci (frontend workspace)${NC}"
       npm ci --workspace eventpro-frontend --include-workspace-root=false
       log "${GREEN}npm run build (frontend workspace)${NC}"
-      VITE_API_BASE_URL="$vite_api_base_url" VITE_ASSET_BASE_URL="${VITE_ASSET_BASE_URL:-/}" \
+      VITE_API_BASE_URL="$vite_api_base_url" \
+        VITE_ASSET_BASE_URL="${VITE_ASSET_BASE_URL:-/}" \
+        VITE_STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY:-}" \
         npm run build --workspace eventpro-frontend
     )
   else
@@ -807,7 +871,16 @@ run_frontend_stack() {
     log "${GREEN}Syncing frontend dist to S3:${NC} s3://${bucket_name}/"
     (
       cd "$ROOT_DIR"
-      aws s3 sync eventpro-frontend/dist/ "s3://${bucket_name}/" --delete
+      aws s3 sync eventpro-frontend/dist/ "s3://${bucket_name}/" \
+        --delete \
+        --exclude 'index.html' \
+        --exclude 'assets/*'
+      aws s3 sync eventpro-frontend/dist/assets/ "s3://${bucket_name}/assets/" \
+        --delete \
+        --cache-control 'public,max-age=31536000,immutable'
+      aws s3 cp eventpro-frontend/dist/index.html "s3://${bucket_name}/index.html" \
+        --content-type 'text/html' \
+        --cache-control 'no-cache,no-store,must-revalidate'
     )
   else
     warn "Skipping frontend S3 sync (--no-frontend-sync)"
@@ -816,10 +889,18 @@ run_frontend_stack() {
   if [ "$FRONTEND_INVALIDATE" = true ]; then
     dist_id="$(terraform_output_raw eventpro-frontend/terraform distribution_id)"
     log "${GREEN}Creating CloudFront invalidation:${NC} ${dist_id}"
-    aws cloudfront create-invalidation --distribution-id "$dist_id" --paths '/*' >/dev/null
+    invalidation_id="$(aws cloudfront create-invalidation --distribution-id "$dist_id" --paths '/*' --query 'Invalidation.Id' --output text)"
+    log "${GREEN}Waiting for CloudFront invalidation:${NC} ${invalidation_id}"
+    aws cloudfront wait invalidation-completed --distribution-id "$dist_id" --id "$invalidation_id"
   else
     warn "Skipping CloudFront invalidation (--no-frontend-invalidate)"
   fi
+
+  "$ROOT_DIR/scripts/verify-browser-security.sh" \
+    --api-url "$vite_api_base_url" \
+    --app-origin "https://${WORKSPACE}-app.${DOMAIN_NAME}" \
+    --csrf-enabled "$CSRF_ENABLED" \
+    --verify-frontend
 }
 
 lambda_image_source_for() {

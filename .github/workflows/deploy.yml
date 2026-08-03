@@ -40,7 +40,7 @@ jobs:
     secrets: inherit
 
   frontend:
-    needs: [shared_infra]
+    needs: [shared_infra, services]
     uses: ./.github/workflows/frontend.yml
     with:
       workspace: ${{ inputs.environment }}
