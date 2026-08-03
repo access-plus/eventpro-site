@@ -99,19 +99,19 @@ class OrderServiceImplTest {
         cartItem.setId(UUID.randomUUID());
         cartItem.setUser(user);
         cartItem.setTicket(ticket);
-        cartItem.setQuantity(1);
+        cartItem.setQuantity(2);
 
         order = new OrderEntity();
         order.setId(orderId);
         order.setOrderNumber("ORD-20250115-123456");
-        order.setTotalAmount(new BigDecimal("50.00"));
+        order.setTotalAmount(new BigDecimal("100.00"));
         order.setStatus(OrderStatus.PENDING);
         order.setOrderDate(LocalDateTime.now());
         order.setUserId(user.getId());
         order.setOrderItems(new ArrayList<>());
 
         orderService = new OrderServiceImpl(orderRepository, orderItemRepository, cartService, userRepository,
-                ticketService, Optional.empty());
+                ticketService, sqsMessagePublisher, Optional.empty());
     }
 
     // ========== createOrderFromCart Tests ==========
@@ -124,7 +124,7 @@ class OrderServiceImplTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(cartService.getUserCart(userId)).thenReturn(cartItems);
-        when(cartService.calculateCartTotal(userId)).thenReturn(new BigDecimal("50.00"));
+        when(cartService.calculateCartTotal(userId)).thenReturn(new BigDecimal("100.00"));
         when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
         when(orderRepository.saveAndFlush(any(OrderEntity.class))).thenAnswer(invocation -> {
             OrderEntity savedOrder = invocation.getArgument(0);
@@ -132,7 +132,8 @@ class OrderServiceImplTest {
             return savedOrder;
         });
         when(orderItemRepository.saveAndFlush(any(OrderItemEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        doNothing().when(cartService).consumeCart(userId);
+        doNothing().when(sqsMessagePublisher).publishOrderMessage(any());
+        doNothing().when(cartService).clearCart(userId);
 
         // When
         OrderEntity result = orderService.createOrderFromCart(userId);
@@ -142,7 +143,7 @@ class OrderServiceImplTest {
         assertEquals(orderId, result.getId());
         assertNotNull(result.getOrderNumber());
         assertTrue(result.getOrderNumber().startsWith("ORD-"));
-        assertEquals(new BigDecimal("50.00"), result.getTotalAmount());
+        assertEquals(new BigDecimal("100.00"), result.getTotalAmount());
         assertEquals(OrderStatus.PENDING, result.getStatus());
         assertEquals(1, result.getOrderItems().size());
         verify(userRepository).findById(userId);
@@ -150,8 +151,8 @@ class OrderServiceImplTest {
         verify(cartService).getUserCart(userId);
         verify(cartService).calculateCartTotal(userId);
         verify(orderRepository).saveAndFlush(any(OrderEntity.class));
-        verify(sqsMessagePublisher, never()).publishOrderMessage(any());
-        verify(cartService).consumeCart(userId);
+        verify(sqsMessagePublisher).publishOrderMessage(any());
+        verify(cartService).clearCart(userId);
     }
 
     @Test
@@ -198,14 +199,14 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void testCreateOrderFromCart_DoesNotPublishLegacyFulfillmentMessage() {
+    void testCreateOrderFromCart_SQSPublishFailure() {
         // Given
         List<CartEntity> cartItems = new ArrayList<>();
         cartItems.add(cartItem);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(cartService.getUserCart(userId)).thenReturn(cartItems);
-        when(cartService.calculateCartTotal(userId)).thenReturn(new BigDecimal("50.00"));
+        when(cartService.calculateCartTotal(userId)).thenReturn(new BigDecimal("100.00"));
         when(orderRepository.existsByOrderNumber(anyString())).thenReturn(false);
         when(orderRepository.saveAndFlush(any(OrderEntity.class))).thenAnswer(invocation -> {
             OrderEntity savedOrder = invocation.getArgument(0);
@@ -213,16 +214,16 @@ class OrderServiceImplTest {
             return savedOrder;
         });
         when(orderItemRepository.saveAndFlush(any(OrderItemEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        doNothing().when(cartService).consumeCart(userId);
+        doThrow(new RuntimeException("SQS error")).when(sqsMessagePublisher).publishOrderMessage(any());
+        doNothing().when(cartService).clearCart(userId);
 
         // When
         OrderEntity result = orderService.createOrderFromCart(userId);
 
-        // Then - API checkout owns fulfillment; no order/payment Lambda message is emitted.
+        // Then - Order should still be created even if SQS publish fails
         assertNotNull(result);
         verify(orderRepository).saveAndFlush(any(OrderEntity.class));
-        verify(sqsMessagePublisher, never()).publishOrderMessage(any());
-        verify(cartService).consumeCart(userId);
+        verify(cartService).clearCart(userId);
     }
 
     // ========== getOrderById Tests ==========

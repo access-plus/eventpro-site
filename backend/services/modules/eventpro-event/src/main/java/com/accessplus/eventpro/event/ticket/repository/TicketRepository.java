@@ -7,7 +7,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -16,23 +15,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import jakarta.persistence.LockModeType;
 
 @Repository
 public interface TicketRepository extends JpaRepository<TicketEntity, UUID>, TicketRepositoryCustom {
-
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT t FROM TicketEntity t WHERE t.id = :id")
-    Optional<TicketEntity> findByIdForUpdate(@Param("id") UUID id);
-
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT t FROM TicketEntity t WHERE t.id IN :ids")
-    List<TicketEntity> findAllByIdForUpdate(@Param("ids") List<UUID> ids);
-
-    @Query(value = "SELECT * FROM tickets WHERE event_id = :eventId " +
-            "AND CAST(ticket_type AS text) = :ticketType AND seat_section IS NULL FOR UPDATE", nativeQuery = true)
-    List<TicketEntity> findGeneralAdmissionGroupForUpdate(@Param("eventId") UUID eventId,
-                                                           @Param("ticketType") String ticketType);
 
     @Query("SELECT t FROM TicketEntity t WHERE t.eventId = :eventId")
     Page<TicketEntity> findByEventId(@Param("eventId") UUID eventId, Pageable pageable);
@@ -60,13 +45,13 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID>, Tic
      * RESERVED tickets that should be released: past {@code reservedUntil}, or legacy rows with null
      * {@code reservedUntil} (never picked up by expiry before; stuck for weeks).
      */
-    @Query("SELECT t FROM TicketEntity t WHERE t.ticketStatus = 'RESERVED' AND (t.reservedUntil IS NULL OR t.reservedUntil <= :before)")
+    @Query("SELECT t FROM TicketEntity t WHERE t.ticketStatus = 'RESERVED' AND (t.reservedUntil IS NULL OR t.reservedUntil < :before)")
     List<TicketEntity> findReservedWithExpiredHold(@Param("before") LocalDateTime before);
 
     /**
      * Event-scoped expired reservations for self-healing inventory reads.
      */
-    @Query("SELECT t FROM TicketEntity t WHERE t.eventId = :eventId AND t.ticketStatus = 'RESERVED' AND (t.reservedUntil IS NULL OR t.reservedUntil <= :before)")
+    @Query("SELECT t FROM TicketEntity t WHERE t.eventId = :eventId AND t.ticketStatus = 'RESERVED' AND (t.reservedUntil IS NULL OR t.reservedUntil < :before)")
     List<TicketEntity> findReservedWithExpiredHoldForEvent(@Param("eventId") UUID eventId, @Param("before") LocalDateTime before);
 
     /** Max ticket price across the given event IDs (for risk scoring). Returns empty if list is empty or no tickets. */

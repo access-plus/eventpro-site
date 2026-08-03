@@ -276,8 +276,7 @@ resource "aws_lambda_function" "payment_processor" {
 resource "aws_lambda_event_source_mapping" "payment_queue" {
   event_source_arn = data.terraform_remote_state.shared_infra.outputs.payment_queue_arn
   function_name    = aws_lambda_function.payment_processor.arn
-  # The API/webhook is the sole payment fulfillment owner.
-  enabled = false
+  enabled          = true
 
   batch_size                         = var.batch_size
   maximum_batching_window_in_seconds = 5

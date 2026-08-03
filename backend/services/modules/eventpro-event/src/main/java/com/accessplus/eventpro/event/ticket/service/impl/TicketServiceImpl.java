@@ -23,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -62,7 +61,6 @@ public class TicketServiceImpl implements TicketService {
     private final EventRepository eventRepository;
     private final UserRepository userRepository;
     private final QRCodeService qrCodeService;
-    private final Clock clock;
 
     /**
      * Creates multiple tickets for an event in bulk.
@@ -144,40 +142,10 @@ public class TicketServiceImpl implements TicketService {
         log.debug("Updating ticket: id={}", ticketId);
 
         // Fetch existing ticket
-        TicketEntity ticket = ticketRepository.findByIdForUpdate(ticketId)
+        TicketEntity ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket", ticketId.toString()));
 
-        if (ticket.getSeatSection() == null) {
-            if (ticket.getTicketStatus() != TicketStatus.AVAILABLE) {
-                throw new ValidationException("Only available GA ticket groups can be edited");
-            }
-            if (ticketType != null && ticketType != ticket.getTicketType()) {
-                throw new ValidationException("GA ticket type cannot be changed by an individual-ticket update");
-            }
-            List<TicketEntity> group = ticketRepository.findGeneralAdmissionGroupForUpdate(
-                    ticket.getEventId(), ticket.getTicketType().name());
-            if (group.stream().anyMatch(t -> t.getTicketStatus() == TicketStatus.RESERVED)) {
-                throw new ValidationException("GA ticket group cannot be edited while it has active holds");
-            }
-            for (TicketEntity member : group) {
-                if (member.getTicketStatus() == TicketStatus.AVAILABLE) {
-                    applyCommercialUpdate(member, name, price, null, startTime, endTime, printOutUrl);
-                }
-            }
-            ticketRepository.saveAll(group);
-            return ticket;
-        }
-
-        applyCommercialUpdate(ticket, name, price, ticketType, startTime, endTime, printOutUrl);
-
-        TicketEntity updatedTicket = ticketRepository.save(ticket);
-        log.info("Successfully updated ticket: id={}", ticketId);
-        return updatedTicket;
-    }
-
-    private void applyCommercialUpdate(TicketEntity ticket, String name, BigDecimal price,
-                                       TicketType ticketType, LocalDateTime startTime,
-                                       LocalDateTime endTime, String printOutUrl) {
+        // Update fields if provided (only non-null values)
         if (name != null && !name.trim().isEmpty()) {
             ticket.setName(name);
         }
@@ -206,6 +174,11 @@ public class TicketServiceImpl implements TicketService {
             throw new ValidationException("End time must be after start time");
         }
 
+        // Save updated ticket
+        TicketEntity updatedTicket = ticketRepository.save(ticket);
+        log.info("Successfully updated ticket: id={}", ticketId);
+
+        return updatedTicket;
     }
 
     /**
@@ -317,11 +290,11 @@ public class TicketServiceImpl implements TicketService {
     public TicketEntity markTicketAsSold(UUID ticketId, UUID purchaserId) throws IOException {
         log.debug("Marking ticket as sold: ticketId={}, purchaserId={}", ticketId, purchaserId);
 
-        TicketEntity ticket = ticketRepository.findByIdForUpdate(ticketId)
+        TicketEntity ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticket", ticketId.toString()));
 
-        if (ticket.getTicketStatus() != TicketStatus.RESERVED) {
-            throw new IllegalStateException("Ticket must be reserved before it can be sold");
+        if (ticket.getTicketStatus() == TicketStatus.SOLD) {
+            throw new IllegalStateException("Ticket is already sold");
         }
 
         ticket.setTicketStatus(TicketStatus.SOLD);
@@ -334,21 +307,17 @@ public class TicketServiceImpl implements TicketService {
             ticket.setPurchaserId(null);
         }
 
+        try {
+            String qrCodeUrl = qrCodeService.generateAndUploadQRCode(ticketId);
+            ticket.setQrCode(qrCodeUrl);
+            log.info("QR code generated and uploaded for ticket: ticketId={}, qrCodeUrl={}", ticketId, qrCodeUrl);
+        } catch (IOException e) {
+            log.error("Failed to generate QR code for ticket: ticketId={}, error={}", ticketId, e.getMessage(), e);
+        }
+
         TicketEntity savedTicket = ticketRepository.save(ticket);
         log.info("Successfully marked ticket as sold: ticketId={}, purchaserId={}", ticketId, purchaserId);
         return savedTicket;
-    }
-
-    @Override
-    public TicketEntity issueTicketQr(UUID ticketId) throws IOException {
-        TicketEntity ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new ResourceNotFoundException("Ticket", ticketId.toString()));
-        if (ticket.getTicketStatus() != TicketStatus.SOLD) {
-            throw new IllegalStateException("Only sold tickets can be issued");
-        }
-        if (ticket.getQrCode() != null && !ticket.getQrCode().isBlank()) return ticket;
-        ticket.setQrCode(qrCodeService.generateAndUploadQRCode(ticketId));
-        return ticketRepository.save(ticket);
     }
 
     /**
@@ -356,17 +325,7 @@ public class TicketServiceImpl implements TicketService {
      */
     @Override
     public void markTicketAsReserved(UUID ticketId) {
-        markTicketAsReserved(ticketId, LocalDateTime.now(clock)
-                .plusMinutes(reservationExpiryMinutes));
-    }
-
-    @Override
-    public void markTicketAsReserved(UUID ticketId, LocalDateTime reservedUntil) {
         log.debug("Marking ticket as reserved: ticketId={}", ticketId);
-
-        if (reservedUntil == null || !reservedUntil.isAfter(LocalDateTime.now(clock))) {
-            throw new ValidationException("Reservation deadline must be in the future");
-        }
 
         // Fetch ticket
         TicketEntity ticket = ticketRepository.findById(ticketId)
@@ -380,7 +339,7 @@ public class TicketServiceImpl implements TicketService {
 
         // Update ticket status and set reservation expiry (e.g. 15 min)
         ticket.setTicketStatus(TicketStatus.RESERVED);
-        ticket.setReservedUntil(reservedUntil);
+        ticket.setReservedUntil(java.time.LocalDateTime.now().plusMinutes(reservationExpiryMinutes));
         ticketRepository.save(ticket);
 
         log.info("Successfully marked ticket as reserved: ticketId={}, expires at {}", ticketId, ticket.getReservedUntil());
@@ -432,7 +391,7 @@ public class TicketServiceImpl implements TicketService {
         }
 
         ticket.setCheckedIn(true);
-        ticket.setCheckedInAt(java.time.LocalDateTime.now(clock));
+        ticket.setCheckedInAt(java.time.LocalDateTime.now());
         ticketRepository.save(ticket);
         log.info("Ticket checked in: ticketId={}, purchaserId={}", ticketId, ticket.getPurchaserId());
     }
@@ -440,28 +399,20 @@ public class TicketServiceImpl implements TicketService {
     @Override
     @Transactional
     public Optional<UUID> reserveOneTicketAtomic(UUID eventId, TicketType ticketType) {
-        LocalDateTime reservedUntil = LocalDateTime.now(clock).plusMinutes(reservationExpiryMinutes);
+        LocalDateTime reservedUntil = LocalDateTime.now().plusMinutes(reservationExpiryMinutes);
         return ticketRepository.reserveOneTicketAtomic(eventId, ticketType, reservedUntil);
     }
 
     @Override
     @Transactional
     public List<UUID> findAndReserveAvailableTickets(UUID eventId, TicketType ticketType, int count) {
-        return findAndReserveAvailableTickets(eventId, ticketType, count,
-                LocalDateTime.now(clock).plusMinutes(reservationExpiryMinutes));
-    }
-
-    @Override
-    @Transactional
-    public List<UUID> findAndReserveAvailableTickets(UUID eventId, TicketType ticketType, int count,
-                                                     LocalDateTime reservedUntil) {
         if (count <= 0) {
             return List.of();
         }
         // Use atomic reserve-one in a loop so under high contention one request wins, rest fail fast
         List<UUID> reserved = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            Optional<UUID> id = ticketRepository.reserveOneTicketAtomic(eventId, ticketType, reservedUntil);
+            Optional<UUID> id = reserveOneTicketAtomic(eventId, ticketType);
             if (id.isEmpty()) break;
             reserved.add(id.get());
         }
@@ -471,7 +422,7 @@ public class TicketServiceImpl implements TicketService {
     @Override
     @Transactional
     public List<UUID> releaseExpiredReservations() {
-        java.time.LocalDateTime now = java.time.LocalDateTime.now(clock);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
         List<TicketEntity> expired = ticketRepository.findReservedWithExpiredHold(now);
         List<UUID> releasedIds = releaseExpiredTickets(expired);
         if (!expired.isEmpty()) {
@@ -486,7 +437,7 @@ public class TicketServiceImpl implements TicketService {
         if (eventId == null) {
             return List.of();
         }
-        java.time.LocalDateTime now = java.time.LocalDateTime.now(clock);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
         List<TicketEntity> expired = ticketRepository.findReservedWithExpiredHoldForEvent(eventId, now);
         List<UUID> releasedIds = releaseExpiredTickets(expired);
         if (!expired.isEmpty()) {

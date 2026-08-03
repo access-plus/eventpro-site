@@ -4,7 +4,6 @@ import com.accessplus.eventpro.shared.entity.BaseEntity;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -27,12 +26,11 @@ import lombok.Setter;
 public class CartEntity extends BaseEntity {
 
     /**
-     * A cart row owns exactly one physical ticket reservation. Logical GA quantities are
-     * derived by grouping rows with the same event and ticket type at the API boundary.
+     * Number of tickets in the cart item.
+     * Must be greater than 0.
      */
     @NotNull(message = "Quantity is required")
     @Min(value = 1, message = "Quantity must be at least 1")
-    @Max(value = 1, message = "A cart row must reference exactly one physical ticket")
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
@@ -54,3 +52,4 @@ public class CartEntity extends BaseEntity {
     @JoinColumn(name = "ticket_id", nullable = false, foreignKey = @ForeignKey(name = "fk_cart_ticket"))
     private TicketEntity ticket;
 }
+

@@ -34,7 +34,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -136,8 +135,29 @@ public class PaymentController extends BaseController {
     public ResponseEntity<ApiResponse<Map<String, String>>> createPaymentIntent(
             @Valid @RequestBody CreatePaymentIntentRequest request,
             HttpServletRequest httpRequest) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body(ApiResponse.error("LEGACY_CHECKOUT_DISABLED: create a server-priced checkout session"));
+        log.debug("Creating payment intent for amount: {}", request.getAmount());
+        recaptchaVerificationService.verify(request.getRecaptchaToken(), ClientIpResolver.resolve(httpRequest), "checkout");
+
+        try {
+            String clientSecret = paymentService.createPaymentIntent(request.getAmount());
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("clientSecret", clientSecret);
+            
+            return ResponseEntity.ok(ApiResponse.success(response, "Payment intent created successfully"));
+        } catch (Exception e) {
+            log.error("Failed to create payment intent: {}", e.getMessage(), e);
+            String message = e.getMessage() != null ? e.getMessage() : "";
+            if (message.contains("Payment is not configured") || message.contains("Invalid API Key") || message.contains("empty string") || message.contains("sk_test_*") || message.contains("sk_test_local")) {
+                if (!message.contains("Payment is not configured")) {
+                    message = "Payment is not configured. Add STRIPE_SECRET_KEY=sk_test_... to a .env file in the project root (same folder as docker-compose.yml) and restart the backend. Get a key from https://dashboard.stripe.com/test/apikeys";
+                }
+            } else {
+                message = "Failed to create payment intent: " + message;
+            }
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(message));
+        }
     }
 
     @PostMapping("/confirm")
@@ -146,8 +166,43 @@ public class PaymentController extends BaseController {
     @Operation(summary = "Confirm payment (authenticated)", description = "Confirms a Stripe payment and creates an order from the user's cart. Optional state/country for jurisdiction-based sales tax.")
     public ResponseEntity<ApiResponse<OrderResponse>> confirmPayment(
             @Valid @RequestBody ConfirmPaymentRequest request) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body(ApiResponse.error("LEGACY_CHECKOUT_DISABLED: finalize a valid checkout session"));
+        log.debug("Confirming payment: paymentIntentId={}", request.getPaymentIntentId());
+
+        try {
+            UUID userId = JwtUtils.getCurrentUserId();
+            String state = request.getState() != null && !request.getState().isBlank() ? request.getState().trim() : null;
+            String country = request.getCountry() != null && !request.getCountry().isBlank() ? request.getCountry().trim() : null;
+            BigDecimal taxAmount = null;
+            if (state != null || country != null) {
+                cartService.releaseExpiredCartReservations(userId);
+                BigDecimal cartTotal = cartService.calculateCartTotal(userId);
+                if (cartTotal != null && cartTotal.compareTo(BigDecimal.ZERO) > 0) {
+                    boolean useStateRate = country == null || "US".equalsIgnoreCase(country);
+                    double rate = useStateRate ? taxProperties.getRateForState(state) : taxProperties.getDefaultRate();
+                    if (rate > 0) {
+                        taxAmount = cartTotal.multiply(BigDecimal.valueOf(rate)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                    }
+                }
+            }
+            var order = checkoutPaymentOrchestrationService.confirmAuthenticatedPayment(userId, request, taxAmount);
+            OrderResponse response = OrderResponse.fromEntity(order);
+
+            sendOrderConfirmationNotification(order, userId, null);
+
+            auditLogService.recordFinanceEvent(
+                    userId,
+                    "PAYMENT_SUCCEEDED",
+                    "order",
+                    order.getId().toString(),
+                    "Authenticated checkout confirmed: order " + order.getOrderNumber()
+                            + ", amount " + order.getTotalAmount());
+
+            return ResponseEntity.ok(ApiResponse.success(response, "Payment confirmed and order created successfully"));
+        } catch (Exception e) {
+            log.error("Failed to confirm payment: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to confirm payment: " + e.getMessage()));
+        }
     }
 
     @PostMapping("/guest-reserve")
@@ -155,8 +210,23 @@ public class PaymentController extends BaseController {
     public ResponseEntity<ApiResponse<Map<String, ?>>> guestReserve(
             @Valid @RequestBody GuestReserveRequest request,
             HttpServletRequest httpRequest) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body(ApiResponse.error("LEGACY_CHECKOUT_DISABLED: guest holds are created by checkout sessions"));
+        log.debug("Guest reserve: {} items", request.getItems().size());
+        recaptchaVerificationService.verify(request.getRecaptchaToken(), ClientIpResolver.resolve(httpRequest), "checkout");
+        try {
+            List<GuestOrderItem> items = request.getItems().stream()
+                    .map(i -> new GuestOrderItem(i.getEventId(), i.getTicketType(), i.getQuantity()))
+                    .collect(Collectors.toList());
+            List<UUID> reservedTicketIds = orderService.reserveTicketsForGuest(items);
+            Instant reservedUntil = Instant.now().plusSeconds(reservationExpiryMinutes * 60L);
+            Map<String, Object> body = new HashMap<>();
+            body.put("reservedTicketIds", reservedTicketIds);
+            body.put("reservedUntil", reservedUntil.toString());
+            return ResponseEntity.ok(ApiResponse.success(body, "Tickets reserved"));
+        } catch (Exception e) {
+            log.error("Guest reserve failed: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to reserve tickets: " + e.getMessage()));
+        }
     }
 
     @PostMapping("/guest/confirm")
@@ -164,8 +234,61 @@ public class PaymentController extends BaseController {
     public ResponseEntity<ApiResponse<OrderResponse>> confirmGuestPayment(
             @Valid @RequestBody GuestConfirmPaymentRequest request,
             HttpServletRequest httpRequest) {
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body(ApiResponse.error("LEGACY_CHECKOUT_DISABLED: finalize a valid checkout session"));
+        log.debug("Confirming guest payment: paymentIntentId={}, email={}", request.getPaymentIntentId(), request.getEmail());
+        recaptchaVerificationService.verify(request.getRecaptchaToken(), ClientIpResolver.resolve(httpRequest), "checkout");
+
+        try {
+            List<GuestOrderItem> items = request.getItems().stream()
+                    .map(i -> new GuestOrderItem(i.getEventId(), i.getTicketType(), i.getQuantity()))
+                    .collect(Collectors.toList());
+            String state = request.getState() != null && !request.getState().isBlank() ? request.getState().trim() : null;
+            String country = request.getCountry() != null && !request.getCountry().isBlank() ? request.getCountry().trim() : null;
+            var order = paymentService.processGuestPayment(
+                    request.getPaymentIntentId(),
+                    request.getEmail(),
+                    request.getFirstName(),
+                    request.getLastName(),
+                    items,
+                    request.getTotalAmount(),
+                    request.getReservedTicketIds(),
+                    request.getDonationAmount(),
+                    request.getTaxAmount(),
+                    state,
+                    country);
+            if (request.getHowDidYouHear() != null || request.getPhone() != null
+                    || Boolean.TRUE.equals(request.getReceiveTicketViaWhatsApp())
+                    || Boolean.TRUE.equals(request.getReceiveTicketViaSMS())) {
+                order = orderService.updateCheckoutMetadata(
+                        order.getId(),
+                        request.getPhone(),
+                        request.getHowDidYouHear(),
+                        request.getReceiveTicketViaWhatsApp(),
+                        request.getReceiveTicketViaSMS());
+            }
+            OrderResponse response = OrderResponse.fromEntity(order);
+
+            sendOrderConfirmationNotification(order, null, request.getEmail());
+            if (Boolean.TRUE.equals(request.getReceiveTicketViaSMS()) && request.getPhone() != null && !request.getPhone().isBlank()) {
+                log.info("Ticket SMS delivery requested for order {} to {}", order.getOrderNumber(), request.getPhone());
+            }
+            if (Boolean.TRUE.equals(request.getReceiveTicketViaWhatsApp()) && request.getPhone() != null && !request.getPhone().isBlank()) {
+                log.info("Ticket WhatsApp delivery requested for order {} to {}", order.getOrderNumber(), request.getPhone());
+            }
+
+            auditLogService.recordFinanceEvent(
+                    null,
+                    "PAYMENT_SUCCEEDED",
+                    "order",
+                    order.getId().toString(),
+                    "Guest checkout confirmed: order " + order.getOrderNumber()
+                            + ", guest " + request.getEmail());
+
+            return ResponseEntity.ok(ApiResponse.success(response, "Payment confirmed and order created successfully"));
+        } catch (Exception e) {
+            log.error("Failed to confirm guest payment: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Failed to confirm payment: " + e.getMessage()));
+        }
     }
 
     /**

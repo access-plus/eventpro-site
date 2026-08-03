@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { CartResponse, CartItemResponse, TicketTypeEnum } from "@/types/api";
 import { formatTicketTypeName } from "@eventpro/shared";
-import { useQueryClient } from "@tanstack/react-query";
 
 interface CartItem {
   id: string;
@@ -24,7 +23,7 @@ interface CartContextType {
   addItem: (item: Omit<CartItem, "id">, silent?: boolean) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;
   updateQuantity: (itemId: string, quantity: number) => Promise<boolean>;
-  clearCart: () => Promise<void>;
+  clearCart: () => void;
   refreshCart: () => Promise<void>;
 }
 
@@ -36,22 +35,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(false);
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const broadcastRef = useRef<BroadcastChannel | null>(null);
-
-  useEffect(() => {
-    if (typeof BroadcastChannel === "undefined") return;
-    const channel = new BroadcastChannel("eventpro-cart");
-    broadcastRef.current = channel;
-    channel.onmessage = (message: MessageEvent<{ eventIds?: string[] }>) => {
-      void queryClient.invalidateQueries({ queryKey: ["cart"] });
-      for (const eventId of message.data?.eventIds ?? []) {
-        void queryClient.invalidateQueries({ queryKey: ["event-inventory", eventId] });
-      }
-      if (isAuthenticated) void refreshCart();
-    };
-    return () => { channel.close(); broadcastRef.current = null; };
-  }, [isAuthenticated, queryClient]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -68,10 +51,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setItems(cartItems);
   };
 
-  const notifyCartChanged = (eventIds: string[], broadcast = true) => {
-    const uniqueIds = Array.from(new Set(eventIds.filter(Boolean)));
-    uniqueIds.forEach((eventId) => void queryClient.invalidateQueries({ queryKey: ["event-inventory", eventId] }));
-    if (broadcast) broadcastRef.current?.postMessage({ type: "invalidate", eventIds: uniqueIds });
+  const notifyCartChanged = (eventIds: string[]) => {
+    window.dispatchEvent(
+      new CustomEvent("eventpro:cart-changed", {
+        detail: { eventIds: Array.from(new Set(eventIds.filter(Boolean))) },
+      })
+    );
   };
 
   const loadLocalCart = () => {
@@ -118,12 +103,18 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const localCart = localStorage.getItem("eventpro_cart");
       if (localCart) {
         const localItems = JSON.parse(localCart) as CartItem[];
-        await apiService.importCart(localItems.map((item) => {
-          const isTicketId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.ticketTypeId);
-          return isTicketId
-            ? { eventId: item.eventId, ticketId: item.ticketTypeId, quantity: 1 }
-            : { eventId: item.eventId, ticketType: item.ticketTypeId as TicketTypeEnum, quantity: item.quantity };
-        }));
+        for (const item of localItems) {
+          try {
+            const isTicketId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.ticketTypeId);
+            await apiService.addToCart(
+              isTicketId
+                ? { id: item.ticketTypeId, quantity: item.quantity }
+                : { eventIdType: item.eventId, ticketType: item.ticketTypeId as TicketTypeEnum, quantity: item.quantity }
+            );
+          } catch (error) {
+            console.error("Failed to sync cart item:", error);
+          }
+        }
         localStorage.removeItem("eventpro_cart");
       }
       await refreshCart();
@@ -139,9 +130,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       setIsLoading(true);
-      const cartData = await queryClient.fetchQuery({
-        queryKey: ["cart"], queryFn: () => apiService.getCart(), staleTime: 0,
-      });
+      const cartData = await apiService.getCart();
       const mappedItems: CartItem[] = cartData.tickets.map((ticket: CartItemResponse) => {
         const ticketTypeId = ticket.ticketType ?? ticket.id;
         const existing = itemsRef.current.find(
@@ -162,7 +151,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...mappedItems.map((item) => item.eventId),
       ];
       setCartItems(mappedItems);
-      notifyCartChanged(changedEventIds, false);
+      notifyCartChanged(changedEventIds);
     } catch (error) {
       console.error("Failed to refresh cart:", error);
     } finally {
@@ -180,25 +169,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       (i) => i.eventId === item.eventId && i.ticketTypeId === item.ticketTypeId
     );
 
-    if (!isAuthenticated) {
-      if (existingIndex >= 0) {
-        const updated = [...items];
-        updated[existingIndex].quantity = Math.min(4, updated[existingIndex].quantity + item.quantity);
-        setCartItems(updated);
-        saveLocalCart(updated);
-      } else {
-        const updated = [...items, newItem];
-        setCartItems(updated);
-        saveLocalCart(updated);
-      }
+    if (existingIndex >= 0) {
+      const updated = [...items];
+      updated[existingIndex].quantity += item.quantity;
+      setCartItems(updated);
+      if (!isAuthenticated) saveLocalCart(updated);
+    } else {
+      const updated = [...items, newItem];
+      setCartItems(updated);
+      if (!isAuthenticated) saveLocalCart(updated);
     }
 
     if (isAuthenticated) {
       try {
         const isTicketId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.ticketTypeId);
-        if (isTicketId) await apiService.addSeat(item.ticketTypeId);
-        else await apiService.addGeneralAdmission(item.eventId, item.ticketTypeId as TicketTypeEnum, item.quantity);
-        await queryClient.invalidateQueries({ queryKey: ["cart"] });
+        await apiService.addToCart(
+          isTicketId
+            ? { id: item.ticketTypeId, quantity: item.quantity }
+            : { eventIdType: item.eventId, ticketType: item.ticketTypeId as TicketTypeEnum, quantity: item.quantity }
+        );
         await refreshCart();
       } catch (error) {
         console.error("Failed to add to cart:", error);
@@ -225,15 +214,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const removeItem = async (itemId: string): Promise<boolean> => {
     const removedItem = items.find((item) => item.id === itemId);
     const updated = items.filter((item) => item.id !== itemId);
+    setCartItems(updated);
     if (!isAuthenticated) {
-      setCartItems(updated);
       saveLocalCart(updated);
     } else {
       try {
-        const isSeat = removedItem ? /^[0-9a-f-]{36}$/i.test(removedItem.ticketTypeId) : false;
-        if (removedItem && isSeat) await apiService.removeSeat(removedItem.ticketTypeId);
-        else if (removedItem) await apiService.removeGeneralAdmission(removedItem.eventId, removedItem.ticketTypeId as TicketTypeEnum);
-        await queryClient.invalidateQueries({ queryKey: ["cart"] });
+        await apiService.removeFromCart(itemId);
         await refreshCart();
       } catch (error) {
         console.error("Failed to remove from cart:", error);
@@ -264,18 +250,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updated = items.map((item) =>
       item.id === itemId ? { ...item, quantity } : item
     );
+    setCartItems(updated);
     if (!isAuthenticated) {
-      setCartItems(updated);
       saveLocalCart(updated);
     } else {
       try {
-        if (!changedItem) throw new Error("Cart line not found");
-        if (/^[0-9a-f-]{36}$/i.test(changedItem.ticketTypeId)) {
-          if (quantity !== 1) throw new Error("Reserved seats always have quantity one");
-        } else {
-          await apiService.setGeneralAdmission(changedItem.eventId, changedItem.ticketTypeId as TicketTypeEnum, Math.min(4, quantity));
-        }
-        await queryClient.invalidateQueries({ queryKey: ["cart"] });
+        await apiService.updateCartItem(itemId, { quantity });
         await refreshCart();
       } catch (error) {
         console.error("Failed to update quantity:", error);
@@ -292,21 +272,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  const clearCart = async () => {
+  const clearCart = () => {
     const changedEventIds = itemsRef.current.map((item) => item.eventId);
+    setCartItems([]);
     if (!isAuthenticated) {
-      setCartItems([]);
       localStorage.removeItem("eventpro_cart");
       localStorage.removeItem("eventpro_cart_saved_at");
-    } else {
-      try {
-        await apiService.clearCart();
-        await queryClient.invalidateQueries({ queryKey: ["cart"] });
-        await refreshCart();
-      } catch (error) {
-        console.error("Failed to clear cart:", error);
-        await refreshCart();
-      }
     }
     notifyCartChanged(changedEventIds);
   };

@@ -5,12 +5,10 @@ import com.accessplus.eventpro.core.notification.service.NotificationService;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.service.UserService;
 import com.accessplus.eventpro.api.subscription.service.SubscriptionPaymentService;
-import com.accessplus.eventpro.api.checkout.CheckoutSessionService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
 import com.stripe.model.Invoice;
 import com.stripe.model.Subscription;
-import com.stripe.model.PaymentIntent;
 import com.stripe.net.Webhook;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +34,6 @@ public class StripeWebhookController {
     private final SubscriptionPaymentService subscriptionPaymentService;
     private final StripeSubscriptionConfig subscriptionConfig;
     private final NotificationService notificationService;
-    private final CheckoutSessionService checkoutSessionService;
 
     @PostMapping("/stripe")
     public ResponseEntity<Map<String, Object>> handleStripeWebhook(
@@ -62,7 +59,6 @@ public class StripeWebhookController {
                 case "invoice.paid" -> handleInvoicePaid(event);
                 case "customer.subscription.deleted" -> handleSubscriptionDeleted(event);
                 case "customer.subscription.updated" -> handleSubscriptionUpdated(event);
-                case "payment_intent.succeeded" -> handlePaymentIntentSucceeded(event);
                 default -> log.trace("Unhandled Stripe event type: {}", type);
             }
         } catch (Exception e) {
@@ -71,15 +67,6 @@ public class StripeWebhookController {
         }
 
         return ResponseEntity.ok(Map.of("received", true));
-    }
-
-    private void handlePaymentIntentSucceeded(Event event) {
-        Optional<?> object = event.getDataObjectDeserializer().getObject();
-        if (object.isEmpty() || !(object.get() instanceof PaymentIntent intent)) {
-            throw new IllegalArgumentException("payment_intent.succeeded payload is not a PaymentIntent");
-        }
-        checkoutSessionService.finalizeByPaymentIntent(intent.getId());
-        log.info("Checkout finalized from Stripe webhook: paymentIntentId={}", intent.getId());
     }
 
     private void handleInvoicePaid(Event event) {

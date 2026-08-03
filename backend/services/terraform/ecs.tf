@@ -136,8 +136,7 @@ resource "aws_ecs_task_definition" "api" {
         { name = "PAYMENT_QUEUE_URL", value = data.terraform_remote_state.shared_infra.outputs.payment_queue_url },
         { name = "NOTIFICATION_QUEUE_URL", value = data.terraform_remote_state.shared_infra.outputs.notification_queue_url },
         { name = "JWT_ISSUER", value = var.jwt_issuer },
-        { name = "JWT_ACCESS_TTL_SECONDS", value = tostring(var.jwt_access_ttl_seconds) },
-        { name = "EVENTPRO_CSRF_ENABLED", value = tostring(var.csrf_enabled) }
+        { name = "JWT_ACCESS_TTL_SECONDS", value = tostring(var.jwt_access_ttl_seconds) }
       ],
       local.cors_environment_variables,
       var.use_localstack ? [

@@ -138,7 +138,6 @@ export function CheckoutScreen({
     totalAmount: cartTotal,
     isLoading,
     reservedUntil: cartReservedUntil,
-    serverTime: cartServerTime,
     removeItem,
     refreshCart,
   } = useCart();
@@ -150,17 +149,12 @@ export function CheckoutScreen({
   const [taxCountry] = useState("US");
   const [statePickerOpen, setStatePickerOpen] = useState(false);
   const [guestReservedUntil, setGuestReservedUntil] = useState<string | null>(null);
-  const [guestServerTime, setGuestServerTime] = useState<string | null>(null);
   const [openingCheckout, setOpeningCheckout] = useState(false);
-  const [checkoutResumeUrl, setCheckoutResumeUrl] = useState<string | null>(null);
   const [checkoutSeats, setCheckoutSeats] = useState<SeatResponse[]>([]);
 
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const cartSeatIds = cartItems.filter((i) => UUID_RE.test(i.ticketTypeId)).map((i) => i.ticketTypeId);
   const checkoutEventId = route.params?.eventId ?? cartItems[0]?.eventId;
-  const cartFingerprint = cartItems.map((item) => `${item.eventId}:${item.ticketTypeId}:${item.quantity}`).sort().join("|");
-
-  useEffect(() => setCheckoutResumeUrl(null), [cartFingerprint]);
 
   const isGuest = !user;
   const subtotal = cartTotal;
@@ -237,33 +231,21 @@ export function CheckoutScreen({
     });
   };
 
-  /** Create a server checkout session, then hand the opaque resume URL to the browser. */
+  /** Reserve guest tickets then open web checkout (Stripe runs in browser). */
   const openWebCheckout = async () => {
     setOpeningCheckout(true);
     try {
-      if (checkoutResumeUrl) {
-        await Linking.openURL(checkoutResumeUrl);
-        return;
-      }
-      const session = await api.createCheckoutSession({
-        idempotencyKey: `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        items: isGuest ? cartItems.map((i) => ({
+      if (isGuest && cartItems.length > 0) {
+        const reservePayload = cartItems.map((i) => ({
           eventId: i.eventId,
           ticketType: i.ticketTypeId,
           quantity: i.quantity,
-        })) : undefined,
-        email: isGuest ? guestInfo?.email : undefined,
-        firstName: isGuest ? guestInfo?.firstName : undefined,
-        lastName: isGuest ? guestInfo?.lastName : undefined,
-        state: taxState || undefined,
-        country: taxCountry,
-      });
-      if (session.expiresAt) setGuestReservedUntil(session.expiresAt);
-      if (session.serverTime) setGuestServerTime(session.serverTime);
+        }));
+        const reserveData = await api.guestReserve(reservePayload);
+        if (reserveData?.reservedUntil) setGuestReservedUntil(reserveData.reservedUntil);
+      }
       const base = WEB_URL.replace(/\/$/, "");
-      const resumeUrl = session.checkoutUrl || `${base}/checkout/session/${session.resumeToken}`;
-      setCheckoutResumeUrl(resumeUrl);
-      await Linking.openURL(resumeUrl);
+      await Linking.openURL(`${base}/checkout`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not start checkout";
       Alert.alert("Checkout unavailable", msg);
@@ -303,7 +285,7 @@ export function CheckoutScreen({
           ) : (
             <>
               {reservedUntil ? (
-                <ReservationCountdown reservedUntil={reservedUntil} serverTime={(isGuest ? guestServerTime : cartServerTime) ?? undefined} onExpired={handleReservationExpired} />
+                <ReservationCountdown reservedUntil={reservedUntil} onExpired={handleReservationExpired} />
               ) : null}
 
               {checkoutSeats.length > 0 && cartSeatIds.length > 0 ? (

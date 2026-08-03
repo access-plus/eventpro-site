@@ -47,13 +47,6 @@ public interface OrderService {
      */
     OrderEntity createOrderFromCart(UUID userId, BigDecimal overrideTaxAmount, String buyerState, String buyerCountry);
 
-    /** Creates an order from the exact physical tickets snapshotted by a checkout session. */
-    OrderEntity createOrderFromReservedTickets(UUID userId, String guestEmail, String guestFirstName,
-                                               String guestLastName, List<UUID> ticketIds,
-                                               BigDecimal totalAmount, BigDecimal taxAmount,
-                                               BigDecimal donationAmount, String buyerState,
-                                               String buyerCountry);
-
     /**
      * Retrieves an order by ID.
      * 
@@ -151,3 +144,4 @@ public interface OrderService {
      */
     Optional<OrderEntity> findPaidOrderByPaymentIntentId(String paymentIntentId);
 }
+
