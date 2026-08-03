@@ -132,9 +132,7 @@ terraform -chdir="$ROOT_DIR/backend/shared-infra" workspace show | grep -qx "$WO
 repositories_json="$(terraform -chdir="$ROOT_DIR/backend/shared-infra" output -json local_ecr_repository_urls)"
 for repository in eventpro-api eventpro-order-processor eventpro-payment-processor eventpro-notification-sender; do
   jq -e --arg repository "$repository" '.[$repository] | length > 0' <<<"$repositories_json" >/dev/null || fail "missing ECR output: $repository"
-  # list-images avoids LocalStack's DescribeImages timestamp sorting path, which
-  # can fail after persisted and newly pushed images have mixed timestamp forms.
-  aws_lstk ecr list-images --repository-name "$repository" --query 'length(imageIds)' --output text | grep -Eq '^[1-9][0-9]*$' || \
+  aws_lstk ecr describe-images --repository-name "$repository" --query 'length(imageDetails)' --output text | grep -Eq '^[1-9][0-9]*$' || \
     fail "no ECR image found for $repository"
 done
 
@@ -166,6 +164,11 @@ if ! s3_cors="$(aws_lstk s3api get-bucket-cors --bucket "$SMOKE_BUCKET" --output
 fi
 jq -e . <<<"$s3_cors" >/dev/null 2>&1 || fail "S3 CORS response was not valid JSON"
 jq -e --arg origin "$APP_URL" '.CORSRules[].AllowedOrigins[] | select(. == $origin)' <<<"$s3_cors" >/dev/null || fail "frontend origin is absent from S3 CORS"
+cors_headers="$(curl -ksSI --http1.1 -X OPTIONS \
+  -H "Origin: $APP_URL" \
+  -H 'Access-Control-Request-Method: GET' \
+  "$API_URL/api/v1/events")"
+grep -Eiq "^access-control-allow-origin:[[:space:]]*$APP_URL" <<<"$cors_headers" || fail "API CORS did not allow the frontend origin"
 
 log "CloudFront index, assets, and SPA fallback"
 retry "CloudFront frontend" 60 5 cloudfront_ready

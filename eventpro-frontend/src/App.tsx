@@ -20,7 +20,6 @@ import Home from "./pages/Home";
 import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
 import Checkout from "./pages/Checkout";
-import CheckoutSessionResume from "./pages/CheckoutSessionResume";
 import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
 import Following from "./pages/Following";
@@ -102,7 +101,6 @@ const AnimatedRoutes = () => {
             <PageTransition><Checkout /></PageTransition>
           }
         />
-        <Route path="/checkout/session/:token" element={<PageTransition><CheckoutSessionResume /></PageTransition>} />
 
         <Route
           path="/profile"

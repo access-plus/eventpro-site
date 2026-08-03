@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clock } from "lucide-react";
 
 interface ReservationCountdownProps {
   /** ISO-8601 timestamp when the reservation expires (tickets released back to pool). */
   reservedUntil: string;
-  /** Server timestamp captured with the reservation response, used to correct client clock skew. */
-  serverTime?: string;
   /** Called when the countdown reaches zero (reservation expired). */
   onExpired: () => void;
   className?: string;
@@ -18,15 +16,11 @@ function formatRemaining(secondsLeft: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function ReservationCountdown({ reservedUntil, serverTime, onExpired, className = "" }: ReservationCountdownProps) {
-  const clockOffsetMs = useMemo(
-    () => serverTime ? new Date(serverTime).getTime() - Date.now() : 0,
-    [serverTime]
-  );
+export function ReservationCountdown({ reservedUntil, onExpired, className = "" }: ReservationCountdownProps) {
   const [secondsLeft, setSecondsLeft] = useState<number>(() => {
     const end = new Date(reservedUntil).getTime();
-    const now = Date.now() + clockOffsetMs;
-    return Math.max(0, Math.ceil((end - now) / 1000));
+    const now = Date.now();
+    return Math.max(0, Math.floor((end - now) / 1000));
   });
   const [expired, setExpired] = useState(false);
   const onExpiredCalled = useRef(false);
@@ -35,8 +29,8 @@ export function ReservationCountdown({ reservedUntil, serverTime, onExpired, cla
     onExpiredCalled.current = false;
     const endMs = new Date(reservedUntil).getTime();
     const tick = () => {
-      const now = Date.now() + clockOffsetMs;
-      const left = Math.max(0, Math.ceil((endMs - now) / 1000));
+      const now = Date.now();
+      const left = Math.max(0, Math.floor((endMs - now) / 1000));
       setSecondsLeft(left);
       if (left <= 0 && !onExpiredCalled.current) {
         onExpiredCalled.current = true;
@@ -47,7 +41,7 @@ export function ReservationCountdown({ reservedUntil, serverTime, onExpired, cla
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [reservedUntil, serverTime, onExpired, clockOffsetMs]);
+  }, [reservedUntil, onExpired]);
 
   if (expired || secondsLeft <= 0) {
     return (

@@ -16,14 +16,6 @@ on:
         required: true
         default: true
         type: boolean
-      csrf_enabled:
-        description: 'Enable browser CSRF enforcement'
-        required: false
-        default: 'true'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
   workflow_call:
     inputs:
       workspace:
@@ -36,11 +28,6 @@ on:
         required: false
         default: true
         type: boolean
-      csrf_enabled:
-        description: 'Enable browser CSRF enforcement'
-        required: false
-        default: 'true'
-        type: string
 
 env:
   AWS_REGION: us-east-1
@@ -93,7 +80,6 @@ jobs:
             image_name=${{ steps.ecr-docker-build.outputs.image-name }}
             image_tag=${{ steps.ecr-docker-build.outputs.image-tag }}
             domain_name=${{ vars.DOMAIN_NAME || secrets.DOMAIN_NAME }}
-            csrf_enabled=${{ inputs.csrf_enabled || github.event.inputs.csrf_enabled || 'true' }}
             stripe_secret_key=${{ secrets.STRIPE_SECRET_KEY }}
             stripe_publishable_key=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
             stripe_webhook_secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}

@@ -39,7 +39,6 @@ ECR_LOGGED_IN=false
 FRONTEND_SYNC=true
 FRONTEND_INVALIDATE=true
 PREFLIGHT_ONLY=false
-CSRF_ENABLED="${EVENTPRO_CSRF_ENABLED:-true}"
 
 ENV_FILES=()
 
@@ -102,9 +101,6 @@ Per-component build tag overrides:
 Frontend deploy options:
   --no-frontend-sync          Skip aws s3 sync (apply mode only)
   --no-frontend-invalidate    Skip CloudFront invalidation (apply mode only)
-
-Services security rollout:
-  --csrf-enabled true|false   Enable CSRF enforcement in ECS (default: true)
 
 Required env vars (services/frontend):
   DOMAIN_NAME
@@ -291,11 +287,6 @@ parse_args() {
       --no-frontend-invalidate)
         FRONTEND_INVALIDATE=false
         shift
-        ;;
-      --csrf-enabled)
-        [ $# -ge 2 ] || die "Missing value for --csrf-enabled"
-        CSRF_ENABLED="$2"
-        shift 2
         ;;
       -h|--help)
         usage
@@ -798,7 +789,6 @@ run_services_stack() {
     export TF_VAR_image_name="$SERVICES_IMAGE_NAME"
     export TF_VAR_image_tag="$SERVICES_IMAGE_TAG"
     export TF_VAR_domain_name="$DOMAIN_NAME"
-    export TF_VAR_csrf_enabled="$CSRF_ENABLED"
 
     [ -n "${STRIPE_SECRET_KEY:-}" ] && export TF_VAR_stripe_secret_key="$STRIPE_SECRET_KEY"
     [ -n "${STRIPE_PUBLISHABLE_KEY:-}" ] && export TF_VAR_stripe_publishable_key="$STRIPE_PUBLISHABLE_KEY"
@@ -1133,9 +1123,6 @@ print_plan() {
     log "  Lambda targets: $LAMBDA_TARGETS_CSV"
   fi
   log "  Services image source: $SERVICES_IMAGE_SOURCE"
-  if [ "$RUN_SERVICES" = true ]; then
-    log "  Services CSRF enforcement: $CSRF_ENABLED"
-  fi
   log "  Lambdas image source: $LAMBDAS_IMAGE_SOURCE (overrides: order=${ORDER_PROCESSOR_IMAGE_SOURCE:-<none>} payment=${PAYMENT_PROCESSOR_IMAGE_SOURCE:-<none>} notification=${NOTIFICATION_SENDER_IMAGE_SOURCE:-<none>})"
   if need_any_image_build; then
     log "  ECR registry: ${ECR_REGISTRY:-<auto>}"
@@ -1154,11 +1141,6 @@ main() {
   preload_env_files "$@"
   load_env_files
   parse_args "$@"
-
-  case "$CSRF_ENABLED" in
-    true|false) ;;
-    *) die "--csrf-enabled must be 'true' or 'false'" ;;
-  esac
 
   if [ "$ACTION" = "plan" ] && [ "$PUSH_IMAGES_SET" = false ]; then
     PUSH_IMAGES=false

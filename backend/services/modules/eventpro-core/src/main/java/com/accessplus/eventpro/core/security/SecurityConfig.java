@@ -36,10 +36,10 @@ public class SecurityConfig {
     private final AccessDeniedHandler accessDeniedHandler;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                          CorsProperties corsProperties,
-                          EventProApiSecurityProperties apiSecurityProperties,
-                          EventProCsrfProperties csrfProperties,
-                          AccessDeniedHandler accessDeniedHandler) {
+            CorsProperties corsProperties,
+            EventProApiSecurityProperties apiSecurityProperties,
+            EventProCsrfProperties csrfProperties,
+            AccessDeniedHandler accessDeniedHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.corsProperties = corsProperties;
         this.apiSecurityProperties = apiSecurityProperties;
@@ -68,39 +68,41 @@ public class SecurityConfig {
         }
 
         http
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(exceptions -> exceptions.accessDeniedHandler(accessDeniedHandler))
-            .authorizeHttpRequests(auth -> {
-                auth.requestMatchers("/actuator/health").permitAll();
-                auth.requestMatchers(HttpMethod.GET, "/api/v1/csrf").permitAll();
-                if (apiSecurityProperties.isPublicActuatorMetrics()) {
-                    auth.requestMatchers("/actuator/metrics", "/actuator/metrics/**",
-                            "/actuator/prometheus").permitAll();
-                }
-                if (apiSecurityProperties.isPublicSwagger()) {
-                    auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html",
-                            "/v3/api-docs/**", "/api-docs/**").permitAll();
-                }
-                auth.requestMatchers(HttpMethod.POST, "/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/send-reset-email").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/events/*").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/events/*/ticket-types").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/events/*/seats").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/events/*/addons").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/events/category/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/images/proxy").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/payments/config").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/users/*/public-profile").permitAll()
-                .requestMatchers(HttpMethod.POST,
-                    "/api/v1/payments/create-intent", "/api/v1/payments/create-intent/",
-                    "/api/v1/payments/guest/confirm", "/api/v1/payments/guest/confirm/",
-                    "/api/v1/payments/guest-reserve", "/api/v1/payments/guest-reserve/").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/stripe").permitAll()
-                .requestMatchers("/api/v1/checkout-sessions/**", "/api/v1/checkout-sessions").permitAll()
-                .anyRequest().authenticated();
-            })
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions.accessDeniedHandler(accessDeniedHandler))
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers("/actuator/health").permitAll();
+                    auth.requestMatchers(HttpMethod.GET, "/api/v1/csrf").permitAll();
+                    if (apiSecurityProperties.isPublicActuatorMetrics()) {
+                        auth.requestMatchers("/actuator/metrics", "/actuator/metrics/**",
+                                "/actuator/prometheus").permitAll();
+                    }
+                    if (apiSecurityProperties.isPublicSwagger()) {
+                        auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html",
+                                "/v3/api-docs/**", "/api-docs/**").permitAll();
+                    }
+                    auth.requestMatchers(HttpMethod.POST, "/api/v1/auth/signup", "/api/v1/auth/login",
+                            "/api/v1/auth/send-reset-email").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/events").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/events/*").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/events/*/ticket-types").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/events/*/seats").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/events/*/addons").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/events/category/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/images/proxy").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/payments/config").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/users/*/public-profile").permitAll()
+                            .requestMatchers(HttpMethod.POST,
+                                    "/api/v1/payments/create-intent", "/api/v1/payments/create-intent/",
+                                    "/api/v1/payments/guest/confirm", "/api/v1/payments/guest/confirm/",
+                                    "/api/v1/payments/guest-reserve", "/api/v1/payments/guest-reserve/")
+                            .permitAll()
+                            .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/stripe").permitAll()
+                            .requestMatchers("/api/v1/checkout-sessions/**", "/api/v1/checkout-sessions").permitAll()
+                            .anyRequest().authenticated();
+                })
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

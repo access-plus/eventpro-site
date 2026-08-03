@@ -81,7 +81,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem("accessToken");
-    apiService.clearCsrfToken();
     setUser(null);
     toast({
       title: "Logged out",
