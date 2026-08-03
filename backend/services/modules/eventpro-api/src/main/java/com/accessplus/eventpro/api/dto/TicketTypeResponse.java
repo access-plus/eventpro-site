@@ -24,9 +24,8 @@ public class TicketTypeResponse {
     private BigDecimal price;
     private Integer totalQuantity;
     private Integer availableQuantity;
-    private Integer reservedQuantity;
-    private Integer soldQuantity;
     private LocalDateTime saleStartDate;
     private LocalDateTime saleEndDate;
     private String status; // "ACTIVE", "INACTIVE", "SOLD_OUT"
 }
+

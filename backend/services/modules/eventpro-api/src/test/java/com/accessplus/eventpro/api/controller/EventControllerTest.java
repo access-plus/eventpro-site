@@ -3,7 +3,6 @@ package com.accessplus.eventpro.api.controller;
 import com.accessplus.eventpro.api.dto.ApiResponse;
 import com.accessplus.eventpro.api.dto.SeatResponse;
 import com.accessplus.eventpro.api.dto.TicketTypeResponse;
-import com.accessplus.eventpro.api.checkout.CheckoutSessionService;
 import com.accessplus.eventpro.api.eventimage.repository.EventImageRepository;
 import com.accessplus.eventpro.core.email.service.EmailService;
 import com.accessplus.eventpro.core.user.service.UserService;
@@ -73,9 +72,6 @@ class EventControllerTest {
 
     @Mock
     private CartService cartService;
-
-    @Mock
-    private CheckoutSessionService checkoutSessionService;
 
     @InjectMocks
     private EventController eventController;

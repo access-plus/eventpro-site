@@ -8,7 +8,6 @@ import com.accessplus.eventpro.api.dto.EventResponse;
 import com.accessplus.eventpro.api.dto.SeatResponse;
 import com.accessplus.eventpro.api.dto.TicketTypeResponse;
 import com.accessplus.eventpro.api.dto.UpdateEventRequest;
-import com.accessplus.eventpro.api.checkout.CheckoutSessionService;
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
 import com.accessplus.eventpro.core.email.service.EmailService;
@@ -73,7 +72,6 @@ public class EventController extends BaseController {
     private final ObjectMapper objectMapper;
     private final AWSS3ImageService imageService;
     private final CartService cartService;
-    private final CheckoutSessionService checkoutSessionService;
 
     private static final int MAX_EVENT_IMAGES = 5;
 
@@ -340,8 +338,6 @@ public class EventController extends BaseController {
                 LocalDateTime saleEndDate = gaTickets.get(0).getEndTime();
                 int totalQuantity = gaTickets.size();
                 long availableCount = gaTickets.stream().filter(t -> t.getTicketStatus() == TicketStatus.AVAILABLE).count();
-                long reservedCount = gaTickets.stream().filter(t -> t.getTicketStatus() == TicketStatus.RESERVED).count();
-                long soldCount = gaTickets.stream().filter(t -> t.getTicketStatus() == TicketStatus.SOLD).count();
                 
                 // Determine status
                 String status;
@@ -361,8 +357,6 @@ public class EventController extends BaseController {
                         .price(price)
                         .totalQuantity(totalQuantity)
                         .availableQuantity((int) availableCount)
-                        .reservedQuantity((int) reservedCount)
-                        .soldQuantity((int) soldCount)
                         .saleStartDate(saleStartDate)
                         .saleEndDate(saleEndDate)
                         .status(status)
@@ -399,8 +393,6 @@ public class EventController extends BaseController {
     }
 
     private void releaseExpiredReservationsForEvent(UUID eventId) {
-        checkoutSessionService.expireDueSessions();
-        cartService.releaseAllExpiredCartReservations();
         List<UUID> releasedIds = ticketService.releaseExpiredReservationsForEvent(eventId);
         if (!releasedIds.isEmpty()) {
             cartService.removeCartItemsForTicketIds(releasedIds);

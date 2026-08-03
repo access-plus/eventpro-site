@@ -11,14 +11,6 @@ on:
         description: The branch to deploy
         required: true
         default: main
-      csrf_enabled:
-        description: Enable browser CSRF enforcement for the API
-        required: true
-        default: 'true'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
 
 jobs:
 
@@ -36,7 +28,6 @@ jobs:
     with:
       workspace: ${{ inputs.environment }}
       run_deploy: ${{ github.event_name == 'push' }}
-      csrf_enabled: ${{ inputs.csrf_enabled || 'true' }}
     secrets: inherit
 
   frontend:

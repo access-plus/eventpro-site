@@ -7,7 +7,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../context/AuthContext";
 import type { TicketTypeEnum } from "@eventpro/shared";
 import { formatTicketTypeName } from "@eventpro/shared";
-import { useQueryClient } from "@tanstack/react-query";
 
 export interface CartItem {
   id: string;
@@ -26,7 +25,6 @@ type CartContextValue = {
   isLoading: boolean;
   /** ISO-8601 expiry from server cart (authenticated users). */
   reservedUntil: string | null;
-  serverTime: string | null;
   addItem: (item: Omit<CartItem, "id">) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;
   updateQuantity: (itemId: string, quantity: number) => Promise<boolean>;
@@ -47,8 +45,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const itemsRef = useRef<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [reservedUntil, setReservedUntil] = useState<string | null>(null);
-  const [serverTime, setServerTime] = useState<string | null>(null);
-  const queryClient = useQueryClient();
 
   const setCartItems = useCallback((cartItems: CartItem[]) => {
     itemsRef.current = cartItems;
@@ -91,7 +87,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated) return;
     setIsLoading(true);
     try {
-      const cartData = await queryClient.fetchQuery({ queryKey: ["cart"], queryFn: () => api.getCart(), staleTime: 0 });
+      const cartData = await api.getCart();
       const mapped: CartItem[] = (cartData.tickets ?? []).map(
         (t: { id: string; name: string; ticketType?: string; eventIdType?: string; quantity: number; price: number }) => {
           const ticketTypeId = t.ticketType ?? t.id;
@@ -111,15 +107,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       );
       setCartItems(mapped);
       setReservedUntil(cartData.reservedUntil ?? null);
-      setServerTime(cartData.serverTime ?? null);
     } catch {
       setCartItems([]);
       setReservedUntil(null);
-      setServerTime(null);
     } finally {
       setIsLoading(false);
     }
-  }, [api, isAuthenticated, queryClient, setCartItems]);
+  }, [api, isAuthenticated, setCartItems]);
 
   const syncCartOnAuth = useCallback(async () => {
     setIsLoading(true);
@@ -127,12 +121,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const localCart = await AsyncStorage.getItem(GUEST_CART_KEY);
       if (localCart) {
         const localItems = JSON.parse(localCart) as CartItem[];
-        await api.importCart(localItems.map((item) => {
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.ticketTypeId);
-          return isUuid
-            ? { eventId: item.eventId, ticketId: item.ticketTypeId, quantity: 1 }
-            : { eventId: item.eventId, ticketType: item.ticketTypeId as TicketTypeEnum, quantity: item.quantity };
-        }));
+        for (const item of localItems) {
+          try {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.ticketTypeId);
+            await api.addToCart(
+              isUuid
+                ? { id: item.ticketTypeId, quantity: item.quantity }
+                : { eventIdType: item.eventId, ticketType: item.ticketTypeId as TicketTypeEnum, quantity: item.quantity }
+            );
+          } catch {
+            // continue syncing other items
+          }
+        }
         await AsyncStorage.multiRemove([GUEST_CART_KEY, GUEST_CART_SAVED_AT_KEY]);
       }
       await refreshCart();
@@ -146,7 +146,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       void syncCartOnAuth();
     } else {
       setReservedUntil(null);
-      setServerTime(null);
       void loadLocalCart();
     }
   }, [isAuthenticated, syncCartOnAuth, loadLocalCart]);
@@ -163,22 +162,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       let updated: CartItem[];
       if (existingIndex >= 0) {
         updated = itemsRef.current.map((i, idx) =>
-          idx === existingIndex ? { ...i, quantity: Math.min(4, i.quantity + item.quantity) } : i
+          idx === existingIndex ? { ...i, quantity: i.quantity + item.quantity } : i
         );
       } else {
         updated = [...itemsRef.current, newItem];
       }
+      setCartItems(updated);
       if (!isAuthenticated) {
-        setCartItems(updated);
         await saveLocalCart(updated);
         return true;
       }
       setIsLoading(true);
       try {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.ticketTypeId);
-        if (isUuid) await api.addSeat(item.ticketTypeId);
-        else await api.addGeneralAdmission(item.eventId, item.ticketTypeId as TicketTypeEnum, item.quantity);
-        await queryClient.invalidateQueries({ queryKey: ["cart"] });
+        await api.addToCart(
+          isUuid
+            ? { id: item.ticketTypeId, quantity: item.quantity }
+            : { eventIdType: item.eventId, ticketType: item.ticketTypeId as TicketTypeEnum, quantity: item.quantity }
+        );
         await refreshCart();
         return true;
       } catch {
@@ -188,24 +189,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [api, isAuthenticated, queryClient, refreshCart, saveLocalCart, setCartItems]
+    [api, isAuthenticated, refreshCart, saveLocalCart, setCartItems]
   );
 
   const removeItem = useCallback(
     async (itemId: string): Promise<boolean> => {
-      const removed = itemsRef.current.find((i) => i.id === itemId);
       const updated = itemsRef.current.filter((i) => i.id !== itemId);
+      setCartItems(updated);
       if (!isAuthenticated) {
-        setCartItems(updated);
         await saveLocalCart(updated);
         return true;
       }
       try {
-        if (!removed) throw new Error("Cart line not found");
-        const isSeat = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(removed.ticketTypeId);
-        if (isSeat) await api.removeSeat(removed.ticketTypeId);
-        else await api.removeGeneralAdmission(removed.eventId, removed.ticketTypeId as TicketTypeEnum);
-        await queryClient.invalidateQueries({ queryKey: ["cart"] });
+        await api.removeFromCart(itemId);
         await refreshCart();
         return true;
       } catch {
@@ -213,27 +209,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     },
-    [api, isAuthenticated, queryClient, refreshCart, saveLocalCart, setCartItems]
+    [api, isAuthenticated, refreshCart, saveLocalCart, setCartItems]
   );
 
   const updateQuantity = useCallback(
     async (itemId: string, quantity: number): Promise<boolean> => {
       if (quantity <= 0) return removeItem(itemId);
-      const changed = itemsRef.current.find((i) => i.id === itemId);
       const updated = itemsRef.current.map((i) => (i.id === itemId ? { ...i, quantity } : i));
+      setCartItems(updated);
       if (!isAuthenticated) {
-        setCartItems(updated);
         await saveLocalCart(updated);
         return true;
       }
       try {
-        if (!changed) throw new Error("Cart line not found");
-        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(changed.ticketTypeId)) {
-          if (quantity !== 1) throw new Error("Reserved seats always have quantity one");
-        } else {
-          await api.setGeneralAdmission(changed.eventId, changed.ticketTypeId as TicketTypeEnum, Math.min(4, quantity));
-        }
-        await queryClient.invalidateQueries({ queryKey: ["cart"] });
+        await api.updateCartItem(itemId, { quantity });
         await refreshCart();
         return true;
       } catch {
@@ -241,25 +230,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     },
-    [api, isAuthenticated, queryClient, refreshCart, removeItem, saveLocalCart, setCartItems]
+    [api, isAuthenticated, refreshCart, removeItem, saveLocalCart, setCartItems]
   );
 
   const clearCart = useCallback(async () => {
+    setCartItems([]);
+    setReservedUntil(null);
     if (!isAuthenticated) {
-      setCartItems([]);
-      setReservedUntil(null);
-      setServerTime(null);
       await AsyncStorage.multiRemove([GUEST_CART_KEY, GUEST_CART_SAVED_AT_KEY]);
       return;
     }
     try {
       await api.clearCart();
-      await queryClient.invalidateQueries({ queryKey: ["cart"] });
-      await refreshCart();
     } catch {
-      await refreshCart();
+      const cart = await api.getCart().catch(() => null);
+      if (cart?.tickets) {
+        for (const t of cart.tickets) {
+          await api.removeFromCart(t.id).catch(() => {});
+        }
+      }
     }
-  }, [api, isAuthenticated, queryClient, refreshCart, setCartItems]);
+  }, [api, isAuthenticated, setCartItems]);
 
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
   const totalAmount = items.reduce((sum, i) => sum + i.quantity * i.price, 0);
@@ -270,7 +261,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     totalAmount,
     isLoading,
     reservedUntil,
-    serverTime,
     addItem,
     removeItem,
     updateQuantity,

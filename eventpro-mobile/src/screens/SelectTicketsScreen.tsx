@@ -91,7 +91,7 @@ export function SelectTicketsScreen({
     if (!t) return;
     setQuantities((prev) => {
       const next = (prev[ticketId] ?? 0) + delta;
-      const max = Math.min(4, t.availableQuantity ?? t.totalQuantity ?? 4);
+      const max = t.availableQuantity ?? t.totalQuantity ?? 999;
       const clamped = Math.max(0, Math.min(next, max));
       return { ...prev, [ticketId]: clamped };
     });
@@ -247,7 +247,7 @@ export function SelectTicketsScreen({
                   <TouchableOpacity
                     style={[styles.qtyBtn, styles.qtyBtnSolid]}
                     onPress={() => setQty(t.id, 1)}
-                    disabled={q >= Math.min(4, t.availableQuantity ?? t.totalQuantity ?? 4)}
+                    disabled={q >= (t.availableQuantity ?? t.totalQuantity ?? 999)}
                   >
                     <Text style={styles.qtyBtnSolidText}>+</Text>
                   </TouchableOpacity>

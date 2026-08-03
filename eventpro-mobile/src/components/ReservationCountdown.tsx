@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../contexts/ThemeContext";
@@ -7,7 +7,6 @@ import type { Theme } from "../theme";
 type Props = {
   /** ISO-8601 timestamp when the reservation expires. */
   reservedUntil: string;
-  serverTime?: string;
   onExpired: () => void;
 };
 
@@ -18,13 +17,12 @@ function formatRemaining(secondsLeft: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function ReservationCountdown({ reservedUntil, serverTime, onExpired }: Props) {
+export function ReservationCountdown({ reservedUntil, onExpired }: Props) {
   const { theme } = useTheme();
   const styles = createStyles(theme);
-  const clockOffsetMs = useMemo(() => serverTime ? new Date(serverTime).getTime() - Date.now() : 0, [serverTime]);
   const [secondsLeft, setSecondsLeft] = useState(() => {
     const end = new Date(reservedUntil).getTime();
-    return Math.max(0, Math.ceil((end - (Date.now() + clockOffsetMs)) / 1000));
+    return Math.max(0, Math.floor((end - Date.now()) / 1000));
   });
   const [expired, setExpired] = useState(false);
   const onExpiredCalled = useRef(false);
@@ -34,7 +32,7 @@ export function ReservationCountdown({ reservedUntil, serverTime, onExpired }: P
     setExpired(false);
     const endMs = new Date(reservedUntil).getTime();
     const tick = () => {
-      const left = Math.max(0, Math.ceil((endMs - (Date.now() + clockOffsetMs)) / 1000));
+      const left = Math.max(0, Math.floor((endMs - Date.now()) / 1000));
       setSecondsLeft(left);
       if (left <= 0 && !onExpiredCalled.current) {
         onExpiredCalled.current = true;
@@ -45,7 +43,7 @@ export function ReservationCountdown({ reservedUntil, serverTime, onExpired }: P
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [reservedUntil, serverTime, onExpired, clockOffsetMs]);
+  }, [reservedUntil, onExpired]);
 
   if (expired || secondsLeft <= 0) {
     return (

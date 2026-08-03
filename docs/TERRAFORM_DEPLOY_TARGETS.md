@@ -6,7 +6,7 @@ The same six Terraform stacks support real AWS and a complete LocalStack Pro env
 
 | Target | Plan | Deploy | Verify | Destroy |
 |---|---|---|---|---|
-| AWS | `make aws-plan` | `make aws-deploy` | `make aws-verify-csrf` | `make tf-destroy-all` |
+| AWS | `make aws-plan` | `make aws-deploy` | Existing AWS observability/checks | `make tf-destroy-all` |
 | LocalStack Pro | `make lstk-plan` | `make lstk-deploy` | `make lstk-verify` | `make lstk-destroy` |
 
 The stack order is:
@@ -46,33 +46,7 @@ On a pristine environment, `make lstk-plan` can only plan shared infrastructure 
 
 `make lstk-deploy` performs verification automatically. The verifier checks LocalStack activation, ECR images, ECS and ALB health, API/DB/SQS/JWT behavior, S3 and image proxy access, CloudFront assets and SPA fallback, CORS, Lambda cold starts/event mappings, a harmless IN_APP notification, and disabled New Relic configuration.
 
-Browser requests pass through two CORS layers in LocalStack: the LocalStack
-edge gateway and Spring Security. `EXTRA_CORS_ALLOWED_HEADERS` extends the edge
-allowlist with `X-XSRF-TOKEN` and `X-Correlation-Id`; Spring independently
-allows the complete browser contract (`Authorization`, `Content-Type`,
-`X-Correlation-Id`, and `X-XSRF-TOKEN`). Do not add `X-EventPro-Client` or
-`X-Api-Key` to browser CORS. After changing the edge settings, run
-`make lstk-init` to recreate the LocalStack container without deleting its
-persistent volume, followed by `make lstk-verify`.
-
-After the first full deployment, use the scoped redeploy commands when only one
-artifact changed. They preserve the other stacks and existing LocalStack data:
-
-```bash
-make lstk-redeploy-services
-make lstk-redeploy-frontend
-make lstk-redeploy-lambda-order
-make lstk-redeploy-lambda-payment
-make lstk-redeploy-lambda-notification
-make lstk-redeploy-lambdas
-```
-
-Services and Lambda redeploys build and push a uniquely tagged image before
-applying only that Terraform stack. The frontend redeploy rebuilds the Vite
-bundle, applies only the frontend stack, syncs S3, and invalidates CloudFront.
-Use `make lstk-verify` afterward when full end-to-end verification is required.
-
-Lower-level granular Terraform commands remain available:
+Granular commands remain available:
 
 ```bash
 make lstk-tf-shared-infra LSTK_TF_ACTION=apply
@@ -103,35 +77,6 @@ The AWS deployer:
 - Does not build, push, sync, or invalidate anything in plan mode.
 
 Existing granular `tf-deploy-*` targets use the same guarded deployment script.
-
-### CSRF rollout and verification
-
-CSRF enforcement defaults to enabled. `CSRF_ENABLED=false` is only a staged
-rollout and emergency control; it does not relax the CORS origin or header
-allowlists. For the initial client rollout, use the same API image for both
-service deployments:
-
-```bash
-# 1. Publish /api/v1/csrf without enforcing it yet.
-make tf-deploy-services TF_WORKSPACE=dev CSRF_ENABLED=false IMAGE_TAG=<release-tag>
-
-# 2. Publish the CSRF-capable browser client and invalidate CloudFront.
-make tf-deploy-frontend TF_WORKSPACE=dev
-
-# 3. Enable enforcement using the same API image.
-make tf-deploy-services TF_WORKSPACE=dev CSRF_ENABLED=true \
-  SERVICES_IMAGE_SOURCE=existing IMAGE_TAG=<release-tag>
-
-# 4. Run strict-TLS, non-destructive browser security checks.
-make aws-verify-csrf TF_WORKSPACE=dev CSRF_ENABLED=true
-```
-
-Set `CSRF_SMOKE_EMAIL` and `CSRF_SMOKE_PASSWORD` in the invoking environment to
-add successful login, token-rotation, and authenticated-read checks. Without
-them, AWS verification remains account-independent and non-mutating. Never put
-smoke credentials in a committed environment file. Repeat the ordered rollout
-for production only after dev verification and a browser mutation smoke pass.
-The Lambda stacks are unaffected and do not need redeployment.
 
 ## Switching safely
 

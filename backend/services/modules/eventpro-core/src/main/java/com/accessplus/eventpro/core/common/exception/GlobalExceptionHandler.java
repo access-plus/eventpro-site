@@ -51,7 +51,6 @@ public class GlobalExceptionHandler {
         HttpStatus status = determineHttpStatus(ex);
         ErrorResponse errorResponse = errorBuilder(request)
                 .message(ex.getMessage())
-                .code(errorCode(ex.getMessage()))
                 .build();
         
         return new ResponseEntity<>(errorResponse, status);
@@ -67,7 +66,6 @@ public class GlobalExceptionHandler {
         
         ErrorResponse errorResponse = errorBuilder(request)
                 .message(ex.getMessage())
-                .code(errorCode(ex.getMessage()))
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
@@ -80,7 +78,6 @@ public class GlobalExceptionHandler {
         
         ErrorResponse errorResponse = errorBuilder(request)
                 .message(ex.getMessage())
-                .code(errorCode(ex.getMessage()))
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
@@ -105,16 +102,9 @@ public class GlobalExceptionHandler {
         
         ErrorResponse errorResponse = errorBuilder(request)
                 .message(ex.getMessage())
-                .code(errorCode(ex.getMessage()))
                 .build();
         
         return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
-    }
-
-    private static String errorCode(String message) {
-        if (message == null) return null;
-        String candidate = message.contains(":") ? message.substring(0, message.indexOf(':')) : message;
-        return candidate.matches("[A-Z][A-Z0-9_]+") ? candidate : null;
     }
     
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -236,3 +226,4 @@ public class GlobalExceptionHandler {
         };
     }
 }
+
