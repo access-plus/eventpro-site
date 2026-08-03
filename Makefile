@@ -613,7 +613,7 @@ lstk-start:
 	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start-only
 
 lstk-stop:
-	@docker compose --env-file "$(LSTK_ENV_FILE)" -f "$(LSTK_COMPOSE_FILE)" down
+	@docker compose --env-file "$(LSTK_ENV_FILE)" -f "$(LSTK_COMPOSE_FILE)" down -v
 
 lstk-state-bucket:
 	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --start --bootstrap-state
