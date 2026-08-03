@@ -38,6 +38,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
+import static org.hamcrest.Matchers.not;
 
 @SpringJUnitConfig(classes = {
         SecurityConfigCsrfTest.TestConfiguration.class,
@@ -97,8 +99,11 @@ class SecurityConfigCsrfTest {
 
     @Test
     void unsafeRequestWithoutTokenReturnsStructuredMissingError() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/login"))
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .header("Origin", "http://localhost:5173"))
                 .andExpect(status().isForbidden())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"))
                 .andExpect(jsonPath("$.code").value("CSRF_TOKEN_MISSING"))
                 .andExpect(jsonPath("$.path").value("/api/v1/auth/login"));
     }
@@ -139,21 +144,70 @@ class SecurityConfigCsrfTest {
     }
 
     @Test
-    void corsAllowsCredentialsAndExposesRotatedTokenHeader() throws Exception {
+    void corsAllowsOnlyTheBrowserHeaderContractAndExposesResponseHeaders() throws Exception {
         mockMvc.perform(options("/api/v1/auth/login")
                         .header("Origin", "http://localhost:5173")
                         .header("Access-Control-Request-Method", "POST")
-                        .header("Access-Control-Request-Headers", "X-XSRF-TOKEN"))
+                        .header("Access-Control-Request-Headers",
+                                "Authorization, Content-Type, X-Correlation-Id, X-XSRF-TOKEN"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
-                .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"))
+                .andExpect(header().string("Access-Control-Allow-Methods", containsStringIgnoringCase("GET")))
+                .andExpect(header().string("Access-Control-Allow-Methods", containsStringIgnoringCase("POST")))
+                .andExpect(header().string("Access-Control-Allow-Methods", containsStringIgnoringCase("PUT")))
+                .andExpect(header().string("Access-Control-Allow-Methods", containsStringIgnoringCase("PATCH")))
+                .andExpect(header().string("Access-Control-Allow-Methods", containsStringIgnoringCase("DELETE")))
+                .andExpect(header().string("Access-Control-Allow-Headers", containsStringIgnoringCase("Authorization")))
+                .andExpect(header().string("Access-Control-Allow-Headers", containsStringIgnoringCase("Content-Type")))
+                .andExpect(header().string("Access-Control-Allow-Headers", containsStringIgnoringCase("X-Correlation-Id")))
+                .andExpect(header().string("Access-Control-Allow-Headers", containsStringIgnoringCase("X-XSRF-TOKEN")))
+                .andExpect(header().string("Access-Control-Allow-Headers", not(containsStringIgnoringCase("X-EventPro-Client"))))
+                .andExpect(header().string("Access-Control-Allow-Headers", not(containsStringIgnoringCase("X-Api-Key"))));
 
         mockMvc.perform(get("/api/v1/csrf")
                         .header("Origin", "http://localhost:5173"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
-                .andExpect(header().string("Access-Control-Expose-Headers",
-                        org.hamcrest.Matchers.containsString("X-XSRF-TOKEN")));
+                .andExpect(header().string("Access-Control-Expose-Headers", containsStringIgnoringCase("X-XSRF-TOKEN")))
+                .andExpect(header().string("Access-Control-Expose-Headers", containsStringIgnoringCase("X-Correlation-Id")));
+    }
+
+    @Test
+    void corsRejectsUntrustedOriginsAndDisallowedBrowserHeaders() throws Exception {
+        mockMvc.perform(options("/api/v1/auth/login")
+                        .header("Origin", "https://attacker.example")
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "X-XSRF-TOKEN"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+
+        mockMvc.perform(options("/api/v1/auth/login")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "X-EventPro-Client"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+    }
+
+    @Test
+    void corsAllowsSafeCorrelationAndMultipartMutationPreflights() throws Exception {
+        mockMvc.perform(options("/api/v1/events")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "X-Correlation-Id"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                .andExpect(header().string("Access-Control-Allow-Headers", containsStringIgnoringCase("X-Correlation-Id")));
+
+        mockMvc.perform(options("/api/v1/auth/signup")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "Content-Type, X-Correlation-Id, X-XSRF-TOKEN"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                .andExpect(header().string("Access-Control-Allow-Headers", containsStringIgnoringCase("Content-Type")))
+                .andExpect(header().string("Access-Control-Allow-Headers", containsStringIgnoringCase("X-XSRF-TOKEN")));
     }
 
     @Test

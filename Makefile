@@ -2,7 +2,7 @@
 	build-core build-event build-order build-payment build-order-processor build-payment-processor build-notification-sender build-lambdas build-analytics \
 	tf-deploy-shared-infra tf-deploy-services tf-deploy-frontend tf-deploy-lambda-order tf-deploy-lambda-payment tf-deploy-lambda-notification tf-deploy-lambdas tf-deploy-all \
 	tf-destroy-shared-infra tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy \
-	aws-plan aws-deploy lstk-init lstk-plan lstk-deploy lstk-verify lstk-destroy \
+	aws-plan aws-deploy aws-verify-csrf lstk-init lstk-plan lstk-deploy lstk-verify lstk-destroy \
 	lstk-start lstk-stop lstk-state-bucket lstk-route53-zone lstk-endpoints lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all lstk-tf-destroy-all lstk-redeploy \
 	lstk-redeploy-services lstk-redeploy-frontend lstk-redeploy-lambda-order lstk-redeploy-lambda-payment lstk-redeploy-lambda-notification lstk-redeploy-lambdas \
 	newrelic-lambda-preflight newrelic-lambda-verify-config
@@ -30,6 +30,7 @@ PIPELINE_IMAGE_TAG_ARG = $(if $(IMAGE_TAG),--image-tag "$(IMAGE_TAG)",)
 SERVICES_IMAGE_SOURCE ?= build
 LAMBDAS_IMAGE_SOURCE ?= build
 LAMBDA_TARGETS ?= order-processor,payment-processor,notification-sender
+CSRF_ENABLED ?= true
 
 # Terraform reserves TF_WORKSPACE as an environment variable. We keep the Make
 # variable name for CLI ergonomics (e.g. `make ... TF_WORKSPACE=dev`) but do not
@@ -91,8 +92,9 @@ help:
 	@echo "AWS Terraform Deploy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env.remote; IMAGE_TAG optional for services/lambdas):"
 	@echo "  make aws-plan                       - Plan every real AWS stack with target safeguards"
 	@echo "  make aws-deploy                     - Deploy every real AWS stack with target safeguards"
+	@echo "  make aws-verify-csrf                - Verify browser CSRF/CORS against the selected AWS workspace"
 	@echo "  make tf-deploy-shared-infra         - Deploy shared infrastructure stack"
-	@echo "  make tf-deploy-services IMAGE_TAG=x - Build/push/deploy services via pipeline-deploy.sh"
+	@echo "  make tf-deploy-services IMAGE_TAG=x - Build/push/deploy services (CSRF_ENABLED=true|false)"
 	@echo "  make tf-deploy-frontend             - Deploy frontend Terraform stack"
 	@echo "  make tf-deploy-lambda-order IMAGE_TAG=x - Build/push/deploy order lambda via pipeline-deploy.sh"
 	@echo "  make tf-deploy-lambda-payment IMAGE_TAG=x - Build/push/deploy payment lambda via pipeline-deploy.sh"
@@ -370,6 +372,7 @@ tf-deploy-services:
 		--workspace "$(TF_WORKSPACE)" \
 		--only services \
 		--services-image-source "$(SERVICES_IMAGE_SOURCE)" \
+		--csrf-enabled "$(CSRF_ENABLED)" \
 		$(PIPELINE_IMAGE_TAG_ARG) \
 		$(PIPELINE_ACTION_FLAG)
 
@@ -435,6 +438,7 @@ tf-deploy-all:
 		--workspace "$(TF_WORKSPACE)" \
 		--only all \
 		--services-image-source "$(SERVICES_IMAGE_SOURCE)" \
+		--csrf-enabled "$(CSRF_ENABLED)" \
 		--lambdas-image-source "$(LAMBDAS_IMAGE_SOURCE)" \
 		--lambdas "$(LAMBDA_TARGETS)" \
 		$(PIPELINE_IMAGE_TAG_ARG) \
@@ -444,7 +448,15 @@ aws-plan:
 	@$(MAKE) tf-deploy-all TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) PIPELINE_ACTION=plan IMAGE_TAG=$(IMAGE_TAG)
 
 aws-deploy:
-	@$(MAKE) tf-deploy-all TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) PIPELINE_ACTION=apply IMAGE_TAG=$(IMAGE_TAG)
+	@$(MAKE) tf-deploy-all TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) PIPELINE_ACTION=apply IMAGE_TAG=$(IMAGE_TAG) CSRF_ENABLED=$(CSRF_ENABLED)
+
+aws-verify-csrf:
+	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
+		[ -n "$${DOMAIN_NAME:-}" ] || { echo "DOMAIN_NAME is required in $(TF_ENV_FILE) or the environment" >&2; exit 1; }; \
+		./scripts/verify-browser-security.sh \
+			--api-url "https://$(TF_WORKSPACE)-api.$$DOMAIN_NAME" \
+			--app-origin "https://$(TF_WORKSPACE)-app.$$DOMAIN_NAME" \
+			--csrf-enabled "$(CSRF_ENABLED)"
 
 tf-services-output:
 	@cd backend/services/terraform && \
