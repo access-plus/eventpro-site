@@ -28,7 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /** Skip this filter entirely for public paths so they never require or validate a token. */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return isPublicEndpoint(request.getRequestURI(), request.getMethod());
+        return isPublicEndpoint(request.getRequestURI(), request.getMethod()) && extractToken(request) == null;
     }
 
     @Override
@@ -38,7 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String method = request.getMethod();
 
         // 1. Skip filter for public endpoints
-        if (isPublicEndpoint(path, method)) {
+        if (isPublicEndpoint(path, method) && extractToken(request) == null) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -108,6 +108,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (HttpMethod.POST.name().equals(method) && "/api/v1/webhooks/stripe".equals(path)) {
+            return true;
+        }
+
+        if (path.startsWith("/api/v1/checkout-sessions")) {
             return true;
         }
 

@@ -47,6 +47,9 @@ public class ErrorResponse {
      */
     private String message;
 
+    /** Stable machine-readable code when the exception message begins with CODE:. */
+    private String code;
+
     /**
      * Request path where the error occurred.
      * Example: "/api/v1/users"

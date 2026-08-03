@@ -45,7 +45,13 @@ public interface TicketService {
 
     TicketEntity markTicketAsSold(UUID ticketId, UUID purchaserId) throws java.io.IOException;
 
+    /** Idempotently generates the QR artifact for an already-sold ticket. */
+    TicketEntity issueTicketQr(UUID ticketId) throws java.io.IOException;
+
     void markTicketAsReserved(UUID ticketId);
+
+    /** Reserves one specific ticket using an already-established cart/session deadline. */
+    void markTicketAsReserved(UUID ticketId, LocalDateTime reservedUntil);
 
     void checkInTicket(UUID ticketId);
 
@@ -69,6 +75,10 @@ public interface TicketService {
      * @return list of reserved ticket IDs (may be fewer than count if not enough available)
      */
     List<UUID> findAndReserveAvailableTickets(UUID eventId, TicketType ticketType, int count);
+
+    /** Atomically reserves up to count physical tickets with one shared deadline. */
+    List<UUID> findAndReserveAvailableTickets(UUID eventId, TicketType ticketType, int count,
+                                              LocalDateTime reservedUntil);
 
     /**
      * Releases tickets that are RESERVED and past their reserved_until time back to AVAILABLE.

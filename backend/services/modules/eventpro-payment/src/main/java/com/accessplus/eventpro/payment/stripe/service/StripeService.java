@@ -5,11 +5,14 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 /**
  * Service interface for Stripe payment operations.
  */
 public interface StripeService {
+
+    record CreatedPaymentIntent(String id, String clientSecret) {}
     
     /**
      * Creates a Stripe payment intent.
@@ -20,6 +23,13 @@ public interface StripeService {
      * @throws StripeException if Stripe API call fails
      */
     String createPaymentIntent(BigDecimal amount, String currency) throws StripeException;
+
+    CreatedPaymentIntent createPaymentIntent(BigDecimal amount, String currency,
+                                              Map<String, String> metadata,
+                                              String idempotencyKey) throws StripeException;
+
+    /** Retrieves a PaymentIntent without confirming it. */
+    PaymentIntent retrievePaymentIntent(String paymentIntentId) throws StripeException;
     
     /**
      * Confirms a payment intent.
@@ -38,6 +48,9 @@ public interface StripeService {
      * @throws StripeException if Stripe API call fails
      */
     String refundPayment(String paymentIntentId) throws StripeException;
+
+    /** Refunds a payment with a stable idempotency key for compensation retries. */
+    String refundPayment(String paymentIntentId, String idempotencyKey) throws StripeException;
 
     /**
      * Retrieves billing address from the PaymentIntent's payment method (card).
@@ -101,4 +114,3 @@ public interface StripeService {
      */
     String createTransferToConnectAccount(BigDecimal amountDollars, String destinationAccountId, String currency) throws StripeException;
 }
-

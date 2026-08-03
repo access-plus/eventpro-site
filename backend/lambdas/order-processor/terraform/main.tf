@@ -275,7 +275,9 @@ resource "aws_lambda_function" "order_processor" {
 resource "aws_lambda_event_source_mapping" "order_queue" {
   event_source_arn = data.terraform_remote_state.shared_infra.outputs.order_queue_arn
   function_name    = aws_lambda_function.order_processor.arn
-  enabled          = true
+  # Checkout sessions are finalized synchronously by the API/webhook. Keep the legacy
+  # function deployable while queues are drained, but prevent competing fulfillment.
+  enabled = false
 
   batch_size                         = var.batch_size
   maximum_batching_window_in_seconds = 5

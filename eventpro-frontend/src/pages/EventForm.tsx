@@ -19,8 +19,8 @@ import { z } from "zod";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import axios from "axios";
 import { EVENT_FORM_CATEGORIES } from "@eventpro/shared";
+import { apiService } from "@/lib/api";
 import {
   Form,
   FormControl,
@@ -171,20 +171,9 @@ const EventForm = () => {
         imageFiles.forEach(({ file }) => formData.append("imageFiles", file));
       }
 
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-      const token = localStorage.getItem("accessToken");
-
-      const response = await axios.post(`${baseUrl}/api/v1/events`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-      });
-
-      if (response.data.success) {
-        toast.success("Event created successfully!");
-        navigate("/organizer");
-      }
+      await apiService.createEventWithImages(formData);
+      toast.success("Event created successfully!");
+      navigate("/organizer");
     } catch (error: any) {
       console.error("Failed to create event:", error);
       const message = error.response?.data?.message || "Failed to create event";

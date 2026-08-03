@@ -3,7 +3,7 @@ import type { EventProApi, User } from "@eventpro/shared";
 
 export type RootStackParamList = {
   Auth: undefined;
-  Main: undefined;
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
 };
 
 export type AuthStackParamList = {

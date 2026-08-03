@@ -13,10 +13,12 @@ import com.accessplus.eventpro.api.security.RecaptchaVerificationService;
 import com.accessplus.eventpro.api.util.ClientIpResolver;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.email.service.EmailService;
+import com.accessplus.eventpro.core.security.CsrfTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +34,7 @@ public class AuthController extends BaseController {
     private final EmailService emailService;
     private final AuthService authService;
     private final RecaptchaVerificationService recaptchaVerificationService;
+    private final CsrfTokenService csrfTokenService;
 
     @PostMapping("/signup")
     @Operation(summary = "Sign up", description = "Creates a new user account.")
@@ -50,7 +53,8 @@ public class AuthController extends BaseController {
     @Operation(summary = "Login", description = "Authenticates user and returns a JWT access token.")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody AuthLoginRequest request,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
         log.debug("Logging in user: email={}", request.getEmail());
         recaptchaVerificationService.verify(request.getRecaptchaToken(), ClientIpResolver.resolve(httpRequest), "login");
 
@@ -60,6 +64,9 @@ public class AuthController extends BaseController {
                 .expiresIn(result.expiresIn())
                 .user(UserResponse.fromEntity(result.user()))
                 .build();
+
+        var rotatedCsrfToken = csrfTokenService.rotate(httpRequest, httpResponse);
+        httpResponse.setHeader(rotatedCsrfToken.getHeaderName(), rotatedCsrfToken.getToken());
 
         return ResponseEntity.ok(ApiResponse.success(response, "Login successful"));
     }

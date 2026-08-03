@@ -2,7 +2,6 @@ package com.accessplus.eventpro.order.order.service.impl;
 
 import com.accessplus.eventpro.shared.exception.ResourceNotFoundException;
 import com.accessplus.eventpro.shared.exception.ValidationException;
-import com.accessplus.eventpro.core.messaging.sqs.SQSMessagePublisher;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.UserRepository;
 import com.accessplus.eventpro.shared.entity.TicketEntity;
@@ -33,22 +32,19 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Implementation of OrderService.
- * Handles order creation, retrieval, and status management with SQS integration.
+ * Handles order creation, retrieval, and status management.
  * 
  * <p>Features:
  * <ul>
  *   <li>Create orders from cart items</li>
  *   <li>Generate unique order numbers</li>
- *   <li>Publish orders to SQS for asynchronous processing</li>
  *   <li>Retrieve orders by ID or user</li>
  *   <li>Update order status with validation</li>
  *   <li>Order validation and error handling</li>
@@ -65,7 +61,6 @@ public class OrderServiceImpl implements OrderService {
     private final CartService cartService;
     private final UserRepository userRepository;
     private final TicketService ticketService;
-    private final SQSMessagePublisher sqsMessagePublisher;
     private final Optional<PlatformFeeProvider> platformFeeProvider;
 
     @Value("${eventpro.tax.default-rate:0}")
@@ -183,29 +178,67 @@ public class OrderServiceImpl implements OrderService {
         log.info("Created order: orderId={}, orderNumber={}, totalAmount={}, itemCount={}",
                 savedOrder.getId(), orderNumber, totalAmount, orderItems.size());
 
-        // Publish order to SQS queue
-        try {
-            publishOrderToSQS(savedOrder);
-            log.info("Published order to SQS: orderId={}, orderNumber={}", savedOrder.getId(), orderNumber);
-        } catch (Exception e) {
-            log.error("Failed to publish order to SQS: orderId={}, error={}", 
-                    savedOrder.getId(), e.getMessage(), e);
-            // Continue - order is created even if SQS publish fails
-            // SQS publish failure can be handled by retry mechanism or manual processing
-        }
-
-        // Clear cart after successful order creation
-        try {
-            cartService.clearCart(userId);
-            log.info("Cleared cart after order creation: userId={}", userId);
-        } catch (Exception e) {
-            log.error("Failed to clear cart after order creation: userId={}, error={}", 
-                    userId, e.getMessage(), e);
-            // Continue - order is created even if cart clear fails
-            // Cart can be cleared manually if needed
-        }
+        // The API payment finalizer is the sole fulfillment owner. Remove cart ownership without
+        // releasing the exact tickets that the order is about to mark SOLD.
+        cartService.consumeCart(userId);
 
         return savedOrder;
+    }
+
+    @Override
+    public OrderEntity createOrderFromReservedTickets(UUID userId, String guestEmail, String guestFirstName,
+                                                      String guestLastName, List<UUID> ticketIds,
+                                                      BigDecimal totalAmount, BigDecimal taxAmount,
+                                                      BigDecimal donationAmount, String buyerState,
+                                                      String buyerCountry) {
+        if (ticketIds == null || ticketIds.isEmpty()) {
+            throw new ValidationException("Checkout session contains no tickets");
+        }
+        if (userId != null && !userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User", userId.toString());
+        }
+        List<OrderItemEntity> items = new ArrayList<>();
+        BigDecimal ticketSubtotal = BigDecimal.ZERO;
+        for (UUID ticketId : ticketIds) {
+            TicketEntity ticket = ticketService.getTicketById(ticketId);
+            if (ticket.getTicketStatus() != TicketStatus.RESERVED) {
+                throw new ValidationException("Reserved ticket is no longer available: " + ticketId);
+            }
+            OrderItemEntity item = new OrderItemEntity();
+            item.setQuantity(1);
+            item.setPrice(ticket.getPrice());
+            item.setTicketId(ticket.getId());
+            item.setTicket(ticket);
+            items.add(item);
+            ticketSubtotal = ticketSubtotal.add(ticket.getPrice());
+        }
+        if (totalAmount == null || totalAmount.compareTo(ticketSubtotal) < 0) {
+            throw new ValidationException("Checkout total is less than the reserved ticket subtotal");
+        }
+        OrderEntity order = new OrderEntity();
+        order.setOrderNumber(generateOrderNumber());
+        order.setTotalAmount(totalAmount.setScale(2, RoundingMode.HALF_UP));
+        order.setTaxAmount(taxAmount != null ? taxAmount : BigDecimal.ZERO);
+        order.setDonationAmount(donationAmount != null ? donationAmount : BigDecimal.ZERO);
+        order.setBuyerState(buyerState);
+        order.setBuyerCountry(buyerCountry);
+        order.setPlatformFee(computePlatformFee(order.getTotalAmount(), items.size()));
+        order.setStatus(OrderStatus.PENDING);
+        order.setOrderDate(LocalDateTime.now());
+        order.setUserId(userId);
+        order.setGuestEmail(guestEmail);
+        order.setGuestFirstName(guestFirstName);
+        order.setGuestLastName(guestLastName);
+        order.setOrderItems(new ArrayList<>());
+        OrderEntity saved = orderRepository.saveAndFlush(order);
+        for (OrderItemEntity item : items) {
+            item.setOrderId(saved.getId());
+            item.setOrder(saved);
+            orderItemRepository.saveAndFlush(item);
+            saved.getOrderItems().add(item);
+        }
+        if (userId != null) cartService.consumeCart(userId);
+        return saved;
     }
 
     @Override
@@ -310,11 +343,6 @@ public class OrderServiceImpl implements OrderService {
             savedOrder.getOrderItems().add(oi);
         }
         log.info("Created guest order: orderId={}, orderNumber={}, guestEmail={}", savedOrder.getId(), orderNumber, guestEmail);
-        try {
-            publishOrderToSQS(savedOrder);
-        } catch (Exception e) {
-            log.error("Failed to publish guest order to SQS: orderId={}, error={}", savedOrder.getId(), e.getMessage(), e);
-        }
         return savedOrder;
     }
 
@@ -375,6 +403,7 @@ public class OrderServiceImpl implements OrderService {
                     throw new ValidationException("Invalid ticket type: " + ticketTypeStr);
                 }
                 List<UUID> reserved = ticketService.findAndReserveAvailableTickets(item.eventId(), type, item.quantity());
+                allIds.addAll(reserved);
                 if (reserved.size() < item.quantity()) {
                     for (UUID id : allIds) {
                         try {
@@ -385,7 +414,6 @@ public class OrderServiceImpl implements OrderService {
                     }
                     throw new ValidationException("Not enough tickets available for event " + item.eventId() + " type " + ticketTypeStr);
                 }
-                allIds.addAll(reserved);
             }
         }
         return allIds;
@@ -468,11 +496,6 @@ public class OrderServiceImpl implements OrderService {
             savedOrder.getOrderItems().add(oi);
         }
         log.info("Created guest order from reserved tickets: orderId={}, orderNumber={}", savedOrder.getId(), orderNumber);
-        try {
-            publishOrderToSQS(savedOrder);
-        } catch (Exception e) {
-            log.error("Failed to publish guest order to SQS: orderId={}, error={}", savedOrder.getId(), e.getMessage(), e);
-        }
         return savedOrder;
     }
 
@@ -561,56 +584,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     /**
-     * Publishes order to SQS queue for asynchronous processing.
-     * Message format follows the SQS contract specification.
-     */
-    private void publishOrderToSQS(OrderEntity order) {
-        Map<String, Object> message = new HashMap<>();
-        message.put("messageId", UUID.randomUUID().toString());
-        message.put("messageType", "ORDER_CREATED");
-        message.put("timestamp", LocalDateTime.now().toString());
-        message.put("source", "core-api");
-
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("orderId", order.getId().toString());
-        payload.put("orderNumber", order.getOrderNumber());
-        payload.put("userId", order.getUserId() != null ? order.getUserId().toString() : null);
-        if (order.getGuestEmail() != null) {
-            payload.put("guestEmail", order.getGuestEmail());
-            payload.put("guestFirstName", order.getGuestFirstName());
-            payload.put("guestLastName", order.getGuestLastName());
-        }
-        payload.put("totalAmount", order.getTotalAmount().doubleValue());
-        payload.put("orderDate", order.getOrderDate().toString());
-
-        // Build order items payload
-        List<Map<String, Object>> orderItemsPayload = new ArrayList<>();
-        for (OrderItemEntity orderItem : order.getOrderItems()) {
-            Map<String, Object> itemPayload = new HashMap<>();
-            itemPayload.put("ticketId", orderItem.getTicketId().toString());
-            itemPayload.put("quantity", orderItem.getQuantity());
-            itemPayload.put("price", orderItem.getPrice().doubleValue());
-            // Try to get ticket type from relationship if loaded, otherwise use ticketId
-            TicketEntity ticket = orderItem.getTicket();
-            if (ticket != null) {
-                itemPayload.put("ticketType", ticket.getTicketType().name());
-            } else {
-                // If relationship not loaded, order processor Lambda will fetch ticket by ID
-                // We can't include ticketType here without fetching, but Lambda will handle it
-                log.debug("Ticket relationship not loaded for orderItem: {}, ticketId={}", 
-                    orderItem.getId(), orderItem.getTicketId());
-            }
-            orderItemsPayload.add(itemPayload);
-        }
-        payload.put("orderItems", orderItemsPayload);
-
-        message.put("payload", payload);
-
-        // Publish to SQS
-        sqsMessagePublisher.publishOrderMessage(message);
-    }
-
-    /**
      * Validates order status transitions.
      * 
      * <p>Valid transitions:
@@ -664,7 +637,7 @@ public class OrderServiceImpl implements OrderService {
             try {
                 ticketService.markTicketAsSold(oi.getTicketId(), purchaserId);
             } catch (IOException e) {
-                log.error("Failed to mark ticket as sold: ticketId={}, error={}", oi.getTicketId(), e.getMessage(), e);
+                throw new IllegalStateException("Failed to mark ticket as sold: " + oi.getTicketId(), e);
             }
         }
     }

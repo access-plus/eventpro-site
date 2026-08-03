@@ -1,6 +1,7 @@
 package com.accessplus.eventpro.api.apikey;
 
 import com.accessplus.eventpro.api.apikey.service.ApiKeyService;
+import com.accessplus.eventpro.core.security.CsrfRequestAttributes;
 import com.accessplus.eventpro.core.user.entity.UserEntity;
 import com.accessplus.eventpro.core.user.repository.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -49,7 +50,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         apiKeyService.resolveUserIdFromKey(apiKey.trim())
                 .flatMap(userRepository::findById)
                 .ifPresentOrElse(
-                        user -> setAuthentication(user),
+                        user -> {
+                            setAuthentication(user);
+                            request.setAttribute(CsrfRequestAttributes.API_KEY_AUTHENTICATED, Boolean.TRUE);
+                        },
                         () -> log.debug("Invalid or unknown API key")
                 );
         filterChain.doFilter(request, response);

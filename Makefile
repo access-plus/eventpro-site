@@ -1,9 +1,10 @@
-.PHONY: help clean build test verify all web-build web-dev web-preview api-run api-build api-test api-clean docker-build backend-build frontend-build jwt-keys \
-	core-build event-build order-build payment-build order-lambda-build payment-lambda-build notification-build \
+.PHONY: help clean build test verify all build-frontend web-dev web-preview api-run api-test clean-services build-services docker-build build-backend jwt-keys \
+	build-core build-event build-order build-payment build-order-processor build-payment-processor build-notification-sender build-lambdas build-analytics \
 	tf-deploy-shared-infra tf-deploy-services tf-deploy-frontend tf-deploy-lambda-order tf-deploy-lambda-payment tf-deploy-lambda-notification tf-deploy-lambdas tf-deploy-all \
 	tf-destroy-shared-infra tf-destroy-services tf-destroy-frontend tf-destroy-lambda-order tf-destroy-lambda-payment tf-destroy-lambda-notification tf-destroy-lambdas tf-destroy-all tf-destroy \
-	aws-plan aws-deploy lstk-init lstk-plan lstk-deploy lstk-verify lstk-destroy \
+	aws-plan aws-deploy aws-verify-csrf lstk-init lstk-plan lstk-deploy lstk-verify lstk-destroy \
 	lstk-start lstk-stop lstk-state-bucket lstk-route53-zone lstk-endpoints lstk-tf-shared-infra lstk-tf-services lstk-tf-frontend lstk-tf-lambda-order lstk-tf-lambda-payment lstk-tf-lambda-notification lstk-tf-lambdas lstk-tf-all lstk-tf-destroy-all lstk-redeploy \
+	lstk-redeploy-services lstk-redeploy-frontend lstk-redeploy-lambda-order lstk-redeploy-lambda-payment lstk-redeploy-lambda-notification lstk-redeploy-lambdas \
 	newrelic-lambda-preflight newrelic-lambda-verify-config
 
 # Variables
@@ -29,6 +30,7 @@ PIPELINE_IMAGE_TAG_ARG = $(if $(IMAGE_TAG),--image-tag "$(IMAGE_TAG)",)
 SERVICES_IMAGE_SOURCE ?= build
 LAMBDAS_IMAGE_SOURCE ?= build
 LAMBDA_TARGETS ?= order-processor,payment-processor,notification-sender
+CSRF_ENABLED ?= true
 
 # Terraform reserves TF_WORKSPACE as an environment variable. We keep the Make
 # variable name for CLI ergonomics (e.g. `make ... TF_WORKSPACE=dev`) but do not
@@ -48,49 +50,51 @@ help:
 	@echo "  make test           - Test all projects"
 	@echo "  make verify         - Clean, build, and test all projects"
 	@echo ""
-	@echo "EventPro API (Modular Monolith):"
-	@echo "  make api-clean      - Clean EventPro API"
-	@echo "  make api-build      - Build EventPro API"
-	@echo "  make api-test       - Test EventPro API"
-	@echo "  make api-run        - Run EventPro API locally"
-	@echo "  make api            - Clean, build, and test EventPro API"
-	@echo "  make backend-build  - Build API and backend Lambdas"
+	@echo "Backend & Services:"
+	@echo "  make build-backend             - Build API and all backend Lambdas"
+	@echo "  make build-services            - Build EventPro API"
+	@echo "  make clean-services            - Clean EventPro API"
+	@echo "  make api-test                  - Test EventPro API"
+	@echo "  make api-run                   - Run EventPro API locally"
+	@echo "  make api                       - Clean, build, and test EventPro API"
+	@echo ""
+	@echo "Backend Lambdas:"
+	@echo "  make build-lambdas             - Build all backend Lambdas"
+	@echo "  make build-order-processor     - Build order-processor Lambda"
+	@echo "  make build-payment-processor   - Build payment-processor Lambda"
+	@echo "  make build-notification-sender - Build notification-sender Lambda"
 	@echo ""
 	@echo "Individual Modules:"
-	@echo "  make core-build     - Build eventpro-core module"
-	@echo "  make event-build    - Build eventpro-event module"
-	@echo "  make order-build    - Build eventpro-order module"
-	@echo "  make payment-build  - Build eventpro-payment module"
-	@echo ""
-	@echo "Backend Lambda Applications:"
-	@echo "  make order-lambda-build        - Build order-processor Lambda"
-	@echo "  make payment-lambda-build      - Build payment-processor Lambda"
-	@echo "  make notification-build        - Build notification-sender Lambda"
+	@echo "  make build-core     - Build eventpro-core module"
+	@echo "  make build-event    - Build eventpro-event module"
+	@echo "  make build-order    - Build eventpro-order module"
+	@echo "  make build-payment  - Build eventpro-payment module"
 	@echo ""
 	@echo "Analytics Service Lambda:"
-	@echo "  make analytics-clean   - Clean Analytics Service"
-	@echo "  make analytics-build   - Build Analytics Service"
-	@echo "  make analytics-test    - Test Analytics Service"
-	@echo "  make analytics        - Clean, build, and test Analytics Service"
+	@echo "  make build-analytics - Build Analytics Service"
+	@echo "  make analytics-clean - Clean Analytics Service"
+	@echo "  make analytics-test  - Test Analytics Service"
+	@echo "  make analytics       - Clean, build, and test Analytics Service"
 	@echo ""
 	@echo "Web Frontend (React + Vite):"
-	@echo "  make web-build      - Build Frontend"
+	@echo "  make build-frontend - Build Web Frontend"
 	@echo "  make web-dev        - Start Frontend development server"
 	@echo "  make web-preview    - Preview Frontend production build"
-	@echo "  make frontend-build - Build Frontend (alias for web-build)"
 	@echo ""
 	@echo "Docker Images:"
 	@echo "  make docker-build   - Build EventPro API Docker image"
 	@echo "  make docker-analytics - Build Analytics Service Docker image"
 	@echo "  make lambda-build   - Build all Lambda Docker images"
+	@echo "  make lambda-build-order - Build order-processor Lambda image"
 	@echo "  make lambda-build-payment - Build payment-processor Lambda image"
 	@echo "  make lambda-build-notification - Build notification-sender Lambda image"
 	@echo ""
 	@echo "AWS Terraform Deploy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env.remote; IMAGE_TAG optional for services/lambdas):"
 	@echo "  make aws-plan                       - Plan every real AWS stack with target safeguards"
 	@echo "  make aws-deploy                     - Deploy every real AWS stack with target safeguards"
+	@echo "  make aws-verify-csrf                - Verify browser CSRF/CORS against the selected AWS workspace"
 	@echo "  make tf-deploy-shared-infra         - Deploy shared infrastructure stack"
-	@echo "  make tf-deploy-services IMAGE_TAG=x - Build/push/deploy services via pipeline-deploy.sh"
+	@echo "  make tf-deploy-services IMAGE_TAG=x - Build/push/deploy services (CSRF_ENABLED=true|false)"
 	@echo "  make tf-deploy-frontend             - Deploy frontend Terraform stack"
 	@echo "  make tf-deploy-lambda-order IMAGE_TAG=x - Build/push/deploy order lambda via pipeline-deploy.sh"
 	@echo "  make tf-deploy-lambda-payment IMAGE_TAG=x - Build/push/deploy payment lambda via pipeline-deploy.sh"
@@ -131,6 +135,12 @@ help:
 	@echo "  make lstk-tf-all                    - Plan/apply shared, services, frontend, lambdas"
 	@echo "  make lstk-tf-destroy-all            - Destroy frontend, lambdas, services, then shared infra in LocalStack"
 	@echo "  make lstk-redeploy                  - Destroy all LocalStack resources, then apply all fresh"
+	@echo "  make lstk-redeploy-services         - Rebuild and redeploy only the API services stack"
+	@echo "  make lstk-redeploy-frontend         - Rebuild, sync, and invalidate only the frontend stack"
+	@echo "  make lstk-redeploy-lambda-order     - Rebuild and redeploy only order-processor"
+	@echo "  make lstk-redeploy-lambda-payment   - Rebuild and redeploy only payment-processor"
+	@echo "  make lstk-redeploy-lambda-notification - Rebuild and redeploy only notification-sender"
+	@echo "  make lstk-redeploy-lambdas          - Rebuild and redeploy all three Lambdas only"
 	@echo ""
 	@echo "Local Development:"
 	@echo "  make local-setup    - Complete first-time setup (all steps)"
@@ -195,28 +205,31 @@ test-no-cache:
 # EventPro API (Modular Monolith)
 # ============================================================================
 
-api-clean:
+clean-services:
 	@echo "Cleaning EventPro API..."
 	cd $(API_DIR) && ./gradlew clean
 
-api-build:
+build-services:
 	@echo "Building EventPro API..."
 	cd $(API_DIR) && ./gradlew build
 
-order-lambda-build:
+build-order-processor:
 	@echo "Building order-processor Lambda..."
 	cd $(ORDER_DIR) && ./gradlew build
 
-payment-lambda-build:
+build-payment-processor:
 	@echo "Building payment-processor Lambda..."
 	cd $(PAYMENT_DIR) && ./gradlew build
 
-notification-build:
+build-notification-sender:
 	@echo "Building notification-sender Lambda..."
 	cd $(NOTIFICATION_DIR) && ./gradlew build
 
-backend-build: api-build order-lambda-build payment-lambda-build notification-build
-	@echo "Backend build complete!"
+build-lambdas: build-order-processor build-payment-processor build-notification-sender
+	@echo "All Lambdas build complete!"
+
+build-backend: build-services build-lambdas
+	@echo "All projects build complete!"
 
 api-test:
 	@echo "Testing EventPro API..."
@@ -226,26 +239,26 @@ api-run:
 	@echo "Running EventPro API locally..."
 	cd $(API_DIR) && ./gradlew :eventpro-api:bootRun
 
-api: api-clean api-build api-test
+api: clean-services build-services api-test
 	@echo "EventPro API verification complete!"
 
 # ============================================================================
 # Individual Modules
 # ============================================================================
 
-core-build:
+build-core:
 	@echo "Building eventpro-core module..."
 	cd $(API_DIR) && ./gradlew :eventpro-core:build
 
-event-build:
+build-event:
 	@echo "Building eventpro-event module..."
 	cd $(API_DIR) && ./gradlew :eventpro-event:build
 
-order-build:
+build-order:
 	@echo "Building eventpro-order module..."
 	cd $(API_DIR) && ./gradlew :eventpro-order:build
 
-payment-build:
+build-payment:
 	@echo "Building eventpro-payment module..."
 	cd $(API_DIR) && ./gradlew :eventpro-payment:build
 
@@ -261,7 +274,7 @@ analytics-clean:
 		echo "Analytics Service directory not found: $(ANALYTICS_DIR)"; \
 	fi
 
-analytics-build:
+build-analytics:
 	@echo "Building Analytics Service..."
 	@if [ -d "$(ANALYTICS_DIR)" ]; then \
 		cd $(ANALYTICS_DIR) && ./gradlew build; \
@@ -277,19 +290,16 @@ analytics-test:
 		echo "Analytics Service directory not found: $(ANALYTICS_DIR)"; \
 	fi
 
-analytics: analytics-clean analytics-build analytics-test
+analytics: analytics-clean build-analytics analytics-test
 	@echo "Analytics Service verification complete!"
 
 # ============================================================================
 # Web Frontend
 # ============================================================================
 
-web-build:
+build-frontend:
 	@echo "Building Web Frontend..."
 	cd $(WEB_DIR) && npm run build
-
-frontend-build: web-build
-	@echo "Frontend build complete!"
 
 web-dev:
 	@echo "Starting Web development server..."
@@ -362,6 +372,7 @@ tf-deploy-services:
 		--workspace "$(TF_WORKSPACE)" \
 		--only services \
 		--services-image-source "$(SERVICES_IMAGE_SOURCE)" \
+		--csrf-enabled "$(CSRF_ENABLED)" \
 		$(PIPELINE_IMAGE_TAG_ARG) \
 		$(PIPELINE_ACTION_FLAG)
 
@@ -427,6 +438,7 @@ tf-deploy-all:
 		--workspace "$(TF_WORKSPACE)" \
 		--only all \
 		--services-image-source "$(SERVICES_IMAGE_SOURCE)" \
+		--csrf-enabled "$(CSRF_ENABLED)" \
 		--lambdas-image-source "$(LAMBDAS_IMAGE_SOURCE)" \
 		--lambdas "$(LAMBDA_TARGETS)" \
 		$(PIPELINE_IMAGE_TAG_ARG) \
@@ -436,7 +448,15 @@ aws-plan:
 	@$(MAKE) tf-deploy-all TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) PIPELINE_ACTION=plan IMAGE_TAG=$(IMAGE_TAG)
 
 aws-deploy:
-	@$(MAKE) tf-deploy-all TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) PIPELINE_ACTION=apply IMAGE_TAG=$(IMAGE_TAG)
+	@$(MAKE) tf-deploy-all TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) PIPELINE_ACTION=apply IMAGE_TAG=$(IMAGE_TAG) CSRF_ENABLED=$(CSRF_ENABLED)
+
+aws-verify-csrf:
+	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
+		[ -n "$${DOMAIN_NAME:-}" ] || { echo "DOMAIN_NAME is required in $(TF_ENV_FILE) or the environment" >&2; exit 1; }; \
+		./scripts/verify-browser-security.sh \
+			--api-url "https://$(TF_WORKSPACE)-api.$$DOMAIN_NAME" \
+			--app-origin "https://$(TF_WORKSPACE)-app.$$DOMAIN_NAME" \
+			--csrf-enabled "$(CSRF_ENABLED)"
 
 tf-services-output:
 	@cd backend/services/terraform && \
@@ -616,6 +636,33 @@ lstk-redeploy:
 	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
 	@$(MAKE) lstk-destroy LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
 	@./scripts/lstk-deploy.sh --env-file "$(LSTK_ENV_FILE)" --compose-file "$(LSTK_COMPOSE_FILE)" --workspace "$(LSTK_WORKSPACE)" --apply --only all --verify-after
+
+# Fast, non-destructive LocalStack redeploys. These retain the existing
+# infrastructure and state, rebuild only the selected artifact, and apply only
+# its Terraform stack. Run `make lstk-deploy` once before using these targets.
+lstk-redeploy-services:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-services LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+
+lstk-redeploy-frontend:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-frontend LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+
+lstk-redeploy-lambda-order:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-lambda-order LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+
+lstk-redeploy-lambda-payment:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-lambda-payment LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+
+lstk-redeploy-lambda-notification:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-lambda-notification LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+
+lstk-redeploy-lambdas:
+	@$(MAKE) lstk-init LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
+	@$(MAKE) lstk-tf-lambdas LSTK_TF_ACTION=apply LSTK_ENV_FILE=$(LSTK_ENV_FILE) LSTK_COMPOSE_FILE=$(LSTK_COMPOSE_FILE) LSTK_WORKSPACE=$(LSTK_WORKSPACE)
 
 # ============================================================================
 # Local Development (Docker Compose + LocalStack)

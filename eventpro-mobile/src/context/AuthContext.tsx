@@ -83,8 +83,8 @@ export function AuthProvider({ children, api, getAccessToken, onUnauthorizedRef 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    getAccessToken()
-      .then((token) => {
+    Promise.resolve(getAccessToken())
+      .then((token: string | null) => {
         if (cancelled) return;
         if (!token || (typeof token === "string" && !token.trim())) {
           setUserState(null);
@@ -93,7 +93,7 @@ export function AuthProvider({ children, api, getAccessToken, onUnauthorizedRef 
         }
         return api.getCurrentUser();
       })
-      .then((u) => {
+      .then((u: User | void) => {
         if (!cancelled && u !== undefined) setUserState(u);
       })
       .catch(() => {

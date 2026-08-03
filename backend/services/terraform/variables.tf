@@ -51,6 +51,12 @@ variable "cors_allowed_origins" {
   default     = []
 }
 
+variable "csrf_enabled" {
+  description = "Enable browser CSRF enforcement. Keep true except during a controlled client rollout or emergency rollback."
+  type        = bool
+  default     = true
+}
+
 variable "shared_infra_state_bucket" {
   description = "S3 bucket containing the shared infrastructure Terraform state"
   type        = string

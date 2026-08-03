@@ -20,12 +20,14 @@ import com.stripe.param.PaymentIntentRetrieveParams;
 import com.stripe.param.RefundCreateParams;
 import com.stripe.param.TransferCreateParams;
 import com.stripe.param.checkout.SessionCreateParams;
+import com.stripe.net.RequestOptions;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
+import java.util.Map;
 
 /**
  * Implementation of StripeService using Stripe Java SDK.
@@ -57,13 +59,20 @@ public class StripeServiceImpl implements StripeService {
     
     @Override
     public String createPaymentIntent(BigDecimal amount, String currency) throws StripeException {
+        return createPaymentIntent(amount, currency, Map.of(), null).clientSecret();
+    }
+
+    @Override
+    public CreatedPaymentIntent createPaymentIntent(BigDecimal amount, String currency,
+                                                     Map<String, String> metadata,
+                                                     String idempotencyKey) throws StripeException {
         ensureStripeConfigured();
         log.debug("Creating payment intent: amount={}, currency={}", amount, currency);
         
         // Convert amount to cents (Stripe uses smallest currency unit)
         long amountInCents = amount.multiply(BigDecimal.valueOf(100)).longValue();
         
-        PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+        PaymentIntentCreateParams.Builder builder = PaymentIntentCreateParams.builder()
                 .setAmount(amountInCents)
                 .setCurrency(currency != null ? currency : "usd")
                 .setAutomaticPaymentMethods(
@@ -71,14 +80,20 @@ public class StripeServiceImpl implements StripeService {
                                 .setEnabled(true)
                                 .setAllowRedirects(PaymentIntentCreateParams.AutomaticPaymentMethods.AllowRedirects.NEVER)
                                 .build()
-                )
-                .build();
-        
-        PaymentIntent paymentIntent = PaymentIntent.create(params);
-        log.info("Payment intent created: id={}, clientSecret={}", 
-                paymentIntent.getId(), paymentIntent.getClientSecret());
-        
-        return paymentIntent.getClientSecret();
+                );
+        if (metadata != null) metadata.forEach(builder::putMetadata);
+        RequestOptions options = idempotencyKey == null || idempotencyKey.isBlank()
+                ? null
+                : RequestOptions.builder().setIdempotencyKey(idempotencyKey).build();
+        PaymentIntent paymentIntent = PaymentIntent.create(builder.build(), options);
+        log.info("Payment intent created: id={}", paymentIntent.getId());
+        return new CreatedPaymentIntent(paymentIntent.getId(), paymentIntent.getClientSecret());
+    }
+
+    @Override
+    public PaymentIntent retrievePaymentIntent(String paymentIntentId) throws StripeException {
+        ensureStripeConfigured();
+        return PaymentIntent.retrieve(paymentIntentId);
     }
     
     @Override
@@ -102,6 +117,11 @@ public class StripeServiceImpl implements StripeService {
     
     @Override
     public String refundPayment(String paymentIntentId) throws StripeException {
+        return refundPayment(paymentIntentId, null);
+    }
+
+    @Override
+    public String refundPayment(String paymentIntentId, String idempotencyKey) throws StripeException {
         ensureStripeConfigured();
         log.debug("Refunding payment intent: id={}", paymentIntentId);
         
@@ -119,7 +139,9 @@ public class StripeServiceImpl implements StripeService {
                 .setPaymentIntent(paymentIntentId)
                 .build();
         
-        Refund refund = Refund.create(params);
+        RequestOptions options = idempotencyKey == null || idempotencyKey.isBlank()
+                ? null : RequestOptions.builder().setIdempotencyKey(idempotencyKey).build();
+        Refund refund = Refund.create(params, options);
         log.info("Payment refunded: paymentIntentId={}, refundId={}", 
                 paymentIntentId, refund.getId());
         

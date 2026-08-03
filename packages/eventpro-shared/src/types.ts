@@ -145,6 +145,8 @@ export interface TicketType {
   price: number;
   totalQuantity: number;
   availableQuantity: number;
+  reservedQuantity: number;
+  soldQuantity: number;
   saleStartDate?: string;
   saleEndDate?: string;
   status: "ACTIVE" | "INACTIVE" | "SOLD_OUT";
@@ -233,15 +235,20 @@ export type TicketTypeEnum = "VIP" | "REGULAR" | "EARLY_BIRD";
 export type TicketStatusEnum = "AVAILABLE" | "SOLD" | "RESERVED" | "USED" | "CANCELLED" | "REFUNDED";
 
 export interface CartItemResponse {
+  kind?: "GENERAL_ADMISSION" | "SEAT";
   id: string;
+  ticketId?: string;
+  eventId?: string;
   name: string;
   ticketType: TicketTypeEnum;
   ticketStatus: TicketStatusEnum;
   price: number;
+  unitPrice?: number;
   startTime?: string;
   endTime?: string;
   eventIdType?: string;
   quantity: number;
+  expiresAt?: string;
 }
 
 export interface CartResponse {
@@ -250,7 +257,27 @@ export interface CartResponse {
   quantity: number;
   totalCost: number;
   reservedUntil?: string;
+  expiresAt?: string;
+  serverTime?: string;
   message?: string;
+}
+
+export interface CheckoutSession {
+  id: string;
+  status: "PENDING" | "COMPLETED" | "CANCELLED" | "EXPIRED" | "PAYMENT_FAILED" | "REFUND_PENDING" | "REFUNDED";
+  expiresAt: string;
+  serverTime: string;
+  subtotal: number;
+  addonAmount: number;
+  donationAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  walletAmount: number;
+  currency: string;
+  clientSecret?: string;
+  resumeToken?: string;
+  checkoutUrl?: string;
+  orderId?: string;
 }
 
 export interface AddToCartRequest {
