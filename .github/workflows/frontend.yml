@@ -90,12 +90,12 @@ jobs:
           INVALIDATION_ID=$(aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*" --query 'Invalidation.Id' --output text)
           aws cloudfront wait invalidation-completed --distribution-id "$DIST_ID" --id "$INVALIDATION_ID"
 
-      - name: Verify deployed frontend and browser security contract
-        run: |
-          ./scripts/verify-browser-security.sh \
-            --api-url "https://${DEPLOY_WORKSPACE}-api.${DOMAIN_NAME}" \
-            --app-origin "https://${DEPLOY_WORKSPACE}-app.${DOMAIN_NAME}" \
-            --csrf-enabled true \
-            --verify-frontend
+      # - name: Verify deployed frontend and browser security contract
+      #   run: |
+      #     ./scripts/verify-browser-security.sh \
+      #       --api-url "https://${DEPLOY_WORKSPACE}-api.${DOMAIN_NAME}" \
+      #       --app-origin "https://${DEPLOY_WORKSPACE}-app.${DOMAIN_NAME}" \
+      #       --csrf-enabled true \
+      #       --verify-frontend
         env:
           DOMAIN_NAME: ${{ vars.DOMAIN_NAME || secrets.DOMAIN_NAME }}

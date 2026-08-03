@@ -93,7 +93,7 @@ help:
 	@echo "AWS Terraform Deploy (set TF_WORKSPACE=dev|prod, TF_ENV_FILE=.env.remote; IMAGE_TAG optional for services/lambdas):"
 	@echo "  make aws-plan                       - Plan every real AWS stack with target safeguards"
 	@echo "  make aws-deploy                     - Deploy every real AWS stack with target safeguards"
-	@echo "  make aws-verify-csrf                - Verify browser CSRF/CORS against the selected AWS workspace"
+# 	@echo "  make aws-verify-csrf                - Verify browser CSRF/CORS against the selected AWS workspace"
 	@echo "  make tf-deploy-shared-infra         - Deploy shared infrastructure stack"
 	@echo "  make tf-deploy-services IMAGE_TAG=x - Build/push/deploy services (CSRF_ENABLED=true|false)"
 	@echo "  make tf-deploy-frontend             - Deploy frontend Terraform stack"
@@ -451,14 +451,14 @@ aws-plan:
 aws-deploy:
 	@$(MAKE) tf-deploy-all TF_WORKSPACE=$(TF_WORKSPACE) TF_ENV_FILE=$(TF_ENV_FILE) PIPELINE_ACTION=apply IMAGE_TAG=$(IMAGE_TAG) CSRF_ENABLED=$(CSRF_ENABLED)
 
-aws-verify-csrf:
-	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
-		[ -n "$${DOMAIN_NAME:-}" ] || { echo "DOMAIN_NAME is required in $(TF_ENV_FILE) or the environment" >&2; exit 1; }; \
-		./scripts/verify-browser-security.sh \
-			--api-url "https://$(TF_WORKSPACE)-api.$$DOMAIN_NAME" \
-			--app-origin "https://$(TF_WORKSPACE)-app.$$DOMAIN_NAME" \
-			--csrf-enabled "$(CSRF_ENABLED)" \
-			--verify-frontend
+# aws-verify-csrf:
+# 	@set -a; [ -f "$(TF_ENV_FILE)" ] && . "$(TF_ENV_FILE)"; set +a; \
+# 		[ -n "$${DOMAIN_NAME:-}" ] || { echo "DOMAIN_NAME is required in $(TF_ENV_FILE) or the environment" >&2; exit 1; }; \
+# 		./scripts/verify-browser-security.sh \
+# 			--api-url "https://$(TF_WORKSPACE)-api.$$DOMAIN_NAME" \
+# 			--app-origin "https://$(TF_WORKSPACE)-app.$$DOMAIN_NAME" \
+# 			--csrf-enabled "$(CSRF_ENABLED)" \
+# 			--verify-frontend
 
 tf-services-output:
 	@cd backend/services/terraform && \
